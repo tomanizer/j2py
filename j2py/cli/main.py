@@ -30,9 +30,9 @@ def translate(
         [], "--config", "-c", help="Extra config file(s) to layer on top of defaults."
     ),
     llm: bool = typer.Option(
-        True, "--llm/--no-llm", help="Use LLM for complex logic (requires ANTHROPIC_API_KEY)."
+        True, "--llm/--no-llm", help="Use LLM for complex logic (requires LLM API key)."
     ),
-    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="Claude model to use."),
+    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model to use."),
     validate: bool = typer.Option(
         True, "--validate/--no-validate", help="Run mypy + ruff on output."
     ),
