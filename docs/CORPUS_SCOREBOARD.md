@@ -18,6 +18,14 @@ The committed baseline lives at:
 tests/fixtures/corpus/spring-sample-baseline.json
 ```
 
+Current committed baseline:
+
+- parse success rate: 100.00%
+- generated Python syntax success rate: 100.00%
+- average skeleton coverage: 84.33%
+- full-coverage files: 8 of 25
+- files with unhandled constructs: 16 of 25
+
 Run the scoreboard against an existing checkout:
 
 ```bash

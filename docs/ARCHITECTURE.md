@@ -28,7 +28,7 @@ Java source file(s)
 │   ├── statements.py    Statement emitter              │
 │   └── expressions.py   Expression emitter             │
 │                                                       │
-│   Returns (skeleton_source: str, coverage: float)     │
+│   Returns source, diagnostics, and coverage           │
 └───────┬───────────────────────────────────────────────┘
         │  coverage < 1.0
         ▼
@@ -64,7 +64,7 @@ Java source file(s)
 - Does not modify the AST or produce any Python output
 
 ### `translate/` — Rule-based translation
-- `skeleton.py`: orchestrates the rule layer; returns `(python_str, coverage_float)`
+- `skeleton.py`: orchestrates the rule layer; returns source, diagnostics, and coverage
   - `coverage = 1.0` means the rule layer handled everything; LLM is skipped
   - Also exposes structured diagnostics via `translate_skeleton_with_diagnostics`
 - `classes.py`, `statements.py`, `expressions.py`: direct tree-sitter node visitors for
@@ -78,14 +78,17 @@ Java source file(s)
 ### `llm/` — LLM completion
 - Called only when `skeleton.py` coverage < 1.0
 - `prompts.py`: builds a structured prompt with the Java source, partial skeleton, and
-  optional project context; output is plain Python source (no markdown fences)
-- `client.py`: Anthropic SDK wrapper; disk-cached at `~/.cache/j2py/llm/`; 3 retries
-  with exponential back-off via `tenacity`
+  project context plus rule diagnostics; output is plain Python source (no markdown
+  fences)
+- `client.py`: Anthropic SDK wrapper with API-key preflight; disk-cached at
+  `~/.cache/j2py/llm/`; cache keys include prompt version, file hashes, model, config
+  fingerprint, diagnostics, and validation feedback; 3 retries with exponential
+  back-off via `tenacity`
 
 ### `validate/` — Output validation
 - `checks.py`: three-stage check: syntax → ruff → mypy
 - Returns `ValidationResult`; never raises; errors are collected, not thrown
-- Used by the CLI after writing output; can be run standalone
+- Exposed on `TranslationResult` when validation is requested; can be run standalone
 
 ### `config/` — Layered configuration
 - `default.py`: canonical type, collection, exception, import, and literal maps
@@ -94,13 +97,16 @@ Java source file(s)
 - `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`
 
 ### `pipeline.py` — Orchestrator
-- `translate_file(path, cfg, use_llm, model) → TranslationResult`
-- Calls parse → analyze → skeleton → (optionally) LLM in sequence
-- Single public entry point; CLI and future batch runner both call this
+- `translate_file(path, cfg, use_llm, model, validate) → TranslationResult`
+- `translate_directory(source_root, output_root, cfg, use_llm, model, validate) →
+  DirectoryTranslationResult`
+- Calls parse → analyze → skeleton → (optionally) LLM → (optionally) validation
+- Directory mode builds the dependency graph and translates files in dependency order
 
 ### `cli/` — User interface
 - `typer`-based CLI; `j2py translate` and `j2py analyze`
-- All output via `rich`; progress bar for directory translation
+- All output via `rich`; directory translation reports order, per-file confidence,
+  diagnostics counts, validation status, and cycle warnings
 
 ## Key design decisions
 
@@ -112,13 +118,15 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Layered rule → LLM pipeline | [ADR 0003](decisions/0003-layered-translation-pipeline.md) |
 | Claude (Anthropic) as LLM backend | [ADR 0004](decisions/0004-claude-as-llm-backend.md) |
 | Python 3.11+ output with type hints | [ADR 0005](decisions/0005-python-311-target-with-type-hints.md) |
+| Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md) |
+| Type declaration translation | [ADR 0007](decisions/0007-type-declaration-translation.md) |
 
 ## Dependency rules
 
 - `parse/` has no imports from other j2py packages
 - `analyze/` imports `parse/` only
 - `translate/` imports `parse/`, `analyze/`, `config/`
-- `llm/` imports `config/` only (no parse/translate imports)
+- `llm/` has no parse/analyze/translate imports; pipeline passes context into it
 - `validate/` imports nothing from j2py
 - `pipeline.py` is the single place that imports across all stages
 - `cli/` imports `pipeline.py` and `config/` only
