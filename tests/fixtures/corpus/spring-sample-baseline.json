@@ -11,20 +11,20 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.6657728543327037,
+    "average_coverage": 0.6896329146557838,
     "files_scanned": 25,
-    "files_with_unhandled": 20,
-    "full_coverage_files": 3,
+    "files_with_unhandled": 18,
+    "full_coverage_files": 5,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.96,
     "top_unhandled_node_types": [
       [
-        "constructor_declaration",
-        17
-      ],
-      [
         "class_declaration",
         14
+      ],
+      [
+        "method_reference",
+        12
       ],
       [
         "lambda_expression",
@@ -35,8 +35,8 @@
         12
       ],
       [
-        "method_reference",
-        10
+        "constructor_declaration",
+        11
       ],
       [
         "interface_declaration",
@@ -44,10 +44,6 @@
       ],
       [
         "object_creation_expression",
-        2
-      ],
-      [
-        "explicit_constructor_invocation",
         2
       ],
       [
@@ -73,20 +69,20 @@
     ],
     "top_unhandled_reasons": [
       [
-        "overloaded method __init__ requires LLM completion",
-        17
-      ],
-      [
         "unsupported class member class_declaration",
         14
+      ],
+      [
+        "unsupported expression method_reference",
+        12
       ],
       [
         "unsupported expression lambda_expression",
         12
       ],
       [
-        "unsupported expression method_reference",
-        10
+        "overloaded method __init__ requires manual dispatch",
+        11
       ],
       [
         "unsupported top-level declaration interface_declaration",
@@ -97,23 +93,19 @@
         2
       ],
       [
-        "overloaded method add_for_feature_component requires LLM completion",
+        "overloaded method add_for_feature_component requires manual dispatch",
         2
       ],
       [
-        "overloaded method get_or_add_for_feature_component requires LLM completion",
+        "overloaded method get_or_add_for_feature_component requires manual dispatch",
         2
       ],
       [
-        "overloaded method add requires LLM completion",
+        "overloaded method add requires manual dispatch",
         2
       ],
       [
-        "unsupported statement explicit_constructor_invocation",
-        2
-      ],
-      [
-        "overloaded method and_ requires LLM completion",
+        "overloaded method and_ requires manual dispatch",
         2
       ],
       [
@@ -121,11 +113,11 @@
         2
       ],
       [
-        "overloaded method with_ requires LLM completion",
+        "overloaded method with_ requires manual dispatch",
         2
       ],
       [
-        "overloaded method register_reflection_hints requires LLM completion",
+        "overloaded method register_reflection_hints requires manual dispatch",
         2
       ],
       [

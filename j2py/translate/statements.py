@@ -57,6 +57,9 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "try_statement":
         return _translate_try(node, ctx, indent=indent)
 
+    if node.type == "explicit_constructor_invocation":
+        return _translate_explicit_constructor_invocation(node, ctx, indent=indent)
+
     if node.type == "throw_statement":
         return _translate_throw(node, ctx, indent=indent)
 
@@ -258,6 +261,31 @@ def _translate_try(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
         )
 
     return lines
+
+
+def _translate_explicit_constructor_invocation(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    args_node = first_child_by_type(node, "argument_list")
+    args = translate_expression(args_node, ctx) if args_node is not None else ""
+    target = node.named_children[0] if node.named_children else None
+
+    if target is not None and target.type == "super":
+        ctx.diagnostics.record(node, supported=True, reason="translated super constructor call")
+        return [f"{indent}super().__init__({args})"]
+
+    ctx.diagnostics.record(
+        node,
+        supported=False,
+        reason="constructor delegation requires overload merge",
+    )
+    return [
+        f"{indent}# TODO(j2py): unsupported constructor delegation {node.text!r}",
+        f"{indent}pass",
+    ]
 
 
 def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:

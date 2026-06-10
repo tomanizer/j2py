@@ -58,22 +58,6 @@ TARGETS: tuple[TranslationTarget, ...] = (
             "class Builder:",
         ),
     ),
-    TranslationTarget(
-        fixture="Overloads.java",
-        issue=8,
-        reason="constructor chaining and overload dispatch are not implemented",
-        expected_fragments=(
-            "@overload",
-            "def __init__(self, name: str = \"default\") -> None:",
-            "self.name = name",
-            "def add(self, left: str | int, right: str | int) -> str | int:",
-        ),
-        forbidden_fragments=(
-            "TODO(j2py): overloaded method __init__ requires LLM completion",
-            "TODO(j2py): overloaded method add requires LLM completion",
-            "__j2py_todo__",
-        ),
-    ),
 )
 
 

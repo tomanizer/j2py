@@ -141,8 +141,14 @@ def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
     )
 
     assert coverage < 1.0
-    assert "TODO(j2py): overloaded method get requires LLM completion" in python_source
-    assert "def get(" not in python_source
+    assert "@overload" in python_source
+    assert "def get(self, value: int) -> int: ..." in python_source
+    assert "def get(self, value: str) -> int: ..." in python_source
+    assert (
+        "TODO(j2py): overloaded method get requires manual dispatch for signatures: "
+        "get(value: int); get(value: str)"
+    ) in python_source
+    assert "def get(self, *args: object) -> object:" in python_source
     _assert_valid_python(python_source)
 
 
@@ -332,6 +338,38 @@ def test_graduated_issue_2_target_fixtures_translate(
     for fragment in expected_fragments:
         assert fragment in result.source
     _assert_valid_python(result.source)
+
+
+def test_graduated_issue_8_overloads_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "Overloads.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import overload" in result.source
+    assert "@overload" in result.source
+    assert 'def __init__(self, name: str = "default") -> None:' in result.source
+    assert "self.name = name" in result.source
+    assert "def add(self, left: str | int, right: str | int) -> str | int:" in result.source
+    assert "return left + right" in result.source
+    _assert_valid_python(result.source)
+
+
+def test_super_constructor_invocation_and_base_class_translate() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Child extends Parent {
+            public Child(String name) {
+                super(name);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "class Child(Parent):" in python_source
+    assert "super().__init__(name)" in python_source
+    _assert_valid_python(python_source)
 
 
 def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:

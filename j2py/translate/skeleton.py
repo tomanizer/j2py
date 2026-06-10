@@ -44,10 +44,14 @@ def translate_skeleton_with_diagnostics(
     diagnostics = TranslationDiagnostics()
     class_nodes = top_level_classes(parsed.root)
 
-    lines = ["from __future__ import annotations", "", ""]
     class_blocks: list[list[str]] = []
     for class_node in class_nodes:
         class_blocks.append(translate_class(class_node, cfg, diagnostics))
+
+    lines = ["from __future__ import annotations"]
+    if any(line.strip() == "@overload" for block in class_blocks for line in block):
+        lines.extend(["", "from typing import overload"])
+    lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):
         if index:
