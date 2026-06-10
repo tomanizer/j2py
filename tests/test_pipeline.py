@@ -4,8 +4,10 @@ import ast
 from pathlib import Path
 
 import j2py.llm.client as llm_client
+import j2py.pipeline as pipeline
 from j2py.config.loader import ConfigLoader
 from j2py.pipeline import translate_directory, translate_file
+from j2py.validate.checks import ValidationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CFG = ConfigLoader().add_defaults().build()
@@ -16,6 +18,9 @@ def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
 
     assert not result.used_llm
     assert result.confidence == 1.0
+    assert result.diagnostics is not None
+    assert result.diagnostics.coverage == 1.0
+    assert result.validation is None
     assert result.python_source == (FIXTURES / "python" / "HelloWorld.py").read_text()
     ast.parse(result.python_source)
 
@@ -25,6 +30,8 @@ def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
 
     assert not result.used_llm
     assert result.confidence < 1.0
+    assert result.diagnostics is not None
+    assert result.diagnostics.unhandled
     assert "TODO(j2py): verify default value for field enabled" in result.python_source
     assert result.python_source == (FIXTURES / "python" / "Fields.py").read_text()
     ast.parse(result.python_source)
@@ -53,7 +60,44 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
 
     assert result.used_llm
     assert result.confidence < 1.0
+    assert result.diagnostics is not None
     assert result.python_source == "class Fields:\n    pass\n"
+
+
+def test_translate_file_can_validate_generated_source(monkeypatch) -> None:
+    def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
+        assert "class HelloWorld" in source
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(
+        FIXTURES / "java" / "HelloWorld.java",
+        cfg=CFG,
+        use_llm=False,
+        validate=True,
+    )
+
+    assert result.validation is not None
+    assert result.validation.ok
+
+
+def test_translate_file_reports_validation_failure_for_invalid_llm_output(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "translate_with_llm", lambda **kwargs: "def broken(:\n")
+
+    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+
+    assert result.used_llm
+    assert result.validation is not None
+    assert not result.validation.ok
+    assert result.validation.syntax_errors
 
 
 def test_translate_directory_uses_dependency_order_and_package_paths(tmp_path: Path) -> None:
@@ -76,6 +120,31 @@ def test_translate_directory_uses_dependency_order_and_package_paths(tmp_path: P
         output / "com" / "example" / "Base.py",
         output / "com" / "example" / "Child.py",
     ]
+
+
+def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "A.java").write_text("package com.example; public class A {}")
+    calls: list[Path | None] = []
+
+    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
+        calls.append(path)
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_directory(source, output, cfg=CFG, use_llm=False, validate=True)
+
+    assert len(calls) == 1
+    assert result.files[0].validation is not None
+    assert result.files[0].validation.ok
 
 
 def test_translate_directory_surfaces_cycle_warnings(tmp_path: Path) -> None:

@@ -11,6 +11,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
+    from j2py.pipeline import TranslationResult
+    from j2py.validate.checks import ValidationResult
 
 app = typer.Typer(
     name="j2py",
@@ -65,25 +67,23 @@ def _translate_single(
     from j2py.pipeline import translate_file
 
     console.print(f"[bold]Translating[/bold] {source}")
-    result = translate_file(source, cfg=cfg, use_llm=llm, model=model)
+    result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
+    _print_result_summary(result)
 
     if dry_run:
         console.print(result.python_source)
+        if validate and result.validation is not None and not result.validation.ok:
+            raise typer.Exit(code=1)
         return
 
     dest = output or source.with_suffix(".py")
     dest.write_text(result.python_source)
     console.print(f"[green]Written:[/green] {dest}")
 
-    if validate:
-        from j2py.validate.checks import validate_file
-        vr = validate_file(dest)
-        if vr.ok:
-            console.print("[green]Validation passed[/green]")
-        else:
-            console.print("[yellow]Validation issues:[/yellow]")
-            for err in vr.syntax_errors + vr.mypy_errors + vr.ruff_errors:
-                console.print(f"  {err}")
+    if validate and result.validation is not None:
+        _print_validation(result.validation)
+        if not result.validation.ok:
+            raise typer.Exit(code=1)
 
 
 def _translate_dir(
@@ -102,7 +102,14 @@ def _translate_dir(
         console.print("[yellow]No .java files found.[/yellow]")
         return
 
-    batch = translate_directory(source, output, cfg=cfg, use_llm=llm, model=model)
+    batch = translate_directory(
+        source,
+        output,
+        cfg=cfg,
+        use_llm=llm,
+        model=model,
+        validate=validate,
+    )
     console.print("[bold]Translation order:[/bold]")
     for index, path in enumerate(batch.order, start=1):
         console.print(f"  {index}. {path.relative_to(source)}")
@@ -116,6 +123,7 @@ def _translate_dir(
         task = progress.add_task("Writing...", total=len(batch.files))
         for result in batch.files:
             progress.update(task, description=f"[cyan]{result.source_path.name}[/cyan]")
+            _print_result_summary(result)
             if dry_run:
                 console.print(f"\n[bold]{result.source_path}[/bold]")
                 console.print(result.python_source)
@@ -125,6 +133,18 @@ def _translate_dir(
             progress.advance(task)
 
     console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
+    failures = [
+        result
+        for result in batch.files
+        if result.validation is not None and not result.validation.ok
+    ]
+    if failures:
+        console.print("[yellow]Validation failures:[/yellow]")
+        for result in failures:
+            console.print(f"  {result.source_path}")
+            if result.validation is not None:
+                _print_validation(result.validation)
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -145,6 +165,27 @@ def analyze(
             console.print(
                 f"  [{kind}] {cls.name} — {len(cls.methods)} methods, {len(cls.fields)} fields"
             )
+
+
+def _print_result_summary(result: TranslationResult) -> None:
+    diagnostics = result.diagnostics
+    handled = len(diagnostics.handled) if diagnostics is not None else 0
+    unhandled = len(diagnostics.unhandled) if diagnostics is not None else 0
+    console.print(
+        f"[dim]{result.source_path.name}: confidence={result.confidence:.2f}, "
+        f"handled={handled}, unhandled={unhandled}, llm={result.used_llm}[/dim]",
+    )
+    if result.validation is not None:
+        _print_validation(result.validation)
+
+
+def _print_validation(validation: ValidationResult) -> None:
+    if validation.ok:
+        console.print("[green]Validation passed[/green]")
+        return
+    console.print("[yellow]Validation issues:[/yellow]")
+    for err in validation.syntax_errors + validation.mypy_errors + validation.ruff_errors:
+        console.print(f"  {err}")
 
 
 if __name__ == "__main__":

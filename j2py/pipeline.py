@@ -10,6 +10,8 @@ from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import parse_file
+from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.validate.checks import ValidationResult, validate_source
 
 
 @dataclass
@@ -19,6 +21,8 @@ class TranslationResult:
     used_llm: bool = False
     confidence: float = 1.0   # 0.0–1.0; <0.8 means LLM was needed for significant portions
     output_path: Path | None = None
+    diagnostics: TranslationDiagnostics | None = None
+    validation: ValidationResult | None = None
 
 
 @dataclass
@@ -36,14 +40,17 @@ def translate_file(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str = "claude-sonnet-4-6",
+    validate: bool = False,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
     parsed = parse_file(path)
     symbols = extract_symbols(parsed)
 
     # Layer 1: rule-based skeleton translation
-    from j2py.translate.skeleton import translate_skeleton
-    skeleton, coverage = translate_skeleton(parsed, symbols, cfg)
+    from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+    skeleton_result = translate_skeleton_with_diagnostics(parsed, symbols, cfg)
+    skeleton = skeleton_result.source
+    coverage = skeleton_result.coverage
 
     if use_llm and coverage < 1.0:
         from j2py.llm.client import translate_with_llm
@@ -57,11 +64,15 @@ def translate_file(
         python_source = skeleton
         used_llm = False
 
+    validation = validate_source(python_source, path.with_suffix(".py")) if validate else None
+
     return TranslationResult(
         source_path=path,
         python_source=python_source,
         used_llm=used_llm,
         confidence=coverage,
+        diagnostics=skeleton_result.diagnostics,
+        validation=validation,
     )
 
 
@@ -72,6 +83,7 @@ def translate_directory(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str = "claude-sonnet-4-6",
+    validate: bool = False,
 ) -> DirectoryTranslationResult:
     """Translate a directory using dependency order and package-relative outputs."""
     java_files = sorted(source_root.rglob("*.java"))
@@ -90,7 +102,13 @@ def translate_directory(
     results: list[TranslationResult] = []
     for path in ordered:
         symbols = symbols_by_path[path]
-        result = translate_file(path, cfg=cfg, use_llm=use_llm, model=model)
+        result = translate_file(
+            path,
+            cfg=cfg,
+            use_llm=use_llm,
+            model=model,
+            validate=validate,
+        )
         result.output_path = output_root / _output_relative_path(
             path,
             symbols.package,
