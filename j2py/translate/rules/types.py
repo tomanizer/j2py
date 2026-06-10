@@ -1,0 +1,95 @@
+"""Type annotation translation: Java type expressions → Python type hints."""
+
+from __future__ import annotations
+
+import re
+
+from j2py.config.loader import TranslationConfig
+
+
+def translate_type(java_type: str, cfg: TranslationConfig) -> str:
+    """Convert a Java type string to its Python equivalent.
+
+    Handles primitives, boxed types, generic collections, arrays, and
+    nested generics recursively.
+
+    Examples:
+        "int"              → "int"
+        "String"           → "str"
+        "List<String>"     → "list[str]"
+        "Map<String, Integer>" → "dict[str, int]"
+        "int[]"            → "list[int]"
+        "Optional<String>" → "str | None"
+    """
+    java_type = java_type.strip()
+
+    # Arrays
+    if java_type.endswith("[]"):
+        inner = translate_type(java_type[:-2], cfg)
+        return f"list[{inner}]"
+
+    # Varargs (int...)
+    if java_type.endswith("..."):
+        inner = translate_type(java_type[:-3], cfg)
+        return f"*{inner}"
+
+    # Generic: RawType<...>
+    generic_match = re.match(r"^(\w+)\s*<(.+)>$", java_type)
+    if generic_match:
+        raw = generic_match.group(1)
+        params_str = generic_match.group(2)
+        params = _split_type_params(params_str)
+
+        if raw == "Optional" and len(params) == 1:
+            inner = translate_type(params[0], cfg)
+            return f"{inner} | None"
+
+        py_raw = cfg.collection_map.get(raw) or cfg.type_map.get(raw) or raw
+        py_params = [translate_type(p, cfg) for p in params]
+
+        # Wildcard ? → Any
+        py_params = ["Any" if p.strip() in ("?", "? extends Object") else p for p in py_params]
+
+        return f"{py_raw}[{', '.join(py_params)}]"
+
+    # Wildcard alone
+    if java_type in ("?", "? extends Object"):
+        return "Any"
+
+    if java_type.startswith("? extends "):
+        return translate_type(java_type[len("? extends "):], cfg)
+
+    if java_type.startswith("? super "):
+        return translate_type(java_type[len("? super "):], cfg)
+
+    # Collection raw types
+    if java_type in cfg.collection_map:
+        return cfg.collection_map[java_type]
+
+    # Primitives + boxed
+    if java_type in cfg.type_map:
+        return cfg.type_map[java_type]
+
+    return java_type
+
+
+def _split_type_params(params_str: str) -> list[str]:
+    """Split comma-separated type params respecting nested angle brackets."""
+    depth = 0
+    current: list[str] = []
+    result: list[str] = []
+    for ch in params_str:
+        if ch == "<":
+            depth += 1
+            current.append(ch)
+        elif ch == ">":
+            depth -= 1
+            current.append(ch)
+        elif ch == "," and depth == 0:
+            result.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        result.append("".join(current).strip())
+    return result
