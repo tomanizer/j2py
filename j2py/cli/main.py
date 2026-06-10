@@ -95,28 +95,36 @@ def _translate_dir(
     validate: bool,
     dry_run: bool,
 ) -> None:
-    from j2py.pipeline import translate_file
+    from j2py.pipeline import translate_directory
 
     java_files = sorted(source.rglob("*.java"))
     if not java_files:
         console.print("[yellow]No .java files found.[/yellow]")
         return
 
-    output.mkdir(parents=True, exist_ok=True)
+    batch = translate_directory(source, output, cfg=cfg, use_llm=llm, model=model)
+    console.print("[bold]Translation order:[/bold]")
+    for index, path in enumerate(batch.order, start=1):
+        console.print(f"  {index}. {path.relative_to(source)}")
+    for warning in batch.warnings:
+        console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+    if not dry_run:
+        output.mkdir(parents=True, exist_ok=True)
 
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        task = progress.add_task("Translating...", total=len(java_files))
-        for jf in java_files:
-            progress.update(task, description=f"[cyan]{jf.name}[/cyan]")
-            result = translate_file(jf, cfg=cfg, use_llm=llm, model=model)
-            rel = jf.relative_to(source).with_suffix(".py")
-            dest = output / rel
-            if not dry_run:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_text(result.python_source)
+        task = progress.add_task("Writing...", total=len(batch.files))
+        for result in batch.files:
+            progress.update(task, description=f"[cyan]{result.source_path.name}[/cyan]")
+            if dry_run:
+                console.print(f"\n[bold]{result.source_path}[/bold]")
+                console.print(result.python_source)
+            elif result.output_path is not None:
+                result.output_path.parent.mkdir(parents=True, exist_ok=True)
+                result.output_path.write_text(result.python_source)
             progress.advance(task)
 
-    console.print(f"[green]Done.[/green] {len(java_files)} files → {output}")
+    console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
 
 
 @app.command()

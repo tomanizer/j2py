@@ -106,7 +106,7 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
     superclass: str | None = None
     super_node = node.child_by_field("superclass")
     if super_node:
-        type_node = super_node.child_by_field("type")
+        type_node = super_node.child_by_field("type") or _first_type_name(super_node)
         superclass = type_node.text if type_node else super_node.text
 
     interfaces: list[str] = []
@@ -140,6 +140,13 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
         methods=methods,
         line=node.location.line,
     )
+
+
+def _first_type_name(node: JavaNode) -> JavaNode | None:
+    for child in node.named_children:
+        if child.type in {"type_identifier", "scoped_type_identifier", "generic_type"}:
+            return child
+    return None
 
 
 def _parse_fields(node: JavaNode) -> list[FieldSymbol]:

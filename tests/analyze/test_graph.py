@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from j2py.analyze.graph import build_dependency_graph, translation_order
-from j2py.analyze.symbols import ClassSymbol, FileSymbols
+from j2py.analyze.symbols import ClassSymbol, FileSymbols, extract_symbols
+from j2py.parse.java_ast import parse_source
 
 
 def _symbols(path: str, class_name: str, *, superclass: str | None = None) -> FileSymbols:
@@ -35,3 +36,20 @@ def test_translation_order_warns_and_returns_cycle_members() -> None:
         order = translation_order(graph)
 
     assert sorted(order) == ["A.java", "B.java"]
+
+
+def test_dependency_graph_uses_imports_and_parsed_inheritance() -> None:
+    base = parse_source("package com.example; public class Base {}")
+    base.path = Path("Base.java")
+    imported = parse_source(
+        """
+        package com.example.child;
+        import com.example.Base;
+        public class Child extends Base {}
+        """,
+    )
+    imported.path = Path("Child.java")
+
+    graph = build_dependency_graph([extract_symbols(imported), extract_symbols(base)])
+
+    assert translation_order(graph) == ["Base.java", "Child.java"]
