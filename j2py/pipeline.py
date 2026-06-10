@@ -10,7 +10,7 @@ from pathlib import Path
 from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import FileSymbols, extract_symbols
 from j2py.config.loader import TranslationConfig
-from j2py.parse.java_ast import parse_file
+from j2py.parse.java_ast import ParsedFile, parse_file
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.validate.checks import ValidationResult, validate_source
 
@@ -46,6 +46,30 @@ def translate_file(
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
     parsed = parse_file(path)
     symbols = extract_symbols(parsed)
+    return _translate_parsed_file(
+        path,
+        parsed=parsed,
+        symbols=symbols,
+        cfg=cfg,
+        use_llm=use_llm,
+        model=model,
+        validate=validate,
+        validation_path=path.with_suffix(".py"),
+    )
+
+
+def _translate_parsed_file(
+    path: Path,
+    *,
+    parsed: ParsedFile,
+    symbols: FileSymbols,
+    cfg: TranslationConfig,
+    use_llm: bool,
+    model: str,
+    validate: bool,
+    validation_path: Path,
+) -> TranslationResult:
+    """Translate a file using already-parsed AST and symbols."""
 
     # Layer 1: rule-based skeleton translation
     from j2py.translate.skeleton import translate_skeleton_with_diagnostics
@@ -55,20 +79,40 @@ def translate_file(
 
     if use_llm and coverage < 1.0:
         from j2py.llm.client import translate_with_llm
+
+        java_source = path.read_text()
+        context = _project_context(symbols)
+        diagnostics_context = _diagnostics_context(skeleton_result.diagnostics)
+        config_fingerprint = _config_fingerprint(cfg)
+
         python_source = translate_with_llm(
-            java_source=path.read_text(),
+            java_source=java_source,
             partial_python=skeleton,
-            context=_project_context(symbols),
-            diagnostics=_diagnostics_context(skeleton_result.diagnostics),
-            config_fingerprint=_config_fingerprint(cfg),
+            context=context,
+            diagnostics=diagnostics_context,
+            validation_feedback="",
+            config_fingerprint=config_fingerprint,
             model=model,
         )
         used_llm = True
+        validation = validate_source(python_source, validation_path) if validate else None
+        if validation is not None and not validation.ok:
+            feedback = _validation_feedback(validation)
+            if feedback:
+                python_source = translate_with_llm(
+                    java_source=java_source,
+                    partial_python=skeleton,
+                    context=context,
+                    diagnostics=diagnostics_context,
+                    validation_feedback=feedback,
+                    config_fingerprint=config_fingerprint,
+                    model=model,
+                )
+                validation = validate_source(python_source, validation_path)
     else:
         python_source = skeleton
         used_llm = False
-
-    validation = validate_source(python_source, path.with_suffix(".py")) if validate else None
+        validation = validate_source(python_source, validation_path) if validate else None
 
     return TranslationResult(
         source_path=path,
@@ -78,6 +122,15 @@ def translate_file(
         diagnostics=skeleton_result.diagnostics,
         validation=validation,
     )
+
+
+def _validation_feedback(validation: ValidationResult, *, limit: int = 5) -> str:
+    errors = [
+        *validation.syntax_errors,
+        *validation.ruff_errors,
+        *validation.mypy_errors,
+    ]
+    return "\n".join(errors[:limit])
 
 
 def translate_directory(
@@ -106,18 +159,23 @@ def translate_directory(
     results: list[TranslationResult] = []
     for path in ordered:
         symbols = symbols_by_path[path]
-        result = translate_file(
-            path,
-            cfg=cfg,
-            use_llm=use_llm,
-            model=model,
-            validate=validate,
-        )
-        result.output_path = output_root / _output_relative_path(
+        parsed = parsed_files[java_files.index(path)]
+        output_path = output_root / _output_relative_path(
             path,
             symbols.package,
             source_root,
         )
+        result = _translate_parsed_file(
+            path,
+            parsed=parsed,
+            symbols=symbols,
+            cfg=cfg,
+            use_llm=use_llm,
+            model=model,
+            validate=validate,
+            validation_path=output_path,
+        )
+        result.output_path = output_path
         results.append(result)
 
     return DirectoryTranslationResult(

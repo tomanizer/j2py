@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from j2py.analyze.symbols import extract_symbols
-from j2py.parse.java_ast import parse_file
+from j2py.parse.java_ast import parse_file, parse_source
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "java"
 
@@ -29,3 +29,31 @@ def test_extract_hello_world_symbols():
     field_names = {f.name for f in cls.fields}
     assert "name" in field_names
     assert "count" in field_names
+
+
+def test_nested_declarations_are_inner_class_symbols() -> None:
+    parsed = parse_source(
+        """
+        package com.example;
+
+        public class Outer {
+            private String name;
+
+            public static class Inner {
+                public String value() { return "x"; }
+            }
+
+            public interface Named {
+                String name();
+            }
+        }
+        """,
+    )
+
+    symbols = extract_symbols(parsed)
+
+    assert [cls.name for cls in symbols.classes] == ["Outer"]
+    outer = symbols.classes[0]
+    assert [inner.name for inner in outer.inner_classes] == ["Inner", "Named"]
+    assert outer.fields[0].name == "name"
+    assert outer.inner_classes[0].methods[0].name == "value"

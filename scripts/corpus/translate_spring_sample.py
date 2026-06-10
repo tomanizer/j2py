@@ -35,7 +35,9 @@ DEFAULT_CSV_OUT = REPO_ROOT / "corpus-reports" / "spring-sample.csv"
 DEFAULT_BASELINE = REPO_ROOT / "tests" / "fixtures" / "corpus" / "spring-sample-baseline.json"
 SPRING_REMOTE = "https://github.com/spring-projects/spring-framework.git"
 SPRING_REF = "0c60266986197a191ff33eb498ebc8bac3dc933f"
-DEFAULT_LIMIT = 25
+DEFAULT_LIMIT = 100
+SMOKE_LIMIT = 25
+COVERAGE_THRESHOLD = 0.80
 DEFAULT_MODULES = (
     "spring-core/src/main/java",
     "spring-beans/src/main/java",
@@ -179,14 +181,23 @@ def main() -> int:
 
     comparison: dict[str, Any] | None = None
     if args.update_baseline:
-        write_baseline(args.baseline, metadata=metadata, summary=summary)
+        write_baseline(args.baseline, metadata=metadata, summary=summary, metrics=metrics)
         print(f"Baseline updated: {args.baseline}")
 
     if args.compare_baseline:
-        comparison = compare_baseline(args.baseline, metadata=metadata, summary=summary)
+        comparison = compare_baseline(
+            args.baseline,
+            metadata=metadata,
+            summary=summary,
+            metrics=metrics,
+        )
         print_comparison(comparison)
 
-    if args.fail_on_regression and comparison and comparison["regressions"]:
+    if (
+        args.fail_on_regression
+        and comparison
+        and (comparison["regressions"] or _has_file_regressions(comparison["file_regressions"]))
+    ):
         return 1
     return 0
 
@@ -289,6 +300,10 @@ def summarize(metrics: list[FileMetric]) -> dict[str, Any]:
         "average_coverage": mean(m.coverage for m in metrics) if metrics else 0.0,
         "full_coverage_files": sum(m.coverage == 1.0 for m in metrics),
         "files_with_unhandled": sum(m.unhandled_count > 0 for m in metrics),
+        "coverage_threshold": COVERAGE_THRESHOLD,
+        "files_below_coverage_threshold": sum(
+            m.coverage < COVERAGE_THRESHOLD for m in metrics
+        ),
         "top_unhandled_node_types": unhandled_types.most_common(20),
         "top_unhandled_reasons": unhandled_reasons.most_common(20),
     }
@@ -328,11 +343,18 @@ def write_json(
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
-def write_baseline(path: Path, *, metadata: dict[str, Any], summary: dict[str, Any]) -> None:
+def write_baseline(
+    path: Path,
+    *,
+    metadata: dict[str, Any],
+    summary: dict[str, Any],
+    metrics: list[FileMetric],
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "metadata": metadata,
         "summary": summary,
+        "files": [asdict(metric) for metric in metrics],
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
@@ -353,6 +375,11 @@ def print_human_summary(summary: dict[str, Any], json_out: Path, csv_out: Path) 
     print(f"Average skeleton coverage: {summary['average_coverage']:.2%}")
     print(f"Full-coverage files: {summary['full_coverage_files']}")
     print(f"Files with unhandled constructs: {summary['files_with_unhandled']}")
+    print(
+        "Files below "
+        f"{summary['coverage_threshold']:.0%} coverage: "
+        f"{summary['files_below_coverage_threshold']}"
+    )
     print(f"JSON report: {json_out}")
     print(f"CSV report: {csv_out}")
 
@@ -362,6 +389,7 @@ def compare_baseline(
     *,
     metadata: dict[str, Any],
     summary: dict[str, Any],
+    metrics: list[FileMetric],
 ) -> dict[str, Any]:
     baseline = json.loads(path.read_text())
     baseline_summary = baseline["summary"]
@@ -373,6 +401,7 @@ def compare_baseline(
         "average_coverage": "higher",
         "full_coverage_files": "higher",
         "files_with_unhandled": "lower",
+        "files_below_coverage_threshold": "lower",
     }
     deltas: dict[str, dict[str, Any]] = {}
     regressions: list[str] = []
@@ -404,6 +433,10 @@ def compare_baseline(
         "improvements": improvements,
         "regressions": regressions,
         "metadata_mismatches": metadata_mismatches,
+        "file_regressions": _file_regressions(
+            baseline.get("files", []),
+            [asdict(metric) for metric in metrics],
+        ),
         "baseline_top_unhandled_node_types": baseline_summary["top_unhandled_node_types"],
         "current_top_unhandled_node_types": summary["top_unhandled_node_types"],
         "baseline_top_unhandled_reasons": baseline_summary["top_unhandled_reasons"],
@@ -429,6 +462,102 @@ def print_comparison(comparison: dict[str, Any]) -> None:
     print("Top unhandled node types:")
     print(f"  baseline: {_top_list(comparison['baseline_top_unhandled_node_types'])}")
     print(f"  current:  {_top_list(comparison['current_top_unhandled_node_types'])}")
+    _print_file_regressions(comparison["file_regressions"])
+
+
+def _file_regressions(
+    baseline_files: list[dict[str, Any]],
+    current_files: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    baseline_by_path = {item["path"]: item for item in baseline_files}
+    current_by_path = {item["path"]: item for item in current_files}
+
+    parse_failures: list[dict[str, Any]] = []
+    syntax_failures: list[dict[str, Any]] = []
+    coverage_drops: list[dict[str, Any]] = []
+    unhandled_increases: list[dict[str, Any]] = []
+    new_unhandled_reasons: list[dict[str, Any]] = []
+
+    for path, current in current_by_path.items():
+        baseline = baseline_by_path.get(path)
+        if baseline is None:
+            continue
+        if baseline.get("parse_ok") and not current.get("parse_ok"):
+            parse_failures.append({"path": path, "error": current.get("error", "")})
+        if baseline.get("syntax_ok") and not current.get("syntax_ok"):
+            syntax_failures.append({"path": path, "error": current.get("error", "")})
+
+        coverage_delta = current["coverage"] - baseline["coverage"]
+        if coverage_delta < -1e-12:
+            coverage_drops.append(
+                {
+                    "path": path,
+                    "baseline": baseline["coverage"],
+                    "current": current["coverage"],
+                    "delta": coverage_delta,
+                },
+            )
+
+        unhandled_delta = current["unhandled_count"] - baseline["unhandled_count"]
+        if unhandled_delta > 0:
+            unhandled_increases.append(
+                {
+                    "path": path,
+                    "baseline": baseline["unhandled_count"],
+                    "current": current["unhandled_count"],
+                    "delta": unhandled_delta,
+                },
+            )
+
+        baseline_reasons = _parse_counter_summary(baseline.get("unhandled_reasons", ""))
+        current_reasons = _parse_counter_summary(current.get("unhandled_reasons", ""))
+        for reason, count in sorted(current_reasons.items()):
+            delta = count - baseline_reasons.get(reason, 0)
+            if delta > 0:
+                new_unhandled_reasons.append(
+                    {
+                        "path": path,
+                        "reason": reason,
+                        "baseline": baseline_reasons.get(reason, 0),
+                        "current": count,
+                        "delta": delta,
+                    },
+                )
+
+    return {
+        "parse_failures": parse_failures,
+        "syntax_failures": syntax_failures,
+        "coverage_drops": coverage_drops,
+        "unhandled_increases": unhandled_increases,
+        "new_unhandled_reasons": new_unhandled_reasons,
+    }
+
+
+def _print_file_regressions(file_regressions: dict[str, list[dict[str, Any]]]) -> None:
+    if not any(file_regressions.values()):
+        print("Per-file regressions: none")
+        return
+
+    print("Per-file regressions:")
+    labels = {
+        "parse_failures": "new parse failures",
+        "syntax_failures": "new syntax failures",
+        "coverage_drops": "coverage drops",
+        "unhandled_increases": "unhandled count increases",
+        "new_unhandled_reasons": "new unhandled reasons",
+    }
+    for key, label in labels.items():
+        items = file_regressions[key]
+        if not items:
+            continue
+        print(f"  {label}: {len(items)}")
+        for item in items[:5]:
+            detail = item.get("reason") or _format_delta(item.get("delta", 0))
+            print(f"    - {item['path']}: {detail}")
+
+
+def _has_file_regressions(file_regressions: dict[str, list[dict[str, Any]]]) -> bool:
+    return any(file_regressions.values())
 
 
 def _syntax_ok(source: str) -> bool:

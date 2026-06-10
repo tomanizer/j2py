@@ -29,7 +29,7 @@ Java source
     │
     ▼
 [translate/]  ① Rule-based skeleton (translate/skeleton.py) — target ~70% coverage
-              ② Selectors + transforms (pure, declarative, composable)
+              ② Direct visitors: classes.py, statements.py, expressions.py
               ③ Rules sub-package: types, naming, literals
     │
     ▼
@@ -43,9 +43,11 @@ Java source
 Python output
 ```
 
-The rule layer (`translate/skeleton.py`) is currently a stub — it always yields 0%
-coverage so the LLM fires. Building this layer is the primary next implementation task.
-See [ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).
+The rule layer (`translate/skeleton.py`) is implemented and handles many common Java
+structures, but it remains incomplete. New deterministic translation work belongs in
+`classes.py`, `statements.py`, `expressions.py`, or pure helpers under
+`translate/rules/`. The earlier selector/transform prototype has been removed. See
+[ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).
 
 ## Settled design decisions
 
@@ -85,8 +87,8 @@ Before approving or merging a PR, verify:
 5. **Rule-layer changes have Java fixtures** — `tests/fixtures/java/*.java` + expected `tests/fixtures/python/*.py`
 6. **Confidence score honest** — `skeleton.py` coverage estimate must reflect real coverage,
    not be inflated to skip the LLM
-7. **Selector rules are data, not code** — complex logic belongs in transform functions,
-   not embedded in selectors
+7. **Rule-layer helpers stay focused** — keep translation functions stateless where
+   possible and use diagnostics when a rule cannot preserve Java semantics
 
 ## Writing new ADRs
 

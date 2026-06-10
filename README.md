@@ -16,8 +16,10 @@ Current deterministic rule support includes:
 - fields, constructors, methods, overload stubs, and simple overload merges
 - common expressions: literals, identifiers, field access, arrays, class literals,
   assignments, updates, ternaries, null checks, common collection calls, and string concat
+- simple stream pipelines: `stream().map(...).filter(...).collect(Collectors.toList())`
+  and `toList()` when mapper/predicate forms are supported
 - control flow: `if`/`else`, enhanced and classic `for`, `while`, `do while`,
-  `try`/`catch`/`finally`, `throw`, `break`, and `continue`
+  safe `switch` forms, `try`/`catch`/`finally`, `throw`, `break`, and `continue`
 - configured import emission, naming policy, type maps, exception maps, and comment flags
 - dependency-ordered directory translation
 - structured diagnostics, confidence, optional validation, and optional Anthropic
@@ -25,7 +27,9 @@ Current deterministic rule support includes:
 
 Known gaps include:
 
-- lambdas, streams, and method references
+- complex stream pipelines, unsupported collectors, and complex/block lambda or
+  method-reference contexts
+- switch fall-through and complex switch rule blocks
 - `switch` and switch expressions
 - complex constructor dispatch and non-trivial overload bodies
 - enum constructors/default interface methods/annotation semantics
@@ -68,10 +72,12 @@ make corpus-spring # pinned Spring Framework corpus comparison
 The current pinned Spring sample baseline is:
 
 - parse success: 100.00%
-- generated Python syntax success: 100.00%
-- average skeleton coverage: 84.33%
-- full-coverage files: 8 of 25
-- files with unhandled constructs: 16 of 25
+- generated Python syntax success: 91.00%
+- average skeleton coverage: 78.35%
+- full-coverage files: 32 of 100
+- files with unhandled constructs: 60 of 100
+- files below 80% coverage: 28 of 100
+- sample size: 100 files with committed per-file failure metrics
 
 See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and
 [docs/TRANSLATION_TARGETS.md](docs/TRANSLATION_TARGETS.md) for the implementation

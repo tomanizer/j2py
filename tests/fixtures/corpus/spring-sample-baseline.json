@@ -1,7 +1,1309 @@
 {
+  "files": [
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 5,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/AotDetector.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.967741935483871,
+      "error": "",
+      "handled_count": 30,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/AccessControl.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_reference:1",
+      "unhandled_reasons": "array constructor method reference requires collection conversion:1",
+      "warning_count": 8
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 10,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/AppendableConsumerInputStreamSource.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.8974358974358975,
+      "error": "",
+      "handled_count": 35,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/ClassNameGenerator.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "constructor_declaration:3;method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;overloaded method __init__ requires manual dispatch:3",
+      "warning_count": 4
+    },
+    {
+      "coverage": 0.7894736842105263,
+      "error": "",
+      "handled_count": 15,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/DefaultGenerationContext.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "constructor_declaration:4",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:4",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.9787234042553191,
+      "error": "",
+      "handled_count": 46,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/DefaultMethodReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_reference:1",
+      "unhandled_reasons": "array constructor method reference requires collection conversion:1",
+      "warning_count": 4
+    },
+    {
+      "coverage": 0.9,
+      "error": "",
+      "handled_count": 27,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/FileSystemGeneratedFiles.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:2;switch_expression:1",
+      "unhandled_reasons": "overloaded method copy requires manual dispatch:2;switch expression without default:1",
+      "warning_count": 5
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/Generated.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "annotation_type_declaration:1",
+      "unhandled_reasons": "annotation type declaration requires manual translation:1",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 47,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedClass.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 7
+    },
+    {
+      "coverage": 0.875,
+      "error": "",
+      "handled_count": 35,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedClasses.java",
+      "syntax_ok": true,
+      "unhandled_count": 5,
+      "unhandled_node_types": "method_declaration:4;object_creation_expression:1",
+      "unhandled_reasons": "non-empty collection constructor requires LLM completion:1;overloaded method add_for_feature_component requires manual dispatch:2;overloaded method get_or_add_for_feature_component requires manual dispatch:2",
+      "warning_count": 9
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 21,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedFiles.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 19,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedMethod.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 5
+    },
+    {
+      "coverage": 0.75,
+      "error": "",
+      "handled_count": 12,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedMethods.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "constructor_declaration:2;method_declaration:2",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2;overloaded method add requires manual dispatch:2",
+      "warning_count": 5
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 14,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedTypeReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 5,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/GenerationContext.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 29,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/InMemoryGeneratedFiles.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 8
+    },
+    {
+      "coverage": 0.8857142857142857,
+      "error": "",
+      "handled_count": 31,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/MethodName.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "array_creation_expression:1;instanceof_expression:1;method_declaration:2",
+      "unhandled_reasons": "array creation without initializer requires size handling:1;overloaded method and_ requires manual dispatch:2;unsupported expression instanceof_expression:1",
+      "warning_count": 7
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 10,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/MethodReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/UnsupportedTypeValueCodeGenerationException.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.8333333333333334,
+      "error": "",
+      "handled_count": 10,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/ValueCodeGenerationException.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "constructor_declaration:2",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.9142857142857143,
+      "error": "",
+      "handled_count": 32,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/ValueCodeGenerator.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:2;object_creation_expression:1",
+      "unhandled_reasons": "non-empty collection constructor requires LLM completion:1;overloaded method with_ requires manual dispatch:2",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.8607594936708861,
+      "error": "",
+      "handled_count": 136,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/ValueCodeGeneratorDelegates.java",
+      "syntax_ok": true,
+      "unhandled_count": 22,
+      "unhandled_node_types": "cast_expression:2;instanceof_expression:14;method_declaration:2;method_invocation:1;object_creation_expression:2;super:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;non-empty collection constructor requires LLM completion:2;overloaded method generate_code requires manual dispatch:2;unsupported expression cast_expression:2;unsupported expression instanceof_expression:14;unsupported expression super:1",
+      "warning_count": 36
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/generate/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.96875,
+      "error": "",
+      "handled_count": 31,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/AbstractTypeReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "instanceof_expression:1",
+      "unhandled_reasons": "unsupported expression instanceof_expression:1",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.9104477611940298,
+      "error": "",
+      "handled_count": 61,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/BindingReflectionHintsRegistrar.java",
+      "syntax_ok": true,
+      "unhandled_count": 6,
+      "unhandled_node_types": "cast_expression:1;lambda_expression:3;method_declaration:2",
+      "unhandled_reasons": "block lambda requires helper function:3;overloaded method register_reflection_hints requires manual dispatch:2;unsupported expression cast_expression:1",
+      "warning_count": 3
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ConditionalHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.9411764705882353,
+      "error": "",
+      "handled_count": 32,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ExecutableHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "field_declaration:1;lambda_expression:1",
+      "unhandled_reasons": "block lambda requires helper function:1;instance field declaration without initializer needs default review:1",
+      "warning_count": 9
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ExecutableMode.java",
+      "syntax_ok": false,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/FieldHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.8846153846153846,
+      "error": "",
+      "handled_count": 23,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/JavaSerializationHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "field_declaration:1;instanceof_expression:1;method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1;instance field declaration without initializer needs default review:1;unsupported expression instanceof_expression:1",
+      "warning_count": 8
+    },
+    {
+      "coverage": 0.8444444444444444,
+      "error": "",
+      "handled_count": 38,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/JdkProxyHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 7,
+      "unhandled_node_types": "field_declaration:2;instanceof_expression:1;method_declaration:2;method_invocation:2",
+      "unhandled_reasons": "equals invocation with unexpected argument count:2;instance field declaration without initializer needs default review:2;overloaded method proxied_interfaces requires manual dispatch:2;unsupported expression instanceof_expression:1",
+      "warning_count": 14
+    },
+    {
+      "coverage": 0.7222222222222222,
+      "error": "",
+      "handled_count": 26,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/LambdaHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 10,
+      "unhandled_node_types": "field_declaration:2;method_declaration:8",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:2;overloaded method of requires manual dispatch:2;overloaded method on_reachable_type requires manual dispatch:2;overloaded method with_declaring_method requires manual dispatch:2;overloaded method with_interfaces requires manual dispatch:2",
+      "warning_count": 15
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 16,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/MemberCategory.java",
+      "syntax_ok": false,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 6,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/MemberHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.5714285714285714,
+      "error": "",
+      "handled_count": 4,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ProxyHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:3",
+      "unhandled_reasons": "overloaded method register_jdk_proxy requires manual dispatch:3",
+      "warning_count": 4
+    },
+    {
+      "coverage": 0.7435897435897436,
+      "error": "",
+      "handled_count": 29,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ReflectionHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 10,
+      "unhandled_node_types": "method_declaration:10",
+      "unhandled_reasons": "overloaded method get_type_hint requires manual dispatch:2;overloaded method register_lambda requires manual dispatch:2;overloaded method register_type requires manual dispatch:4;overloaded method register_type_if_present requires manual dispatch:2",
+      "warning_count": 20
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 16,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ReflectionTypeReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.896551724137931,
+      "error": "",
+      "handled_count": 26,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourceBundleHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "field_declaration:1;instanceof_expression:1;method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1;instance field declaration without initializer needs default review:1;unsupported expression instanceof_expression:1",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.8,
+      "error": "",
+      "handled_count": 28,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourceHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 7,
+      "unhandled_node_types": "instanceof_expression:1;method_declaration:6",
+      "unhandled_reasons": "overloaded method register_pattern requires manual dispatch:2;overloaded method register_resource_bundle requires manual dispatch:2;overloaded method register_type requires manual dispatch:2;unsupported expression instanceof_expression:1",
+      "warning_count": 10
+    },
+    {
+      "coverage": 0.9,
+      "error": "",
+      "handled_count": 18,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourcePatternHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "instanceof_expression:1;method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1;unsupported expression instanceof_expression:1",
+      "warning_count": 6
+    },
+    {
+      "coverage": 0.9032258064516129,
+      "error": "",
+      "handled_count": 28,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourcePatternHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:2;object_creation_expression:1",
+      "unhandled_reasons": "non-empty collection constructor requires LLM completion:1;overloaded method includes requires manual dispatch:2",
+      "warning_count": 12
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 16,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/RuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 7
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/RuntimeHintsRegistrar.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.6,
+      "error": "",
+      "handled_count": 6,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/SerializationHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "method_declaration:4",
+      "unhandled_reasons": "overloaded method register_type requires manual dispatch:4",
+      "warning_count": 5
+    },
+    {
+      "coverage": 0.9285714285714286,
+      "error": "",
+      "handled_count": 39,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/SimpleTypeReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "field_declaration:1;method_declaration:2",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:1;overloaded method is_primitive requires manual dispatch:2",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.88,
+      "error": "",
+      "handled_count": 66,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/TypeHint.java",
+      "syntax_ok": true,
+      "unhandled_count": 9,
+      "unhandled_node_types": "field_declaration:2;instanceof_expression:1;method_declaration:6",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:2;overloaded method on_reachable_type requires manual dispatch:2;overloaded method with_constructor requires manual dispatch:2;overloaded method with_method requires manual dispatch:2;unsupported expression instanceof_expression:1",
+      "warning_count": 24
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/TypeReference.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/Reflective.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "annotation_type_declaration:1",
+      "unhandled_reasons": "annotation type declaration requires manual translation:1",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/ReflectiveProcessor.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.9591836734693877,
+      "error": "",
+      "handled_count": 47,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/ReflectiveRuntimeHintsRegistrar.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "cast_expression:1;lambda_expression:1",
+      "unhandled_reasons": "block lambda requires helper function:1;unsupported expression cast_expression:1",
+      "warning_count": 4
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/RegisterReflection.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "annotation_type_declaration:1",
+      "unhandled_reasons": "annotation type declaration requires manual translation:1",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/RegisterReflectionForBinding.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "annotation_type_declaration:1",
+      "unhandled_reasons": "annotation type declaration requires manual translation:1",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 4,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/RegisterReflectionForBindingProcessor.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.7916666666666666,
+      "error": "",
+      "handled_count": 19,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/RegisterReflectionReflectiveProcessor.java",
+      "syntax_ok": true,
+      "unhandled_count": 5,
+      "unhandled_node_types": "array_creation_expression:1;instanceof_expression:1;method_declaration:3",
+      "unhandled_reasons": "array creation without initializer requires size handling:1;overloaded method register_reflection_hints requires manual dispatch:3;unsupported expression instanceof_expression:1",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.8181818181818182,
+      "error": "",
+      "handled_count": 18,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/SimpleReflectiveProcessor.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "instanceof_expression:4",
+      "unhandled_reasons": "unsupported expression instanceof_expression:4",
+      "warning_count": 5
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.5,
+      "error": "",
+      "handled_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ProxyHintsPredicates.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method for_interfaces requires manual dispatch:2",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.8055555555555556,
+      "error": "",
+      "handled_count": 87,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ReflectionHintsPredicates.java",
+      "syntax_ok": true,
+      "unhandled_count": 21,
+      "unhandled_node_types": "lambda_expression:5;method_declaration:16",
+      "unhandled_reasons": "block lambda requires helper function:5;overloaded method on_field requires manual dispatch:3;overloaded method on_field_access requires manual dispatch:3;overloaded method on_java_serialization requires manual dispatch:2;overloaded method on_method requires manual dispatch:3;overloaded method on_method_invocation requires manual dispatch:3;overloaded method on_type requires manual dispatch:2",
+      "warning_count": 40
+    },
+    {
+      "coverage": 0.8666666666666667,
+      "error": "",
+      "handled_count": 13,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ResourceHintsPredicates.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method for_resource requires manual dispatch:2",
+      "warning_count": 4
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 14,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/RuntimeHintsPredicates.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 6
+    },
+    {
+      "coverage": 0.5,
+      "error": "",
+      "handled_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/SerializationHintsPredicates.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method on_type requires manual dispatch:2",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/ClassHintUtils.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.819672131147541,
+      "error": "",
+      "handled_count": 50,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/FilePatternResourceHintsRegistrar.java",
+      "syntax_ok": true,
+      "unhandled_count": 11,
+      "unhandled_node_types": "method_declaration:10;method_reference:1",
+      "unhandled_reasons": "array constructor method reference requires collection conversion:1;overloaded method for_class_path_locations requires manual dispatch:2;overloaded method with_class_path_locations requires manual dispatch:2;overloaded method with_classpath_locations requires manual dispatch:2;overloaded method with_file_extensions requires manual dispatch:2;overloaded method with_file_prefixes requires manual dispatch:2",
+      "warning_count": 15
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/KotlinDetectorRuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/ObjectToObjectConverterRuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/PathMatchingResourcePatternResolverRuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.8333333333333334,
+      "error": "",
+      "handled_count": 15,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/SpringFactoriesLoaderRuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:3",
+      "unhandled_reasons": "overloaded method register_hints requires manual dispatch:3",
+      "warning_count": 3
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/SpringPropertiesRuntimeHints.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/hint/support/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.8227848101265823,
+      "error": "",
+      "handled_count": 65,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/BasicJsonWriter.java",
+      "syntax_ok": true,
+      "unhandled_count": 14,
+      "unhandled_node_types": "cast_expression:1;instanceof_expression:5;lambda_expression:1;method_declaration:6;switch_expression:1",
+      "unhandled_reasons": "block lambda requires helper function:1;overloaded method println requires manual dispatch:2;overloaded method write_array requires manual dispatch:2;overloaded method write_object requires manual dispatch:2;switch rule block requires a single yield expression:1;unsupported expression cast_expression:1;unsupported expression instanceof_expression:5",
+      "warning_count": 14
+    },
+    {
+      "coverage": 0.9629629629629629,
+      "error": "",
+      "handled_count": 26,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/FileNativeConfigurationWriter.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "try_with_resources_statement:1",
+      "unhandled_reasons": "unsupported statement try_with_resources_statement:1",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/NativeConfigurationWriter.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.7441860465116279,
+      "error": "",
+      "handled_count": 32,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/ReflectionHintsAttributes.java",
+      "syntax_ok": true,
+      "unhandled_count": 11,
+      "unhandled_node_types": "cast_expression:1;instanceof_expression:1;lambda_expression:3;method_declaration:5;object_creation_expression:1",
+      "unhandled_reasons": "block lambda requires helper function:3;non-empty collection constructor requires LLM completion:1;overloaded method to_attributes requires manual dispatch:5;unsupported expression cast_expression:1;unsupported expression instanceof_expression:1",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.8666666666666667,
+      "error": "",
+      "handled_count": 13,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/ResourceHintsAttributes.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method to_attributes requires manual dispatch:2",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 16,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/RuntimeHintsWriter.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.9354838709677419,
+      "error": "",
+      "handled_count": 29,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/feature/PreComputeFieldFeature.java",
+      "syntax_ok": false,
+      "unhandled_count": 2,
+      "unhandled_node_types": "boolean_type:1;method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unsupported expression boolean_type:1",
+      "warning_count": 4
+    },
+    {
+      "coverage": 0.9090909090909091,
+      "error": "",
+      "handled_count": 20,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/feature/ThrowawayClassLoader.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "static_initializer:1;synchronized_statement:1",
+      "unhandled_reasons": "unsupported class member static_initializer:1;unsupported statement synchronized_statement:1",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/feature/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/nativex/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/aot/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 28,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/AnnotationVisitor.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 11
+    },
+    {
+      "coverage": 0.7257142857142858,
+      "error": "",
+      "handled_count": 127,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/AnnotationWriter.java",
+      "syntax_ok": true,
+      "unhandled_count": 48,
+      "unhandled_node_types": "block_comment:3;cast_expression:16;field_declaration:2;instanceof_expression:14;method_declaration:6;update_expression:7",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:2;overloaded method compute_annotations_size requires manual dispatch:2;overloaded method create requires manual dispatch:2;overloaded method put_annotations requires manual dispatch:2;unsupported expression block_comment:3;unsupported expression cast_expression:16;unsupported expression instanceof_expression:14;unsupported update operator i:3;unsupported update operator numElementValuePairs:4",
+      "warning_count": 55
+    },
+    {
+      "coverage": 0.7272727272727273,
+      "error": "",
+      "handled_count": 48,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Attribute.java",
+      "syntax_ok": false,
+      "unhandled_count": 18,
+      "unhandled_node_types": "array_creation_expression:4;field_declaration:3;method_declaration:10;update_expression:1",
+      "unhandled_reasons": "array creation without initializer requires size handling:4;instance field declaration without initializer needs default review:3;overloaded method compute_attributes_size requires manual dispatch:3;overloaded method put_attributes requires manual dispatch:3;overloaded method read requires manual dispatch:2;overloaded method write requires manual dispatch:2;unsupported update operator i:1",
+      "warning_count": 22
+    },
+    {
+      "coverage": 0.7417840375586855,
+      "error": "",
+      "handled_count": 158,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ByteVector.java",
+      "syntax_ok": false,
+      "unhandled_count": 55,
+      "unhandled_node_types": "array_creation_expression:1;cast_expression:42;constructor_declaration:3;hex_integer_literal:6;update_expression:3",
+      "unhandled_reasons": "array creation without initializer requires size handling:1;overloaded method __init__ requires manual dispatch:3;unsupported expression cast_expression:42;unsupported expression hex_integer_literal:6;unsupported update operator i:3",
+      "warning_count": 24
+    },
+    {
+      "coverage": 0.8589065255731922,
+      "error": "",
+      "handled_count": 974,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ClassReader.java",
+      "syntax_ok": false,
+      "unhandled_count": 160,
+      "unhandled_node_types": "array_creation_expression:20;assignment_expression:12;binary_expression:38;block_comment:43;cast_expression:5;constructor_declaration:5;field_declaration:6;instanceof_expression:1;line_comment:1;method_declaration:4;switch_block_statement_group:1;try_with_resources_statement:1;update_expression:23",
+      "unhandled_reasons": "array creation without initializer requires size handling:20;instance field declaration without initializer needs default review:6;overloaded method __init__ requires manual dispatch:5;overloaded method accept requires manual dispatch:2;overloaded method read_utf requires manual dispatch:2;switch fall-through requires manual translation:1;unsupported assignment operator &=:7;unsupported assignment operator |=:5;unsupported binary operator &:30;unsupported binary operator >>:2;unsupported binary operator >>>:3;unsupported binary operator |:3;unsupported expression block_comment:43;unsupported expression cast_expression:5;unsupported expression instanceof_expression:1;unsupported statement try_with_resources_statement:1;unsupported switch group line_comment:1;unsupported update operator currentInvisibleTypeAnnotationIndex:1;unsupported update operator currentMethodDescritorOffset:5;unsupported update operator currentVisibleTypeAnnotationIndex:1;unsupported update operator i:9;unsupported update operator j:1;unsupported update operator local:1;unsupported update operator offset:1;unsupported update operator stack:1;unsupported update operator typeTableIndex:3",
+      "warning_count": 396
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 12,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ClassTooLargeException.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.987012987012987,
+      "error": "",
+      "handled_count": 76,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ClassVisitor.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "binary_expression:1",
+      "unhandled_reasons": "unsupported binary operator &:1",
+      "warning_count": 21
+    },
+    {
+      "coverage": 0.788235294117647,
+      "error": "",
+      "handled_count": 335,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ClassWriter.java",
+      "syntax_ok": false,
+      "unhandled_count": 90,
+      "unhandled_node_types": "array_creation_expression:1;assignment_expression:2;binary_expression:16;block_comment:2;cast_expression:9;field_declaration:32;hex_integer_literal:2;method_declaration:2;update_expression:24",
+      "unhandled_reasons": "array creation without initializer requires size handling:1;instance field declaration without initializer needs default review:32;overloaded method new_handle requires manual dispatch:2;unsupported assignment operator |=:2;unsupported binary operator &:15;unsupported binary operator |:1;unsupported expression block_comment:2;unsupported expression cast_expression:9;unsupported expression hex_integer_literal:2;unsupported update operator attributesCount:16;unsupported update operator fieldsCount:1;unsupported update operator i:2;unsupported update operator methodsCount:1;unsupported update operator numberOfInnerClasses:1;unsupported update operator numberOfNestMemberClasses:1;unsupported update operator numberOfPermittedSubclasses:1;unsupported update operator recordComponentCount:1",
+      "warning_count": 117
+    },
+    {
+      "coverage": 0.9,
+      "error": "",
+      "handled_count": 36,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/ConstantDynamic.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "binary_expression:1;cast_expression:1;instanceof_expression:1;method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1;unsupported binary operator ^:1;unsupported expression cast_expression:1;unsupported expression instanceof_expression:1",
+      "warning_count": 15
+    },
+    {
+      "coverage": 0.9901960784313726,
+      "error": "",
+      "handled_count": 101,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Constants.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "hex_integer_literal:1",
+      "unhandled_reasons": "unsupported expression hex_integer_literal:1",
+      "warning_count": 18
+    },
+    {
+      "coverage": 0.05,
+      "error": "",
+      "handled_count": 1,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Context.java",
+      "syntax_ok": true,
+      "unhandled_count": 19,
+      "unhandled_node_types": "field_declaration:19",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:19",
+      "warning_count": 25
+    },
+    {
+      "coverage": 0.8888888888888888,
+      "error": "",
+      "handled_count": 8,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/CurrentFrame.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "super:1",
+      "unhandled_reasons": "unsupported expression super:1",
+      "warning_count": 2
+    },
+    {
+      "coverage": 0.9090909090909091,
+      "error": "",
+      "handled_count": 10,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Edge.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "hex_integer_literal:1",
+      "unhandled_reasons": "unsupported expression hex_integer_literal:1",
+      "warning_count": 6
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 27,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/FieldVisitor.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 10
+    },
+    {
+      "coverage": 0.8068181818181818,
+      "error": "",
+      "handled_count": 71,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/FieldWriter.java",
+      "syntax_ok": false,
+      "unhandled_count": 17,
+      "unhandled_node_types": "binary_expression:3;block_comment:1;field_declaration:5;update_expression:8",
+      "unhandled_reasons": "instance field declaration without initializer needs default review:5;unsupported binary operator &:3;unsupported expression block_comment:1;unsupported update operator attributesCount:8",
+      "warning_count": 40
+    },
+    {
+      "coverage": 0.795880149812734,
+      "error": "",
+      "handled_count": 425,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Frame.java",
+      "syntax_ok": false,
+      "unhandled_count": 109,
+      "unhandled_node_types": "array_creation_expression:7;binary_expression:76;cast_expression:3;field_declaration:8;instanceof_expression:2;method_declaration:7;update_expression:6",
+      "unhandled_reasons": "array creation without initializer requires size handling:7;instance field declaration without initializer needs default review:8;overloaded method merge requires manual dispatch:2;overloaded method pop requires manual dispatch:3;overloaded method push requires manual dispatch:2;unsupported binary operator &:23;unsupported binary operator <<:12;unsupported binary operator >>:1;unsupported binary operator |:40;unsupported expression cast_expression:3;unsupported expression instanceof_expression:2;unsupported update operator elementDescriptorOffset:1;unsupported update operator i:4;unsupported update operator numStackTop:1",
+      "warning_count": 95
+    },
+    {
+      "coverage": 0.9444444444444444,
+      "error": "",
+      "handled_count": 34,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Handle.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "cast_expression:1;instanceof_expression:1",
+      "unhandled_reasons": "unsupported expression cast_expression:1;unsupported expression instanceof_expression:1",
+      "warning_count": 17
+    },
+    {
+      "coverage": 0.9523809523809523,
+      "error": "",
+      "handled_count": 40,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "spring-core/src/main/java/org/springframework/asm/Handler.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "constructor_declaration:2",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2",
+      "warning_count": 18
+    }
+  ],
   "metadata": {
     "include_tests": false,
-    "limit": 25,
+    "limit": 100,
     "modules": [
       "spring-core/src/main/java",
       "spring-beans/src/main/java"
@@ -11,122 +1313,176 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.8432638277389305,
-    "files_scanned": 25,
-    "files_with_unhandled": 16,
-    "full_coverage_files": 8,
+    "average_coverage": 0.783495518790979,
+    "coverage_threshold": 0.8,
+    "files_below_coverage_threshold": 28,
+    "files_scanned": 100,
+    "files_with_unhandled": 60,
+    "full_coverage_files": 32,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 1.0,
+    "syntax_success_rate": 0.91,
     "top_unhandled_node_types": [
       [
         "method_declaration",
-        16
+        139
+      ],
+      [
+        "binary_expression",
+        135
+      ],
+      [
+        "field_declaration",
+        85
+      ],
+      [
+        "cast_expression",
+        83
+      ],
+      [
+        "update_expression",
+        72
       ],
       [
         "instanceof_expression",
-        16
+        52
       ],
       [
-        "method_reference",
-        14
+        "block_comment",
+        49
+      ],
+      [
+        "array_creation_expression",
+        35
+      ],
+      [
+        "constructor_declaration",
+        21
       ],
       [
         "lambda_expression",
         14
       ],
       [
-        "constructor_declaration",
-        11
+        "assignment_expression",
+        14
+      ],
+      [
+        "hex_integer_literal",
+        10
+      ],
+      [
+        "method_invocation",
+        9
       ],
       [
         "object_creation_expression",
-        4
-      ],
-      [
-        "cast_expression",
-        3
+        6
       ],
       [
         "annotation_type_declaration",
-        1
+        4
       ],
       [
-        "array_creation_expression",
-        1
+        "method_reference",
+        3
+      ],
+      [
+        "switch_expression",
+        2
       ],
       [
         "super",
+        2
+      ],
+      [
+        "try_with_resources_statement",
+        2
+      ],
+      [
+        "boolean_type",
         1
       ]
     ],
     "top_unhandled_reasons": [
       [
-        "unsupported expression instanceof_expression",
-        16
-      ],
-      [
-        "unsupported expression method_reference",
-        14
-      ],
-      [
-        "unsupported expression lambda_expression",
-        14
-      ],
-      [
-        "overloaded method __init__ requires manual dispatch",
-        11
-      ],
-      [
-        "non-empty collection constructor requires LLM completion",
-        4
+        "instance field declaration without initializer needs default review",
+        85
       ],
       [
         "unsupported expression cast_expression",
-        3
+        83
       ],
       [
-        "overloaded method copy requires manual dispatch",
-        2
+        "unsupported binary operator &",
+        72
       ],
       [
-        "overloaded method add_for_feature_component requires manual dispatch",
-        2
+        "unsupported expression instanceof_expression",
+        52
       ],
       [
-        "overloaded method get_or_add_for_feature_component requires manual dispatch",
-        2
+        "unsupported expression block_comment",
+        49
       ],
       [
-        "overloaded method add requires manual dispatch",
-        2
-      ],
-      [
-        "overloaded method and_ requires manual dispatch",
-        2
-      ],
-      [
-        "overloaded method with_ requires manual dispatch",
-        2
-      ],
-      [
-        "overloaded method generate_code requires manual dispatch",
-        2
-      ],
-      [
-        "overloaded method register_reflection_hints requires manual dispatch",
-        2
-      ],
-      [
-        "annotation type declaration requires manual translation",
-        1
+        "unsupported binary operator |",
+        44
       ],
       [
         "array creation without initializer requires size handling",
-        1
+        35
       ],
       [
-        "unsupported expression super",
-        1
+        "unsupported update operator attributesCount",
+        24
+      ],
+      [
+        "unsupported update operator i",
+        22
+      ],
+      [
+        "overloaded method __init__ requires manual dispatch",
+        21
+      ],
+      [
+        "block lambda requires helper function",
+        14
+      ],
+      [
+        "unsupported binary operator <<",
+        12
+      ],
+      [
+        "overloaded method register_type requires manual dispatch",
+        10
+      ],
+      [
+        "unsupported expression hex_integer_literal",
+        10
+      ],
+      [
+        "overloaded method to_attributes requires manual dispatch",
+        7
+      ],
+      [
+        "unsupported assignment operator &=",
+        7
+      ],
+      [
+        "unsupported assignment operator |=",
+        7
+      ],
+      [
+        "non-empty collection constructor requires LLM completion",
+        6
+      ],
+      [
+        "equals invocation with unexpected argument count",
+        6
+      ],
+      [
+        "overloaded method register_reflection_hints requires manual dispatch",
+        5
       ]
     ]
   }

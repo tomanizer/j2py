@@ -59,6 +59,9 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "try_statement":
         return _translate_try(node, ctx, indent=indent)
 
+    if node.type == "switch_expression":
+        return _translate_switch(node, ctx, indent=indent)
+
     if node.type == "explicit_constructor_invocation":
         return _translate_explicit_constructor_invocation(node, ctx, indent=indent)
 
@@ -99,6 +102,7 @@ def _translate_local_variable_declaration(
         raw_name = name_node.text
         py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
         ctx.local_names.add(raw_name)
+        ctx.variable_types[raw_name] = py_type
         value_node = declarator.child_by_field("value")
         value = translate_expression(value_node, ctx) if value_node else "None"
         if not ctx.cfg.emit_type_hints:
@@ -265,6 +269,145 @@ def _translate_try(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
         )
 
     return lines
+
+
+def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
+    ctx.diagnostics.record(node, supported=True, reason="translated switch statement")
+    condition = node.child_by_field("condition")
+    body = node.child_by_field("body")
+    if condition is None or body is None:
+        ctx.diagnostics.record(node, supported=False, reason="malformed switch statement")
+        return [f"{indent}# TODO(j2py): malformed switch statement", f"{indent}pass"]
+
+    subject = translate_expression(condition, ctx)
+    groups = list(body.named_children)
+    if not groups:
+        return [f"{indent}pass"]
+
+    lines: list[str] = []
+    saw_default = False
+    for index, group in enumerate(groups):
+        if group.type == "switch_block_statement_group":
+            translated = _switch_statement_group(group, ctx, indent=indent)
+        elif group.type == "switch_rule":
+            translated = _switch_rule_group(group, ctx, indent=indent)
+        else:
+            ctx.diagnostics.record(
+                group,
+                supported=False,
+                reason=f"unsupported switch group {group.type}",
+            )
+            return [
+                f"{indent}# TODO(j2py): unsupported switch group {group.type}",
+                f"{indent}pass",
+            ]
+
+        if translated is None:
+            ctx.diagnostics.record(
+                group,
+                supported=False,
+                reason="switch fall-through requires manual translation",
+            )
+            return [
+                f"{indent}# TODO(j2py): switch fall-through requires manual translation",
+                f"{indent}pass",
+            ]
+
+        labels, body_lines = translated
+        if labels:
+            keyword = "if" if not lines else "elif"
+            lines.append(f"{indent}{keyword} {_switch_condition(subject, labels)}:")
+        else:
+            saw_default = True
+            lines.append(f"{indent}else:")
+        lines.extend(body_lines or [f"{indent}    pass"])
+
+        if not labels and index != len(groups) - 1:
+            ctx.diagnostics.record(
+                group,
+                supported=False,
+                reason="switch default before final case requires manual translation",
+            )
+            return [
+                (
+                    f"{indent}# TODO(j2py): switch default before final case "
+                    "requires manual translation"
+                ),
+                f"{indent}pass",
+            ]
+
+    if not saw_default:
+        lines.append(f"{indent}else:")
+        lines.append(f"{indent}    pass")
+    return lines
+
+
+def _switch_statement_group(
+    group: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> tuple[list[str], list[str]] | None:
+    label = first_child_by_type(group, "switch_label")
+    if label is None:
+        return None
+    statements = [child for child in group.named_children if child != label]
+    if statements and statements[-1].type == "break_statement":
+        statements = statements[:-1]
+    elif statements and statements[-1].type not in {
+        "return_statement",
+        "throw_statement",
+        "continue_statement",
+    }:
+        return None
+    return (
+        _switch_label_values(label, ctx),
+        _translate_switch_body(statements, ctx, indent=indent),
+    )
+
+
+def _switch_rule_group(
+    rule: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> tuple[list[str], list[str]] | None:
+    label = first_child_by_type(rule, "switch_label")
+    if label is None:
+        return None
+    body_nodes = [child for child in rule.named_children if child != label]
+    if len(body_nodes) != 1:
+        return None
+    body_node = body_nodes[0]
+    if body_node.type == "expression_statement" and body_node.named_children:
+        body_lines = [f"{indent}    {translate_expression(body_node.named_children[0], ctx)}"]
+    elif body_node.type == "block":
+        body_lines = translate_body(body_node, ctx, indent=f"{indent}    ")
+    else:
+        body_lines = translate_statement(body_node, ctx, indent=f"{indent}    ")
+    return _switch_label_values(label, ctx), body_lines
+
+
+def _translate_switch_body(
+    statements: list[JavaNode],
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    lines: list[str] = []
+    for statement in statements:
+        lines.extend(translate_statement(statement, ctx, indent=f"{indent}    "))
+    return lines
+
+
+def _switch_label_values(label: JavaNode, ctx: TranslationContext) -> list[str]:
+    return [translate_expression(child, ctx) for child in label.named_children]
+
+
+def _switch_condition(subject: str, labels: list[str]) -> str:
+    if len(labels) == 1:
+        return f"{subject} == {labels[0]}"
+    return f"{subject} in ({', '.join(labels)})"
 
 
 def _translate_explicit_constructor_invocation(
