@@ -35,31 +35,6 @@ class TranslationTarget:
 
 TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
-        fixture="ControlFlow.java",
-        issue=2,
-        reason="classic for/while/do-while loop translation is not implemented",
-        expected_fragments=(
-            "if value > 10:",
-            "elif value == 10:",
-            "else:",
-            "for i in range(0, limit):",
-            "while total < 100:",
-            "while True:",
-        ),
-    ),
-    TranslationTarget(
-        fixture="Exceptions.java",
-        issue=2,
-        reason="try/catch/finally and throw translation are not implemented",
-        expected_fragments=(
-            "try:",
-            "except OSError as ex:",
-            'raise RuntimeError("Failed to read")',
-            "finally:",
-            "resource.close()",
-        ),
-    ),
-    TranslationTarget(
         fixture="Functional.java",
         issue=11,
         reason="stream pipelines remain an unresolved-region completion target",

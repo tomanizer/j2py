@@ -62,7 +62,7 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
             left_node = children[0]
             operator = children[1].text
             right_node = children[-1]
-            if operator != "=":
+            if operator not in {"=", "+=", "-=", "*=", "/=", "%="}:
                 ctx.diagnostics.record(
                     node,
                     supported=False,
@@ -71,7 +71,10 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
                 return f"__j2py_todo__({node.text!r})"
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
-            return f"{left} = {right}"
+            return f"{left} {operator} {right}"
+
+    if node.type == "update_expression":
+        return _translate_update_expression(node, ctx)
 
     if node.type == "method_invocation":
         return _translate_method_invocation(node, ctx)
@@ -271,6 +274,24 @@ def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
         return f"{operator}{operand}"
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported unary operator {operator}")
+    return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.children
+    named_children = node.named_children
+    if len(children) < 2 or not named_children:
+        ctx.diagnostics.record(node, supported=False, reason="malformed update expression")
+        return f"__j2py_todo__({node.text!r})"
+
+    operator = children[-1].text
+    target = translate_expression(named_children[0], ctx)
+    if operator == "++":
+        return f"{target} += 1"
+    if operator == "--":
+        return f"{target} -= 1"
+
+    ctx.diagnostics.record(node, supported=False, reason=f"unsupported update operator {operator}")
     return f"__j2py_todo__({node.text!r})"
 
 

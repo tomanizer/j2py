@@ -11,7 +11,7 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.6609216572448445,
+    "average_coverage": 0.6657728543327037,
     "files_scanned": 25,
     "files_with_unhandled": 20,
     "full_coverage_files": 3,
@@ -59,23 +59,11 @@
         1
       ],
       [
-        "continue_statement",
-        1
-      ],
-      [
-        "for_statement",
-        1
-      ],
-      [
         "record_declaration",
         1
       ],
       [
         "array_creation_expression",
-        1
-      ],
-      [
-        "try_statement",
         1
       ],
       [
@@ -145,14 +133,6 @@
         1
       ],
       [
-        "unsupported statement continue_statement",
-        1
-      ],
-      [
-        "unsupported statement for_statement",
-        1
-      ],
-      [
         "unsupported class member record_declaration",
         1
       ],
@@ -162,6 +142,10 @@
       ],
       [
         "unsupported class member interface_declaration",
+        1
+      ],
+      [
+        "unsupported expression cast_expression",
         1
       ]
     ]

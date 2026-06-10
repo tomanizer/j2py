@@ -166,7 +166,7 @@ def test_non_empty_collection_constructor_drops_coverage() -> None:
     _assert_valid_python(python_source)
 
 
-def test_compound_assignment_drops_coverage() -> None:
+def test_compound_assignment_translates() -> None:
     python_source, coverage = _translate_source(
         """
         public class Acc {
@@ -183,9 +183,199 @@ def test_compound_assignment_drops_coverage() -> None:
         """,
     )
 
-    assert coverage < 1.0
-    assert "__j2py_todo__('count += delta')" in python_source
+    assert coverage == 1.0
+    assert "self.count += delta" in python_source
     assert "self.count = delta" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_classic_for_statement_translates_to_range_loop() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Loops {
+            public int sum(int limit) {
+                int total = 0;
+                for (int i = 0; i < limit; i++) {
+                    if (i == 2) {
+                        continue;
+                    }
+                    total += i;
+                }
+                return total;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "for i in range(0, limit):" in python_source
+    assert "continue" in python_source
+    assert "total += i" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_while_statement_translates_break_and_update() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Loops {
+            public int reduce(int value) {
+                while (value > 0) {
+                    value--;
+                    if (value == 2) {
+                        break;
+                    }
+                }
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "while value > 0:" in python_source
+    assert "value -= 1" in python_source
+    assert "break" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_do_while_statement_translates_to_guarded_infinite_loop() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Loops {
+            public int decrement(int value) {
+                do {
+                    value--;
+                }
+                while (value > 0);
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "while True:" in python_source
+    assert "value -= 1" in python_source
+    assert "if not (value > 0):" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_try_catch_finally_and_throw_use_exception_map() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.io.IOException;
+
+        public class Exceptions {
+            public void read(Resource resource) throws IOException {
+                try {
+                    throw new IllegalArgumentException("bad");
+                }
+                catch (IOException ex) {
+                    throw new IllegalStateException("Failed", ex);
+                }
+                finally {
+                    resource.close();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "try:" in python_source
+    assert 'raise ValueError("bad")' in python_source
+    assert "except OSError as ex:" in python_source
+    assert 'raise RuntimeError("Failed") from ex' in python_source
+    assert "finally:" in python_source
+    assert "resource.close()" in python_source
+    _assert_valid_python(python_source)
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "expected_fragments"),
+    [
+        (
+            "ControlFlow",
+            (
+                "if value > 10:",
+                "elif value == 10:",
+                "else:",
+                "for i in range(0, limit):",
+                "total += i",
+                "while total < 100:",
+                "total += 1",
+                "while True:",
+                "total -= 1",
+            ),
+        ),
+        (
+            "Exceptions",
+            (
+                "try:",
+                "except OSError as ex:",
+                'raise RuntimeError("Failed to read") from ex',
+                "finally:",
+                "resource.close()",
+            ),
+        ),
+    ],
+)
+def test_graduated_issue_2_target_fixtures_translate(
+    fixture_name: str,
+    expected_fragments: tuple[str, ...],
+) -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / f"{fixture_name}.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    for fragment in expected_fragments:
+        assert fragment in result.source
+    _assert_valid_python(result.source)
+
+
+def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.io.IOException;
+
+        public class Exceptions {
+            public void recover() {
+                try {
+                    risky();
+                }
+                catch (IOException | RuntimeException ex) {
+                    throw ex;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "except (OSError, RuntimeError) as ex:" in python_source
+    assert "raise ex" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_switch_statement_remains_localized_unsupported_python() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                        return 1;
+                    default:
+                        return 0;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage < 1.0
+    assert "TODO(j2py): unsupported switch_expression" in python_source
     _assert_valid_python(python_source)
 
 
