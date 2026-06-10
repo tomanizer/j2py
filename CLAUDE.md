@@ -83,7 +83,11 @@ Before approving or merging a PR, verify:
 2. **Tests cover the change** — new translation rules need parametrised fixture tests
 3. **ADR for design changes** — any change to parser, pipeline layering, LLM model/prompt, or
    output format needs either an existing ADR reference or a new ADR
-4. **No LLM calls in tests** — tests must not call the Anthropic API; use fixtures or stubs
+4. **No live LLM calls in normal tests** — tests must not call the Anthropic API
+   during `make check`, normal `pytest`, or CI. Use fixtures or stubs by default.
+   The only exception is `tests/llm/test_e2e_llm.py`, which must be marked
+   `live_llm` and is excluded by pytest configuration unless explicitly run with
+   `pytest -m live_llm` and `ANTHROPIC_API_KEY`.
 5. **Rule-layer changes have Java fixtures** — `tests/fixtures/java/*.java` + expected `tests/fixtures/python/*.py`
 6. **Confidence score honest** — `skeleton.py` coverage estimate must reflect real coverage,
    not be inflated to skip the LLM

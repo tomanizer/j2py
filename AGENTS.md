@@ -35,7 +35,14 @@ Read these documents first:
 - Parser: **tree-sitter-java only** — do not introduce javalang, ANTLR, or regex-based parsing
 - LLM: **Anthropic SDK only** — no LangChain, no OpenAI, no litellm wrappers
 - Output target: **Python 3.11+** with PEP 484/585 type annotations
-- Tests: **no live Anthropic API calls** — use fixtures or stub the client
+- Tests: **no live Anthropic API calls in the normal test suite or CI**.
+  The single exception is the on-demand exploratory test
+  `tests/llm/test_e2e_llm.py` (marked `live_llm`). It is excluded by default
+  via pytest configuration (`addopts = ... -m 'not live_llm'`). It may only be run
+  explicitly with `pytest -m live_llm ...` (after setting `ANTHROPIC_API_KEY`)
+  when a human wants to manually evaluate the current tree-sitter + rule
+  skeleton quality against real LLM completion. This test must never be
+  required for `make check` or PRs.
 - Rule layer: keep deterministic helpers focused and stateless where possible; use
   `TranslationContext` and diagnostics when a rule cannot preserve Java semantics
 
@@ -46,6 +53,10 @@ Every PR must pass:
 ```bash
 make check     # lint (ruff) + typecheck (mypy strict) + test (pytest)
 ```
+
+Note: `make check` (and normal `pytest`) deliberately exclude the `live_llm`
+marker. The one exploratory live-LLM test can only be run on demand (see
+constraints above).
 
 CI runs the same checks. A red CI means `make check` was skipped.
 
