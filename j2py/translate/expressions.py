@@ -348,13 +348,28 @@ def _translate_string_concat(node: JavaNode, ctx: TranslationContext) -> str | N
         return None
 
     parts: list[str] = []
+    dynamic_parts: list[str] = []
     for term in terms:
         if term.type == "string_literal":
             parts.append(_string_literal_value(term).replace("{", "{{").replace("}", "}}"))
         else:
-            parts.append(f"{{{translate_expression(term, ctx)}}}")
+            expression = translate_expression(term, ctx)
+            dynamic_parts.append(expression)
+            parts.append(f"{{{expression}}}")
+    if any('"' in part or "\\" in part for part in dynamic_parts):
+        return _translate_string_concat_as_addition(terms, ctx)
     content = "".join(parts).replace("\\", "\\\\").replace('"', '\\"')
     return f'f"{content}"'
+
+
+def _translate_string_concat_as_addition(terms: list[JavaNode], ctx: TranslationContext) -> str:
+    parts: list[str] = []
+    for term in terms:
+        if term.type == "string_literal":
+            parts.append(repr(_string_literal_value(term)))
+        else:
+            parts.append(f"str({translate_expression(term, ctx)})")
+    return " + ".join(parts)
 
 
 def _flatten_plus(node: JavaNode) -> list[JavaNode] | None:

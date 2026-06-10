@@ -49,8 +49,14 @@ def translate_skeleton_with_diagnostics(
         class_blocks.append(translate_class(class_node, cfg, diagnostics))
 
     lines = ["from __future__ import annotations"]
+    if any(line.strip() == "@dataclass(frozen=True)" for block in class_blocks for line in block):
+        lines.extend(["", "from dataclasses import dataclass"])
+    if any("(Enum):" in line for block in class_blocks for line in block):
+        lines.extend(["", "from enum import Enum"])
     if any(line.strip() == "@overload" for block in class_blocks for line in block):
         lines.extend(["", "from typing import overload"])
+    if any("(Protocol):" in line for block in class_blocks for line in block):
+        lines.extend(["", "from typing import Protocol"])
     lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):

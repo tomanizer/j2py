@@ -21,7 +21,7 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
         "int[]"            → "list[int]"
         "Optional<String>" → "str | None"
     """
-    java_type = java_type.strip()
+    java_type = _strip_type_annotations(java_type.strip())
 
     # Arrays
     if java_type.endswith("[]"):
@@ -93,3 +93,8 @@ def _split_type_params(params_str: str) -> list[str]:
     if current:
         result.append("".join(current).strip())
     return result
+
+
+def _strip_type_annotations(java_type: str) -> str:
+    """Remove Java type-use annotations such as @Nullable before mapping types."""
+    return re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()

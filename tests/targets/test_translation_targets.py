@@ -45,19 +45,6 @@ TARGETS: tuple[TranslationTarget, ...] = (
             "if type_.get_name()",
         ),
     ),
-    TranslationTarget(
-        fixture="NestedTypes.java",
-        issue=9,
-        reason="nested declarations, interfaces, enums, and records are not implemented",
-        expected_fragments=(
-            "class Writer(Protocol):",
-            "class Mode(Enum):",
-            "FAST =",
-            "@dataclass",
-            "class Entry:",
-            "class Builder:",
-        ),
-    ),
 )
 
 

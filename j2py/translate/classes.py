@@ -19,6 +19,14 @@ from j2py.translate.rules.naming import (
 from j2py.translate.rules.types import translate_type
 from j2py.translate.statements import translate_body
 
+TYPE_DECLARATION_NODES = {
+    "class_declaration",
+    "interface_declaration",
+    "enum_declaration",
+    "record_declaration",
+    "annotation_type_declaration",
+}
+
 
 @dataclass(frozen=True)
 class FieldInfo:
@@ -38,11 +46,7 @@ class ParameterInfo:
 
 
 def top_level_classes(root: JavaNode) -> list[JavaNode]:
-    return [
-        child
-        for child in root.named_children
-        if child.type in {"class_declaration", "interface_declaration", "enum_declaration"}
-    ]
+    return [child for child in root.named_children if child.type in TYPE_DECLARATION_NODES]
 
 
 def translate_class(
@@ -50,6 +54,15 @@ def translate_class(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
 ) -> list[str]:
+    if node.type == "interface_declaration":
+        return _translate_interface(node, cfg, diagnostics)
+    if node.type == "enum_declaration":
+        return _translate_enum(node, diagnostics)
+    if node.type == "record_declaration":
+        return _translate_record(node, cfg, diagnostics)
+    if node.type == "annotation_type_declaration":
+        return _translate_annotation_placeholder(node, diagnostics)
+
     is_supported_class = node.type == "class_declaration"
     diagnostics.record(
         node,
@@ -97,10 +110,11 @@ def translate_class(
         cfg,
         diagnostics,
     )
+    nested_type_lines = _nested_type_lines(body, cfg, diagnostics)
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = bool(instance_init_lines) and not has_constructor
 
-    if not members and not static_field_lines and not instance_init_lines:
+    if not members and not static_field_lines and not instance_init_lines and not nested_type_lines:
         lines.append("    pass")
         return lines
 
@@ -111,6 +125,11 @@ def translate_class(
             lines.append("")
         lines.append("    def __init__(self) -> None:")
         lines.extend(instance_init_lines)
+
+    if nested_type_lines:
+        if static_field_lines or needs_synthetic_init:
+            lines.append("")
+        lines.extend(nested_type_lines)
 
     for group in _member_groups(members):
         lines.append("")
@@ -142,6 +161,111 @@ def translate_class(
     if class_body_needs_pass(lines):
         lines.append("    pass")
 
+    return lines
+
+
+def _translate_interface(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(node, supported=True, reason="translated interface declaration")
+    name_node = node.child_by_field("name")
+    class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
+    body = node.child_by_field("body")
+    methods = [] if body is None else body.find_all("method_declaration")
+
+    lines = [f"class {class_name}(Protocol):"]
+    wrote_member = False
+    for method in methods:
+        _record_annotation_diagnostics(method, cfg, diagnostics)
+        diagnostics.record(method, supported=True, reason="translated interface method")
+        name = _member_python_name(method)
+        params = _parameter_infos(method, cfg)
+        return_type = _return_type(method, cfg)
+        signature = _signature(name, params, return_type=return_type, include_self=True)
+        lines.append(f"    {signature}: ...")
+        wrote_member = True
+
+    if not wrote_member:
+        lines.append("    pass")
+    return lines
+
+
+def _translate_enum(node: JavaNode, diagnostics: TranslationDiagnostics) -> list[str]:
+    diagnostics.record(node, supported=True, reason="translated enum declaration")
+    name_node = node.child_by_field("name")
+    class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
+    body = node.child_by_field("body")
+    constants = (
+        []
+        if body is None
+        else [child for child in body.named_children if child.type == "enum_constant"]
+    )
+
+    lines = [f"class {class_name}(Enum):"]
+    if not constants:
+        lines.append("    pass")
+        return lines
+    for constant in constants:
+        diagnostics.record(constant, supported=True, reason="translated enum constant")
+        lines.append(f"    {constant.text} = {constant.text!r}")
+    return lines
+
+
+def _translate_record(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(node, supported=True, reason="translated record declaration")
+    name_node = node.child_by_field("name")
+    class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
+    params = _parameter_infos(node, cfg)
+
+    lines = ["@dataclass(frozen=True)", f"class {class_name}:"]
+    if not params:
+        lines.append("    pass")
+        return lines
+    for param in params:
+        lines.append(f"    {param.py_name}: {param.py_type}")
+    return lines
+
+
+def _translate_annotation_placeholder(
+    node: JavaNode,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(
+        node,
+        supported=False,
+        reason="annotation type declaration requires manual translation",
+    )
+    name_node = node.child_by_field("name")
+    class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
+    return [
+        f"class {class_name}:",
+        "    # TODO(j2py): unsupported annotation type declaration",
+        "    pass",
+    ]
+
+
+def _nested_type_lines(
+    body: JavaNode | None,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    if body is None:
+        return []
+
+    lines: list[str] = []
+    for child in body.named_children:
+        if child.type not in TYPE_DECLARATION_NODES:
+            continue
+        if lines:
+            lines.append("")
+        child_lines = translate_class(child, cfg, diagnostics)
+        lines.extend(f"    {line}" if line else line for line in child_lines)
     return lines
 
 
@@ -283,7 +407,12 @@ def _translate_fields(
         )
         instance_init_lines.append(f"        self.{field.py_name}: {field.py_type} | None = None")
 
-    supported_members = {"field_declaration", "constructor_declaration", "method_declaration"}
+    supported_members = {
+        "field_declaration",
+        "constructor_declaration",
+        "method_declaration",
+        *TYPE_DECLARATION_NODES,
+    }
     for child in body.named_children:
         if child.type in supported_members:
             continue

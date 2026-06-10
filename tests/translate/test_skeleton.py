@@ -355,6 +355,28 @@ def test_graduated_issue_8_overloads_target_fixture_translates() -> None:
     _assert_valid_python(result.source)
 
 
+def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "NestedTypes.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from dataclasses import dataclass" in result.source
+    assert "from enum import Enum" in result.source
+    assert "from typing import Protocol" in result.source
+    assert "class Writer(Protocol):" in result.source
+    assert "class Mode(Enum):" in result.source
+    assert "FAST =" in result.source
+    assert "@dataclass(frozen=True)" in result.source
+    assert "class Entry:" in result.source
+    assert "name: str" in result.source
+    assert "order: int" in result.source
+    assert "class Builder:" in result.source
+    assert "def build(self, name: str) -> Entry:" in result.source
+    assert "return Entry(name, 1)" in result.source
+    _assert_valid_python(result.source)
+
+
 def test_super_constructor_invocation_and_base_class_translate() -> None:
     python_source, coverage = _translate_source(
         """
@@ -568,6 +590,22 @@ def test_common_spring_expression_shapes_translate() -> None:
     _assert_valid_python(python_source)
 
 
+def test_string_concat_with_nested_quoted_expression_remains_valid_python() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Strings {
+            public String describe(String name) {
+                return "Hello " + (name != null ? "<" + name + ">" : "<missing>");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return 'Hello ' + str(" in python_source
+    _assert_valid_python(python_source)
+
+
 def test_null_comparison_uses_python_identity_operators() -> None:
     python_source, coverage = _translate_source(
         """
@@ -610,7 +648,7 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
     )
 
 
-def test_interface_declaration_is_not_reported_as_handled_methods() -> None:
+def test_interface_declaration_translates_to_protocol() -> None:
     result = _translate_source_with_diagnostics(
         """
         public interface Greeter {
@@ -619,11 +657,28 @@ def test_interface_declaration_is_not_reported_as_handled_methods() -> None:
         """,
     )
 
+    assert result.coverage == 1.0
+    assert "from typing import Protocol" in result.source
+    assert "class Greeter(Protocol):" in result.source
+    assert "def greet(self) -> None: ..." in result.source
+    assert not result.diagnostics.unhandled
+    assert [diagnostic.node_type for diagnostic in result.diagnostics.handled] == [
+        "interface_declaration",
+        "method_declaration",
+    ]
+    _assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_emits_valid_placeholder() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public @interface Marker {
+        }
+        """,
+    )
+
     assert result.coverage == 0.0
-    assert "TODO(j2py): unsupported top-level declaration interface_declaration" in result.source
-    assert "def greet(" not in result.source
-    assert not result.diagnostics.handled
-    diagnostic = result.diagnostics.unhandled[0]
-    assert diagnostic.node_type == "interface_declaration"
-    assert diagnostic.reason == "unsupported top-level declaration interface_declaration"
+    assert "class Marker:" in result.source
+    assert "TODO(j2py): unsupported annotation type declaration" in result.source
+    assert result.diagnostics.unhandled[0].node_type == "annotation_type_declaration"
     _assert_valid_python(result.source)

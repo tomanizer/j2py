@@ -11,51 +11,43 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.6896329146557838,
+    "average_coverage": 0.8432638277389305,
     "files_scanned": 25,
-    "files_with_unhandled": 18,
-    "full_coverage_files": 5,
+    "files_with_unhandled": 16,
+    "full_coverage_files": 8,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.96,
+    "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
       [
-        "class_declaration",
-        14
+        "method_declaration",
+        16
+      ],
+      [
+        "instanceof_expression",
+        16
       ],
       [
         "method_reference",
-        12
+        14
       ],
       [
         "lambda_expression",
-        12
-      ],
-      [
-        "method_declaration",
-        12
+        14
       ],
       [
         "constructor_declaration",
         11
       ],
       [
-        "interface_declaration",
+        "object_creation_expression",
         4
       ],
       [
-        "object_creation_expression",
-        2
+        "cast_expression",
+        3
       ],
       [
-        "instanceof_expression",
-        2
-      ],
-      [
-        "enum_declaration",
-        1
-      ],
-      [
-        "record_declaration",
+        "annotation_type_declaration",
         1
       ],
       [
@@ -63,33 +55,37 @@
         1
       ],
       [
-        "cast_expression",
+        "super",
         1
       ]
     ],
     "top_unhandled_reasons": [
       [
-        "unsupported class member class_declaration",
-        14
+        "unsupported expression instanceof_expression",
+        16
       ],
       [
         "unsupported expression method_reference",
-        12
+        14
       ],
       [
         "unsupported expression lambda_expression",
-        12
+        14
       ],
       [
         "overloaded method __init__ requires manual dispatch",
         11
       ],
       [
-        "unsupported top-level declaration interface_declaration",
+        "non-empty collection constructor requires LLM completion",
+        4
+      ],
+      [
+        "unsupported expression cast_expression",
         3
       ],
       [
-        "non-empty collection constructor requires LLM completion",
+        "overloaded method copy requires manual dispatch",
         2
       ],
       [
@@ -109,11 +105,11 @@
         2
       ],
       [
-        "unsupported expression instanceof_expression",
+        "overloaded method with_ requires manual dispatch",
         2
       ],
       [
-        "overloaded method with_ requires manual dispatch",
+        "overloaded method generate_code requires manual dispatch",
         2
       ],
       [
@@ -121,11 +117,7 @@
         2
       ],
       [
-        "unsupported class member enum_declaration",
-        1
-      ],
-      [
-        "unsupported class member record_declaration",
+        "annotation type declaration requires manual translation",
         1
       ],
       [
@@ -133,11 +125,7 @@
         1
       ],
       [
-        "unsupported class member interface_declaration",
-        1
-      ],
-      [
-        "unsupported expression cast_expression",
+        "unsupported expression super",
         1
       ]
     ]
