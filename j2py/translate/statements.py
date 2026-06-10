@@ -60,6 +60,14 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
         return _translate_try(node, ctx, indent=indent)
 
     if node.type == "switch_expression":
+        # In tree-sitter-java the node type for both traditional colon switch
+        # *statements* and arrow switch *expressions* is "switch_expression".
+        # When it appears directly as a block child (not wrapped in
+        # expression_statement), it is the statement form and must be translated
+        # with the control-flow version (_translate_switch builds if/elif chains
+        # or the fallthrough diagnostic). Value-producing arrow switches used in
+        # expression position (or as expression_statement) are handled via
+        # translate_expression -> _translate_switch_expression.
         return _translate_switch(node, ctx, indent=indent)
 
     if node.type == "explicit_constructor_invocation":
