@@ -51,8 +51,8 @@ TARGETS: tuple[TranslationTarget, ...] = (
     ),
     TranslationTarget(
         fixture="ControlFlow.java",
-        issue=4,
-        reason="if/else and classic loop translation are not implemented",
+        issue=2,
+        reason="classic for/while/do-while loop translation is not implemented",
         expected_fragments=(
             "if value > 10:",
             "elif value == 10:",

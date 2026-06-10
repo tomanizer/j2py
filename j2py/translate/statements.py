@@ -42,6 +42,9 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "enhanced_for_statement":
         return _translate_enhanced_for(node, ctx, indent=indent)
 
+    if node.type == "if_statement":
+        return _translate_if(node, ctx, indent=indent)
+
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported statement {node.type}")
     return [f"{indent}# TODO(j2py): unsupported {node.type}", f"{indent}pass"]
 
@@ -94,4 +97,35 @@ def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: 
     lines = [f"{indent}for {py_name} in {iterable}:"]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     ctx.local_names = previous_locals
+    return lines
+
+
+def _translate_if(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+    keyword: str = "if",
+) -> list[str]:
+    ctx.diagnostics.record(node, supported=True, reason="translated if statement")
+    condition = node.child_by_field("condition")
+    consequence = node.child_by_field("consequence")
+    alternative = node.child_by_field("alternative")
+
+    lines = [f"{indent}{keyword} {translate_expression(condition, ctx)}:"]
+    if consequence is None:
+        ctx.diagnostics.record(node, supported=False, reason="if statement without a body")
+        lines.append(f"{indent}    pass")
+    else:
+        lines.extend(translate_body(consequence, ctx, indent=f"{indent}    "))
+
+    if alternative is None:
+        return lines
+
+    if alternative.type == "if_statement":
+        lines.extend(_translate_if(alternative, ctx, indent=indent, keyword="elif"))
+        return lines
+
+    lines.append(f"{indent}else:")
+    lines.extend(translate_body(alternative, ctx, indent=f"{indent}    "))
     return lines

@@ -67,15 +67,31 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node.type == "object_creation_expression":
         return _translate_object_creation(node, ctx)
 
+    if node.type == "parenthesized_expression":
+        named_children = node.named_children
+        if len(named_children) == 1:
+            return translate_expression(named_children[0], ctx)
+
+    if node.type == "unary_expression":
+        return _translate_unary_expression(node, ctx)
+
     if node.type == "binary_expression":
         f_string = _translate_string_concat(node, ctx)
         if f_string is not None:
             return f_string
         children = node.children
         if len(children) >= 3:
+            binary_operator = _translate_binary_operator(children[1].text)
+            if binary_operator is None:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=f"unsupported binary operator {children[1].text}",
+                )
+                return f"__j2py_todo__({node.text!r})"
             return (
                 f"{translate_expression(children[0], ctx)} "
-                f"{children[1].text} "
+                f"{binary_operator} "
                 f"{translate_expression(children[2], ctx)}"
             )
 
@@ -164,6 +180,43 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         return f"__j2py_todo__({node.text!r})"
 
     return f"{translate_class_name(base_type)}({args})"
+
+
+def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.children
+    named_children = node.named_children
+    if not children or not named_children:
+        ctx.diagnostics.record(node, supported=False, reason="malformed unary expression")
+        return f"__j2py_todo__({node.text!r})"
+
+    operator = children[0].text
+    operand = translate_expression(named_children[-1], ctx)
+    if operator == "!":
+        return f"not {operand}"
+    if operator in {"+", "-"}:
+        return f"{operator}{operand}"
+
+    ctx.diagnostics.record(node, supported=False, reason=f"unsupported unary operator {operator}")
+    return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_binary_operator(operator: str) -> str | None:
+    operators = {
+        "&&": "and",
+        "||": "or",
+        "==": "==",
+        "!=": "!=",
+        ">": ">",
+        ">=": ">=",
+        "<": "<",
+        "<=": "<=",
+        "+": "+",
+        "-": "-",
+        "*": "*",
+        "/": "/",
+        "%": "%",
+    }
+    return operators.get(operator)
 
 
 def _translate_string_concat(node: JavaNode, ctx: TranslationContext) -> str | None:

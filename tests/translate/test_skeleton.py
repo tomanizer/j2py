@@ -189,6 +189,117 @@ def test_compound_assignment_drops_coverage() -> None:
     _assert_valid_python(python_source)
 
 
+def test_if_statement_translates_single_branch() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Branch {
+            public int clamp(int value) {
+                if (value < 0) {
+                    return 0;
+                }
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value < 0:" in python_source
+    assert "return 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_if_statement_translates_else_branch() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Branch {
+            public int sign(int value) {
+                if (value >= 0) {
+                    return 1;
+                }
+                else {
+                    return -1;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value >= 0:" in python_source
+    assert "else:" in python_source
+    assert "return -1" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_if_statement_translates_chained_else_if() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Branch {
+            public int sign(int value) {
+                if (value > 0) {
+                    return 1;
+                }
+                else if (value == 0) {
+                    return 0;
+                }
+                else {
+                    return -1;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value > 0:" in python_source
+    assert "elif value == 0:" in python_source
+    assert "else:" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_if_statement_translates_nested_branch() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Branch {
+            public int nested(int value) {
+                if (value > 0) {
+                    if (value > 10) {
+                        return 10;
+                    }
+                }
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value > 0:" in python_source
+    assert "        if value > 10:" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_if_statement_localizes_unsupported_condition_expression() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Branch {
+            public int unsupported(Object value) {
+                if (value instanceof String) {
+                    return 1;
+                }
+                return 0;
+            }
+        }
+        """,
+    )
+
+    assert coverage < 1.0
+    assert "if __j2py_todo__('value instanceof String'):" in python_source
+    assert "unsupported if_statement" not in python_source
+    _assert_valid_python(python_source)
+
+
 def test_partial_translation_reports_structured_diagnostics() -> None:
     result = _translate_source_with_diagnostics(
         """
