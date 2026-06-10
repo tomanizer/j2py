@@ -51,3 +51,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--tb=short"
+markers = [
+    "target_translation: roadmap Java-to-Python translation targets that are excluded from make check",
+]

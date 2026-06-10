@@ -45,6 +45,17 @@ Every new Java construct translation needs:
 
 The fixture pair is the contract. CI snapshot-tests it.
 
+For unsupported but planned Java constructs, add or update a roadmap target test first.
+Target tests live under `tests/targets/`, use the `target_translation` marker, and run with:
+
+```bash
+make test-targets
+```
+
+They are excluded from `make check` until the translator supports the construct. See
+[Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
+graduation rules.
+
 ## Material changes
 
 A **material change** is any of:

@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-cov clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-targets test-cov clean ci-local-pr ci-local-governance
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -14,7 +14,10 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run mypy j2py/
 
 test:  ## Run test suite
-	uv run pytest
+	uv run pytest -m "not target_translation"
+
+test-targets:  ## Run xfail Java-to-Python roadmap target tests
+	uv run pytest tests/targets -m target_translation -rxXs
 
 test-cov:  ## Run tests with coverage report
 	uv run pytest --cov=j2py --cov-report=term-missing --cov-report=xml
