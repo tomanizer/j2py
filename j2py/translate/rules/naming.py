@@ -5,7 +5,6 @@ from __future__ import annotations
 import keyword
 import re
 
-
 PYTHON_BUILTINS: frozenset[str] = frozenset(
     {"abs", "all", "any", "bin", "bool", "breakpoint", "bytearray", "bytes",
      "callable", "chr", "compile", "complex", "copyright", "credits", "delattr",

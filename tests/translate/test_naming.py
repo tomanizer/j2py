@@ -2,7 +2,7 @@
 
 import pytest
 
-from j2py.translate.rules.naming import camel_to_snake, safe_identifier, translate_method_name
+from j2py.translate.rules.naming import camel_to_snake, safe_identifier
 
 
 @pytest.mark.parametrize("camel, snake", [

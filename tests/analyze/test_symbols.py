@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from j2py.parse.java_ast import parse_file
 from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "java"
 

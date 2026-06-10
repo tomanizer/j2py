@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Protocol
 
 from j2py.parse.java_ast import JavaNode
 
@@ -21,13 +20,13 @@ class Selector(ABC):
     @abstractmethod
     def matches(self, node: JavaNode) -> bool: ...
 
-    def __and__(self, other: "Selector") -> "And":
+    def __and__(self, other: Selector) -> And:
         return And(self, other)
 
-    def __or__(self, other: "Selector") -> "Or":
+    def __or__(self, other: Selector) -> Or:
         return Or(self, other)
 
-    def __invert__(self) -> "Not":
+    def __invert__(self) -> Not:
         return Not(self)
 
 

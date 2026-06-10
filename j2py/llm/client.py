@@ -12,7 +12,6 @@ import anthropic
 import diskcache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
 _cache = diskcache.Cache(str(_CACHE_DIR))
 
@@ -62,8 +61,9 @@ def translate_with_llm(
 
     if use_cache:
         key = _cache_key(model, messages, system)
-        if key in _cache:
-            return _cache[key]  # type: ignore[return-value]
+        cached: str | None = _cache.get(key)
+        if cached is not None:
+            return cached
 
     response = get_client().messages.create(
         model=model,
@@ -72,7 +72,10 @@ def translate_with_llm(
         messages=messages,  # type: ignore[arg-type]
     )
 
-    result = response.content[0].text
+    first_block = response.content[0]
+    if not isinstance(first_block, anthropic.types.TextBlock):
+        raise RuntimeError(f"Unexpected response block type: {type(first_block)}")
+    result = first_block.text
 
     if use_cache:
         _cache[key] = result

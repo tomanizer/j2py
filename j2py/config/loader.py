@@ -11,7 +11,6 @@ from pydantic import BaseModel
 
 from j2py.config import default
 
-
 T = TypeVar("T")
 
 
@@ -36,7 +35,7 @@ class TranslationConfig(BaseModel):
     target_python: str = "3.11"
 
     @classmethod
-    def default(cls) -> "TranslationConfig":
+    def default(cls) -> TranslationConfig:
         return cls(
             type_map=dict(default.TYPE_MAP),
             collection_map=dict(default.COLLECTION_MAP),
@@ -56,17 +55,17 @@ class ConfigLoader:
     def __init__(self) -> None:
         self._layers: list[dict[str, Any]] = []
 
-    def add_defaults(self) -> "ConfigLoader":
+    def add_defaults(self) -> ConfigLoader:
         self._layers.append(TranslationConfig.default().model_dump())
         return self
 
-    def add_file(self, path: Path) -> "ConfigLoader":
+    def add_file(self, path: Path) -> ConfigLoader:
         spec = importlib.util.spec_from_file_location("_j2py_config", path)
         if spec is None or spec.loader is None:
             raise ValueError(f"Cannot load config from {path}")
         module = importlib.util.module_from_spec(spec)
         sys.modules["_j2py_config"] = module
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        spec.loader.exec_module(module)
 
         overrides: dict[str, Any] = {
             k: v for k, v in vars(module).items() if not k.startswith("_")
@@ -80,7 +79,9 @@ class ConfigLoader:
             for key, value in layer.items():
                 if isinstance(value, dict) and isinstance(merged.get(key), dict):
                     merged[key] = {**merged[key], **value}
-                elif isinstance(value, (set, frozenset)) and isinstance(merged.get(key), (set, frozenset)):
+                elif isinstance(value, (set, frozenset)) and isinstance(
+                    merged.get(key), (set, frozenset)
+                ):
                     merged[key] = merged[key] | set(value)
                 else:
                     merged[key] = value

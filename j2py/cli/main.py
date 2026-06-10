@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
+
+if TYPE_CHECKING:
+    from j2py.config.loader import TranslationConfig
 
 app = typer.Typer(
     name="j2py",
@@ -20,16 +23,23 @@ console = Console()
 @app.command()
 def translate(
     source: Path = typer.Argument(..., help="Java file or directory to translate."),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file or directory."),
-    config: list[Path] = typer.Option([], "--config", "-c", help="Extra config file(s) to layer on top of defaults."),
-    llm: bool = typer.Option(True, "--llm/--no-llm", help="Use LLM for complex logic (requires ANTHROPIC_API_KEY)."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Output file or directory."),
+    config: list[Path] = typer.Option(
+        [], "--config", "-c", help="Extra config file(s) to layer on top of defaults."
+    ),
+    llm: bool = typer.Option(
+        True, "--llm/--no-llm", help="Use LLM for complex logic (requires ANTHROPIC_API_KEY)."
+    ),
     model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="Claude model to use."),
-    validate: bool = typer.Option(True, "--validate/--no-validate", help="Run mypy + ruff on output."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print translated output, do not write files."),
+    validate: bool = typer.Option(
+        True, "--validate/--no-validate", help="Run mypy + ruff on output."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print translated output, do not write files."
+    ),
 ) -> None:
     """Translate a Java file or directory tree to Python."""
     from j2py.config.loader import ConfigLoader
-    from j2py.pipeline import translate_file, translate_directory
 
     loader = ConfigLoader().add_defaults()
     for c in config:
@@ -46,7 +56,7 @@ def translate(
 def _translate_single(
     source: Path,
     output: Path | None,
-    cfg,
+    cfg: TranslationConfig,
     llm: bool,
     model: str,
     validate: bool,
@@ -79,7 +89,7 @@ def _translate_single(
 def _translate_dir(
     source: Path,
     output: Path,
-    cfg,
+    cfg: TranslationConfig,
     llm: bool,
     model: str,
     validate: bool,
@@ -114,8 +124,8 @@ def analyze(
     source: Path = typer.Argument(..., help="Java file or directory to analyze."),
 ) -> None:
     """Print dependency graph and class inventory without translating."""
-    from j2py.parse.java_ast import parse_file
     from j2py.analyze.symbols import extract_symbols
+    from j2py.parse.java_ast import parse_file
 
     java_files = list(source.rglob("*.java")) if source.is_dir() else [source]
     for jf in java_files:
@@ -124,7 +134,9 @@ def analyze(
         console.print(f"\n[bold]{jf}[/bold] — package: {symbols.package}")
         for cls in symbols.classes:
             kind = "interface" if cls.is_interface else ("enum" if cls.is_enum else "class")
-            console.print(f"  [{kind}] {cls.name} — {len(cls.methods)} methods, {len(cls.fields)} fields")
+            console.print(
+                f"  [{kind}] {cls.name} — {len(cls.methods)} methods, {len(cls.fields)} fields"
+            )
 
 
 if __name__ == "__main__":

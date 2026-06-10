@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 SYSTEM_PROMPT = """\
 You are an expert Java-to-Python translator. Your goal is to produce Python code that is \
 semantically and functionally equivalent to the input Java, with line-level structural \

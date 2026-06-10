@@ -9,8 +9,7 @@ These are wired into the selector rules table in rules/*.py.
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.rules.naming import camel_to_snake
-
+from j2py.translate.selectors import TransformFn
 
 # ---------------------------------------------------------------------------
 # Literal transforms
@@ -65,7 +64,7 @@ def instanceof_to_isinstance(node: JavaNode) -> str:
 # Factory helpers — make parametric transforms
 # ---------------------------------------------------------------------------
 
-def make_const(value: str):
+def make_const(value: str) -> TransformFn:
     """Return a transform that always replaces the node text with `value`."""
     def _transform(node: JavaNode) -> str:
         return value
@@ -76,6 +75,7 @@ def make_const(value: str):
 def keyword_safe(node: JavaNode) -> str | None:
     """Append _ to identifiers that are Python keywords/builtins."""
     import keyword
+
     from j2py.translate.rules.naming import PYTHON_BUILTINS
     text = node.text
     if text in keyword.kwlist or text in PYTHON_BUILTINS:

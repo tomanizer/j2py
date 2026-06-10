@@ -2,9 +2,7 @@
 
 from pathlib import Path
 
-import pytest
-
-from j2py.parse.java_ast import parse_source, parse_file
+from j2py.parse.java_ast import parse_source
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "java"
 

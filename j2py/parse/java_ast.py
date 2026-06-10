@@ -6,13 +6,12 @@ Java ASTs and extracting node text/metadata.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator
 
 import tree_sitter_java as ts_java
 from tree_sitter import Language, Node, Parser
-
 
 JAVA_LANGUAGE = Language(ts_java.language())
 

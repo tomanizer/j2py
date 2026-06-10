@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from j2py.config.loader import TranslationConfig
-from j2py.parse.java_ast import parse_file, ParsedFile
 from j2py.analyze.symbols import extract_symbols
+from j2py.config.loader import TranslationConfig
+from j2py.parse.java_ast import parse_file
 
 
 @dataclass

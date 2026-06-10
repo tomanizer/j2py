@@ -40,7 +40,7 @@ class ClassSymbol:
     is_enum: bool = False
     fields: list[FieldSymbol] = field(default_factory=list)
     methods: list[MethodSymbol] = field(default_factory=list)
-    inner_classes: list["ClassSymbol"] = field(default_factory=list)
+    inner_classes: list[ClassSymbol] = field(default_factory=list)
     line: int = 0
 
 
