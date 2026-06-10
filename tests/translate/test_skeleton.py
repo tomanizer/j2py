@@ -377,6 +377,18 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     _assert_valid_python(result.source)
 
 
+def test_graduated_issue_20_functional_stream_target_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "Functional.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import Any" in result.source
+    assert "def names(self, types: list[type[Any]]) -> list[str]:" in result.source
+    assert "return [type_.get_name() for type_ in types if type_.get_name()]" in result.source
+    _assert_valid_python(result.source)
+
+
 def test_super_constructor_invocation_and_base_class_translate() -> None:
     python_source, coverage = _translate_source(
         """
@@ -418,7 +430,7 @@ def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
     _assert_valid_python(python_source)
 
 
-def test_switch_statement_remains_localized_unsupported_python() -> None:
+def test_switch_statement_translates_returning_cases() -> None:
     python_source, coverage = _translate_source(
         """
         public class Switches {
@@ -434,8 +446,64 @@ def test_switch_statement_remains_localized_unsupported_python() -> None:
         """,
     )
 
-    assert coverage < 1.0
-    assert "TODO(j2py): unsupported switch_expression" in python_source
+    assert coverage == 1.0
+    assert "if value == 1:" in python_source
+    assert "return 1" in python_source
+    assert "else:" in python_source
+    assert "return 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_switch_statement_with_fallthrough_drops_coverage() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                int result = 0;
+                switch (value) {
+                    case 1:
+                        result = 1;
+                    default:
+                        return result;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "TODO(j2py): switch fall-through requires manual translation" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "switch fall-through requires manual translation"
+    )
+    _assert_valid_python(result.source)
+
+
+def test_switch_expression_translates_arrow_rules_and_yield_blocks() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public String label(int value) {
+                return switch (value) {
+                    case 1 -> "one";
+                    case 2, 3 -> "few";
+                    default -> "many";
+                };
+            }
+
+            public int score(int value) {
+                return switch (value) {
+                    case 1 -> { yield 10; }
+                    default -> { yield 0; }
+                };
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return "one" if value == 1 else "few" if value in (2, 3) else "many"' in python_source
+    assert "return 10 if value == 1 else 0" in python_source
     _assert_valid_python(python_source)
 
 
@@ -590,6 +658,151 @@ def test_common_spring_expression_shapes_translate() -> None:
     _assert_valid_python(python_source)
 
 
+def test_map_get_preserves_missing_key_semantics() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.Map;
+
+        public class Maps {
+            public String lookup(Map<String, String> values) {
+                return values.get("missing");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return values.get("missing")' in python_source
+    assert 'return values["missing"]' not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_ambiguous_get_invocation_drops_coverage() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class Calls {
+            public Object lookup(Object values) {
+                return values.get("missing");
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert 'return values.get("missing")' in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    _assert_valid_python(result.source)
+
+
+def test_equals_invocation_translates_to_python_equality() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Equals {
+            private String name = "x";
+
+            public boolean same(String a, String b) {
+                return a.equals(b);
+            }
+
+            public boolean sameField(String value) {
+                return this.name.equals(value);
+            }
+
+            public boolean sameLiteral(String value) {
+                return "x".equals(value);
+            }
+
+            public boolean sameNull(String value) {
+                return value.equals(null);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return a == b" in python_source
+    assert "return self.name == value" in python_source
+    assert 'return "x" == value' in python_source
+    assert "return value is None" in python_source
+    assert ".equals(" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_expression_lambdas_and_method_references_translate() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.function.BiFunction;
+        import java.util.function.Function;
+        import java.util.function.Supplier;
+
+        public class FunctionalCallbacks {
+            public void callbacks(Service service) {
+                Function<User, String> a = user -> user.getName();
+                Function<User, String> b = (User user) -> user.getName();
+                Function<User, String> c = User::getName;
+                Function<String, User> d = User::new;
+                Supplier<String> e = service::name;
+                BiFunction<Integer, Integer, Integer> f = (left, right) -> left + right;
+                Runnable r = () -> service.run();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "a = lambda user: user.get_name()" in python_source
+    assert "b = lambda user: user.get_name()" in python_source
+    assert "c = User.get_name" in python_source
+    assert "d = User" in python_source
+    assert "e = service.name" in python_source
+    assert "f = lambda left, right: left + right" in python_source
+    assert "r = lambda: service.run()" in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_block_lambda_drops_coverage_with_localized_todo() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.function.Function;
+
+        public class FunctionalCallbacks {
+            public void callbacks() {
+                Function<User, String> block = user -> { return user.getName(); };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "__j2py_todo__('user -> { return user.getName(); }')" in result.source
+    assert result.diagnostics.unhandled[-1].reason == "block lambda requires helper function"
+    _assert_valid_python(result.source)
+
+
+def test_array_constructor_method_reference_drops_coverage() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        public class FunctionalCallbacks {
+            public String[] names(List<String> names) {
+                return names.toArray(String[]::new);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "__j2py_todo__('String[]::new')" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "array constructor method reference requires collection conversion"
+    )
+    _assert_valid_python(result.source)
+
+
 def test_import_map_emits_configured_python_imports_and_drops_known_imports() -> None:
     python_source, coverage = _translate_source(
         """
@@ -706,6 +919,64 @@ def test_string_concat_with_nested_quoted_expression_remains_valid_python() -> N
     assert coverage == 1.0
     assert "return 'Hello ' + str(" in python_source
     _assert_valid_python(python_source)
+
+
+def test_string_concat_preserves_leading_numeric_addition() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Strings {
+            public String label(int a, int b) {
+                return a + b + "x";
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return f"{a + b}x"' in python_source
+    assert 'return f"{a}{b}x"' not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_integer_division_is_explicit_and_drops_coverage_for_review() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int half(int n) {
+                return n / 2;
+            }
+
+            public double ratio(double n, double d) {
+                return n / d;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "return n // 2" in result.source
+    assert "return n / d" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "integer division translated with floor division; verify truncation semantics"
+    )
+    _assert_valid_python(result.source)
+
+
+def test_ambiguous_division_drops_coverage() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public Object ratio(Object left, Object right) {
+                return left / right;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "return __j2py_todo__('left / right')" in result.source
+    assert result.diagnostics.unhandled[-1].reason == "division requires numeric type certainty"
+    _assert_valid_python(result.source)
 
 
 def test_null_comparison_uses_python_identity_operators() -> None:

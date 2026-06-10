@@ -116,9 +116,26 @@ def translate_with_llm(
     first_block = response.content[0]
     if not isinstance(first_block, anthropic.types.TextBlock):
         raise RuntimeError(f"Unexpected response block type: {type(first_block)}")
-    result = first_block.text
+    result = _strip_fences(first_block.text)
 
     if use_cache:
         _cache[key] = result
 
     return result
+
+
+def _strip_fences(text: str) -> str:
+    """Strip markdown code fences Claude sometimes adds despite being asked not to."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        # drop opening fence line (```python, ```py, or plain ```)
+        start = 1
+        # find closing fence
+        end = len(lines)
+        for i in range(len(lines) - 1, 0, -1):
+            if lines[i].strip() == "```":
+                end = i
+                break
+        return "\n".join(lines[start:end]) + "\n"
+    return text

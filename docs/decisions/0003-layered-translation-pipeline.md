@@ -54,7 +54,9 @@ Use a **layered pipeline**:
 + LLM layer has a partially-translated skeleton as context — better accuracy, fewer tokens
 + Coverage metric drives human review priority
 + Reviewable output: same structure as Java means the reviewer doesn't re-read logic
-− Rule layer (`skeleton.py`) is currently a stub — it is the primary build target
+− Status note: the rule layer is now an implemented and incomplete deterministic
+  visitor layer. Current work should extend
+  `classes.py`, `statements.py`, `expressions.py`, and pure helpers in `rules/`.
 − Two-layer system is more complex than LLM-only; coverage estimate must be honest
   (inflating it to skip the LLM defeats the purpose)
 − LLM output is non-deterministic for the portions it handles; disk cache mitigates

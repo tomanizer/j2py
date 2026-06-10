@@ -33,19 +33,7 @@ class TranslationTarget:
         return TARGET_FIXTURES / self.fixture
 
 
-TARGETS: tuple[TranslationTarget, ...] = (
-    TranslationTarget(
-        fixture="Functional.java",
-        issue=11,
-        reason="stream pipelines remain an unresolved-region completion target",
-        expected_fragments=(
-            "return [",
-            "type_.get_name()",
-            "for type_ in types",
-            "if type_.get_name()",
-        ),
-    ),
-)
+TARGETS: tuple[TranslationTarget, ...] = ()
 
 
 def test_target_java_fixtures_parse_without_errors() -> None:

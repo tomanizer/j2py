@@ -89,6 +89,7 @@ def translate_class(
 
     fields = _class_fields(node, cfg)
     instance_field_names = _instance_field_names(fields)
+    instance_field_types = _instance_field_types(fields)
     assigned_fields = _constructor_assigned_fields(node)
     body = node.child_by_field("body")
     members = (
@@ -154,6 +155,7 @@ def translate_class(
             cfg=cfg,
             diagnostics=diagnostics,
             class_fields=instance_field_names,
+            class_field_types=instance_field_types,
         )
         pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
         lines.extend(_translate_method(member, ctx, pre_body_lines=pre_body_lines))
@@ -355,6 +357,10 @@ def _instance_field_names(fields: list[FieldInfo]) -> set[str]:
     return {field.name for field in fields if not field.is_static}
 
 
+def _instance_field_types(fields: list[FieldInfo]) -> dict[str, str]:
+    return {field.name: field.py_type for field in fields if not field.is_static}
+
+
 def _translate_fields(
     class_node: JavaNode,
     fields: list[FieldInfo],
@@ -373,11 +379,13 @@ def _translate_fields(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=instance_field_names,
+        class_field_types=_instance_field_types(fields),
     )
     instance_ctx = TranslationContext(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=instance_field_names,
+        class_field_types=_instance_field_types(fields),
         in_instance_method=True,
     )
 
@@ -618,9 +626,11 @@ def _merged_constructor_overload(
             diagnostics.record(member, supported=True, reason="translated constructor delegation")
 
     ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
+    ctx.class_field_types = {field: "object" for field in class_fields}
     ctx.in_instance_method = True
     for param in params:
         ctx.param_names.add(param.raw_name)
+        ctx.variable_types[param.raw_name] = param.py_type
 
     lines = _overload_stubs(members, cfg)
     signature = _signature(
@@ -683,9 +693,11 @@ def _merged_method_overload(
         diagnostics.record(member, supported=True, reason="translated overloaded method")
 
     ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
+    ctx.class_field_types = {field: "object" for field in class_fields}
     ctx.in_instance_method = not is_static
     for param in merged_params:
         ctx.param_names.add(param.raw_name)
+        ctx.variable_types[param.raw_name] = param.py_type
 
     lines = _overload_stubs(members, cfg)
     if is_static:
@@ -859,6 +871,7 @@ def _params(node: JavaNode, ctx: TranslationContext) -> list[str]:
     params: list[str] = []
     for param in _parameter_infos(node, ctx.cfg):
         ctx.param_names.add(param.raw_name)
+        ctx.variable_types[param.raw_name] = param.py_type
         if ctx.cfg.emit_type_hints:
             params.append(f"{param.py_name}: {param.py_type}")
         else:

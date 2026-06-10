@@ -7,7 +7,7 @@ The default scoreboard is pinned to:
 
 - Spring remote: `https://github.com/spring-projects/spring-framework.git`
 - Spring ref: `0c60266986197a191ff33eb498ebc8bac3dc933f`
-- Sample size: `25`
+- Sample size: `100`
 - Modules:
   - `spring-core/src/main/java`
   - `spring-beans/src/main/java`
@@ -21,15 +21,24 @@ tests/fixtures/corpus/spring-sample-baseline.json
 Current committed baseline:
 
 - parse success rate: 100.00%
-- generated Python syntax success rate: 100.00%
-- average skeleton coverage: 84.33%
-- full-coverage files: 8 of 25
-- files with unhandled constructs: 16 of 25
+- generated Python syntax success rate: 91.00%
+- average skeleton coverage: 78.35%
+- full-coverage files: 32 of 100
+- files with unhandled constructs: 60 of 100
+- files below 80% coverage: 28 of 100
+- per-file metrics committed for parse failures, syntax failures, coverage,
+  unhandled node types, and unhandled reasons
 
 Run the scoreboard against an existing checkout:
 
 ```bash
 make corpus-spring
+```
+
+Run a quick local 25-file smoke sample without comparing the committed baseline:
+
+```bash
+make corpus-spring-smoke
 ```
 
 Clone or refresh the pinned Spring checkout explicitly:
@@ -55,8 +64,11 @@ Scoreboard metrics:
 - average skeleton coverage
 - full-coverage files
 - files with unhandled constructs
+- files below the 80% coverage threshold
 - top unhandled node types
 - top unhandled reasons
+- per-file parse/syntax failures, coverage drops, unhandled count increases, and new
+  unhandled reasons compared with the committed baseline
 
 Use the comparison output to decide whether a translation rule improved or regressed the
 real corpus before updating the baseline.

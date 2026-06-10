@@ -30,6 +30,17 @@ def test_cli_translate_dry_run_without_llm() -> None:
     assert "def get_name" in result.output
 
 
+def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["translate", "--help"])
+
+    assert result.exit_code == 0
+    assert "LLM model ID" in result.output
+    assert "ANTHROPIC_API_KEY" not in result.output
+    assert "Claude model" not in result.output
+
+
 def test_cli_analyze_prints_class_inventory() -> None:
     runner = CliRunner()
 

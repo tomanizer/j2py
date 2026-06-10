@@ -13,28 +13,36 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Structured rule-layer diagnostics and coverage reporting.
 - Spring corpus scoreboard with a pinned baseline.
 - Roadmap target tests for unsupported Java-to-Python constructs.
-- Support for translating if/else, classic for/while/do-while, try/catch/finally, throw, break/continue.
-- Expanded expression support (ternaries, class literals, array access, updates, common collection and string idioms).
-- Full support for nested type declarations (interfaces as Protocol, enums as Enum, records as frozen dataclass).
-- Simple overload handling and improved constructor support.
-- Config-driven import emission (respecting import_map, drop_imports, plus auto-adds for dataclass/Enum/Protocol/overload/Any).
-- Dependency-ordered directory translation using the symbol graph.
-- Clean comment preservation (line and block/Javadoc) without impacting coverage metrics.
-- Full exposure of diagnostics and validation results on TranslationResult and in CLI output.
-- LLM hardening: API key preflight, richer cache keys (including diagnostics, validation feedback, config fingerprint, prompt version).
-- Translation target scoreboard (`make test-targets`) and improved corpus comparison workflow (`make corpus-spring`).
-- Expanded test coverage (CLI, config, LLM stubs, validate, graph, etc.) and CHANGELOG.md.
+- Dependency-ordered directory translation with package-relative output paths.
+- Config-driven import emission, type maps, collection maps, exception maps, and
+  translation flags.
+- Deterministic translation for common control flow, exception handling, comments,
+  nested type declarations, overload stubs, constructor delegation, and common
+  expression shapes.
+- Deterministic translation for standalone expression lambdas and basic method
+  references, with block lambdas kept as explicit unresolved regions.
+- Deterministic translation for safe traditional switch cases and switch expressions,
+  with fall-through and complex switch blocks left as diagnostics.
+- Deterministic translation for simple stream `map`/`filter`/`toList` pipelines when
+  mapper and predicate expressions are supported.
+- LLM prompt context for project symbols, rule diagnostics, config fingerprints, and
+  validation feedback.
+- On-demand LLM exploration helper for manually inspecting the tree-sitter skeleton,
+  diagnostics, final LLM output, and validation results outside the normal test suite.
 
 ### Changed
 
 - Split skeleton translation into class, statement, expression, diagnostic, and node helper
   modules.
-- Removed unused declarative selectors/transforms prototype (now purely imperative visitors in the rule layer, matching actual implementation).
-- Updated docs (README, ARCHITECTURE, new TRANSLATION_TARGETS.md / CORPUS_SCOREBOARD.md) to accurately reflect current capabilities vs. roadmap.
-- CLI now reports translation order, per-file confidence/handled/unhandled/LLM usage, cycle warnings, and validation status. Directory mode exits non-zero on validation failures when --validate is used.
+- Updated contributor and architecture docs to describe the implemented deterministic
+  visitor layer and the remaining unsupported constructs.
+- Generalized CLI help text for configured LLM usage without changing the Anthropic
+  backend contract.
 
-### Removed
+### Fixed
 
-- Unused `libcst` dependency (no longer referenced in source).
-
-## v0.1.0 (previous baseline)
+- Preserved Java `Map.get` missing-key semantics, translated `.equals(...)`, and made
+  integer division and ambiguous `get` calls honest through diagnostics.
+- Preserved Java left-to-right evaluation for string concatenation with leading numeric
+  operands.
+- Removed tracked `.pyc` and `__pycache__` files from version control.
