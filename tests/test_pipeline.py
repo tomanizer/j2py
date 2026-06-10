@@ -42,10 +42,16 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         *,
         java_source: str,
         partial_python: str,
+        context: str,
+        diagnostics: str,
+        config_fingerprint: str,
         model: str,
     ) -> str:
         assert "public class Fields" in java_source
         assert "TODO(j2py): verify default value for field enabled" in partial_python
+        assert "package: com.example" in context
+        assert "field_declaration" in diagnostics
+        assert config_fingerprint
         assert model == "claude-test"
         return "class Fields:\n    pass\n"
 

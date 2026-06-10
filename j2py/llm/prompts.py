@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+PROMPT_VERSION = "j2py-translation-v2"
+
 SYSTEM_PROMPT = """\
 You are an expert Java-to-Python translator. Your goal is to produce Python code that is \
 semantically and functionally equivalent to the input Java, with line-level structural \
@@ -25,6 +27,8 @@ Rules:
 - Mark anything you are uncertain about with: # TODO(j2py): <reason>
 - Do NOT add docstrings unless the Java had Javadoc
 - Keep comments that were in the Java source
+- Prefer completing unresolved TODO regions from the partial translation instead of
+  rewriting already-correct rule-generated code.
 - Output ONLY the Python source code — no explanation, no markdown fences
 """
 
@@ -34,6 +38,8 @@ def build_translation_prompt(
     java_source: str,
     partial_python: str,
     context: str = "",
+    diagnostics: str = "",
+    validation_feedback: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Build the system prompt and messages list for a translation call.
 
@@ -44,6 +50,12 @@ def build_translation_prompt(
 
     if context:
         user_parts.append(f"<project_context>\n{context}\n</project_context>")
+    if diagnostics:
+        user_parts.append(f"<rule_diagnostics>\n{diagnostics}\n</rule_diagnostics>")
+    if validation_feedback:
+        user_parts.append(
+            f"<validation_feedback>\n{validation_feedback}\n</validation_feedback>",
+        )
 
     user_parts.append(f"<java_source>\n{java_source}\n</java_source>")
 

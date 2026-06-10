@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.analyze.graph import build_dependency_graph, translation_order
-from j2py.analyze.symbols import extract_symbols
+from j2py.analyze.symbols import FileSymbols, extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import parse_file
 from j2py.translate.diagnostics import TranslationDiagnostics
@@ -57,6 +58,9 @@ def translate_file(
         python_source = translate_with_llm(
             java_source=path.read_text(),
             partial_python=skeleton,
+            context=_project_context(symbols),
+            diagnostics=_diagnostics_context(skeleton_result.diagnostics),
+            config_fingerprint=_config_fingerprint(cfg),
             model=model,
         )
         used_llm = True
@@ -129,3 +133,23 @@ def _output_relative_path(path: Path, package: str, source_root: Path) -> Path:
     if package:
         return Path(*package.split(".")) / path.with_suffix(".py").name
     return path.relative_to(source_root).with_suffix(".py")
+
+
+def _project_context(symbols: FileSymbols) -> str:
+    imports = "\n".join(f"- {item}" for item in symbols.imports) or "- <none>"
+    classes = "\n".join(f"- {item.name}" for item in symbols.classes) or "- <none>"
+    return f"package: {symbols.package or '<default>'}\nimports:\n{imports}\nclasses:\n{classes}"
+
+
+def _diagnostics_context(diagnostics: TranslationDiagnostics) -> str:
+    if not diagnostics.unhandled:
+        return "No unresolved rule-layer diagnostics."
+    return "\n".join(
+        f"- line {item.line}: {item.node_type}: {item.reason}: {item.text}"
+        for item in diagnostics.unhandled
+    )
+
+
+def _config_fingerprint(cfg: TranslationConfig) -> str:
+    payload = json.dumps(cfg.model_dump(mode="json"), sort_keys=True)
+    return payload

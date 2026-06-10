@@ -53,3 +53,70 @@ def test_translate_with_llm_calls_client_and_writes_cache(monkeypatch) -> None:
 
     assert result == "translated python"
     assert list(cache.written.values()) == ["translated python"]
+
+
+def test_get_client_requires_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(client_mod, "_client", None)
+
+    try:
+        client_mod.get_client()
+    except RuntimeError as exc:
+        assert "ANTHROPIC_API_KEY" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("expected missing API key failure")
+
+
+def test_translate_with_llm_cache_key_includes_config_fingerprint(monkeypatch) -> None:
+    cache = FakeCache()
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(
+                content=[anthropic.types.TextBlock(type="text", text="translated python")],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        config_fingerprint="one",
+        model="claude-test",
+    )
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        config_fingerprint="two",
+        model="claude-test",
+    )
+
+    assert len(cache.written) == 2
+
+
+def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> None:
+    cache = FakeCache()
+    calls = {"count": 0}
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("transient")
+            return SimpleNamespace(
+                content=[anthropic.types.TextBlock(type="text", text="translated after retry")],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    result = client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="claude-test",
+        use_cache=False,
+    )
+
+    assert result == "translated after retry"
+    assert calls["count"] == 2

@@ -6,11 +6,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any
 
 import anthropic
 import diskcache
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from j2py.llm.prompts import PROMPT_VERSION
 
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
 _cache = diskcache.Cache(str(_CACHE_DIR))
@@ -20,13 +21,39 @@ _client: anthropic.Anthropic | None = None
 
 def get_client() -> anthropic.Anthropic:
     global _client
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is required for LLM translation")
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        _client = anthropic.Anthropic(api_key=api_key)
     return _client
 
 
-def _cache_key(model: str, messages: list[dict[str, Any]], system: str) -> str:
-    payload = json.dumps({"model": model, "messages": messages, "system": system}, sort_keys=True)
+def _cache_key(
+    *,
+    model: str,
+    java_source: str,
+    partial_python: str,
+    context: str,
+    diagnostics: str,
+    validation_feedback: str,
+    config_fingerprint: str,
+    system: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "config_fingerprint": config_fingerprint,
+            "context": context,
+            "diagnostics": diagnostics,
+            "java_sha256": hashlib.sha256(java_source.encode()).hexdigest(),
+            "model": model,
+            "partial_sha256": hashlib.sha256(partial_python.encode()).hexdigest(),
+            "prompt_version": PROMPT_VERSION,
+            "system": system,
+            "validation_feedback": validation_feedback,
+        },
+        sort_keys=True,
+    )
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -36,6 +63,9 @@ def translate_with_llm(
     java_source: str,
     partial_python: str,
     context: str = "",
+    diagnostics: str = "",
+    validation_feedback: str = "",
+    config_fingerprint: str = "",
     model: str = "claude-sonnet-4-6",
     use_cache: bool = True,
 ) -> str:
@@ -57,10 +87,21 @@ def translate_with_llm(
         java_source=java_source,
         partial_python=partial_python,
         context=context,
+        diagnostics=diagnostics,
+        validation_feedback=validation_feedback,
     )
 
+    key = _cache_key(
+        model=model,
+        java_source=java_source,
+        partial_python=partial_python,
+        context=context,
+        diagnostics=diagnostics,
+        validation_feedback=validation_feedback,
+        config_fingerprint=config_fingerprint,
+        system=system,
+    )
     if use_cache:
-        key = _cache_key(model, messages, system)
         cached: str | None = _cache.get(key)
         if cached is not None:
             return cached
