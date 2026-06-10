@@ -3,6 +3,8 @@
 import ast
 from pathlib import Path
 
+import pytest
+
 from j2py.analyze.symbols import extract_symbols
 from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import parse_file, parse_source
@@ -26,14 +28,27 @@ def _assert_valid_python(source: str) -> None:
     ast.parse(source)
 
 
-def test_translate_hello_world_with_rule_layer_only() -> None:
-    parsed = parse_file(FIXTURES / "java" / "HelloWorld.java")
+@pytest.mark.parametrize(
+    ("fixture_name", "expected_coverage"),
+    [
+        ("HelloWorld", 1.0),
+        ("Fields", None),
+    ],
+)
+def test_translate_fixture_with_rule_layer(
+    fixture_name: str,
+    expected_coverage: float | None,
+) -> None:
+    parsed = parse_file(FIXTURES / "java" / f"{fixture_name}.java")
     symbols = extract_symbols(parsed)
 
     python_source, coverage = translate_skeleton(parsed, symbols, CFG)
 
-    assert python_source == (FIXTURES / "python" / "HelloWorld.py").read_text()
-    assert coverage == 1.0
+    assert python_source == (FIXTURES / "python" / f"{fixture_name}.py").read_text()
+    if expected_coverage is None:
+        assert coverage < 1.0
+    else:
+        assert coverage == expected_coverage
     _assert_valid_python(python_source)
 
 
@@ -41,7 +56,24 @@ def test_field_without_constructor_assignment_drops_coverage() -> None:
     python_source, coverage = _translate_source("public class FieldOnly { private int count; }")
 
     assert coverage < 1.0
-    assert "TODO(j2py): field declaration not represented" in python_source
+    assert "TODO(j2py): verify default value for field count" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_instance_field_initializer_can_reference_another_field() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class FieldRefs {
+            private int base = 1;
+            private int copy = base;
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "self.base: int = 1" in python_source
+    assert "self.copy: int = self.base" in python_source
+    assert "self.copy: int = base" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -119,7 +151,10 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
     assert diagnostic.node_type == "field_declaration"
     assert diagnostic.line == 3
     assert diagnostic.text == "private int count;"
-    assert diagnostic.reason == "field declaration not represented without constructor assignment"
+    assert (
+        diagnostic.reason
+        == "instance field declaration without initializer needs default review"
+    )
 
 
 def test_interface_declaration_is_not_reported_as_handled_methods() -> None:

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import class_body_needs_pass, first_child_by_type
 from j2py.translate.rules.naming import (
     translate_class_name,
@@ -13,6 +16,16 @@ from j2py.translate.rules.naming import (
 )
 from j2py.translate.rules.types import translate_type
 from j2py.translate.statements import translate_body
+
+
+@dataclass(frozen=True)
+class FieldInfo:
+    node: JavaNode
+    name: str
+    py_name: str
+    py_type: str
+    is_static: bool
+    initializer: JavaNode | None
 
 
 def top_level_classes(root: JavaNode) -> list[JavaNode]:
@@ -52,7 +65,8 @@ def translate_class(
             "    pass",
         ]
 
-    fields = _class_field_names(node)
+    fields = _class_fields(node, cfg)
+    instance_field_names = _instance_field_names(fields)
     assigned_fields = _constructor_assigned_fields(node)
     body = node.child_by_field("body")
     members = (
@@ -66,30 +80,52 @@ def translate_class(
     )
 
     lines = [f"class {class_name}:"]
-    unsupported_member_comments = _class_unsupported_member_comments(
+    static_field_lines, instance_init_lines = _translate_fields(
         node,
         fields,
         assigned_fields,
+        instance_field_names,
+        cfg,
         diagnostics,
     )
     overloaded_names = _overloaded_member_names(members)
+    has_constructor = any(member.type == "constructor_declaration" for member in members)
+    needs_synthetic_init = bool(instance_init_lines) and not has_constructor
 
-    if not members and not unsupported_member_comments:
+    if not members and not static_field_lines and not instance_init_lines:
         lines.append("    pass")
         return lines
 
-    lines.extend(unsupported_member_comments)
+    lines.extend(static_field_lines)
+
+    if needs_synthetic_init:
+        if static_field_lines:
+            lines.append("")
+        lines.append("    def __init__(self) -> None:")
+        lines.extend(instance_init_lines)
 
     for member in members:
         lines.append("")
-        ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=fields)
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=instance_field_names,
+        )
         overloaded_name = _member_python_name(member)
         unsupported_reason = (
             f"overloaded method {overloaded_name} requires LLM completion"
             if overloaded_name in overloaded_names
             else None
         )
-        lines.extend(_translate_method(member, ctx, unsupported_reason=unsupported_reason))
+        pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
+        lines.extend(
+            _translate_method(
+                member,
+                ctx,
+                unsupported_reason=unsupported_reason,
+                pre_body_lines=pre_body_lines,
+            ),
+        )
 
     if class_body_needs_pass(lines):
         lines.append("    pass")
@@ -97,20 +133,33 @@ def translate_class(
     return lines
 
 
-def _class_field_names(class_node: JavaNode) -> set[str]:
+def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]:
     body = class_node.child_by_field("body")
     if body is None:
-        return set()
+        return []
 
-    names: set[str] = set()
+    fields: list[FieldInfo] = []
     for child in body.named_children:
         if child.type != "field_declaration":
             continue
+        type_node = child.child_by_field("type")
+        java_type = type_node.text if type_node is not None else "Object"
+        modifiers = _modifiers(child)
         for declarator in child.find_all("variable_declarator"):
             name_node = declarator.child_by_field("name")
-            if name_node is not None:
-                names.add(name_node.text)
-    return names
+            if name_node is None:
+                continue
+            fields.append(
+                FieldInfo(
+                    node=child,
+                    name=name_node.text,
+                    py_name=translate_field_name(name_node.text),
+                    py_type=translate_type(java_type, cfg),
+                    is_static="static" in modifiers,
+                    initializer=declarator.child_by_field("value"),
+                ),
+            )
+    return fields
 
 
 def _constructor_assigned_fields(class_node: JavaNode) -> set[str]:
@@ -147,53 +196,102 @@ def _this_field_name(node: JavaNode) -> str | None:
     return children[1].text
 
 
-def _class_unsupported_member_comments(
+def _instance_field_names(fields: list[FieldInfo]) -> set[str]:
+    return {field.name for field in fields if not field.is_static}
+
+
+def _translate_fields(
     class_node: JavaNode,
-    fields: set[str],
+    fields: list[FieldInfo],
     assigned_fields: set[str],
+    instance_field_names: set[str],
+    cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
     body = class_node.child_by_field("body")
     if body is None:
-        return []
+        return [], []
 
-    comments: list[str] = []
-    unassigned_fields = fields - assigned_fields
-    for field_name in sorted(fields):
-        field_node = _field_node_by_name(body, field_name) or body
-        diagnostics.record(
-            field_node,
-            supported=field_name not in unassigned_fields,
-            reason=(
-                "represented field declaration via constructor assignment"
-                if field_name not in unassigned_fields
-                else "field declaration not represented without constructor assignment"
-            ),
-        )
-        if field_name in unassigned_fields:
-            comments.append(
-                "    # TODO(j2py): field declaration not represented without "
-                f"constructor assignment: {translate_field_name(field_name)}"
+    static_lines: list[str] = []
+    instance_init_lines: list[str] = []
+    static_ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=instance_field_names,
+    )
+    instance_ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=instance_field_names,
+        in_instance_method=True,
+    )
+
+    for field in fields:
+        if field.is_static:
+            static_lines.extend(_translate_static_field(field, static_ctx, diagnostics))
+            continue
+
+        if field.initializer is not None:
+            diagnostics.record(
+                field.node,
+                supported=True,
+                reason="translated instance field initializer",
             )
+            instance_init_lines.append(
+                f"        self.{field.py_name}: {field.py_type} = "
+                f"{translate_expression(field.initializer, instance_ctx)}",
+            )
+            continue
+
+        if field.name in assigned_fields:
+            diagnostics.record(
+                field.node,
+                supported=True,
+                reason="represented field declaration via constructor assignment",
+            )
+            continue
+
+        diagnostics.record(
+            field.node,
+            supported=False,
+            reason="instance field declaration without initializer needs default review",
+        )
+        instance_init_lines.append(
+            f"        # TODO(j2py): verify default value for field {field.py_name}",
+        )
+        instance_init_lines.append(f"        self.{field.py_name}: {field.py_type} | None = None")
 
     supported_members = {"field_declaration", "constructor_declaration", "method_declaration"}
     for child in body.named_children:
         if child.type in supported_members:
             continue
         diagnostics.record(child, supported=False, reason=f"unsupported class member {child.type}")
-        comments.append(f"    # TODO(j2py): unsupported class member {child.type}")
-    return comments
+        static_lines.append(f"    # TODO(j2py): unsupported class member {child.type}")
+
+    return static_lines, instance_init_lines
 
 
-def _field_node_by_name(body: JavaNode, field_name: str) -> JavaNode | None:
-    for child in body.named_children:
-        if child.type != "field_declaration":
-            continue
-        for declarator in child.find_all("variable_declarator"):
-            name_node = declarator.child_by_field("name")
-            if name_node is not None and name_node.text == field_name:
-                return child
-    return None
+def _translate_static_field(
+    field: FieldInfo,
+    ctx: TranslationContext,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    if field.initializer is None:
+        diagnostics.record(
+            field.node,
+            supported=False,
+            reason="static field declaration without initializer needs default review",
+        )
+        return [
+            f"    # TODO(j2py): verify default value for static field {field.py_name}",
+            f"    {field.py_name}: {field.py_type} | None = None",
+        ]
+
+    diagnostics.record(field.node, supported=True, reason="translated static field declaration")
+    return [
+        f"    {field.py_name}: {field.py_type} = "
+        f"{translate_expression(field.initializer, ctx)}",
+    ]
 
 
 def _overloaded_member_names(members: list[JavaNode]) -> set[str]:
@@ -217,6 +315,7 @@ def _translate_method(
     ctx: TranslationContext,
     *,
     unsupported_reason: str | None = None,
+    pre_body_lines: list[str] | None = None,
 ) -> list[str]:
     supported = node.type in {"constructor_declaration", "method_declaration"}
     ctx.diagnostics.record(
@@ -250,6 +349,7 @@ def _translate_method(
         body = first_child_by_type(node, "block", "constructor_body")
 
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    lines.extend(pre_body_lines or [])
     lines.extend(body_lines)
     return lines
 
