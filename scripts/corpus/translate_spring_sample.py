@@ -11,6 +11,7 @@ import argparse
 import ast
 import csv
 import json
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -31,7 +32,10 @@ from j2py.translate.skeleton import translate_skeleton_with_diagnostics  # noqa:
 DEFAULT_SPRING_REPO = REPO_ROOT / ".corpus" / "spring-framework"
 DEFAULT_JSON_OUT = REPO_ROOT / "corpus-reports" / "spring-sample.json"
 DEFAULT_CSV_OUT = REPO_ROOT / "corpus-reports" / "spring-sample.csv"
+DEFAULT_BASELINE = REPO_ROOT / "tests" / "fixtures" / "corpus" / "spring-sample-baseline.json"
 SPRING_REMOTE = "https://github.com/spring-projects/spring-framework.git"
+SPRING_REF = "0c60266986197a191ff33eb498ebc8bac3dc933f"
+DEFAULT_LIMIT = 25
 DEFAULT_MODULES = (
     "spring-core/src/main/java",
     "spring-beans/src/main/java",
@@ -75,8 +79,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ref",
-        default="main",
-        help="Branch/tag/commit to checkout when cloning or refreshing. Default: main",
+        default=SPRING_REF,
+        help=f"Branch/tag/commit to checkout when cloning or refreshing. Default: {SPRING_REF}",
     )
     parser.add_argument(
         "--module",
@@ -90,8 +94,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--limit",
         type=int,
-        default=100,
-        help="Maximum number of Java files to translate. Default: 100",
+        default=DEFAULT_LIMIT,
+        help=f"Maximum number of Java files to translate. Default: {DEFAULT_LIMIT}",
     )
     parser.add_argument(
         "--json-out",
@@ -109,6 +113,27 @@ def parse_args() -> argparse.Namespace:
         "--include-tests",
         action="store_true",
         help="Include src/test/java trees when --module is not provided.",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=DEFAULT_BASELINE,
+        help=f"Baseline JSON path for compare/update modes. Default: {DEFAULT_BASELINE}",
+    )
+    parser.add_argument(
+        "--compare-baseline",
+        action="store_true",
+        help="Compare the current summary with --baseline and print deltas.",
+    )
+    parser.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="Overwrite --baseline with the current summary and run metadata.",
+    )
+    parser.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="Exit non-zero when --compare-baseline detects a regression.",
     )
     return parser.parse_args()
 
@@ -140,10 +165,29 @@ def main() -> int:
     cfg = ConfigLoader().add_defaults().build()
     metrics = [measure_file(path, repo=repo, cfg=cfg) for path in files]
     summary = summarize(metrics)
+    metadata = build_metadata(
+        repo=repo,
+        requested_ref=args.ref,
+        modules=tuple(args.modules or DEFAULT_MODULES),
+        limit=args.limit,
+        include_tests=args.include_tests,
+    )
 
-    write_json(args.json_out, summary=summary, metrics=metrics)
+    write_json(args.json_out, metadata=metadata, summary=summary, metrics=metrics)
     write_csv(args.csv_out, metrics)
     print_human_summary(summary, args.json_out, args.csv_out)
+
+    comparison: dict[str, Any] | None = None
+    if args.update_baseline:
+        write_baseline(args.baseline, metadata=metadata, summary=summary)
+        print(f"Baseline updated: {args.baseline}")
+
+    if args.compare_baseline:
+        comparison = compare_baseline(args.baseline, metadata=metadata, summary=summary)
+        print_comparison(comparison)
+
+    if args.fail_on_regression and comparison and comparison["regressions"]:
+        return 1
     return 0
 
 
@@ -156,19 +200,13 @@ def ensure_spring_checkout(repo: Path, *, remote: str, ref: str) -> None:
         return
 
     repo.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        [
-            "git",
-            "clone",
-            "--depth",
-            "1",
-            "--branch",
-            ref,
-            remote,
-            str(repo),
-        ],
-        check=True,
-    )
+    if _looks_like_commit_sha(ref):
+        subprocess.run(["git", "clone", "--depth", "1", remote, str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "fetch", "--depth", "1", "origin", ref], check=True)
+        subprocess.run(["git", "-C", str(repo), "checkout", "FETCH_HEAD"], check=True)
+        return
+
+    subprocess.run(["git", "clone", "--depth", "1", "--branch", ref, remote, str(repo)], check=True)
 
 
 def collect_java_files(
@@ -256,11 +294,45 @@ def summarize(metrics: list[FileMetric]) -> dict[str, Any]:
     }
 
 
-def write_json(path: Path, *, summary: dict[str, Any], metrics: list[FileMetric]) -> None:
+def build_metadata(
+    *,
+    repo: Path,
+    requested_ref: str,
+    modules: tuple[str, ...],
+    limit: int,
+    include_tests: bool,
+) -> dict[str, Any]:
+    return {
+        "spring_remote": SPRING_REMOTE,
+        "spring_ref": requested_ref,
+        "spring_checkout": _git_head(repo),
+        "modules": list(modules),
+        "limit": limit,
+        "include_tests": include_tests,
+    }
+
+
+def write_json(
+    path: Path,
+    *,
+    metadata: dict[str, Any],
+    summary: dict[str, Any],
+    metrics: list[FileMetric],
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
+        "metadata": metadata,
         "summary": summary,
         "files": [asdict(metric) for metric in metrics],
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def write_baseline(path: Path, *, metadata: dict[str, Any], summary: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "metadata": metadata,
+        "summary": summary,
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
@@ -283,6 +355,80 @@ def print_human_summary(summary: dict[str, Any], json_out: Path, csv_out: Path) 
     print(f"Files with unhandled constructs: {summary['files_with_unhandled']}")
     print(f"JSON report: {json_out}")
     print(f"CSV report: {csv_out}")
+
+
+def compare_baseline(
+    path: Path,
+    *,
+    metadata: dict[str, Any],
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    baseline = json.loads(path.read_text())
+    baseline_summary = baseline["summary"]
+    baseline_metadata = baseline.get("metadata", {})
+
+    metric_specs = {
+        "parse_success_rate": "higher",
+        "syntax_success_rate": "higher",
+        "average_coverage": "higher",
+        "full_coverage_files": "higher",
+        "files_with_unhandled": "lower",
+    }
+    deltas: dict[str, dict[str, Any]] = {}
+    regressions: list[str] = []
+    improvements: list[str] = []
+    for metric, direction in metric_specs.items():
+        baseline_value = baseline_summary[metric]
+        current_value = summary[metric]
+        delta = current_value - baseline_value
+        deltas[metric] = {
+            "baseline": baseline_value,
+            "current": current_value,
+            "delta": delta,
+            "direction": direction,
+        }
+        if _is_regression(delta, direction):
+            regressions.append(metric)
+        elif _is_improvement(delta, direction):
+            improvements.append(metric)
+
+    metadata_mismatches = [
+        key
+        for key in ("spring_ref", "modules", "limit", "include_tests")
+        if baseline_metadata.get(key) != metadata.get(key)
+    ]
+
+    return {
+        "baseline_path": str(path),
+        "deltas": deltas,
+        "improvements": improvements,
+        "regressions": regressions,
+        "metadata_mismatches": metadata_mismatches,
+        "baseline_top_unhandled_node_types": baseline_summary["top_unhandled_node_types"],
+        "current_top_unhandled_node_types": summary["top_unhandled_node_types"],
+        "baseline_top_unhandled_reasons": baseline_summary["top_unhandled_reasons"],
+        "current_top_unhandled_reasons": summary["top_unhandled_reasons"],
+    }
+
+
+def print_comparison(comparison: dict[str, Any]) -> None:
+    print(f"Baseline comparison: {comparison['baseline_path']}")
+    for metric, values in comparison["deltas"].items():
+        print(
+            f"  {metric}: {_format_metric(values['baseline'])} -> "
+            f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
+        )
+    if comparison["metadata_mismatches"]:
+        print(f"Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
+    if comparison["improvements"]:
+        print(f"Improvements: {', '.join(comparison['improvements'])}")
+    if comparison["regressions"]:
+        print(f"Regressions: {', '.join(comparison['regressions'])}")
+    else:
+        print("Regressions: none")
+    print("Top unhandled node types:")
+    print(f"  baseline: {_top_list(comparison['baseline_top_unhandled_node_types'])}")
+    print(f"  current:  {_top_list(comparison['current_top_unhandled_node_types'])}")
 
 
 def _syntax_ok(source: str) -> bool:
@@ -311,6 +457,51 @@ def _parse_counter_summary(value: str) -> Counter[str]:
         key, raw_count = part.rsplit(":", 1)
         counter[key] = int(raw_count)
     return counter
+
+
+def _looks_like_commit_sha(ref: str) -> bool:
+    return bool(re.fullmatch(r"[0-9a-fA-F]{40}", ref))
+
+
+def _git_head(repo: Path) -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return ""
+    return proc.stdout.strip()
+
+
+def _is_regression(delta: float | int, direction: str) -> bool:
+    if direction == "higher":
+        return delta < -1e-12
+    return delta > 1e-12
+
+
+def _is_improvement(delta: float | int, direction: str) -> bool:
+    if direction == "higher":
+        return delta > 1e-12
+    return delta < -1e-12
+
+
+def _format_metric(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.2%}"
+    return str(value)
+
+
+def _format_delta(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:+.2%}"
+    return f"{value:+}"
+
+
+def _top_list(values: list[list[Any]] | list[tuple[Any, ...]], *, limit: int = 5) -> str:
+    return ", ".join(f"{name}:{count}" for name, count in values[:limit])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-targets test-cov clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-targets test-cov corpus-spring corpus-spring-update-baseline clean ci-local-pr ci-local-governance
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -21,6 +21,12 @@ test-targets:  ## Run xfail Java-to-Python roadmap target tests
 
 test-cov:  ## Run tests with coverage report
 	uv run pytest --cov=j2py --cov-report=term-missing --cov-report=xml
+
+corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
+	uv run python scripts/corpus/translate_spring_sample.py --compare-baseline
+
+corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
+	uv run python scripts/corpus/translate_spring_sample.py --update-baseline --compare-baseline
 
 # ── CI local presets ─────────────────────────────────────────────────────────
 # These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,

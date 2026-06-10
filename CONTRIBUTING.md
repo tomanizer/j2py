@@ -56,6 +56,15 @@ They are excluded from `make check` until the translator supports the construct.
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
 
+For real-corpus progress checks, run the Spring scoreboard:
+
+```bash
+make corpus-spring
+```
+
+See [Spring Corpus Scoreboard](docs/CORPUS_SCOREBOARD.md) for the pinned baseline,
+comparison mode, and intentional baseline refresh workflow.
+
 ## Material changes
 
 A **material change** is any of:

@@ -1,0 +1,185 @@
+{
+  "metadata": {
+    "include_tests": false,
+    "limit": 25,
+    "modules": [
+      "spring-core/src/main/java",
+      "spring-beans/src/main/java"
+    ],
+    "spring_checkout": "0c60266986197a191ff33eb498ebc8bac3dc933f",
+    "spring_ref": "0c60266986197a191ff33eb498ebc8bac3dc933f",
+    "spring_remote": "https://github.com/spring-projects/spring-framework.git"
+  },
+  "summary": {
+    "average_coverage": 0.5392204151097059,
+    "files_scanned": 25,
+    "files_with_unhandled": 22,
+    "full_coverage_files": 1,
+    "parse_success_rate": 1.0,
+    "syntax_success_rate": 0.92,
+    "top_unhandled_node_types": [
+      [
+        "block_comment",
+        75
+      ],
+      [
+        "if_statement",
+        17
+      ],
+      [
+        "constructor_declaration",
+        17
+      ],
+      [
+        "class_declaration",
+        14
+      ],
+      [
+        "lambda_expression",
+        12
+      ],
+      [
+        "method_declaration",
+        12
+      ],
+      [
+        "parenthesized_expression",
+        11
+      ],
+      [
+        "method_reference",
+        10
+      ],
+      [
+        "ternary_expression",
+        5
+      ],
+      [
+        "interface_declaration",
+        4
+      ],
+      [
+        "class_literal",
+        3
+      ],
+      [
+        "object_creation_expression",
+        2
+      ],
+      [
+        "explicit_constructor_invocation",
+        2
+      ],
+      [
+        "array_access",
+        1
+      ],
+      [
+        "enum_declaration",
+        1
+      ],
+      [
+        "for_statement",
+        1
+      ],
+      [
+        "record_declaration",
+        1
+      ],
+      [
+        "array_initializer",
+        1
+      ],
+      [
+        "try_statement",
+        1
+      ],
+      [
+        "line_comment",
+        1
+      ]
+    ],
+    "top_unhandled_reasons": [
+      [
+        "unsupported class member block_comment",
+        75
+      ],
+      [
+        "unsupported statement if_statement",
+        17
+      ],
+      [
+        "overloaded method __init__ requires LLM completion",
+        17
+      ],
+      [
+        "unsupported class member class_declaration",
+        14
+      ],
+      [
+        "unsupported expression lambda_expression",
+        12
+      ],
+      [
+        "unsupported expression parenthesized_expression",
+        11
+      ],
+      [
+        "unsupported expression method_reference",
+        10
+      ],
+      [
+        "unsupported expression ternary_expression",
+        5
+      ],
+      [
+        "unsupported expression class_literal",
+        3
+      ],
+      [
+        "unsupported top-level declaration interface_declaration",
+        3
+      ],
+      [
+        "non-empty collection constructor requires LLM completion",
+        2
+      ],
+      [
+        "overloaded method add_for_feature_component requires LLM completion",
+        2
+      ],
+      [
+        "overloaded method get_or_add_for_feature_component requires LLM completion",
+        2
+      ],
+      [
+        "overloaded method add requires LLM completion",
+        2
+      ],
+      [
+        "unsupported statement explicit_constructor_invocation",
+        2
+      ],
+      [
+        "overloaded method and_ requires LLM completion",
+        2
+      ],
+      [
+        "overloaded method with_ requires LLM completion",
+        2
+      ],
+      [
+        "overloaded method register_reflection_hints requires LLM completion",
+        2
+      ],
+      [
+        "unsupported class member enum_declaration",
+        1
+      ],
+      [
+        "unsupported expression array_access",
+        1
+      ]
+    ]
+  }
+}
