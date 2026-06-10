@@ -77,7 +77,24 @@ def _translate_parsed_file(
     skeleton = skeleton_result.source
     coverage = skeleton_result.coverage
 
-    if use_llm and coverage < 1.0:
+    # Layer 2: LLM fires when rule layer is incomplete OR skeleton fails syntax/type checks.
+    # Coverage < 1.0 means the rule layer left gaps; coverage == 1.0 means it translated
+    # every construct but may still have produced semantically invalid output (e.g. undefined
+    # names from Java constructs the rules don't fully understand).  We pre-validate and
+    # thread any errors into the LLM call as validation_feedback so Claude can fix them.
+    # Ruff lint failures alone do not trigger the LLM — only syntax and type errors do.
+    validation_feedback = ""
+    should_use_llm = False
+    if use_llm:
+        if coverage < 1.0:
+            should_use_llm = True
+        else:
+            pre = validate_source(skeleton, path.with_suffix(".py"))
+            if not (pre.syntax_ok and pre.mypy_ok):
+                should_use_llm = True
+                validation_feedback = "\n".join(pre.syntax_errors + pre.mypy_errors)
+
+    if should_use_llm:
         from j2py.llm.client import translate_with_llm
 
         java_source = path.read_text()
@@ -90,7 +107,7 @@ def _translate_parsed_file(
             partial_python=skeleton,
             context=context,
             diagnostics=diagnostics_context,
-            validation_feedback="",
+            validation_feedback=validation_feedback,
             config_fingerprint=config_fingerprint,
             model=model,
         )
