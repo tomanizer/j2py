@@ -64,4 +64,9 @@ def translation_order(graph: nx.DiGraph) -> list[str]:
                 "Translation order within these classes may be incorrect.",
                 stacklevel=2,
             )
-        return list(reversed(list(nx.topological_sort(nx.condensation(graph)))))
+        condensed = nx.condensation(graph)
+        ordered_components = reversed(list(nx.topological_sort(condensed)))
+        ordered_nodes: list[str] = []
+        for component in ordered_components:
+            ordered_nodes.extend(sorted(condensed.nodes[component]["members"]))
+        return ordered_nodes

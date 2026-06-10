@@ -78,6 +78,8 @@ Material changes require:
 1. A new ADR in `docs/decisions/` ([template](docs/decisions/0001-record-architecture-decisions.md))
 2. Updated `docs/ARCHITECTURE.md` if the pipeline shape changes
 3. Explicit note in the PR body linking the ADR
+4. A `CHANGELOG.md` entry when the change affects user-visible behavior or project
+   workflow
 
 ## PR rules
 
@@ -94,4 +96,6 @@ Releases are tagged `vX.Y.Z` on `main`. Versioning follows [SemVer](https://semv
 - `MINOR` — new Java construct support, new CLI flag
 - `PATCH` — bug fix, doc fix, test improvement
 
-Update `CHANGELOG.md` and `pyproject.toml` version in the release PR.
+Update `CHANGELOG.md` and `pyproject.toml` version in the release PR. Feature and fix
+PRs should add notes under `## Unreleased`; the release PR moves those notes under the
+tagged version.
