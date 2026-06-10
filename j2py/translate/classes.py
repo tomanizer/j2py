@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import class_body_needs_pass, first_child_by_type
@@ -265,6 +266,10 @@ def _translate_fields(
     for child in body.named_children:
         if child.type in supported_members:
             continue
+        if is_comment(child):
+            diagnostics.warn(child, reason="preserved comment")
+            static_lines.extend(translate_comment(child, indent="    "))
+            continue
         diagnostics.record(child, supported=False, reason=f"unsupported class member {child.type}")
         static_lines.append(f"    # TODO(j2py): unsupported class member {child.type}")
 
@@ -317,6 +322,7 @@ def _translate_method(
     unsupported_reason: str | None = None,
     pre_body_lines: list[str] | None = None,
 ) -> list[str]:
+    _record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
     supported = node.type in {"constructor_declaration", "method_declaration"}
     ctx.diagnostics.record(
         node,
@@ -359,6 +365,32 @@ def _modifiers(node: JavaNode) -> set[str]:
     for modifier_node in node.children_by_type("modifiers"):
         modifiers.update(modifier_node.text.split())
     return modifiers
+
+
+def _record_annotation_diagnostics(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> None:
+    for annotation_name in _annotation_names(node):
+        if annotation_name in cfg.drop_annotations:
+            diagnostics.warn(node, reason=f"dropped annotation @{annotation_name}")
+        else:
+            diagnostics.warn(node, reason=f"unsupported annotation @{annotation_name}")
+
+
+def _annotation_names(node: JavaNode) -> list[str]:
+    names: list[str] = []
+    for modifiers in node.children_by_type("modifiers"):
+        for annotation in modifiers.named_children:
+            if annotation.type not in {"annotation", "marker_annotation"}:
+                continue
+            name_node = annotation.child_by_field("name")
+            if name_node is None:
+                name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
+            if name_node is not None:
+                names.append(name_node.text)
+    return names
 
 
 def _return_type(node: JavaNode, cfg: TranslationConfig) -> str:

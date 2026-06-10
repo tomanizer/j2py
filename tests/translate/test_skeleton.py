@@ -60,6 +60,59 @@ def test_field_without_constructor_assignment_drops_coverage() -> None:
     _assert_valid_python(python_source)
 
 
+def test_comments_and_dropped_annotations_do_not_reduce_coverage() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        /** Type docs are currently ignored outside class bodies. */
+        public class Comments {
+            /** Field docs. */
+            private static String label = "x";
+
+            // Method docs.
+            @Override
+            public String toString() {
+                // Return docs.
+                return label;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "# Field docs." in result.source
+    assert "# Method docs." in result.source
+    assert "# Return docs." in result.source
+    assert "unsupported class member block_comment" not in result.source
+    assert "unsupported class member line_comment" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "preserved comment",
+        "preserved comment",
+        "dropped annotation @Override",
+        "preserved comment",
+    ]
+    _assert_valid_python(result.source)
+
+
+def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class Annotated {
+            @Custom
+            public String name() {
+                return "x";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "unsupported annotation @Custom",
+    ]
+    assert not result.diagnostics.unhandled
+    _assert_valid_python(result.source)
+
+
 def test_instance_field_initializer_can_reference_another_field() -> None:
     python_source, coverage = _translate_source(
         """

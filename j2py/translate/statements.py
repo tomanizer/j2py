@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import direct_children_by_type
@@ -20,6 +21,10 @@ def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> l
 
 
 def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
+    if is_comment(node):
+        ctx.diagnostics.warn(node, reason="preserved comment")
+        return translate_comment(node, indent=indent)
+
     if node.type == "expression_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated expression statement")
         expr = node.named_children[0] if node.named_children else node
