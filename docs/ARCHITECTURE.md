@@ -24,8 +24,9 @@ Java source file(s)
 │   ├── rules/types.py   Java type → Python type hint   │
 │   ├── rules/naming.py  camelCase → snake_case          │
 │   ├── rules/literals.py null/true/false/chars         │
-│   ├── selectors.py     Declarative AST selectors      │
-│   └── transforms.py    Pure transform functions       │
+│   ├── classes.py       Class/type declaration emitter │
+│   ├── statements.py    Statement emitter              │
+│   └── expressions.py   Expression emitter             │
 │                                                       │
 │   Returns (skeleton_source: str, coverage: float)     │
 └───────┬───────────────────────────────────────────────┘
@@ -65,10 +66,10 @@ Java source file(s)
 ### `translate/` — Rule-based translation
 - `skeleton.py`: orchestrates the rule layer; returns `(python_str, coverage_float)`
   - `coverage = 1.0` means the rule layer handled everything; LLM is skipped
-  - Currently a stub (coverage = 0.0) — **primary build target**
-- `selectors.py`: CSS-like declarative selectors (`NodeType`, `Text`, `And`, `Or`, `Not`)
-  for targeting AST nodes; wire to transform functions as `(Selector, TransformFn)` rules
-- `transforms.py`: pure functions `JavaNode → str | None`
+  - Also exposes structured diagnostics via `translate_skeleton_with_diagnostics`
+- `classes.py`, `statements.py`, `expressions.py`: direct tree-sitter node visitors for
+  supported Java constructs. The rule layer is intentionally imperative today; a prior
+  unused declarative selector/transform prototype was removed.
 - `rules/`: mapping tables and stateless translation functions
   - `types.py`: recursive generic type translation (`List<Map<K,V>>` → `dict[K, V]`)
   - `naming.py`: `camel_to_snake`, `safe_identifier`, reserved-word collision handling
