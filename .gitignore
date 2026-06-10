@@ -11,3 +11,5 @@ dist/
 build/
 *.so
 .DS_Store
+.corpus/
+corpus-reports/
