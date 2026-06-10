@@ -16,6 +16,7 @@ cfg = ConfigLoader().add_defaults().build()
     ("double", "float"),
     ("long", "int"),
     ("Object", "object"),
+    ("Class<?>", "type[Any]"),
     ("List<String>", "list[str]"),
     ("Map<String, Integer>", "dict[str, int]"),
     ("Optional<String>", "str | None"),

@@ -300,6 +300,67 @@ def test_if_statement_localizes_unsupported_condition_expression() -> None:
     _assert_valid_python(python_source)
 
 
+def test_common_spring_expression_shapes_translate() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.List;
+
+        public class Expressions {
+            public Class<?> type() {
+                return Expressions.class;
+            }
+
+            public String first(String[] values) {
+                return values.length > 0 ? values[0] : "default";
+            }
+
+            public boolean has(List<String> values) {
+                return !values.isEmpty() && values.contains("x");
+            }
+
+            public String get(List<String> values) {
+                return values.get(0);
+            }
+
+            public int[] numbers() {
+                return new int[] {1, 2};
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def type_(self) -> type[Any]:" in python_source
+    assert "return Expressions" in python_source
+    assert 'return values[0] if len(values) > 0 else "default"' in python_source
+    assert "is not None" not in python_source
+    assert 'return values and "x" in values' in python_source
+    assert "return values[0]" in python_source
+    assert "return [1, 2]" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_null_comparison_uses_python_identity_operators() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Nulls {
+            public boolean present(Object value) {
+                return value != null;
+            }
+
+            public boolean missing(Object value) {
+                return null == value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return value is not None" in python_source
+    assert "return value is None" in python_source
+    _assert_valid_python(python_source)
+
+
 def test_partial_translation_reports_structured_diagnostics() -> None:
     result = _translate_source_with_diagnostics(
         """

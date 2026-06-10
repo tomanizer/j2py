@@ -11,7 +11,7 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.641971855073473,
+    "average_coverage": 0.6609216572448445,
     "files_scanned": 25,
     "files_with_unhandled": 20,
     "full_coverage_files": 3,
@@ -31,19 +31,11 @@
         12
       ],
       [
-        "ternary_expression",
-        12
-      ],
-      [
         "method_declaration",
         12
       ],
       [
         "method_reference",
-        10
-      ],
-      [
-        "class_literal",
         10
       ],
       [
@@ -63,10 +55,6 @@
         2
       ],
       [
-        "array_access",
-        1
-      ],
-      [
         "enum_declaration",
         1
       ],
@@ -83,7 +71,7 @@
         1
       ],
       [
-        "array_initializer",
+        "array_creation_expression",
         1
       ],
       [
@@ -109,15 +97,7 @@
         12
       ],
       [
-        "unsupported expression ternary_expression",
-        12
-      ],
-      [
         "unsupported expression method_reference",
-        10
-      ],
-      [
-        "unsupported expression class_literal",
         10
       ],
       [
@@ -165,15 +145,23 @@
         1
       ],
       [
-        "unsupported expression array_access",
-        1
-      ],
-      [
         "unsupported statement continue_statement",
         1
       ],
       [
         "unsupported statement for_statement",
+        1
+      ],
+      [
+        "unsupported class member record_declaration",
+        1
+      ],
+      [
+        "array creation without initializer requires size handling",
+        1
+      ],
+      [
+        "unsupported class member interface_declaration",
         1
       ]
     ]

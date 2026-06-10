@@ -35,21 +35,6 @@ class TranslationTarget:
 
 TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
-        fixture="CommentsAnnotations.java",
-        issue=7,
-        reason="comments and annotations are not yet preserved or elided cleanly",
-        expected_fragments=(
-            "# Build-time hint registrar.",
-            "def register_reflection_hints(self, hints: RuntimeHints) -> None:",
-            "hints.reflection().register_type(CommentsAnnotations)",
-        ),
-        forbidden_fragments=(
-            "TODO(j2py): unsupported class member block_comment",
-            "TODO(j2py): unsupported class member line_comment",
-            "__j2py_todo__",
-        ),
-    ),
-    TranslationTarget(
         fixture="ControlFlow.java",
         issue=2,
         reason="classic for/while/do-while loop translation is not implemented",
@@ -75,19 +60,9 @@ TARGETS: tuple[TranslationTarget, ...] = (
         ),
     ),
     TranslationTarget(
-        fixture="Expressions.java",
-        issue=6,
-        reason="ternary, unary, class literal, and array expression support is incomplete",
-        expected_fragments=(
-            "fallback = Expressions",
-            "return type_ if type_ is not None and len(values) > 0 else fallback",
-            'return values[0] if values[0] else "default"',
-        ),
-    ),
-    TranslationTarget(
         fixture="Functional.java",
-        issue=6,
-        reason="lambdas, method references, and stream pipelines are not implemented",
+        issue=11,
+        reason="stream pipelines remain an unresolved-region completion target",
         expected_fragments=(
             "return [",
             "type_.get_name()",

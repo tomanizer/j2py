@@ -35,11 +35,26 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node.type == "identifier":
         return _translate_identifier(node.text, ctx)
 
+    if node.type in {"type_identifier", "scoped_type_identifier"}:
+        return translate_class_name(node.text)
+
     if node.type == "this":
         return "self"
 
     if node.type == "field_access":
         return _translate_field_access(node, ctx)
+
+    if node.type == "array_access":
+        return _translate_array_access(node, ctx)
+
+    if node.type == "array_initializer":
+        return _translate_array_initializer(node, ctx)
+
+    if node.type == "array_creation_expression":
+        return _translate_array_creation(node, ctx)
+
+    if node.type == "class_literal":
+        return _translate_class_literal(node, ctx)
 
     if node.type == "assignment_expression":
         children = node.children
@@ -75,6 +90,9 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node.type == "unary_expression":
         return _translate_unary_expression(node, ctx)
 
+    if node.type == "ternary_expression":
+        return _translate_ternary_expression(node, ctx)
+
     if node.type == "binary_expression":
         f_string = _translate_string_concat(node, ctx)
         if f_string is not None:
@@ -89,6 +107,14 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
                     reason=f"unsupported binary operator {children[1].text}",
                 )
                 return f"__j2py_todo__({node.text!r})"
+            null_comparison = _translate_null_comparison(
+                children[0],
+                children[2],
+                binary_operator,
+                ctx,
+            )
+            if null_comparison is not None:
+                return null_comparison
             return (
                 f"{translate_expression(children[0], ctx)} "
                 f"{binary_operator} "
@@ -119,7 +145,41 @@ def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
 
     target = translate_expression(children[0], ctx)
     field_name = translate_field_name(children[-1].text)
+    if children[-1].text == "length":
+        return f"len({target})"
     return f"{target}.{field_name}"
+
+
+def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.named_children
+    if len(children) != 2:
+        ctx.diagnostics.record(node, supported=False, reason="malformed array access")
+        return f"__j2py_todo__({node.text!r})"
+    return f"{translate_expression(children[0], ctx)}[{translate_expression(children[1], ctx)}]"
+
+
+def _translate_array_initializer(node: JavaNode, ctx: TranslationContext) -> str:
+    return f"[{', '.join(translate_expression(child, ctx) for child in node.named_children)}]"
+
+
+def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
+    initializer = first_child_by_type(node, "array_initializer")
+    if initializer is not None:
+        return translate_expression(initializer, ctx)
+    ctx.diagnostics.record(
+        node,
+        supported=False,
+        reason="array creation without initializer requires size handling",
+    )
+    return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.named_children
+    if not children:
+        ctx.diagnostics.record(node, supported=False, reason="malformed class literal")
+        return f"__j2py_todo__({node.text!r})"
+    return translate_expression(children[0], ctx)
 
 
 def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str:
@@ -143,6 +203,18 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
     if method_name == "add" and receiver:
         return f"{receiver}.append({args})"
+
+    if method_name in {"size", "length"} and receiver and not args:
+        return f"len({receiver})"
+
+    if method_name == "isEmpty" and receiver and not args:
+        return f"not {receiver}"
+
+    if method_name == "contains" and receiver and args:
+        return f"{args} in {receiver}"
+
+    if method_name == "get" and receiver and args:
+        return f"{receiver}[{args}]"
 
     py_method = translate_method_name(method_name)
     if receiver:
@@ -192,12 +264,25 @@ def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
     operator = children[0].text
     operand = translate_expression(named_children[-1], ctx)
     if operator == "!":
+        if operand.startswith("not "):
+            return operand.removeprefix("not ")
         return f"not {operand}"
     if operator in {"+", "-"}:
         return f"{operator}{operand}"
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported unary operator {operator}")
     return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_ternary_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.named_children
+    if len(children) != 3:
+        ctx.diagnostics.record(node, supported=False, reason="malformed ternary expression")
+        return f"__j2py_todo__({node.text!r})"
+    condition = translate_expression(children[0], ctx)
+    if_true = translate_expression(children[1], ctx)
+    if_false = translate_expression(children[2], ctx)
+    return f"{if_true} if {condition} else {if_false}"
 
 
 def _translate_binary_operator(operator: str) -> str | None:
@@ -217,6 +302,23 @@ def _translate_binary_operator(operator: str) -> str | None:
         "%": "%",
     }
     return operators.get(operator)
+
+
+def _translate_null_comparison(
+    left_node: JavaNode,
+    right_node: JavaNode,
+    operator: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if operator not in {"==", "!="}:
+        return None
+    if right_node.type == "null_literal":
+        left = translate_expression(left_node, ctx)
+        return f"{left} {'is' if operator == '==' else 'is not'} None"
+    if left_node.type == "null_literal":
+        right = translate_expression(right_node, ctx)
+        return f"{right} {'is' if operator == '==' else 'is not'} None"
+    return None
 
 
 def _translate_string_concat(node: JavaNode, ctx: TranslationContext) -> str | None:

@@ -31,6 +31,7 @@ TYPE_MAP: dict[str, str] = {
     # common java.lang
     "Number": "float",
     "CharSequence": "str",
+    "Class": "type",
     "Comparable": "object",
     "Iterable": "Iterable",
     "Cloneable": "object",
