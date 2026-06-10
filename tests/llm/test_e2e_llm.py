@@ -1,7 +1,13 @@
-"""End-to-end LLM pipeline tests — require ANTHROPIC_API_KEY to be set.
+"""On-demand exploratory end-to-end LLM tests.
 
-Run with:
-    ANTHROPIC_API_KEY=sk-... uv run python -m pytest tests/llm/test_e2e_llm.py -v -s
+These tests exercise the real layered pipeline (tree-sitter parse -> rule-based
+skeleton -> LLM completion) against either synthetic or real Spring code.
+
+They deliberately make live calls to the Anthropic API. They are excluded from
+normal pytest runs, make check, and CI by the live_llm marker in pyproject.toml.
+
+Typical usage:
+    ANTHROPIC_API_KEY=sk-... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 """
 
 from __future__ import annotations
@@ -12,6 +18,12 @@ from pathlib import Path
 
 import pytest
 
+from j2py.analyze.symbols import extract_symbols
+from j2py.config.loader import ConfigLoader
+from j2py.parse.java_ast import parse_source
+from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+
 SPRING_CORPUS = Path(__file__).parents[2] / ".corpus" / "spring-framework"
 NEEDS_API_KEY = pytest.mark.skipif(
     not os.environ.get("ANTHROPIC_API_KEY"),
@@ -21,11 +33,13 @@ NEEDS_SPRING = pytest.mark.skipif(
     not SPRING_CORPUS.exists(),
     reason=f"Spring corpus not found at {SPRING_CORPUS}",
 )
+LIVE_LLM = pytest.mark.live_llm
 
 
 @NEEDS_API_KEY
-def test_llm_translates_simple_java_class() -> None:
-    """A tiny synthetic Java class → valid Python via the full pipeline."""
+@LIVE_LLM
+def test_llm_completes_skeleton_from_tree_sitter() -> None:
+    """A tiny synthetic Java class goes through skeleton generation before the LLM."""
     from j2py.llm.client import translate_with_llm
 
     java = """\
@@ -43,23 +57,47 @@ public class Greeter {
     }
 }
 """
+
+    parsed = parse_source(java)
+    symbols = extract_symbols(parsed)
+    cfg = ConfigLoader().add_defaults().build()
+    skeleton_result = translate_skeleton_with_diagnostics(parsed, symbols, cfg)
+
+    print("\n=== RULE SKELETON ===")
+    print(skeleton_result.source)
+    print("=== DIAGNOSTICS ===")
+    print("coverage:", skeleton_result.coverage)
+    print("unhandled:", [d.reason for d in skeleton_result.diagnostics.unhandled])
+
     result = translate_with_llm(
         java_source=java,
-        partial_python="",
+        partial_python=skeleton_result.source,
+        diagnostics=_format_diagnostics(skeleton_result.diagnostics),
         use_cache=False,
     )
-    # Must be parseable Python
+
+    print("\n=== FINAL LLM OUTPUT ===")
+    print(result)
+
     ast.parse(result)
-    # Must define a Greeter class
     assert "class Greeter" in result or "class greeter" in result.lower()
     assert "greet" in result
 
 
+def _format_diagnostics(diagnostics: TranslationDiagnostics) -> str:
+    if not diagnostics.unhandled:
+        return "No unresolved constructs from the rule layer."
+    return "\n".join(
+        f"- line {item.line}: {item.node_type} - {item.reason}"
+        for item in diagnostics.unhandled
+    )
+
+
 @NEEDS_API_KEY
 @NEEDS_SPRING
+@LIVE_LLM
 def test_full_pipeline_on_spring_aot_detector() -> None:
     """translate_file() with use_llm=True on a real Spring source file."""
-    from j2py.config.loader import ConfigLoader
     from j2py.pipeline import translate_file
     from j2py.validate.checks import validate_source
 
@@ -84,9 +122,9 @@ def test_full_pipeline_on_spring_aot_detector() -> None:
 
 @NEEDS_API_KEY
 @NEEDS_SPRING
+@LIVE_LLM
 def test_pipeline_output_has_no_markdown_fences() -> None:
     """LLM responses must not contain raw markdown fences in the final output."""
-    from j2py.config.loader import ConfigLoader
     from j2py.pipeline import translate_file
 
     path = SPRING_CORPUS / "spring-core/src/main/java/org/springframework/aot/AotDetector.java"
