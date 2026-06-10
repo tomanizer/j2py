@@ -81,12 +81,15 @@ def _extract_imports(root: JavaNode) -> list[str]:
 
 def _extract_classes(root: JavaNode, package: str) -> list[ClassSymbol]:
     classes: list[ClassSymbol] = []
-    for node in root.find_all(
+    declaration_types = {
         "class_declaration",
         "interface_declaration",
         "enum_declaration",
         "annotation_type_declaration",
-    ):
+    }
+    for node in root.named_children:
+        if node.type not in declaration_types:
+            continue
         cls = _parse_class(node, package)
         if cls:
             classes.append(cls)
@@ -117,6 +120,7 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
 
     fields: list[FieldSymbol] = []
     methods: list[MethodSymbol] = []
+    inner_classes: list[ClassSymbol] = []
 
     body = node.child_by_field("body")
     if body:
@@ -127,6 +131,15 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
                 m = _parse_method(child)
                 if m:
                     methods.append(m)
+            elif child.type in {
+                "class_declaration",
+                "interface_declaration",
+                "enum_declaration",
+                "annotation_type_declaration",
+            }:
+                inner = _parse_class(child, package)
+                if inner is not None:
+                    inner_classes.append(inner)
 
     return ClassSymbol(
         name=name_node.text,
@@ -138,6 +151,7 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
         is_enum=is_enum,
         fields=fields,
         methods=methods,
+        inner_classes=inner_classes,
         line=node.location.line,
     )
 

@@ -10,14 +10,14 @@ from pathlib import Path
 
 import networkx as nx
 
-from j2py.analyze.symbols import FileSymbols
+from j2py.analyze.symbols import ClassSymbol, FileSymbols
 
 
 def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
     """Return a directed graph where an edge A → B means A depends on B."""
     fqn_to_file: dict[str, Path] = {}
     for fs in all_symbols:
-        for cls in fs.classes:
+        for cls in _all_classes(fs.classes):
             fqn = f"{fs.package}.{cls.name}" if fs.package else cls.name
             fqn_to_file[fqn] = fs.path
             fqn_to_file[cls.name] = fs.path  # short name fallback
@@ -26,7 +26,7 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
     for fs in all_symbols:
         src = str(fs.path)
         graph.add_node(src)
-        for cls in fs.classes:
+        for cls in _all_classes(fs.classes):
             if cls.superclass and cls.superclass in fqn_to_file:
                 dep = str(fqn_to_file[cls.superclass])
                 if dep != src:
@@ -43,6 +43,14 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
                     graph.add_edge(src, dep)
 
     return graph
+
+
+def _all_classes(classes: list[ClassSymbol]) -> list[ClassSymbol]:
+    result: list[ClassSymbol] = []
+    for cls in classes:
+        result.append(cls)
+        result.extend(_all_classes(cls.inner_classes))
+    return result
 
 
 def translation_order(graph: nx.DiGraph) -> list[str]:

@@ -44,6 +44,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         partial_python: str,
         context: str,
         diagnostics: str,
+        validation_feedback: str,
         config_fingerprint: str,
         model: str,
     ) -> str:
@@ -51,6 +52,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         assert "TODO(j2py): verify default value for field enabled" in partial_python
         assert "package: com.example" in context
         assert "field_declaration" in diagnostics
+        assert validation_feedback == ""
         assert config_fingerprint
         assert model == "claude-test"
         return "class Fields:\n    pass\n"
@@ -106,6 +108,110 @@ def test_translate_file_reports_validation_failure_for_invalid_llm_output(
     assert result.validation.syntax_errors
 
 
+def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        if len(calls) == 1:
+            return "def broken(:\n"
+        return "class Fields:\n    pass\n"
+
+    def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
+        if source.startswith("def broken"):
+            return ValidationResult(
+                path=path or Path("<string>"),
+                syntax_ok=False,
+                syntax_errors=["SyntaxError: invalid syntax"],
+            )
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+
+    assert result.used_llm
+    assert calls[0] == ""
+    assert "SyntaxError:" in calls[1]
+    assert result.python_source == "class Fields:\n    pass\n"
+    assert result.validation is not None
+    assert result.validation.ok
+
+
+def test_translate_file_does_not_retry_when_llm_output_validates(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        return "class Fields:\n    pass\n"
+
+    def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+
+    assert calls == [""]
+    assert result.validation is not None
+    assert result.validation.ok
+
+
+def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        return "def still_broken(:\n"
+
+    def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=False,
+            syntax_errors=["SyntaxError: invalid syntax"],
+        )
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+
+    assert len(calls) == 2
+    assert calls[0] == ""
+    assert "SyntaxError:" in calls[1]
+    assert result.python_source == "def still_broken(:\n"
+    assert result.validation is not None
+    assert not result.validation.ok
+
+
+def test_translate_file_does_not_retry_when_validation_disabled(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        return "def broken(:\n"
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True)
+
+    assert calls == [""]
+    assert result.validation is None
+    assert result.python_source == "def broken(:\n"
+
+
 def test_translate_directory_uses_dependency_order_and_package_paths(tmp_path: Path) -> None:
     source = tmp_path / "src"
     output = tmp_path / "out"
@@ -128,6 +234,28 @@ def test_translate_directory_uses_dependency_order_and_package_paths(tmp_path: P
     ]
 
 
+def test_translate_directory_reuses_parsed_files(tmp_path: Path, monkeypatch) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "A.java").write_text("package com.example; public class A {}")
+    (source / "B.java").write_text("package com.example; public class B {}")
+    real_parse_file = pipeline.parse_file
+    calls: list[Path] = []
+
+    def counted_parse_file(path: Path):
+        calls.append(path)
+        return real_parse_file(path)
+
+    monkeypatch.setattr(pipeline, "parse_file", counted_parse_file)
+
+    result = translate_directory(source, output, cfg=CFG, use_llm=False)
+
+    assert sorted(path.name for path in calls) == ["A.java", "B.java"]
+    assert len(calls) == 2
+    assert len(result.files) == 2
+
+
 def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / "src"
     output = tmp_path / "out"
@@ -148,7 +276,7 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
 
     result = translate_directory(source, output, cfg=CFG, use_llm=False, validate=True)
 
-    assert len(calls) == 1
+    assert calls == [output / "com" / "example" / "A.py"]
     assert result.files[0].validation is not None
     assert result.files[0].validation.ok
 

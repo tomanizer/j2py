@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import anthropic
+import pytest
 
 import j2py.llm.client as client_mod
 
@@ -95,6 +96,34 @@ def test_translate_with_llm_cache_key_includes_config_fingerprint(monkeypatch) -
     assert len(cache.written) == 2
 
 
+def test_translate_with_llm_cache_key_includes_validation_feedback(monkeypatch) -> None:
+    cache = FakeCache()
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(
+                content=[anthropic.types.TextBlock(type="text", text="translated python")],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        validation_feedback="SyntaxError: first",
+        model="claude-test",
+    )
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        validation_feedback="SyntaxError: second",
+        model="claude-test",
+    )
+
+    assert len(cache.written) == 2
+
+
 def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> None:
     cache = FakeCache()
     calls = {"count": 0}
@@ -120,3 +149,46 @@ def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> Non
 
     assert result == "translated after retry"
     assert calls["count"] == 2
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # plain python fence
+        ("```python\nclass A:\n    pass\n```", "class A:\n    pass\n"),
+        # bare fence
+        ("```\nclass A:\n    pass\n```", "class A:\n    pass\n"),
+        # no fence — passthrough
+        ("class A:\n    pass\n", "class A:\n    pass\n"),
+        # fence with trailing whitespace
+        ("```python\nclass A:\n    pass\n```\n", "class A:\n    pass\n"),
+    ],
+)
+def test_strip_fences(raw: str, expected: str) -> None:
+    assert client_mod._strip_fences(raw) == expected
+
+
+def test_translate_with_llm_strips_fenced_response(monkeypatch: Any) -> None:
+    cache = FakeCache()
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(
+                content=[
+                    anthropic.types.TextBlock(
+                        type="text", text="```python\ntranslated python\n```"
+                    )
+                ],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    result = client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="claude-test",
+    )
+
+    assert result == "translated python\n"
+    assert list(cache.written.values()) == ["translated python\n"]

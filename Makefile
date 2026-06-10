@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-targets test-cov corpus-spring corpus-spring-update-baseline clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-targets test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -24,6 +24,9 @@ test-cov:  ## Run tests with coverage report
 
 corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
 	uv run python scripts/corpus/translate_spring_sample.py --compare-baseline
+
+corpus-spring-smoke:  ## Run a quick 25-file Spring corpus smoke sample without baseline comparison
+	uv run python scripts/corpus/translate_spring_sample.py --limit 25
 
 corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
 	uv run python scripts/corpus/translate_spring_sample.py --update-baseline --compare-baseline

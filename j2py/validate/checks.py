@@ -59,11 +59,18 @@ def validate_file(path: Path) -> ValidationResult:
 
 
 def _run_ruff(path: Path) -> tuple[bool, list[str]]:
+    # --select E,F: check real errors (syntax/undefined-name) but skip style/isort rules
+    # --isolated: ignore any project ruff.toml so we apply the same rules everywhere
     proc = subprocess.run(
-        [sys.executable, "-m", "ruff", "check", "--output-format=text", str(path)],
+        [sys.executable, "-m", "ruff", "check",
+         "--select", "E,F",
+         "--isolated",
+         "--output-format=concise",
+         str(path)],
         capture_output=True, text=True,
     )
-    errors = [line for line in proc.stdout.splitlines() if line.strip()]
+    output = proc.stdout + proc.stderr
+    errors = [line for line in output.splitlines() if ": E" in line or ": F" in line]
     return proc.returncode == 0, errors
 
 

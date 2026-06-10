@@ -53,3 +53,22 @@ def test_dependency_graph_uses_imports_and_parsed_inheritance() -> None:
     graph = build_dependency_graph([extract_symbols(imported), extract_symbols(base)])
 
     assert translation_order(graph) == ["Base.java", "Child.java"]
+
+
+def test_dependency_graph_uses_nested_dependencies_without_extra_nodes() -> None:
+    base = parse_source("package com.example; public class Base {}")
+    base.path = Path("Base.java")
+    outer = parse_source(
+        """
+        package com.example;
+        public class Outer {
+            public static class Inner extends Base {}
+        }
+        """,
+    )
+    outer.path = Path("Outer.java")
+
+    graph = build_dependency_graph([extract_symbols(outer), extract_symbols(base)])
+
+    assert sorted(graph.nodes) == ["Base.java", "Outer.java"]
+    assert translation_order(graph) == ["Base.java", "Outer.java"]

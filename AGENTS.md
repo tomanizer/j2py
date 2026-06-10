@@ -23,8 +23,8 @@ Read these documents first:
 |---|---|---|
 | Java parsing | `j2py/parse/` | Implemented |
 | Symbol analysis | `j2py/analyze/` | Implemented |
-| Rule-based skeleton | `j2py/translate/skeleton.py` | **Stub — primary build target** |
-| Selectors + transforms | `j2py/translate/selectors.py`, `transforms.py` | Implemented |
+| Rule-based skeleton | `j2py/translate/skeleton.py` | Implemented but incomplete |
+| Direct visitors | `j2py/translate/classes.py`, `statements.py`, `expressions.py` | Implemented |
 | Type/naming/literal rules | `j2py/translate/rules/` | Implemented |
 | LLM completion | `j2py/llm/` | Implemented |
 | Validation | `j2py/validate/` | Implemented |
@@ -36,7 +36,8 @@ Read these documents first:
 - LLM: **Anthropic SDK only** — no LangChain, no OpenAI, no litellm wrappers
 - Output target: **Python 3.11+** with PEP 484/585 type annotations
 - Tests: **no live Anthropic API calls** — use fixtures or stub the client
-- Rule layer: **pure functions** — transform functions must not carry state
+- Rule layer: keep deterministic helpers focused and stateless where possible; use
+  `TranslationContext` and diagnostics when a rule cannot preserve Java semantics
 
 ## Quality gates
 
@@ -50,7 +51,8 @@ CI runs the same checks. A red CI means `make check` was skipped.
 
 ## New translation rules
 
-Add to `j2py/translate/rules/` or register in `selectors.py`. Each rule needs:
+Add to `j2py/translate/classes.py`, `statements.py`, `expressions.py`, or pure helpers
+under `j2py/translate/rules/`. Each rule needs:
 1. A Java fixture in `tests/fixtures/java/`
 2. An expected Python fixture in `tests/fixtures/python/`
 3. A parametrised test in `tests/translate/`

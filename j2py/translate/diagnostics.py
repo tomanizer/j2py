@@ -70,8 +70,11 @@ class TranslationContext:
     cfg: TranslationConfig
     diagnostics: TranslationDiagnostics
     class_fields: set[str] = field(default_factory=set)
+    class_field_types: dict[str, str] = field(default_factory=dict)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
+    variable_types: dict[str, str] = field(default_factory=dict)
+    expression_aliases: dict[str, str] = field(default_factory=dict)
     in_instance_method: bool = False
 
 
