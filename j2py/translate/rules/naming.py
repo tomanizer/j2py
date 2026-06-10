@@ -43,12 +43,12 @@ def safe_identifier(name: str) -> str:
     return name
 
 
-def translate_method_name(name: str) -> str:
-    return safe_identifier(camel_to_snake(name))
+def translate_method_name(name: str, *, snake_case: bool = True) -> str:
+    return safe_identifier(camel_to_snake(name) if snake_case else name)
 
 
-def translate_field_name(name: str) -> str:
-    return safe_identifier(camel_to_snake(name))
+def translate_field_name(name: str, *, snake_case: bool = True) -> str:
+    return safe_identifier(camel_to_snake(name) if snake_case else name)
 
 
 def translate_class_name(name: str) -> str:

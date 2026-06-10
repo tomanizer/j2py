@@ -129,7 +129,7 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
 
 
 def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
-    py_name = translate_field_name(raw_name)
+    py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
     if (
         ctx.in_instance_method
         and raw_name in ctx.class_fields
@@ -147,7 +147,10 @@ def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
         return node.text
 
     target = translate_expression(children[0], ctx)
-    field_name = translate_field_name(children[-1].text)
+    field_name = translate_field_name(
+        children[-1].text,
+        snake_case=ctx.cfg.snake_case_fields,
+    )
     if children[-1].text == "length":
         return f"len({target})"
     return f"{target}.{field_name}"
@@ -219,7 +222,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "get" and receiver and args:
         return f"{receiver}[{args}]"
 
-    py_method = translate_method_name(method_name)
+    py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
     if receiver:
         return f"{receiver}.{py_method}({args})"
     return f"{py_method}({args})"

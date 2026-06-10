@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import TranslationConfig
-from j2py.parse.java_ast import ParsedFile
+from j2py.parse.java_ast import JavaNode, ParsedFile
 from j2py.translate.classes import top_level_classes, translate_class
 from j2py.translate.diagnostics import TranslationDiagnostics
 
@@ -49,14 +49,10 @@ def translate_skeleton_with_diagnostics(
         class_blocks.append(translate_class(class_node, cfg, diagnostics))
 
     lines = ["from __future__ import annotations"]
-    if any(line.strip() == "@dataclass(frozen=True)" for block in class_blocks for line in block):
-        lines.extend(["", "from dataclasses import dataclass"])
-    if any("(Enum):" in line for block in class_blocks for line in block):
-        lines.extend(["", "from enum import Enum"])
-    if any(line.strip() == "@overload" for block in class_blocks for line in block):
-        lines.extend(["", "from typing import overload"])
-    if any("(Protocol):" in line for block in class_blocks for line in block):
-        lines.extend(["", "from typing import Protocol"])
+    import_lines = _import_lines(parsed, cfg, class_blocks)
+    if import_lines:
+        lines.append("")
+        lines.extend(import_lines)
     lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):
@@ -70,3 +66,43 @@ def translate_skeleton_with_diagnostics(
         coverage=diagnostics.coverage,
         diagnostics=diagnostics,
     )
+
+
+def _import_lines(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+    class_blocks: list[list[str]],
+) -> list[str]:
+    imports: set[str] = set()
+    for java_import in parsed.root.find_all("import_declaration"):
+        imported_name = _java_import_name(java_import)
+        if not imported_name or imported_name in cfg.drop_imports:
+            continue
+        mapped = cfg.import_map.get(imported_name)
+        if mapped:
+            imports.update(line for line in mapped.splitlines() if line.strip())
+
+    flattened = "\n".join(line for block in class_blocks for line in block)
+    if "@dataclass(frozen=True)" in flattened:
+        imports.add("from dataclasses import dataclass")
+    if "(Enum):" in flattened:
+        imports.add("from enum import Enum")
+
+    typing_names: set[str] = set()
+    if "Any" in flattened:
+        typing_names.add("Any")
+    if "(Protocol):" in flattened:
+        typing_names.add("Protocol")
+    if "@overload" in flattened:
+        typing_names.add("overload")
+    if typing_names:
+        imports.add(f"from typing import {', '.join(sorted(typing_names))}")
+
+    return sorted(imports)
+
+
+def _java_import_name(node: JavaNode) -> str:
+    for child in node.walk():
+        if child.type in {"scoped_identifier", "identifier"}:
+            return child.text
+    return ""

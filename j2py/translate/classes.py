@@ -183,7 +183,13 @@ def _translate_interface(
         name = _member_python_name(method)
         params = _parameter_infos(method, cfg)
         return_type = _return_type(method, cfg)
-        signature = _signature(name, params, return_type=return_type, include_self=True)
+        signature = _signature(
+            name,
+            params,
+            return_type=return_type,
+            include_self=True,
+            emit_type_hints=cfg.emit_type_hints,
+        )
         lines.append(f"    {signature}: ...")
         wrote_member = True
 
@@ -299,7 +305,10 @@ def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInf
                 FieldInfo(
                     node=child,
                     name=name_node.text,
-                    py_name=translate_field_name(name_node.text),
+                    py_name=translate_field_name(
+                        name_node.text,
+                        snake_case=cfg.snake_case_fields,
+                    ),
                     py_type=translate_type(java_type, cfg),
                     is_static="static" in modifiers,
                     initializer=declarator.child_by_field("value"),
@@ -384,7 +393,7 @@ def _translate_fields(
                 reason="translated instance field initializer",
             )
             instance_init_lines.append(
-                f"        self.{field.py_name}: {field.py_type} = "
+                f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
                 f"{translate_expression(field.initializer, instance_ctx)}",
             )
             continue
@@ -405,7 +414,8 @@ def _translate_fields(
         instance_init_lines.append(
             f"        # TODO(j2py): verify default value for field {field.py_name}",
         )
-        instance_init_lines.append(f"        self.{field.py_name}: {field.py_type} | None = None")
+        target = _field_assignment(f"self.{field.py_name}", f"{field.py_type} | None", cfg)
+        instance_init_lines.append(f"        {target} = None")
 
     supported_members = {
         "field_declaration",
@@ -418,6 +428,8 @@ def _translate_fields(
             continue
         if is_comment(child):
             diagnostics.warn(child, reason="preserved comment")
+            if not cfg.emit_line_comments:
+                continue
             static_lines.extend(translate_comment(child, indent="    "))
             continue
         diagnostics.record(child, supported=False, reason=f"unsupported class member {child.type}")
@@ -439,12 +451,12 @@ def _translate_static_field(
         )
         return [
             f"    # TODO(j2py): verify default value for static field {field.py_name}",
-            f"    {field.py_name}: {field.py_type} | None = None",
+            f"    {_field_assignment(field.py_name, f'{field.py_type} | None', ctx.cfg)} = None",
         ]
 
     diagnostics.record(field.node, supported=True, reason="translated static field declaration")
     return [
-        f"    {field.py_name}: {field.py_type} = "
+        f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = "
         f"{translate_expression(field.initializer, ctx)}",
     ]
 
@@ -490,7 +502,11 @@ def _translate_method(
 
     name_node = node.child_by_field("name")
     raw_name = name_node.text if name_node is not None else "unknown"
-    py_name = "__init__" if is_constructor else translate_method_name(raw_name)
+    py_name = (
+        "__init__"
+        if is_constructor
+        else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+    )
     return_type = "None" if is_constructor else _return_type(node, ctx.cfg)
     params = _params(node, ctx)
     if not is_static:
@@ -502,7 +518,8 @@ def _translate_method(
     lines: list[str] = []
     if is_static:
         lines.append("    @staticmethod")
-    lines.append(f"    def {py_name}({', '.join(params)}) -> {return_type}:")
+    returns = f" -> {return_type}" if ctx.cfg.emit_type_hints else ""
+    lines.append(f"    def {py_name}({', '.join(params)}){returns}:")
 
     body = node.child_by_field("body")
     if body is None:
@@ -612,6 +629,7 @@ def _merged_constructor_overload(
         return_type="None",
         include_self=True,
         defaults=defaults,
+        emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
     lines.extend(pre_body_lines)
@@ -677,6 +695,7 @@ def _merged_method_overload(
         merged_params,
         return_type=return_type,
         include_self=not is_static,
+        emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
     body = _method_body(members[0])
@@ -731,6 +750,7 @@ def _overload_stubs(members: list[JavaNode], cfg: TranslationConfig) -> list[str
                 "None" if member.type == "constructor_declaration" else _return_type(member, cfg)
             ),
             include_self=not is_static,
+            emit_type_hints=cfg.emit_type_hints,
         )
         lines.append(f"    {signature}: ...")
     return lines
@@ -743,15 +763,17 @@ def _signature(
     return_type: str,
     include_self: bool,
     defaults: dict[str, str] | None = None,
+    emit_type_hints: bool = True,
 ) -> str:
     defaults = defaults or {}
     rendered = ["self"] if include_self else []
     rendered.extend(
-        f"{param.py_name}: {param.py_type}"
+        (f"{param.py_name}: {param.py_type}" if emit_type_hints else param.py_name)
         + (f" = {defaults[param.py_name]}" if param.py_name in defaults else "")
         for param in params
     )
-    return f"def {name}({', '.join(rendered)}) -> {return_type}"
+    returns = f" -> {return_type}" if emit_type_hints else ""
+    return f"def {name}({', '.join(rendered)}){returns}"
 
 
 def _union_types(types: Iterable[str]) -> str:
@@ -826,7 +848,7 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
         infos.append(
             ParameterInfo(
                 raw_name=raw_name,
-                py_name=translate_field_name(raw_name),
+                py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
                 py_type=translate_type(type_node.text if type_node is not None else "Object", cfg),
             ),
         )
@@ -837,5 +859,14 @@ def _params(node: JavaNode, ctx: TranslationContext) -> list[str]:
     params: list[str] = []
     for param in _parameter_infos(node, ctx.cfg):
         ctx.param_names.add(param.raw_name)
-        params.append(f"{param.py_name}: {param.py_type}")
+        if ctx.cfg.emit_type_hints:
+            params.append(f"{param.py_name}: {param.py_type}")
+        else:
+            params.append(param.py_name)
     return params
+
+
+def _field_assignment(name: str, py_type: str, cfg: TranslationConfig) -> str:
+    if not cfg.emit_type_hints:
+        return name
+    return f"{name}: {py_type}"

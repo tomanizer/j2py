@@ -14,14 +14,14 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 CFG = ConfigLoader().add_defaults().build()
 
 
-def _translate_source(source: str) -> tuple[str, float]:
+def _translate_source(source: str, cfg=CFG) -> tuple[str, float]:
     parsed = parse_source(source)
-    return translate_skeleton(parsed, extract_symbols(parsed), CFG)
+    return translate_skeleton(parsed, extract_symbols(parsed), cfg)
 
 
-def _translate_source_with_diagnostics(source: str):
+def _translate_source_with_diagnostics(source: str, cfg=CFG):
     parsed = parse_source(source)
-    return translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+    return translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), cfg)
 
 
 def _assert_valid_python(source: str) -> None:
@@ -587,6 +587,108 @@ def test_common_spring_expression_shapes_translate() -> None:
     assert 'return values and "x" in values' in python_source
     assert "return values[0]" in python_source
     assert "return [1, 2]" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_import_map_emits_configured_python_imports_and_drops_known_imports() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.nio.file.Path;
+        import java.util.List;
+
+        public class UsesPath {
+            public Path first(List<Path> paths) {
+                return paths.get(0);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "from pathlib import Path" in python_source
+    assert "java.util.List" not in python_source
+    assert "def first(self, paths: list[Path]) -> Path:" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_custom_import_map_and_naming_flags_are_respected() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "import_map": {**CFG.import_map, "com.example.ExternalThing": "from ext import Thing"},
+            "snake_case_methods": False,
+            "snake_case_fields": False,
+        },
+    )
+    python_source, coverage = _translate_source(
+        """
+        import com.example.ExternalThing;
+
+        public class Naming {
+            private String displayName = "x";
+
+            public String getDisplayName() {
+                return displayName;
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert coverage == 1.0
+    assert "from ext import Thing" in python_source
+    assert "self.displayName: str" in python_source
+    assert "def getDisplayName(self) -> str:" in python_source
+    assert "return self.displayName" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_emit_line_comments_flag_suppresses_preserved_comments() -> None:
+    cfg = CFG.model_copy(update={"emit_line_comments": False})
+    result = _translate_source_with_diagnostics(
+        """
+        public class Comments {
+            // Hidden when comment emission is disabled.
+            public String value() {
+                // Hidden too.
+                return "x";
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert result.coverage == 1.0
+    assert "Hidden when comment emission is disabled" not in result.source
+    assert "Hidden too" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "preserved comment",
+        "preserved comment",
+    ]
+    _assert_valid_python(result.source)
+
+
+def test_emit_type_hints_flag_suppresses_standard_annotations() -> None:
+    cfg = CFG.model_copy(update={"emit_type_hints": False})
+    python_source, coverage = _translate_source(
+        """
+        public class Untyped {
+            private String name = "x";
+
+            public String getName(String fallback) {
+                String value = name;
+                return value;
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert coverage == 1.0
+    assert "self.name = \"x\"" in python_source
+    assert "def get_name(self, fallback):" in python_source
+    assert "value = self.name" in python_source
+    assert ": str" not in python_source
+    assert " -> str" not in python_source
     _assert_valid_python(python_source)
 
 

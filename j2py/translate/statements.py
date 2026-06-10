@@ -23,6 +23,8 @@ def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> l
 def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     if is_comment(node):
         ctx.diagnostics.warn(node, reason="preserved comment")
+        if not ctx.cfg.emit_line_comments:
+            return []
         return translate_comment(node, indent=indent)
 
     if node.type == "expression_statement":
@@ -95,11 +97,13 @@ def _translate_local_variable_declaration(
         if name_node is None:
             continue
         raw_name = name_node.text
-        py_name = translate_field_name(raw_name)
+        py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
         ctx.local_names.add(raw_name)
         value_node = declarator.child_by_field("value")
         value = translate_expression(value_node, ctx) if value_node else "None"
-        if value in {"[]", "{}", "set()"}:
+        if not ctx.cfg.emit_type_hints:
+            lines.append(f"{indent}{py_name} = {value}")
+        elif value in {"[]", "{}", "set()"}:
             lines.append(f"{indent}{py_name}: {py_type} = {value}")
         else:
             lines.append(f"{indent}{py_name} = {value}")
@@ -114,7 +118,7 @@ def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: 
         return [f"{indent}# TODO(j2py): malformed enhanced for statement", f"{indent}pass"]
 
     raw_name = children[1].text
-    py_name = translate_field_name(raw_name)
+    py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
     iterable = translate_expression(children[2], ctx)
     body = children[3]
 
@@ -208,7 +212,7 @@ def _range_loop_parts(
         return None
     return (
         name_node.text,
-        translate_field_name(name_node.text),
+        translate_field_name(name_node.text, snake_case=ctx.cfg.snake_case_fields),
         translate_expression(value_node, ctx),
         translate_expression(condition_children[2], ctx),
     )
@@ -298,7 +302,10 @@ def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) ->
         exception_type = _catch_type(parameter, ctx)
         name_node = parameter.child_by_field("name") or first_child_by_type(parameter, "identifier")
         if name_node is not None:
-            exception_name = translate_field_name(name_node.text)
+            exception_name = translate_field_name(
+                name_node.text,
+                snake_case=ctx.cfg.snake_case_fields,
+            )
     lines = [f"{indent}except {exception_type} as {exception_name}:"]
     lines.extend(
         translate_body(body, ctx, indent=f"{indent}    ")
