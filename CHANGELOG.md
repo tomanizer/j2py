@@ -27,6 +27,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   mapper and predicate expressions are supported.
 - LLM prompt context for project symbols, rule diagnostics, config fingerprints, and
   validation feedback.
+- On-demand LLM exploration helper for manually inspecting the tree-sitter skeleton,
+  diagnostics, final LLM output, and validation results outside the normal test suite.
 
 ### Changed
 
@@ -34,6 +36,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   modules.
 - Updated contributor and architecture docs to describe the implemented deterministic
   visitor layer and the remaining unsupported constructs.
+- Generalized CLI help text for configured LLM usage without changing the Anthropic
+  backend contract.
 
 ### Fixed
 
