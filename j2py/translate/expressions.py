@@ -660,7 +660,7 @@ def _method_invocation_arg_count(node: JavaNode | None) -> int | None:
 
 
 def _stream_item_name(source: str, ctx: TranslationContext) -> str:
-    base = source.rsplit(".", 1)[-1]
+    base = _stream_source_base_name(source)
 
     # Common collection variable names that are plurals (or singular-looking but used
     # for lists). The previous heuristic turned "status"->"statu", "address"->"addres",
@@ -673,9 +673,11 @@ def _stream_item_name(source: str, ctx: TranslationContext) -> str:
         "classes": "class",
         "class": "class",  # e.g. List<Class<?>>
         "entries": "entry",
+        "interfaces": "interface",
         "boxes": "box",
         "types": "type",
         "cases": "case",
+        "values": "value",
     }
     if base in _PLURAL_FIXES:
         base = _PLURAL_FIXES[base]
@@ -688,7 +690,22 @@ def _stream_item_name(source: str, ctx: TranslationContext) -> str:
 
     if not base or len(base) < 2:
         base = "item"
-    return translate_field_name(base, snake_case=ctx.cfg.snake_case_fields)
+    name = translate_field_name(base, snake_case=ctx.cfg.snake_case_fields)
+    if not name.isidentifier():
+        return "item"
+    return name
+
+
+def _stream_source_base_name(source: str) -> str:
+    base = source.rsplit(".", 1)[-1].strip()
+    while base.endswith("()"):
+        base = base[:-2]
+    if base.startswith("get_"):
+        base = base[4:]
+        if "_" in base:
+            base = base.rsplit("_", 1)[-1]
+    base = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in base)
+    return base.strip("_")
 
 
 def _stream_map_expression(arg: JavaNode, item_name: str, ctx: TranslationContext) -> str | None:
