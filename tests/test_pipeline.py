@@ -16,6 +16,11 @@ from j2py.validate.checks import ValidationResult
 FIXTURES = Path(__file__).parent / "fixtures"
 CFG = ConfigLoader().add_defaults().build()
 PARTIAL_FIXTURE = FIXTURES / "java" / "PartialUnsupported.java"
+PARTIAL_LLM_OUTPUT = """\
+class PartialUnsupported:
+    def matrix(self, rows: int, cols: int) -> list[list[int]]:
+        return []
+"""
 
 
 def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
@@ -25,7 +30,8 @@ def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
     assert result.confidence == 1.0
     assert result.diagnostics is not None
     assert result.diagnostics.coverage == 1.0
-    assert result.validation is None
+    assert result.validation is not None
+    assert result.validation.ok
     assert result.python_source == (FIXTURES / "python" / "HelloWorld.py").read_text()
     ast.parse(result.python_source)
 
@@ -37,6 +43,7 @@ def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
     assert result.confidence < 1.0
     assert result.diagnostics is not None
     assert result.diagnostics.unhandled
+    assert result.validation is not None
     assert "__j2py_todo__('new int[rows][cols]')" in result.python_source
     ast.parse(result.python_source)
 
@@ -59,7 +66,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         assert validation_feedback == ""
         assert config_fingerprint
         assert model == "claude-test"
-        return "class PartialUnsupported:\n    pass\n"
+        return PARTIAL_LLM_OUTPUT
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
 
@@ -73,7 +80,9 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     assert result.used_llm
     assert result.confidence < 1.0
     assert result.diagnostics is not None
-    assert result.python_source == "class PartialUnsupported:\n    pass\n"
+    assert result.structural_verification is not None
+    assert result.structural_verification.ok
+    assert result.python_source == PARTIAL_LLM_OUTPUT
 
 
 def test_translate_file_skips_llm_when_java_parse_has_errors(monkeypatch, tmp_path) -> None:
@@ -152,7 +161,7 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
         calls.append(kwargs["validation_feedback"])
         if len(calls) == 1:
             return "def broken(:\n"
-        return "class PartialUnsupported:\n    pass\n"
+        return PARTIAL_LLM_OUTPUT
 
     def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
         if source.startswith("def broken"):
@@ -176,17 +185,17 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
     assert result.used_llm
     assert calls[0] == ""
     assert "SyntaxError:" in calls[1]
-    assert result.python_source == "class PartialUnsupported:\n    pass\n"
+    assert result.python_source == PARTIAL_LLM_OUTPUT
     assert result.validation is not None
     assert result.validation.ok
 
 
-def test_translate_file_does_not_retry_when_llm_output_validates(monkeypatch) -> None:
+def test_translate_file_does_not_retry_when_llm_output_validates_and_verifies(monkeypatch) -> None:
     calls: list[str] = []
 
     def fake_translate_with_llm(**kwargs) -> str:
         calls.append(kwargs["validation_feedback"])
-        return "class PartialUnsupported:\n    pass\n"
+        return PARTIAL_LLM_OUTPUT
 
     def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
         return ValidationResult(
@@ -204,6 +213,119 @@ def test_translate_file_does_not_retry_when_llm_output_validates(monkeypatch) ->
     assert calls == [""]
     assert result.validation is not None
     assert result.validation.ok
+    assert result.structural_verification is not None
+    assert result.structural_verification.ok
+
+
+def test_translate_file_retries_llm_once_with_structural_feedback(monkeypatch, tmp_path) -> None:
+    source = tmp_path / "DroppedMethod.java"
+    source.write_text(
+        """
+        package com.example;
+        public class DroppedMethod {
+            public int first() { return 1; }
+            public int second() { return 2; }
+            public int[][] matrix(int rows, int cols) {
+                return new int[rows][cols];
+            }
+        }
+        """,
+    )
+    calls: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        if len(calls) == 1:
+            return """\
+class DroppedMethod:
+    def first(self) -> int:
+        return 1
+    def matrix(self, rows: int, cols: int) -> list[list[int]]:
+        return []
+"""
+        return """\
+class DroppedMethod:
+    def first(self) -> int:
+        return 1
+    def second(self) -> int:
+        return 2
+    def matrix(self, rows: int, cols: int) -> list[list[int]]:
+        return []
+"""
+
+    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(source, cfg=CFG, use_llm=True)
+
+    assert len(calls) == 2
+    assert calls[0] == ""
+    assert "Missing method in class DroppedMethod: second" in calls[1]
+    assert result.structural_verification is not None
+    assert result.structural_verification.ok
+    assert "def second" in result.python_source
+
+
+def test_translate_file_records_structural_failure_when_retry_still_drops_method(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    source = tmp_path / "DroppedMethod.java"
+    source.write_text(
+        """
+        package com.example;
+        public class DroppedMethod {
+            public int first() { return 1; }
+            public int second() { return 2; }
+            public int[][] matrix(int rows, int cols) {
+                return new int[rows][cols];
+            }
+        }
+        """,
+    )
+    calls: list[str] = []
+    dropped_second = """\
+class DroppedMethod:
+    def first(self) -> int:
+        return 1
+    def matrix(self, rows: int, cols: int) -> list[list[int]]:
+        return []
+"""
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        calls.append(kwargs["validation_feedback"])
+        return dropped_second
+
+    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(source, cfg=CFG, use_llm=True)
+
+    assert len(calls) == 2
+    assert "Missing method in class DroppedMethod: second" in calls[1]
+    assert result.structural_verification is not None
+    assert not result.structural_verification.ok
+    assert result.structural_verification.errors == [
+        "Missing method in class DroppedMethod: second",
+        "Method order changed in class DroppedMethod: "
+        "expected ['first', 'second', 'matrix'], got ['first', 'matrix']",
+    ]
 
 
 def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) -> None:
@@ -233,7 +355,9 @@ def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) ->
     assert not result.validation.ok
 
 
-def test_translate_file_does_not_retry_when_validation_disabled(monkeypatch) -> None:
+def test_translate_file_still_retries_structural_errors_when_validation_disabled(
+    monkeypatch,
+) -> None:
     calls: list[str] = []
 
     def fake_translate_with_llm(**kwargs) -> str:
@@ -242,10 +366,14 @@ def test_translate_file_does_not_retry_when_validation_disabled(monkeypatch) -> 
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
 
-    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=False)
 
-    assert calls == [""]
+    assert len(calls) == 2
+    assert calls[0] == ""
+    assert "Structural verification skipped" in calls[1]
     assert result.validation is None
+    assert result.structural_verification is not None
+    assert not result.structural_verification.ok
     assert result.python_source == "def broken(:\n"
 
 

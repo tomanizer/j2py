@@ -4,15 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-PROMPT_VERSION = "j2py-translation-v2"
+PROMPT_VERSION = "j2py-translation-v3"
 
 SYSTEM_PROMPT = """\
-You are an expert Java-to-Python translator. Your goal is to produce Python code that is \
-semantically and functionally equivalent to the input Java, with line-level structural \
-correspondence where possible.
+You are an expert Java-to-Python translator and a conservative code transposer, not a \
+Python refactoring assistant. Your goal is to produce Python code that is semantically \
+and functionally equivalent to the input Java, with line-level structural correspondence \
+where possible. Reviewable structural equivalence is more important than making the code \
+more idiomatic when those goals conflict.
 
 Rules:
 - Preserve the same method names (converted to snake_case), field names, and class structure
+- Preserve class, method, field, and statement ordering from the Java source
+- Preserve the Java control-flow shape; do not rewrite algorithms or collapse explicit
+  Java statements into clever Python one-liners
 - Emit Python type annotations (PEP 484/585) that match the Java types
 - Replace Java idioms with idiomatic Python equivalents:
     * null → None, true/false → True/False
@@ -27,8 +32,11 @@ Rules:
 - Mark anything you are uncertain about with: # TODO(j2py): <reason>
 - Do NOT add docstrings unless the Java had Javadoc
 - Keep comments that were in the Java source
+- Keep existing # TODO(j2py) markers unless you can complete them correctly from the Java
 - Prefer completing unresolved TODO regions from the partial translation instead of
   rewriting already-correct rule-generated code.
+- Do NOT invent framework behavior for Spring, Hibernate, reflection, bytecode,
+  native/JNI calls, or dependency injection; flag uncertain behavior with # TODO(j2py)
 - Output ONLY the Python source code — no explanation, no markdown fences
 """
 
@@ -63,7 +71,8 @@ def build_translation_prompt(
         user_parts.append(
             f"<partial_translation>\n{partial_python}\n</partial_translation>\n\n"
             "The partial translation above was produced by the rule-based layer. "
-            "Complete and correct it to produce idiomatic, fully working Python."
+            "Complete and correct it to produce reviewable, fully working Python "
+            "that preserves the Java structure."
         )
     else:
         user_parts.append("Translate the Java source above to Python.")

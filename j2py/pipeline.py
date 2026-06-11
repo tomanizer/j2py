@@ -13,6 +13,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import ParsedFile, parse_file
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.validate.checks import ValidationResult, validate_source
+from j2py.verify.structure import StructuralVerificationResult, verify_structure
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 
@@ -27,6 +28,7 @@ class TranslationResult:
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
     validation: ValidationResult | None = None
+    structural_verification: StructuralVerificationResult | None = None
 
 
 @dataclass
@@ -44,7 +46,7 @@ def translate_file(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str = "claude-sonnet-4-6",
-    validate: bool = False,
+    validate: bool = True,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
     parsed = parse_file(path)
@@ -117,23 +119,25 @@ def _translate_parsed_file(
         )
         used_llm = True
         validation = validate_source(python_source, validation_path) if validate else None
-        if validation is not None and not validation.ok:
-            feedback = _validation_feedback(validation)
-            if feedback:
-                python_source = translate_with_llm(
-                    java_source=java_source,
-                    partial_python=skeleton,
-                    context=context,
-                    diagnostics=diagnostics_context,
-                    validation_feedback=feedback,
-                    config_fingerprint=config_fingerprint,
-                    model=model,
-                )
-                validation = validate_source(python_source, validation_path)
+        structural_verification = verify_structure(symbols, python_source)
+        feedback = _post_llm_feedback(validation, structural_verification)
+        if feedback:
+            python_source = translate_with_llm(
+                java_source=java_source,
+                partial_python=skeleton,
+                context=context,
+                diagnostics=diagnostics_context,
+                validation_feedback=feedback,
+                config_fingerprint=config_fingerprint,
+                model=model,
+            )
+            validation = validate_source(python_source, validation_path) if validate else None
+            structural_verification = verify_structure(symbols, python_source)
     else:
         python_source = skeleton
         used_llm = False
         validation = validate_source(python_source, validation_path) if validate else None
+        structural_verification = None
 
     confidence = 0.0 if not parse_ok else coverage
 
@@ -145,15 +149,22 @@ def _translate_parsed_file(
         parse_ok=parse_ok,
         diagnostics=skeleton_result.diagnostics,
         validation=validation,
+        structural_verification=structural_verification,
     )
 
 
-def _validation_feedback(validation: ValidationResult, *, limit: int = 5) -> str:
-    errors = [
-        *validation.syntax_errors,
-        *validation.ruff_errors,
-        *validation.mypy_errors,
-    ]
+def _post_llm_feedback(
+    validation: ValidationResult | None,
+    structural_verification: StructuralVerificationResult,
+    *,
+    limit: int = 5,
+) -> str:
+    errors: list[str] = []
+    if validation is not None:
+        errors.extend(validation.syntax_errors)
+        errors.extend(validation.ruff_errors)
+        errors.extend(validation.mypy_errors)
+    errors.extend(structural_verification.errors)
     return "\n".join(errors[:limit])
 
 
@@ -164,7 +175,7 @@ def translate_directory(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str = "claude-sonnet-4-6",
-    validate: bool = False,
+    validate: bool = True,
 ) -> DirectoryTranslationResult:
     """Translate a directory using dependency order and package-relative outputs."""
     java_files = sorted(source_root.rglob("*.java"))

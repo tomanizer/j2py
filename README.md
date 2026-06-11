@@ -28,8 +28,8 @@ Current deterministic rule support includes:
   safe `switch` forms, `try`/`catch`/`finally`, `throw`, `break`, and `continue`
 - configured import emission, naming policy, type maps, exception maps, and comment flags
 - dependency-ordered directory translation
-- structured diagnostics, confidence, optional validation, and optional Anthropic
-  completion for partial translations
+- structured diagnostics, confidence, default validation, post-LLM structural
+  verification, and optional Anthropic completion for partial translations
 - side-by-side Java/Python review through the `j2py compare` CLI command
 
 Known gaps include:

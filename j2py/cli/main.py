@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
     from j2py.pipeline import TranslationResult
     from j2py.validate.checks import ValidationResult
+    from j2py.verify.structure import StructuralVerificationResult
 
 app = typer.Typer(
     name="j2py",
@@ -73,7 +74,7 @@ def _translate_single(
 
     if dry_run:
         console.print(result.python_source)
-        if validate and result.validation is not None and not result.validation.ok:
+        if _result_has_blocking_issues(result, validate=validate):
             raise typer.Exit(code=1)
         return
 
@@ -84,8 +85,10 @@ def _translate_single(
 
     if validate and result.validation is not None:
         _print_validation(result.validation)
-        if not result.validation.ok:
-            raise typer.Exit(code=1)
+    if result.structural_verification is not None:
+        _print_structural_verification(result.structural_verification)
+    if _result_has_blocking_issues(result, validate=validate):
+        raise typer.Exit(code=1)
 
 
 def _emit_runtime_module(output_root: Path, sources: list[str]) -> None:
@@ -156,14 +159,16 @@ def _translate_dir(
     failures = [
         result
         for result in batch.files
-        if result.validation is not None and not result.validation.ok
+        if _result_has_blocking_issues(result, validate=validate)
     ]
     if failures:
-        console.print("[yellow]Validation failures:[/yellow]")
+        console.print("[yellow]Translation verification failures:[/yellow]")
         for result in failures:
             console.print(f"  {result.source_path}")
             if result.validation is not None:
                 _print_validation(result.validation)
+            if result.structural_verification is not None:
+                _print_structural_verification(result.structural_verification)
         raise typer.Exit(code=1)
 
 
@@ -240,7 +245,7 @@ def compare(
         help="Print file paths only; do not open editor.",
     ),
     validate: bool = typer.Option(
-        False,
+        True,
         "--validate/--no-validate",
         help="Run mypy + ruff during generated translation.",
     ),
@@ -344,6 +349,8 @@ def _print_result_summary(result: TranslationResult) -> None:
         console.print(f"[yellow]Warning:[/yellow] {PARSE_ERROR_LLM_SKIP_MSG}")
     if result.validation is not None:
         _print_validation(result.validation)
+    if result.structural_verification is not None:
+        _print_structural_verification(result.structural_verification)
 
 
 def _print_validation(validation: ValidationResult) -> None:
@@ -353,6 +360,28 @@ def _print_validation(validation: ValidationResult) -> None:
     console.print("[yellow]Validation issues:[/yellow]")
     for err in validation.syntax_errors + validation.mypy_errors + validation.ruff_errors:
         console.print(f"  {err}")
+
+
+def _print_structural_verification(verification: StructuralVerificationResult) -> None:
+    if verification.ok:
+        console.print("[green]Structural verification passed[/green]")
+        return
+    console.print("[yellow]Structural verification issues:[/yellow]")
+    for err in verification.errors:
+        console.print(f"  {err}")
+
+
+def _result_has_blocking_issues(result: TranslationResult, *, validate: bool) -> bool:
+    validation_failed = (
+        validate
+        and result.validation is not None
+        and not result.validation.ok
+    )
+    structural_failed = (
+        result.structural_verification is not None
+        and not result.structural_verification.ok
+    )
+    return validation_failed or structural_failed
 
 
 if __name__ == "__main__":
