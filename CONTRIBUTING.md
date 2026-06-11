@@ -58,14 +58,16 @@ target check, or move the behavior into the normal fixture suite. See
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
 
-For real-corpus progress checks, run the Spring scoreboard:
+For real-corpus progress checks, run the preferred dense Spring + curated-construct
+scoreboard:
 
 ```bash
-make corpus-spring
+make corpus-spring-dense-check
 ```
 
-See [Spring Corpus Scoreboard](docs/CORPUS_SCOREBOARD.md) for the pinned baseline,
-comparison mode, and intentional baseline refresh workflow.
+See [Spring Corpus Scoreboard](docs/CORPUS_SCOREBOARD.md) for the preferred dense
+baseline, historical lexical baseline, comparison mode, and intentional baseline refresh
+workflow.
 
 ## Material changes
 

@@ -30,13 +30,22 @@ The suite has three lanes:
   `TextBlocks`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
   behavior that should become supported next. Corpus constructs still below full rule
-  coverage (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword`)
-  are included here. These are marked `target_translation` and run via
-  `make test-targets`.
+  coverage (`AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`,
+  `SwitchFallthrough`, `VarKeyword`) are included here. These are marked
+  `target_translation` and run via `make test-targets`.
+
+Current future corpus-construct backlog:
+
+- Advanced stream collectors and long chains
+- Anonymous classes with non-method members and richer inner-class capture
+- Switch fall-through and complex switch rule blocks
+- `super.method(...)` receiver calls in statements and expressions
+- Local `var` inference
 
 Each future target case has:
 
-- a Java fixture under `tests/fixtures/java/targets/`
+- a Java fixture under `tests/fixtures/java/targets/` or
+  `tests/fixtures/corpus/constructs/`
 - expected Python fragments that describe the future translation contract
 - forbidden fragments such as unsupported TODOs
 - a strict `xfail` marker explaining the missing translator capability

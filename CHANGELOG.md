@@ -14,6 +14,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Skeleton translator tests split under `tests/translate/skeleton/` by concern (#69).
 - ADR 0010: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
   initialization in constructors or synthetic `__init__`.
+- Preferred dense Spring + curated-construct corpus baseline workflow:
+  `corpus-spring-dense-check`, `corpus-spring-dense-update-baseline`, and
+  `tests/fixtures/corpus/spring-dense-baseline.json`.
+- Future corpus target for `super.method(...)` receiver calls identified by the dense
+  Spring corpus.
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.

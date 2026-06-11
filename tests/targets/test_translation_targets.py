@@ -54,6 +54,18 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
         reason="Switch fall-through is not fully supported",
     ),
     TranslationTarget(
+        fixture="SuperMethodCalls.java",
+        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        tracking="super-method-calls",
+        reason="super.method(...) receiver calls are not fully supported",
+        expected_fragments=(
+            "super().end_class()",
+            "return super().get_generator(resource)",
+            "super().set_target(target)",
+            "return super().cancel(may_interrupt)",
+        ),
+    ),
+    TranslationTarget(
         fixture="VarKeyword.java",
         fixture_root=CORPUS_CONSTRUCT_FIXTURES,
         tracking="var-keyword",

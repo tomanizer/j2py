@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 
 def _load_script() -> ModuleType:
     path = Path(__file__).parents[2] / "scripts" / "corpus" / "translate_spring_sample.py"
@@ -143,6 +145,40 @@ def test_measure_file_falls_back_for_paths_outside_spring_repo() -> None:
     assert not metric.path.startswith("/tmp")
     assert metric.parse_ok is True
     assert metric.handled_count + metric.unhandled_count > 0
+
+
+def test_collect_java_files_prioritizes_curated_constructs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    module = repo / "module" / "src" / "main" / "java" / "example"
+    module.mkdir(parents=True)
+    for index in range(5):
+        (module / f"A{index}.java").write_text(
+            f"package example;\nclass A{index} {{ void run() {{ }} }}\n",
+        )
+
+    constructs_dir = tmp_path / "zz_constructs"
+    constructs_dir.mkdir()
+    construct_one = constructs_dir / "ConstructOne.java"
+    construct_two = constructs_dir / "ConstructTwo.java"
+    construct_one.write_text("package example;\nclass ConstructOne { void run() { } }\n")
+    construct_two.write_text("package example;\nclass ConstructTwo { void run() { } }\n")
+    monkeypatch.setattr(corpus, "CONSTRUCTS_DIR", constructs_dir)
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("module/src/main/java",),
+        limit=3,
+        include_tests=False,
+        strategy="lexical",
+        include_constructs=True,
+    )
+
+    assert construct_one in selected
+    assert construct_two in selected
+    assert len(selected) == 3
 
 
 def test_compare_baseline_suppresses_deltas_on_metadata_mismatch(tmp_path: Path) -> None:
