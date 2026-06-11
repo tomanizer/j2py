@@ -8,6 +8,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Deterministic translation for `instanceof` expressions, `instanceof` pattern
+  variable bindings, cast expressions with review warnings, and bitwise/shift
+  operators including compound bitwise assignment.
 - Block lambdas (`x -> { statements; return v; }`) are now supported deterministically. They are turned into a local nested helper (`_j2py_lambda_N`) emitted near the top of the enclosing method; the helper name is used at the call site. The block body structure is preserved for reviewability.
 - Complex stream pipelines/collectors: extended deterministic support for toSet, basic joining, .distinct(), .sorted() (simple or with key via method ref), and basic groupingBy (via emitted accumulation helpers using defaultdict). Builds on prior block lambda work; many cases now rewrite to clean comps or stdlib helpers (per review feedback favoring itertools/functools where used).
 
