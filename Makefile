@@ -36,15 +36,16 @@ corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseli
 	uv run python scripts/corpus/translate_spring_sample.py --update-baseline --compare-baseline
 
 corpus-spring-dense:  ## Density-based selection of minimal-size but construct-rich files (prefers high node-type diversity per LOC)
-	uv run python scripts/corpus/translate_spring_sample.py --strategy density --max-loc 250 --min-constructs 5 --compare-baseline
+	# Note: does not compare to the default baseline (different sampling parameters)
+	uv run python scripts/corpus/translate_spring_sample.py --strategy density --max-loc 250 --min-constructs 5
 
 corpus-spring-broad:  ## Broader + more extensive sample (more modules + curated construct files for the new roadmap items)
+	# Note: does not compare to the default baseline (different sampling parameters)
 	uv run python scripts/corpus/translate_spring_sample.py \
 		--module spring-context/src/main/java \
 		--include-constructs \
 		--limit 150 \
-		--strategy density \
-		--compare-baseline
+		--strategy density
 
 # ── CI local presets ─────────────────────────────────────────────────────────
 # These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,
