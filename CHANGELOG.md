@@ -8,6 +8,17 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Two-tier overload translation (ADR 0009, issue #44): chained `this(...)`
+  constructor delegation and builder-style forwarding method overloads now merge
+  into default parameters (immutable literals inline; constructed values become
+  `None` sentinels with normalization lines). Overload groups that genuinely
+  dispatch on parameter types emit each Java overload as a same-named def behind
+  a vendored `@overloaded` runtime dispatcher (`j2py_runtime.py`, stdlib-only,
+  written next to translated output by the CLI). The manual-dispatch
+  `NotImplementedError` fallback now only remains for static overload groups and
+  erased-signature collisions (e.g. `int` vs `long`).
+- Java varargs parameters (`Type... name`) now translate to `*name: Type` in
+  method signatures instead of being dropped.
 - Deterministic translation for `instanceof` expressions, `instanceof` pattern
   variable bindings, cast expressions with review warnings, and bitwise/shift
   operators including compound bitwise assignment.
@@ -15,6 +26,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Complex stream pipelines/collectors: extended deterministic support for toSet, basic joining, .distinct(), .sorted() (simple or with key via method ref), and basic groupingBy (via emitted accumulation helpers using defaultdict). Builds on prior block lambda work; many cases now rewrite to clean comps or stdlib helpers (per review feedback favoring itertools/functools where used).
 
 ### Fixed
+- Constructor overload merging no longer emits invalid self-referential defaults
+  (`name: str = name`) or raw Java generic types in annotations when a delegating
+  constructor passes its own parameters through alongside constructed values; the
+  pass-through prefix rule in ADR 0009 rejects or correctly composes these.
 - `_stream_item_name`: improved plural stripping with explicit map for common cases ("statuses"→"status", "types"→"type", "classes"→"class" etc.) to avoid "statu"/"addres"/"typ" etc. in stream listcomps.
 - Integer division (`int / int`): now uses `diagnostics.warn()` (visible for review) instead of `record(supported=False)`. Correct `//` output no longer forces LLM or lowers coverage.
 - Lambda/alias context in expressions: added `try/finally` around mutable `TranslationContext` updates (`local_names`, `variable_types`, `expression_aliases`) so exceptions during body translation cannot leak state to callers.

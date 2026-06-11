@@ -90,6 +90,11 @@ class TranslationContext:
     in_instance_method: bool = False
     allow_local_helpers: bool = False
 
+    # Java method names that must dispatch through self when called without a
+    # receiver (used for @overloaded groups so sibling overload calls re-enter
+    # the runtime dispatcher; see ADR 0009).
+    self_dispatch_methods: set[str] = field(default_factory=set)
+
     # Block lambdas (and future local helpers) are collected here during expression
     # translation and flushed near the top of the enclosing method body so the
     # generated names are in scope and the structure remains reviewable.

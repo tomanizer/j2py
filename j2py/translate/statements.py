@@ -591,15 +591,10 @@ def _translate_explicit_constructor_invocation(
         ctx.diagnostics.record(node, supported=True, reason="translated super constructor call")
         return [f"{indent}super().__init__({args})"]
 
-    ctx.diagnostics.record(
-        node,
-        supported=False,
-        reason="constructor delegation requires overload merge",
-    )
-    return [
-        f"{indent}# TODO(j2py): unsupported constructor delegation {node.text!r}",
-        f"{indent}pass",
-    ]
+    # this(...) bodies are only emitted for @overloaded dispatch groups (ADR 0009);
+    # mergeable delegations were already rewritten into default parameters.
+    ctx.diagnostics.record(node, supported=True, reason="translated constructor delegation call")
+    return [f"{indent}self.__init__({args})"]
 
 
 def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:

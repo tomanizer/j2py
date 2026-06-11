@@ -25,12 +25,12 @@ tests/fixtures/corpus/spring-sample-baseline.json
 Current committed baseline:
 
 - parse success rate: 100.00%
-- generated Python syntax success rate: 91.00%
+- generated Python syntax success rate: 93.00%
 - files included in coverage metrics: 92 of 100
-- average skeleton coverage: 89.59%
-- full-coverage files: 43 of 92 coverage-bearing files
-- files with unhandled constructs: 49 of 100
-- files below 80% coverage: 12 of 92 coverage-bearing files
+- average skeleton coverage: 94.71%
+- full-coverage files: 65 of 92 coverage-bearing files
+- files with unhandled constructs: 27 of 100
+- files below 80% coverage: 4 of 92 coverage-bearing files
 - per-file metrics committed for parse failures, syntax failures, coverage,
   unhandled node types, and unhandled reasons
 
