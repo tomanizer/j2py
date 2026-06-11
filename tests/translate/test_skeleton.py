@@ -195,8 +195,20 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
                 return "value";
             }
 
+            public String assertThat(String value) {
+                return value;
+            }
+
             public String call() {
                 return list();
+            }
+
+            public String callHelper(String value) {
+                return assertThat(value);
+            }
+
+            public String callGlobal(String value) {
+                return when(value);
             }
 
             public String callExternal(BuiltinHelper helper) {
@@ -210,6 +222,9 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
     assert "def list_(self) -> str:" in python_source
     assert "return self.list_()" in python_source
     assert "return list()" not in python_source
+    assert "return self.assert_that(value)" in python_source
+    assert "return when(value)" in python_source
+    assert "return self.when(value)" not in python_source
     assert "return helper.list()" in python_source
     assert "return helper.list_()" not in python_source
     _assert_valid_python(python_source)
@@ -1034,12 +1049,17 @@ def test_class_style_get_invocation_preserves_static_factory_call() -> None:
             public Object type(Class<?> value) {
                 return ClassName.get(value);
             }
+
+            public Object qualified(Class<?> value) {
+                return com.example.ClassName.get(value);
+            }
         }
         """,
     )
 
     assert result.coverage == 1.0
     assert "return class_name.get(value)" in result.source
+    assert "return com.example.class_name.get(value)" in result.source
     assert not result.diagnostics.unhandled
     _assert_valid_python(result.source)
 
