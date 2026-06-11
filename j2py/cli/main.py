@@ -183,9 +183,13 @@ def analyze(
         if parsed.has_errors:
             console.print("  [yellow]Parse errors detected in source[/yellow]")
         for cls in symbols.classes:
-            console.print(_format_class_inventory_line(cls, indent=2))
-            for inner in cls.inner_classes:
-                console.print(_format_class_inventory_line(inner, indent=4))
+            _print_class_inventory(cls, indent=2)
+
+
+def _print_class_inventory(cls: ClassSymbol, *, indent: int) -> None:
+    console.print(_format_class_inventory_line(cls, indent=indent))
+    for inner in cls.inner_classes:
+        _print_class_inventory(inner, indent=indent + 2)
 
 
 def _format_class_inventory_line(cls: ClassSymbol, *, indent: int) -> str:

@@ -132,7 +132,13 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
             fields.extend(_parse_record_components(params_node))
         if body is not None:
             for child in body.named_children:
-                if child.type == "method_declaration":
+                if child.type == "field_declaration":
+                    fields.extend(_parse_fields(child))
+                elif child.type in (
+                    "method_declaration",
+                    "constructor_declaration",
+                    "compact_constructor_declaration",
+                ):
                     m = _parse_method(child)
                     if m:
                         methods.append(m)

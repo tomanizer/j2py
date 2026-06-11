@@ -84,6 +84,28 @@ def test_record_declarations_are_extracted_as_class_symbols() -> None:
     assert [method.name for method in point.methods] == ["magnitude"]
 
 
+def test_record_body_fields_and_compact_constructor_are_extracted() -> None:
+    parsed = parse_source(
+        """
+        package com.example;
+
+        public record R(int x) {
+            public R {
+                if (x < 0) throw new IllegalArgumentException();
+            }
+            public static R zero() { return new R(0); }
+            static final int MAX = 10;
+        }
+        """,
+    )
+
+    symbols = extract_symbols(parsed)
+    record = symbols.classes[0]
+
+    assert [field.name for field in record.fields] == ["x", "MAX"]
+    assert {method.name for method in record.methods} == {"R", "zero"}
+
+
 def test_inner_record_is_nested_class_symbol() -> None:
     parsed = parse_file(FIXTURES / "targets" / "NestedTypes.java")
     symbols = extract_symbols(parsed)

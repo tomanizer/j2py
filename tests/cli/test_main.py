@@ -52,6 +52,27 @@ def test_cli_analyze_prints_record_and_nested_inventory() -> None:
     assert "2 fields" in result.output
 
 
+def test_cli_analyze_prints_deeply_nested_inventory(tmp_path: Path) -> None:
+    source = tmp_path / "Deep.java"
+    source.write_text(
+        """
+        public class Outer {
+            public static class Middle {
+                public static class Inner {}
+            }
+        }
+        """,
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["analyze", str(source)])
+
+    assert result.exit_code == 0
+    assert "Outer (class)" in result.output
+    assert "Middle (class)" in result.output
+    assert "Inner (class)" in result.output
+
+
 def test_cli_analyze_prints_class_inventory() -> None:
     runner = CliRunner()
 

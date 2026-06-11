@@ -1,7 +1,6 @@
 """Tests for the top-level translation pipeline."""
 
 import ast
-import warnings
 from pathlib import Path
 
 import j2py.llm.client as llm_client
@@ -86,14 +85,11 @@ def test_translate_file_skips_llm_when_java_parse_has_errors(monkeypatch, tmp_pa
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fail_if_called)
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        result = translate_file(broken, cfg=CFG, use_llm=True)
+    result = translate_file(broken, cfg=CFG, use_llm=True)
 
     assert not result.used_llm
     assert not result.parse_ok
     assert result.confidence == 0.0
-    assert any(PARSE_ERROR_LLM_SKIP_MSG in str(warning.message) for warning in caught)
 
 
 def test_translate_directory_reports_parse_error_warnings(tmp_path: Path) -> None:

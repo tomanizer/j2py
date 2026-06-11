@@ -74,8 +74,6 @@ def _translate_parsed_file(
 ) -> TranslationResult:
     """Translate a file using already-parsed AST and symbols."""
     parse_ok = not parsed.has_errors
-    if not parse_ok:
-        warnings.warn(f"{path}: {PARSE_ERROR_LLM_SKIP_MSG}", stacklevel=2)
 
     # Layer 1: rule-based skeleton translation
     from j2py.translate.skeleton import translate_skeleton_with_diagnostics
