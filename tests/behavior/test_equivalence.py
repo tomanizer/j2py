@@ -71,6 +71,25 @@ def test_assert_same_behavior_reports_returncode_mismatch() -> None:
 
 
 @pytest.mark.behavior
+@pytest.mark.parametrize(
+    ("main_class", "expected"),
+    [
+        ("Main", "from Main import Main\n\nif __name__ == '__main__':\n    Main.main([])\n"),
+        (
+            "com.example.Main",
+            (
+                "from com.example.Main import Main\n\n"
+                "if __name__ == '__main__':\n"
+                "    Main.main([])\n"
+            ),
+        ),
+    ],
+)
+def test_python_runner_uses_main_class_import_path(main_class: str, expected: str) -> None:
+    assert _python_runner_source(main_class) == expected
+
+
+@pytest.mark.behavior
 @pytest.mark.parametrize("case", CASES, ids=[case.name for case in CASES])
 def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: Path) -> None:
     _require_java_toolchain()
@@ -100,14 +119,10 @@ def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: P
     for result in translated.files:
         assert result.output_path is not None
         result.output_path.parent.mkdir(parents=True, exist_ok=True)
-        result.output_path.write_text(result.python_source)
+        result.output_path.write_text(result.python_source, encoding="utf-8")
 
     runner = python_work / "run_translated.py"
-    runner.write_text(
-        "from Main import Main\n\n"
-        "if __name__ == '__main__':\n"
-        "    Main.main([])\n",
-    )
+    runner.write_text(_python_runner_source(case.main_class), encoding="utf-8")
     python_result = _run([sys.executable, str(runner)], cwd=python_work)
     _assert_same_behavior(java=java_result, python=python_result)
 
@@ -125,6 +140,7 @@ def _run(command: list[str], *, cwd: Path) -> ProcessResult:
         command,
         cwd=cwd,
         capture_output=True,
+        encoding="utf-8",
         text=True,
         check=False,
     )
@@ -157,12 +173,24 @@ def _assert_same_behavior(*, java: ProcessResult, python: ProcessResult) -> None
 def _format_mismatch(reason: str, *, java: ProcessResult, python: ProcessResult) -> str:
     return (
         f"{reason}\n"
+        "=== java ===\n"
         f"java command: {' '.join(java.command)}\n"
         f"java returncode: {java.returncode}\n"
-        f"java stdout:\n{java.stdout}"
-        f"java stderr:\n{java.stderr}"
+        f"--- stdout ---\n{java.stdout}"
+        f"--- stderr ---\n{java.stderr}"
+        "=== python ===\n"
         f"python command: {' '.join(python.command)}\n"
         f"python returncode: {python.returncode}\n"
-        f"python stdout:\n{python.stdout}"
-        f"python stderr:\n{python.stderr}"
+        f"--- stdout ---\n{python.stdout}"
+        f"--- stderr ---\n{python.stderr}"
+    )
+
+
+def _python_runner_source(main_class: str) -> str:
+    module_path, _, class_name = main_class.rpartition(".")
+    import_path = f"{module_path}.{class_name}" if module_path else class_name
+    return (
+        f"from {import_path} import {class_name}\n\n"
+        "if __name__ == '__main__':\n"
+        f"    {class_name}.main([])\n"
     )
