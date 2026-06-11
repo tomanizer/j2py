@@ -114,3 +114,25 @@ def _split_type_params(params_str: str) -> list[str]:
 def _strip_type_annotations(java_type: str) -> str:
     """Remove Java type-use annotations such as @Nullable before mapping types."""
     return re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
+
+
+def is_var_type(java_type: str) -> bool:
+    """Return True when a Java declaration uses local type inference (`var`)."""
+    return _strip_type_annotations(java_type.strip()) == "var"
+
+
+def element_type_from_container(py_type: str) -> str | None:
+    """Return the first type argument for a parameterized container annotation."""
+    bracket = py_type.find("[")
+    if bracket == -1 or not py_type.endswith("]"):
+        return None
+    inner = py_type[bracket + 1 : -1]
+    depth = 0
+    for index, char in enumerate(inner):
+        if char in {"<", "["}:
+            depth += 1
+        elif char in {">", "]"}:
+            depth -= 1
+        elif char == "," and depth == 0:
+            return inner[:index].strip()
+    return inner.strip() or None

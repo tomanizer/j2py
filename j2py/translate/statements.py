@@ -5,10 +5,10 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.expressions import translate_expression
+from j2py.translate.expressions import infer_expression_py_type, translate_expression
 from j2py.translate.node_utils import direct_children_by_type, first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import element_type_from_container, is_var_type, translate_type
 
 TYPE_DECLARATION_NODES = {
     "class_declaration",
@@ -180,7 +180,7 @@ def _translate_local_variable_declaration(
         reason="translated local variable declaration",
     )
     type_node = node.child_by_field("type")
-    py_type = translate_type(type_node.text if type_node is not None else "Object", ctx.cfg)
+    java_type = type_node.text if type_node is not None else "Object"
 
     lines: list[str] = []
     for declarator in direct_children_by_type(node, "variable_declarator"):
@@ -190,8 +190,15 @@ def _translate_local_variable_declaration(
         raw_name = name_node.text
         py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
         ctx.local_names.add(raw_name)
-        ctx.variable_types[raw_name] = py_type
         value_node = declarator.child_by_field("value")
+        if is_var_type(java_type):
+            inferred = (
+                infer_expression_py_type(value_node, ctx) if value_node is not None else None
+            )
+            py_type = inferred or "object"
+        else:
+            py_type = translate_type(java_type, ctx.cfg)
+        ctx.variable_types[raw_name] = py_type
         value = translate_expression(value_node, ctx) if value_node else "None"
         if not ctx.cfg.emit_type_hints:
             lines.append(f"{indent}{py_name} = {value}")
@@ -204,21 +211,34 @@ def _translate_local_variable_declaration(
 
 def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     ctx.diagnostics.record(node, supported=True, reason="translated enhanced for statement")
-    children = node.named_children
-    if len(children) < 4:
+    type_node = node.child_by_field("type")
+    name_node = node.child_by_field("name")
+    value_node = node.child_by_field("value")
+    body_node = node.child_by_field("body")
+    if name_node is None or value_node is None or body_node is None:
         ctx.diagnostics.record(node, supported=False, reason="malformed enhanced for statement")
         return [f"{indent}# TODO(j2py): malformed enhanced for statement", f"{indent}pass"]
 
-    raw_name = children[1].text
+    raw_name = name_node.text
     py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
-    iterable = translate_expression(children[2], ctx)
-    body = children[3]
+    iterable = translate_expression(value_node, ctx)
 
     previous_locals = set(ctx.local_names)
+    previous_types = dict(ctx.variable_types)
     ctx.local_names.add(raw_name)
-    lines = [f"{indent}for {py_name} in {iterable}:"]
-    lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
-    ctx.local_names = previous_locals
+    if type_node is not None and is_var_type(type_node.text):
+        container_type = infer_expression_py_type(value_node, ctx)
+        element_type = (
+            element_type_from_container(container_type) if container_type is not None else None
+        )
+        if element_type is not None:
+            ctx.variable_types[raw_name] = element_type
+    try:
+        lines = [f"{indent}for {py_name} in {iterable}:"]
+        lines.extend(translate_body(body_node, ctx, indent=f"{indent}    "))
+    finally:
+        ctx.local_names = previous_locals
+        ctx.variable_types = previous_types
     return lines
 
 

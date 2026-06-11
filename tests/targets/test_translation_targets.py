@@ -65,12 +65,6 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
             "return super().cancel(may_interrupt)",
         ),
     ),
-    TranslationTarget(
-        fixture="VarKeyword.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
-        tracking="var-keyword",
-        reason="Local var inference is not fully supported",
-    ),
 )
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
