@@ -32,19 +32,49 @@ def lock_expression_is_this(lock_node: JavaNode) -> bool:
 
 
 def class_uses_synchronized_this(class_node: JavaNode) -> bool:
-    """Return True when the class body contains ``synchronized (this)``."""
+    """Return True when current-class instance members use ``synchronized (this)``."""
     body = class_node.child_by_field("body")
     if body is None:
         return False
-    for sync in body.find_all("synchronized_statement"):
-        lock = first_child_by_type(sync, "parenthesized_expression")
-        if lock is not None and lock_expression_is_this(lock):
+    for member in body.named_children:
+        if member.type == "constructor_declaration":
+            if _member_uses_synchronized_this(member):
+                return True
+            continue
+        if (
+            member.type == "method_declaration"
+            and not _has_static_modifier(member)
+            and _member_uses_synchronized_this(member)
+        ):
             return True
     return False
 
 
 def instance_lock_init_line(*, indent: str = "        ") -> str:
     return f"{indent}self.{INSTANCE_LOCK_ATTR} = threading.Lock()"
+
+
+def _has_static_modifier(node: JavaNode) -> bool:
+    for modifiers in node.children_by_type("modifiers"):
+        if "static" in modifiers.text.split():
+            return True
+    return False
+
+
+def _member_uses_synchronized_this(member: JavaNode) -> bool:
+    body = member.child_by_field("body")
+    if body is None:
+        body = first_child_by_type(member, "block", "constructor_body")
+    return body is not None and _node_uses_synchronized_this(body)
+
+
+def _node_uses_synchronized_this(node: JavaNode) -> bool:
+    if node.type in TYPE_DECLARATION_NODES or node.type == "class_body":
+        return False
+    if node.type == "synchronized_statement":
+        lock = first_child_by_type(node, "parenthesized_expression")
+        return lock is not None and lock_expression_is_this(lock)
+    return any(_node_uses_synchronized_this(child) for child in node.named_children)
 
 
 def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:

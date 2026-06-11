@@ -1314,6 +1314,31 @@ def test_synchronized_this_in_static_method_emits_todo() -> None:
 
     assert coverage < 1.0
     assert "TODO(j2py): synchronized(this) in static context" in python_source
+    assert "import threading" not in python_source
+    assert "_j2py_lock" not in python_source
+
+
+def test_nested_synchronized_this_does_not_initialize_outer_lock() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Outer {
+            static class Inner {
+                public void guarded() {
+                    synchronized (this) {
+                        run();
+                    }
+                }
+            }
+        }
+        """,
+    )
+
+    outer_block = python_source.split("    class Inner:", 1)[0]
+
+    assert coverage == 1.0
+    assert "self._j2py_lock" not in outer_block
+    assert python_source.count("self._j2py_lock = threading.Lock()") == 1
+    assert "with self._j2py_lock:" in python_source
 
 
 def test_synchronized_non_this_lock_keeps_review_warning() -> None:

@@ -6,6 +6,7 @@ leaf classes first (bottom-up), avoiding forward references in the output.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 import networkx as nx
@@ -16,33 +17,82 @@ from j2py.analyze.symbols import ClassSymbol, FileSymbols
 def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
     """Return a directed graph where an edge A → B means A depends on B."""
     fqn_to_file: dict[str, Path] = {}
+    simple_names: dict[str, list[str]] = defaultdict(list)
+
     for fs in all_symbols:
         for cls in _all_classes(fs.classes):
-            fqn = f"{fs.package}.{cls.name}" if fs.package else cls.name
+            fqn = _class_fqn(fs.package, cls.name)
             fqn_to_file[fqn] = fs.path
-            fqn_to_file[cls.name] = fs.path  # short name fallback
+            simple_names[cls.name].append(fqn)
+
+    unambiguous_short_names = {
+        name: fqns[0]
+        for name, fqns in simple_names.items()
+        if len(fqns) == 1
+    }
 
     graph: nx.DiGraph = nx.DiGraph()
     for fs in all_symbols:
         src = str(fs.path)
         graph.add_node(src)
         for cls in _all_classes(fs.classes):
-            if cls.superclass and cls.superclass in fqn_to_file:
-                dep = str(fqn_to_file[cls.superclass])
-                if dep != src:
-                    graph.add_edge(src, dep)
+            if cls.superclass:
+                dep = _resolve_type_to_file(
+                    cls.superclass,
+                    fs,
+                    fqn_to_file=fqn_to_file,
+                    unambiguous_short_names=unambiguous_short_names,
+                )
+                if dep is not None and str(dep) != src:
+                    graph.add_edge(src, str(dep))
             for iface in cls.interfaces:
-                if iface in fqn_to_file:
-                    dep = str(fqn_to_file[iface])
-                    if dep != src:
-                        graph.add_edge(src, dep)
+                dep = _resolve_type_to_file(
+                    iface,
+                    fs,
+                    fqn_to_file=fqn_to_file,
+                    unambiguous_short_names=unambiguous_short_names,
+                )
+                if dep is not None and str(dep) != src:
+                    graph.add_edge(src, str(dep))
         for imp in fs.imports:
-            if imp in fqn_to_file:
-                dep = str(fqn_to_file[imp])
-                if dep != src:
-                    graph.add_edge(src, dep)
+            dep = _resolve_type_to_file(
+                imp,
+                fs,
+                fqn_to_file=fqn_to_file,
+                unambiguous_short_names=unambiguous_short_names,
+            )
+            if dep is not None and str(dep) != src:
+                graph.add_edge(src, str(dep))
 
     return graph
+
+
+def _class_fqn(package: str, class_name: str) -> str:
+    return f"{package}.{class_name}" if package else class_name
+
+
+def _resolve_type_to_file(
+    type_name: str,
+    fs: FileSymbols,
+    *,
+    fqn_to_file: dict[str, Path],
+    unambiguous_short_names: dict[str, str],
+) -> Path | None:
+    if type_name in fqn_to_file:
+        return fqn_to_file[type_name]
+
+    for imp in fs.imports:
+        if imp.endswith(f".{type_name}") and imp in fqn_to_file:
+            return fqn_to_file[imp]
+
+    same_package_fqn = _class_fqn(fs.package, type_name)
+    if same_package_fqn in fqn_to_file:
+        return fqn_to_file[same_package_fqn]
+
+    fqn = unambiguous_short_names.get(type_name)
+    if fqn is None:
+        return None
+    return fqn_to_file.get(fqn)
 
 
 def _all_classes(classes: list[ClassSymbol]) -> list[ClassSymbol]:

@@ -171,7 +171,7 @@ def _translate_dir(
 def analyze(
     source: Path = typer.Argument(..., help="Java file or directory to analyze."),
 ) -> None:
-    """Print dependency graph and class inventory without translating."""
+    """Print class inventory (and parse-error status) without translating."""
     from j2py.analyze.symbols import extract_symbols
     from j2py.parse.java_ast import parse_file
 

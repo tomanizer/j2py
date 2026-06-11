@@ -70,9 +70,20 @@ class TranslationDiagnostics:
 
     @property
     def coverage(self) -> float:
+        """Fraction of handled vs handled+unhandled nodes (warnings do not reduce this)."""
         if self.total == 0:
             return 0.0
         return len(self.handled) / self.total
+
+    @property
+    def semantic_warning_count(self) -> int:
+        """Constructs marked handled but flagged with review warnings."""
+        return len(self.warnings)
+
+    @property
+    def rule_coverage(self) -> float:
+        """Alias for :attr:`coverage` — rule-layer node coverage before LLM completion."""
+        return self.coverage
 
 
 @dataclass

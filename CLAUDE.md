@@ -87,10 +87,12 @@ Before approving or merging a PR, verify:
    during `make check`, normal `pytest`, or CI. Use fixtures or stubs by default.
    The only exception is `tests/llm/test_e2e_llm.py`, which must be marked
    `live_llm` and is excluded by pytest configuration unless explicitly run with
-   `pytest -m live_llm` and `ANTHROPIC_API_KEY`.
+   `pytest -m live_llm` and `ANTHROPIC_API_KEY`. Graduated roadmap fixtures run in
+   `make check`; future xfail contracts run via `make test-targets`.
 5. **Rule-layer changes have Java fixtures** — `tests/fixtures/java/*.java` + expected `tests/fixtures/python/*.py`
-6. **Confidence score honest** — `skeleton.py` coverage estimate must reflect real coverage,
-   not be inflated to skip the LLM
+6. **Confidence score honest** — `TranslationResult.confidence` reflects rule-layer
+   node coverage (`diagnostics.coverage`); semantic warnings are tracked separately
+   via `diagnostics.semantic_warning_count` and do not reduce coverage
 7. **Rule-layer helpers stay focused** — keep translation functions stateless where
    possible and use diagnostics when a rule cannot preserve Java semantics
 
