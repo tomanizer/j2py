@@ -58,7 +58,7 @@ def translate_class(
     if node.type == "interface_declaration":
         return _translate_interface(node, cfg, diagnostics)
     if node.type == "enum_declaration":
-        return _translate_enum(node, diagnostics)
+        return _translate_enum(node, cfg, diagnostics)
     if node.type == "record_declaration":
         return _translate_record(node, cfg, diagnostics)
     if node.type == "annotation_type_declaration":
@@ -222,7 +222,11 @@ def _translate_interface(
     return lines
 
 
-def _translate_enum(node: JavaNode, diagnostics: TranslationDiagnostics) -> list[str]:
+def _translate_enum(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated enum declaration")
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
@@ -232,15 +236,140 @@ def _translate_enum(node: JavaNode, diagnostics: TranslationDiagnostics) -> list
         if body is None
         else [child for child in body.named_children if child.type == "enum_constant"]
     )
+    fields = _enum_fields(node, cfg)
+    instance_field_names = _instance_field_names(fields)
+    instance_field_types = _instance_field_types(fields)
+    declarations = [] if body is None else body.children_by_type("enum_body_declarations")
+    members = [
+        child
+        for declaration in declarations
+        for child in declaration.named_children
+        if child.type in {"constructor_declaration", "method_declaration"}
+    ]
 
+    interfaces = _enum_interface_names(node)
     lines = [f"class {class_name}(Enum):"]
-    if not constants:
+    if interfaces:
+        diagnostics.warn(
+            node,
+            reason="enum interface implementation emitted as comment; verify Protocol conformance",
+        )
+        lines.append(f"    # implements {', '.join(interfaces)}")
+    if not constants and not fields and not members:
         lines.append("    pass")
         return lines
     for constant in constants:
-        diagnostics.record(constant, supported=True, reason="translated enum constant")
-        lines.append(f"    {constant.text} = {constant.text!r}")
+        lines.extend(_translate_enum_constant(constant, cfg, diagnostics))
+
+    for field in fields:
+        diagnostics.record(field.node, supported=True, reason="translated enum field declaration")
+        lines.append(f"    {_field_assignment(field.py_name, field.py_type, cfg)}")
+
+    for group in _member_groups(members):
+        lines.append("")
+        if len(group) > 1:
+            lines.extend(
+                _translate_overloaded_members(
+                    group,
+                    cfg=cfg,
+                    diagnostics=diagnostics,
+                    class_fields=instance_field_names,
+                    class_field_types=instance_field_types,
+                    pre_body_lines=[],
+                ),
+            )
+            continue
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=instance_field_names,
+            class_field_types=instance_field_types,
+            allow_local_helpers=True,
+        )
+        lines.extend(_translate_method(group[0], ctx))
     return lines
+
+
+def _enum_interface_names(node: JavaNode) -> list[str]:
+    interfaces = node.child_by_field("interfaces") or first_child_by_type(
+        node,
+        "super_interfaces",
+    )
+    if interfaces is None:
+        return []
+
+    names: list[str] = []
+
+    def collect_types(candidate: JavaNode) -> None:
+        if candidate.type == "type_arguments":
+            return
+        if candidate.type in {"type_identifier", "scoped_type_identifier"}:
+            names.append(translate_class_name(candidate.text))
+            return
+        for child in candidate.named_children:
+            collect_types(child)
+
+    collect_types(interfaces)
+    return names
+
+
+def _translate_enum_constant(
+    constant: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(constant, supported=True, reason="translated enum constant")
+    name_node = constant.child_by_field("name") or first_child_by_type(constant, "identifier")
+    constant_name = name_node.text if name_node is not None else constant.text.split("(", 1)[0]
+    body = first_child_by_type(constant, "class_body")
+    if body is not None:
+        diagnostics.record(
+            body,
+            supported=False,
+            reason="enum constant class body requires manual translation",
+        )
+    args_node = first_child_by_type(constant, "argument_list")
+    if args_node is None or not args_node.named_children:
+        return [f"    {constant_name} = {constant_name!r}"]
+
+    arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]
+    value = f"({', '.join(args)})" if len(args) > 1 else args[0]
+    return [f"    {constant_name} = {value}"]
+
+
+def _enum_fields(enum_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]:
+    body = enum_node.child_by_field("body")
+    if body is None:
+        return []
+
+    fields: list[FieldInfo] = []
+    for declaration in body.children_by_type("enum_body_declarations"):
+        for child in declaration.named_children:
+            if child.type != "field_declaration":
+                continue
+            type_node = child.child_by_field("type")
+            java_type = type_node.text if type_node is not None else "Object"
+            modifiers = _modifiers(child)
+            for declarator in child.find_all("variable_declarator"):
+                name_node = declarator.child_by_field("name")
+                if name_node is None:
+                    continue
+                fields.append(
+                    FieldInfo(
+                        node=child,
+                        name=name_node.text,
+                        py_name=translate_field_name(
+                            name_node.text,
+                            snake_case=cfg.snake_case_fields,
+                        ),
+                        java_type=java_type,
+                        py_type=translate_type(java_type, cfg),
+                        is_static="static" in modifiers,
+                        initializer=declarator.child_by_field("value"),
+                    ),
+                )
+    return fields
 
 
 def _translate_record(
@@ -642,6 +771,16 @@ def _translate_overloaded_members(
     if merged_method is not None:
         return merged_method
 
+    dispatched_method = _dispatch_overloaded_members(
+        members,
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        class_field_types=field_types,
+    )
+    if dispatched_method is not None:
+        return dispatched_method
+
     for member in members:
         diagnostics.record(
             member,
@@ -817,6 +956,86 @@ def _merged_method_overload(
 
     lines.extend(body_lines)
     return lines
+
+
+def _dispatch_overloaded_members(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+) -> list[str] | None:
+    if any(member.type != "method_declaration" for member in members):
+        return None
+    param_sets = [_parameter_infos(member, cfg) for member in members]
+    param_counts = [len(params) for params in param_sets]
+    if len(set(param_counts)) != len(param_counts):
+        return None
+    is_static = "static" in _modifiers(members[0])
+    if any(("static" in _modifiers(member)) != is_static for member in members):
+        return None
+
+    name = _member_python_name(members[0])
+    return_type = _union_types(_return_type(member, cfg) for member in members)
+    for member in members:
+        diagnostics.record(member, supported=True, reason="translated overloaded method dispatch")
+
+    dispatch_ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        allow_local_helpers=True,
+    )
+    dispatch_ctx.in_instance_method = not is_static
+    branch_bodies: list[tuple[list[ParameterInfo], list[str]]] = []
+    for member, params in zip(members, param_sets, strict=True):
+        previous_param_names = set(dispatch_ctx.param_names)
+        previous_types = dict(dispatch_ctx.variable_types)
+        for param in params:
+            dispatch_ctx.param_names.add(param.raw_name)
+            dispatch_ctx.variable_types[param.raw_name] = param.py_type
+        body = _method_body(member)
+        body_lines = (
+            translate_body(body, dispatch_ctx, indent="            ")
+            if body
+            else ["            pass"]
+        )
+        dispatch_ctx.param_names = previous_param_names
+        dispatch_ctx.variable_types = previous_types
+        branch_bodies.append((params, body_lines))
+
+    lines = _overload_stubs(members, cfg)
+    if is_static:
+        lines.append("    @staticmethod")
+    fallback_params = "*args: object" if is_static else "self, *args: object"
+    lines.append(f"    def {name}({fallback_params}) -> {return_type}:")
+    if dispatch_ctx.pending_local_helpers:
+        for helper in dispatch_ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
+    for params, body_lines in branch_bodies:
+        lines.append(f"        if len(args) == {len(params)}:")
+        if params:
+            target_names = ", ".join(param.py_name for param in params)
+            source = "args[0]" if len(params) == 1 else "args"
+            lines.append(f"            {target_names} = {source}")
+        lines.extend(body_lines)
+        if not _lines_end_with_terminal(body_lines):
+            lines.append("            return None")
+    lines.append(f'        raise TypeError("No matching overload for {name}")')
+    return lines
+
+
+def _lines_end_with_terminal(lines: list[str]) -> bool:
+    for line in reversed(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        return stripped.startswith(("return", "raise"))
+    return False
 
 
 def _constructor_implementation_candidate(

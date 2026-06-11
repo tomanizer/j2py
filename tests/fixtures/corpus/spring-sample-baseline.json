@@ -16,7 +16,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 30,
+      "handled_count": 100,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/AccessControl.java",
@@ -313,16 +313,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.975609756097561,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 80,
+      "handled_count": 117,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/BindingReflectionHintsRegistrar.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method register_reflection_hints requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 6
     },
     {
@@ -354,11 +354,11 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 3,
+      "handled_count": 5,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ExecutableMode.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -423,7 +423,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/MemberCategory.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -495,16 +495,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.8285714285714286,
+      "coverage": 0.9024390243902439,
       "error": "",
-      "handled_count": 29,
+      "handled_count": 37,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourceHints.java",
       "syntax_ok": true,
-      "unhandled_count": 6,
-      "unhandled_node_types": "method_declaration:6",
-      "unhandled_reasons": "overloaded method register_pattern requires manual dispatch:2;overloaded method register_resource_bundle requires manual dispatch:2;overloaded method register_type requires manual dispatch:2",
+      "unhandled_count": 4,
+      "unhandled_node_types": "method_declaration:4",
+      "unhandled_reasons": "overloaded method register_pattern requires manual dispatch:2;overloaded method register_type requires manual dispatch:2",
       "warning_count": 10
     },
     {
@@ -521,16 +521,16 @@
       "warning_count": 6
     },
     {
-      "coverage": 0.9333333333333333,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 28,
+      "handled_count": 33,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourcePatternHints.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method includes requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 12
     },
     {
@@ -768,16 +768,16 @@
       "warning_count": 40
     },
     {
-      "coverage": 0.8666666666666667,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 13,
+      "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ResourceHintsPredicates.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method for_resource requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
@@ -885,16 +885,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.8333333333333334,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 15,
+      "handled_count": 39,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/support/SpringFactoriesLoaderRuntimeHints.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method register_hints requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -924,16 +924,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9166666666666666,
+      "coverage": 0.9904761904761905,
       "error": "",
-      "handled_count": 77,
+      "handled_count": 104,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/nativex/BasicJsonWriter.java",
       "syntax_ok": true,
-      "unhandled_count": 7,
-      "unhandled_node_types": "method_declaration:6;switch_expression:1",
-      "unhandled_reasons": "overloaded method println requires manual dispatch:2;overloaded method write_array requires manual dispatch:2;overloaded method write_object requires manual dispatch:2;switch rule block requires a single yield expression:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "switch_expression:1",
+      "unhandled_reasons": "switch rule block requires a single yield expression:1",
       "warning_count": 15
     },
     {
@@ -1080,17 +1080,17 @@
       "warning_count": 11
     },
     {
-      "coverage": 0.9636363636363636,
+      "coverage": 0.976878612716763,
       "error": "",
-      "handled_count": 159,
+      "handled_count": 169,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/AnnotationWriter.java",
       "syntax_ok": true,
-      "unhandled_count": 6,
-      "unhandled_node_types": "method_declaration:6",
-      "unhandled_reasons": "overloaded method compute_annotations_size requires manual dispatch:2;overloaded method create requires manual dispatch:2;overloaded method put_annotations requires manual dispatch:2",
-      "warning_count": 72
+      "unhandled_count": 4,
+      "unhandled_node_types": "method_declaration:4",
+      "unhandled_reasons": "overloaded method compute_annotations_size requires manual dispatch:2;overloaded method put_annotations requires manual dispatch:2",
+      "warning_count": 79
     },
     {
       "coverage": 0.8360655737704918,
@@ -1119,17 +1119,17 @@
       "warning_count": 83
     },
     {
-      "coverage": 0.9897292250233427,
+      "coverage": 0.9944178628389154,
       "error": "",
-      "handled_count": 1060,
+      "handled_count": 1247,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ClassReader.java",
       "syntax_ok": false,
-      "unhandled_count": 11,
-      "unhandled_node_types": "constructor_declaration:5;method_declaration:4;switch_block_statement_group:1;unary_expression:1",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;overloaded method accept requires manual dispatch:2;overloaded method read_utf requires manual dispatch:2;switch fall-through requires manual translation:1;unsupported unary operator ~:1",
-      "warning_count": 422
+      "unhandled_count": 7,
+      "unhandled_node_types": "constructor_declaration:5;switch_block_statement_group:1;unary_expression:1",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;switch fall-through requires manual translation:1;unsupported unary operator ~:1",
+      "warning_count": 478
     },
     {
       "coverage": 1.0,
@@ -1158,16 +1158,16 @@
       "warning_count": 21
     },
     {
-      "coverage": 0.9920844327176781,
+      "coverage": 0.9973753280839895,
       "error": "",
-      "handled_count": 376,
+      "handled_count": 380,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ClassWriter.java",
       "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:2;unary_expression:1",
-      "unhandled_reasons": "overloaded method new_handle requires manual dispatch:2;unsupported unary operator ~:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "unary_expression:1",
+      "unhandled_reasons": "unsupported unary operator ~:1",
       "warning_count": 126
     },
     {
@@ -1262,17 +1262,17 @@
       "warning_count": 40
     },
     {
-      "coverage": 0.984304932735426,
+      "coverage": 0.9892241379310345,
       "error": "",
-      "handled_count": 439,
+      "handled_count": 459,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/Frame.java",
       "syntax_ok": false,
-      "unhandled_count": 7,
-      "unhandled_node_types": "method_declaration:7",
-      "unhandled_reasons": "overloaded method merge requires manual dispatch:2;overloaded method pop requires manual dispatch:3;overloaded method push requires manual dispatch:2",
-      "warning_count": 99
+      "unhandled_count": 5,
+      "unhandled_node_types": "method_declaration:5",
+      "unhandled_reasons": "overloaded method merge requires manual dispatch:2;overloaded method pop requires manual dispatch:3",
+      "warning_count": 104
     },
     {
       "coverage": 1.0,
@@ -1313,19 +1313,19 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.895928045187126,
+    "average_coverage": 0.9020897301616405,
     "coverage_file_count": 92,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 12,
     "files_scanned": 100,
-    "files_with_unhandled": 49,
-    "full_coverage_files": 43,
+    "files_with_unhandled": 45,
+    "full_coverage_files": 47,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.91,
+    "syntax_success_rate": 0.93,
     "top_unhandled_node_types": [
       [
         "method_declaration",
-        139
+        112
       ],
       [
         "constructor_declaration",
@@ -1378,10 +1378,6 @@
         6
       ],
       [
-        "overloaded method register_reflection_hints requires manual dispatch",
-        5
-      ],
-      [
         "annotation type declaration requires manual translation",
         4
       ],
@@ -1402,6 +1398,10 @@
         3
       ],
       [
+        "overloaded method register_reflection_hints requires manual dispatch",
+        3
+      ],
+      [
         "overloaded method on_field requires manual dispatch",
         3
       ],
@@ -1415,10 +1415,6 @@
       ],
       [
         "overloaded method on_method_invocation requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method register_hints requires manual dispatch",
         3
       ],
       [
@@ -1439,6 +1435,10 @@
       ],
       [
         "overloaded method copy requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method add_for_feature_component requires manual dispatch",
         2
       ]
     ]

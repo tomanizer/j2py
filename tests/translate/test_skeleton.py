@@ -499,8 +499,20 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "from enum import Enum" in result.source
     assert "from typing import Protocol" in result.source
     assert "class Writer(Protocol):" in result.source
+    assert "class Labelled(Protocol):" in result.source
     assert "class Mode(Enum):" in result.source
-    assert "FAST =" in result.source
+    assert "# implements Labelled" in result.source
+    assert 'FAST = ("fast", 1)' in result.source
+    assert 'SAFE = ("safe", 2)' in result.source
+    assert "display_name: str" in result.source
+    assert "sort_order: int" in result.source
+    assert "def __init__(self, display_name: str, sort_order: int) -> None:" in result.source
+    assert "self.display_name = display_name" in result.source
+    assert "self.sort_order = sort_order" in result.source
+    assert "def label(self) -> str:" in result.source
+    assert "return self.display_name" in result.source
+    assert "def order(self) -> int:" in result.source
+    assert "return self.sort_order" in result.source
     assert "@dataclass(frozen=True)" in result.source
     assert "class Entry:" in result.source
     assert "name: str" in result.source
@@ -518,6 +530,11 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "def value(self) -> str:" in result.source
     assert "return LocalEntry()" in result.source
     _assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    mode = namespace["NestedTypes"].Mode
+    assert mode.FAST.label() == "fast"
+    assert mode.SAFE.order() == 2
 
 
 def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
@@ -553,6 +570,82 @@ def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
         "return _j2py_lambda_1",
     )
     _assert_valid_python(result.source)
+
+
+def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public enum Outer {
+            ONE("outer");
+
+            private final String outerName;
+
+            Outer(String outerName) {
+                this.outerName = outerName;
+            }
+
+            public String label() {
+                return outerName;
+            }
+
+            static class Nested {
+                private final String nestedName;
+
+                Nested(String nestedName) {
+                    this.nestedName = nestedName;
+                }
+
+                public String label() {
+                    return nestedName;
+                }
+            }
+        }
+        """,
+    )
+
+    assert "outer_name: str" in result.source
+    assert "self.outer_name = outer_name" in result.source
+    assert "return self.outer_name" in result.source
+    assert "nested_name: str" not in result.source
+    assert "self.nested_name" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_enum_interface_names_skip_generic_type_arguments() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public enum Mode implements Comparable<Mode>, Labelled {
+            FAST;
+        }
+        """,
+    )
+
+    assert "# implements Comparable, Labelled" in result.source
+    assert "# implements Comparable, Mode, Labelled" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_overload_dispatch_trailing_comment_still_counts_as_terminal() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Dispatch {
+            public String get() {
+                return "default";
+                // keep this comment with the branch
+            }
+
+            public String get(String value) {
+                return value;
+                // keep this comment with the branch
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "# keep this comment with the branch" in python_source
+    assert "return None" not in python_source
+    _assert_valid_python(python_source)
 
 
 def test_graduated_issue_20_functional_stream_target_translates() -> None:
