@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -14,7 +14,10 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run mypy j2py/
 
 test:  ## Run test suite
-	uv run pytest -m "not target_translation and not live_llm"
+	uv run pytest -m "not behavior and not target_translation and not live_llm"
+
+test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
+	uv run pytest tests/behavior -m behavior
 
 test-targets:  ## Run graduated and future Java-to-Python roadmap target tests
 	uv run pytest tests/targets -m target_translation -rxXs
