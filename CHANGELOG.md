@@ -26,17 +26,19 @@ No changes yet.
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.
-- Strict xfail `FUTURE_TARGETS` for two corpus constructs still below full rule coverage
-  (`AdvancedStreams`, `SuperMethodCalls`).
-- Graduated corpus construct regression tests in `make check` for eight constructs that
+- Strict xfail `FUTURE_TARGETS` for one corpus construct still below full rule coverage
+  (`AdvancedStreams`).
+- Graduated corpus construct regression tests in `make check` for nine constructs that
   reach full skeleton coverage (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`,
-  `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`).
+  `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`,
+  `SuperMethodCalls`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Java `super` used as a method/field receiver translates to `super()` in expressions (#82).
 - Traditional `for` loops without an update clause lower to initializer plus
   `while condition` instead of `malformed for statement` (#81).
 - Anonymous class instance fields translate to helper-class `__init__` assignments with

@@ -79,16 +79,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.8,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 16,
+      "handled_count": 20,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "tests/fixtures/corpus/constructs/SuperMethodCalls.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "super:4",
-      "unhandled_reasons": "unsupported expression super:4",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 0
     },
     {
@@ -638,16 +638,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.9473684210526315,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 18,
+      "handled_count": 19,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/cglib/transform/impl/AddPropertyTransformer.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "super:1",
-      "unhandled_reasons": "unsupported expression super:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -872,16 +872,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.8888888888888888,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 8,
+      "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/cglib/transform/TransformingClassLoader.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "super:1",
-      "unhandled_reasons": "unsupported expression super:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 1
     },
     {
@@ -1317,30 +1317,22 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9884400924792601,
+    "average_coverage": 0.9968992248062015,
     "coverage_file_count": 43,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 4,
-    "full_coverage_files": 39,
+    "files_with_unhandled": 1,
+    "full_coverage_files": 42,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.98,
     "top_unhandled_node_types": [
-      [
-        "super",
-        6
-      ],
       [
         "method_invocation",
         2
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "unsupported expression super",
-        6
-      ],
       [
         "Collectors.groupingBy with downstream collector requires manual translation",
         1

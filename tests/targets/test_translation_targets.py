@@ -41,18 +41,6 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
         tracking="advanced-streams",
         reason="Advanced stream collectors and long chains are not fully supported",
     ),
-    TranslationTarget(
-        fixture="SuperMethodCalls.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
-        tracking="super-method-calls",
-        reason="super.method(...) receiver calls are not fully supported",
-        expected_fragments=(
-            "super().end_class()",
-            "return super().get_generator(resource)",
-            "super().set_target(target)",
-            "return super().cancel(may_interrupt)",
-        ),
-    ),
 )
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name

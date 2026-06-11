@@ -61,6 +61,10 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node.type == "this":
         return "self"
 
+    if node.type == "super":
+        ctx.diagnostics.record(node, supported=True, reason="translated super expression")
+        return "super()"
+
     if node.type == "field_access":
         return _translate_field_access(node, ctx)
 
