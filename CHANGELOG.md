@@ -38,6 +38,8 @@ No changes yet.
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Annotation element defaults are selected after the Java `default` token so element
+  modifiers such as `@AliasFor` no longer produce `unsupported expression modifiers` (#89).
 - Java `@interface` declarations translate to inert `@dataclass(frozen=True)` metadata
   classes with element fields, tuple array types, and preserved meta-annotation warnings (#83).
 - Java `super` used as a method/field receiver translates to `super()` in expressions (#82).

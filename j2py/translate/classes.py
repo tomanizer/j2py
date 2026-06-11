@@ -523,6 +523,8 @@ def _translate_annotation_element(
         diagnostics.record(node, supported=False, reason="malformed annotation element")
         return "    # TODO(j2py): malformed annotation element"
 
+    _record_annotation_element_modifiers(node, diagnostics)
+
     py_name = translate_field_name(name_node.text, snake_case=cfg.snake_case_fields)
     py_type = _annotation_element_py_type(type_node, cfg)
     default_node = _annotation_element_default_node(node)
@@ -552,6 +554,40 @@ def _translate_annotation_element(
     return f"    {py_name} = {default_value}"
 
 
+def _record_annotation_element_modifiers(
+    node: JavaNode,
+    diagnostics: TranslationDiagnostics,
+) -> None:
+    for modifiers in node.children_by_type("modifiers"):
+        for annotation in modifiers.named_children:
+            if annotation.type not in {"annotation", "marker_annotation"}:
+                continue
+            name = _annotation_node_name(annotation)
+            if name is None:
+                continue
+            diagnostics.warn(
+                annotation,
+                reason=f"preserved annotation element @{name}",
+            )
+
+
+def _annotation_element_default_node(node: JavaNode) -> JavaNode | None:
+    saw_default = False
+    for child in node.children:
+        if not saw_default:
+            if child.type == "default" or child.text == "default":
+                saw_default = True
+            continue
+        if child.text == ";" or child.type == ";":
+            break
+        if child.type in {"(", ")"}:
+            continue
+        if is_comment(child):
+            continue
+        return child
+    return None
+
+
 def _annotation_element_type_node(node: JavaNode) -> JavaNode | None:
     for child in node.named_children:
         if child.type in _ANNOTATION_ELEMENT_TYPE_NODES:
@@ -566,16 +602,6 @@ def _annotation_element_name_node(node: JavaNode) -> JavaNode | None:
     for child in node.named_children:
         if child.type == "identifier":
             return child
-    return None
-
-
-def _annotation_element_default_node(node: JavaNode) -> JavaNode | None:
-    for child in node.named_children:
-        if child.type in _ANNOTATION_ELEMENT_TYPE_NODES:
-            continue
-        if child.type == "identifier":
-            continue
-        return child
     return None
 
 
@@ -634,6 +660,13 @@ def _annotation_scalar_default(
         if mapped == "Object":
             return "object"
         return mapped
+
+    if node.type == "unary_expression":
+        ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        translated = translate_expression(node, ctx)
+        if translated.startswith("__j2py_todo__"):
+            return None
+        return translated
 
     ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
     translated = translate_expression(node, ctx)
