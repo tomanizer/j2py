@@ -94,12 +94,28 @@ Material changes require:
 
 ## Release
 
-Releases are tagged `vX.Y.Z` on `main`. Versioning follows [SemVer](https://semver.org/):
+Alpha releases are published to PyPI as the `j2py-converter` distribution. The import
+package and console script remain `j2py`; the `j2py` PyPI project name is already owned
+by an unrelated project.
+
+Releases are tagged `vX.Y.Z` on `main`; pre-releases use PEP 440 suffixes such as
+`v0.1.0a1`. Versioning follows [SemVer](https://semver.org/) for stable releases:
 
 - `MAJOR` — breaking change to `translate_file()` API or output format
 - `MINOR` — new Java construct support, new CLI flag
 - `PATCH` — bug fix, doc fix, test improvement
 
-Update `CHANGELOG.md` and `pyproject.toml` version in the release PR. Feature and fix
-PRs should add notes under `## Unreleased`; the release PR moves those notes under the
-tagged version.
+Update `CHANGELOG.md`, `pyproject.toml`, and `j2py/__init__.py` in the release PR.
+Feature and fix PRs should add notes under `## Unreleased`; the release PR moves those
+notes under the tagged version.
+
+Before publishing:
+
+```bash
+make release-check
+```
+
+The release workflow builds the wheel/sdist and publishes through PyPI trusted
+publishing when a GitHub release is published. PyPI trusted publishing is configured for
+repository `tomanizer/j2py`, workflow `.github/workflows/publish.yml`, environment
+`pypi`, and project `j2py-converter`.

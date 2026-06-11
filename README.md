@@ -49,6 +49,18 @@ local `var` inference, switch fall-through, and anonymous class instance fields.
 
 ## Quick Start
 
+Install the alpha from PyPI:
+
+```bash
+pip install --pre j2py-converter
+j2py --help
+```
+
+The PyPI distribution is `j2py-converter`; the import package and console command remain
+`j2py`.
+
+For local development:
+
 ```bash
 uv sync --locked
 make check
@@ -91,6 +103,7 @@ ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 make check         # ruff + mypy strict + normal pytest suite (excludes behavior, live_llm)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence tests (requires a JDK)
 make test-targets  # future xfail roadmap targets only (graduated targets run in make check)
+make release-check # alpha release gate: check + targets + behavior + distribution check
 make corpus-spring-dense-check # preferred Spring + curated-construct corpus comparison
 make corpus-spring # historical lexical Spring-only corpus comparison
 
@@ -129,3 +142,17 @@ workflow.
 5. Update the dense corpus baseline only when the comparison has no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.
+
+## Alpha Release Notes
+
+`j2py-converter` is published as an alpha package. Expect incomplete Java construct
+coverage, diagnostics for unsupported regions, and non-production behavior on large
+framework-heavy codebases. The existing `j2py` PyPI name is owned by an unrelated
+Jupyter notebook converter, so this project uses the distinct distribution name
+`j2py-converter`.
+
+See [docs/RELEASING.md](docs/RELEASING.md) for the alpha release checklist.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

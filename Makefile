@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad clean ci-local-pr ci-local-governance build dist-check release-check
 
 SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
 SPRING_DENSE_ARGS := --strategy density --max-loc 250 --min-constructs 5 --include-constructs --baseline $(SPRING_DENSE_BASELINE)
@@ -8,29 +8,29 @@ SPRING_DENSE_ARGS := --strategy density --max-loc 250 --min-constructs 5 --inclu
 check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
 
 lint:  ## Lint with ruff
-	uv run ruff check j2py/ tests/
+	uv run --extra dev ruff check j2py/ tests/
 
 format:  ## Format with ruff
-	uv run ruff format j2py/ tests/
+	uv run --extra dev ruff format j2py/ tests/
 
 typecheck:  ## Type-check with mypy (strict)
-	uv run mypy j2py/
+	uv run --extra dev mypy j2py/
 
 test:  ## Run test suite
-	uv run pytest -m "not behavior and not live_llm"
+	uv run --extra dev pytest -m "not behavior and not live_llm"
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
-	uv run pytest tests/behavior -m behavior
+	uv run --extra dev pytest tests/behavior -m behavior
 
 test-targets:  ## Run future Java-to-Python roadmap xfail targets only
-	uv run pytest tests/targets -m target_translation -rxXs
+	uv run --extra dev pytest tests/targets -m target_translation -rxXs
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
 	@echo "Running live LLM exploratory test. This is excluded from normal make check."
-	uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
+	uv run --extra dev pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 
 test-cov:  ## Run tests with coverage report
-	uv run pytest --cov=j2py --cov-report=term-missing --cov-report=xml
+	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml
 
 corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
 	uv run python scripts/corpus/translate_spring_sample.py --compare-baseline
@@ -74,3 +74,8 @@ clean:  ## Remove build artifacts and caches
 
 build:  ## Build wheel and sdist
 	uv build
+
+dist-check: build  ## Validate built distributions with twine
+	uv run --extra dev twine check dist/*
+
+release-check: check test-targets test-behavior dist-check  ## Run alpha release readiness checks
