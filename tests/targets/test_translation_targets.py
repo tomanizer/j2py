@@ -65,6 +65,11 @@ GRADUATED_TARGET_FIXTURES = tuple(
     for path in sorted(TARGET_FIXTURES.glob("*.java"))
     if path.name not in {target.fixture for target in FUTURE_TARGETS}
 )
+CORPUS_GRADUATED_FIXTURES = tuple(
+    path.name
+    for path in sorted(CORPUS_CONSTRUCT_FIXTURES.glob("*.java"))
+    if path.name not in {target.fixture for target in FUTURE_TARGETS}
+)
 
 
 def test_target_java_fixtures_parse_without_errors() -> None:
@@ -81,6 +86,29 @@ def test_target_java_fixtures_parse_without_errors() -> None:
 def test_graduated_target_fixture_translates_cleanly(fixture_name: str) -> None:
     """Previously-targeted fixtures now translate deterministically and stay green."""
     parsed = parse_file(TARGET_FIXTURES / fixture_name)
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "TODO(j2py): unsupported" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
+def test_corpus_construct_fixtures_parse_without_errors() -> None:
+    """Corpus construct fixtures must be valid Java even when their translation is xfail."""
+    for path in sorted(CORPUS_CONSTRUCT_FIXTURES.glob("*.java")):
+        parsed = parse_file(path)
+        assert not parsed.has_errors, path
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    CORPUS_GRADUATED_FIXTURES,
+)
+def test_graduated_corpus_construct_translates_cleanly(fixture_name: str) -> None:
+    """Corpus mini-corpus constructs that now translate deterministically stay green."""
+    parsed = parse_file(CORPUS_CONSTRUCT_FIXTURES / fixture_name)
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
     ast.parse(result.source)
