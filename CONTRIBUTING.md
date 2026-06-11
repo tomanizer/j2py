@@ -52,7 +52,8 @@ Target tests live under `tests/targets/`, use the `target_translation` marker, a
 make test-targets
 ```
 
-They are excluded from `make check` until the translator supports the construct. See
+They are excluded from `make check`. Once a target is supported, keep it in the
+graduated target check or move the behavior into the normal fixture suite. See
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
 

@@ -1,1 +1,1 @@
-"""Declarative rule sets for mechanical Java→Python transforms."""
+"""Stateless helper rules for mechanical Java-to-Python translation."""

@@ -61,6 +61,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ### Changed
 
+- Clarified the target-test workflow: current roadmap fixtures now run as graduated
+  deterministic regression checks, while future unsupported targets remain strict xfails.
 - Split skeleton translation into class, statement, expression, diagnostic, and node helper
   modules.
 - Updated contributor and architecture docs to describe the implemented deterministic
