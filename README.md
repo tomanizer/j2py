@@ -70,7 +70,8 @@ ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ## Quality Gates
 
 ```bash
-make check         # ruff + mypy strict + normal pytest suite (excludes live_llm)
+make check         # ruff + mypy strict + normal pytest suite
+make test-behavior # Java/Python stdout/stderr/exit-code equivalence tests (requires a JDK)
 make test-targets  # roadmap xfail targets
 make corpus-spring # pinned Spring Framework corpus comparison
 
