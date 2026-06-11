@@ -563,16 +563,22 @@ def compare_baseline(
             elif _is_improvement(delta, direction):
                 improvements.append(metric)
 
+    file_regressions = (
+        _empty_file_regressions()
+        if metadata_mismatches
+        else _file_regressions(
+            baseline.get("files", []),
+            [asdict(metric) for metric in metrics],
+        )
+    )
+
     return {
         "baseline_path": str(path),
         "deltas": deltas,
         "improvements": improvements,
         "regressions": regressions,
         "metadata_mismatches": metadata_mismatches,
-        "file_regressions": _file_regressions(
-            baseline.get("files", []),
-            [asdict(metric) for metric in metrics],
-        ),
+        "file_regressions": file_regressions,
         "baseline_top_unhandled_node_types": baseline_summary["top_unhandled_node_types"],
         "current_top_unhandled_node_types": summary["top_unhandled_node_types"],
         "baseline_top_unhandled_reasons": baseline_summary["top_unhandled_reasons"],
@@ -670,6 +676,16 @@ def _file_regressions(
         "coverage_drops": coverage_drops,
         "unhandled_increases": unhandled_increases,
         "new_unhandled_reasons": new_unhandled_reasons,
+    }
+
+
+def _empty_file_regressions() -> dict[str, list[dict[str, Any]]]:
+    return {
+        "parse_failures": [],
+        "syntax_failures": [],
+        "coverage_drops": [],
+        "unhandled_increases": [],
+        "new_unhandled_reasons": [],
     }
 
 
