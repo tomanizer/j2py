@@ -464,10 +464,10 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
     Hybrid policy (addressing plan open question): rewrite to clean, reviewable
     Python (list/set comps, .join, or small accumulation helpers) for common
     cases where the mapping is direct and doesn't obscure the original logic.
-    For complex/unsupported intermediates (flatMap, custom collectors, reduce,
-    etc.) we fall back to the general translated chain so the intentional
-    "streamy" structure remains visible to reviewers. This keeps line-level
-    correspondence and avoids over-Pythonification.
+    For complex/unsupported intermediates (custom flatMap mappers, custom
+    collectors, reduce, etc.) we fall back to the general translated chain so
+    the intentional "streamy" structure remains visible to reviewers. This keeps
+    line-level correspondence and avoids over-Pythonification.
     """
     chain = _stream_chain(node)
     if chain is None:
@@ -520,6 +520,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
 
     source = translate_expression(source_node, ctx)
     item_name = _stream_item_name(source, ctx)
+    loop_clauses: list[tuple[str, str]] = [(item_name, source)]
     current_expr = item_name
     filters: list[str] = []
     post_ops: list[tuple[str, str | None]] = []
@@ -555,6 +556,30 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             if predicate is None:
                 return None
             filters.append(predicate)
+            continue
+        if operation == "flatMap" and arg is not None:
+            if post_ops:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        f"stream {operation} after sorted/distinct requires "
+                        "order-preserving translation"
+                    ),
+                )
+                return None
+            binding = _stream_flatmap_binding(arg, item_name, ctx)
+            if binding is None:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason="unsupported stream intermediate: flatMap",
+                )
+                return None
+            inner_name, inner_iterable = binding
+            loop_clauses.append((inner_name, inner_iterable))
+            item_name = inner_name
+            current_expr = inner_name
             continue
         if operation == "distinct":
             post_ops.append(("distinct", None))
@@ -681,7 +706,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         ctx.pending_local_helpers.append(helper_lines)
         return f"{helper_name}({source})"
 
-    filter_suffix = f" if {' and '.join(filters)}" if filters else ""
+    comp_suffix = _stream_comprehension_suffix(loop_clauses, filters)
     if is_to_set:
         if any(operation == "sorted" for operation, _key in post_ops):
             ctx.diagnostics.record(
@@ -690,20 +715,53 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
                 reason="sorted before Collectors.toSet requires order-discarding review",
             )
             return None
-        base = f"{{{current_expr} for {item_name} in {source}{filter_suffix}}}"
+        base = f"{{{current_expr} {comp_suffix}}}"
     elif is_joining:
         # Basic joining support (delimiter only for phase 1; prefix/suffix fall to general)
         delim = '""'
         if terminal_arg is not None and terminal_arg.named_children:
             # First arg is usually the delimiter string literal or expr
             delim = translate_expression(terminal_arg.named_children[0], ctx)
-        base = f"({current_expr} for {item_name} in {source}{filter_suffix})"
+        base = f"({current_expr} {comp_suffix})"
         base = _apply_stream_post_ops(base, post_ops, item_name)
         return f"{delim}.join({base})"
     else:
-        base = f"[{current_expr} for {item_name} in {source}{filter_suffix}]"
+        base = f"[{current_expr} {comp_suffix}]"
 
     return _apply_stream_post_ops(base, post_ops, item_name)
+
+
+def _stream_comprehension_suffix(
+    loop_clauses: list[tuple[str, str]],
+    filters: list[str],
+) -> str:
+    loops = " ".join(f"for {var} in {iterable}" for var, iterable in loop_clauses)
+    if filters:
+        return f"{loops} if {' and '.join(filters)}"
+    return loops
+
+
+def _stream_flatmap_inner_item_name(outer_item_name: str, ctx: TranslationContext) -> str:
+    for stem in (f"{outer_item_name}_item", f"{outer_item_name}_element", "item"):
+        name = translate_field_name(stem, snake_case=ctx.cfg.snake_case_fields)
+        if name != outer_item_name and name.isidentifier():
+            return name
+    return "item"
+
+
+def _stream_flatmap_binding(
+    arg: JavaNode,
+    outer_item_name: str,
+    ctx: TranslationContext,
+) -> tuple[str, str] | None:
+    """Return (inner_loop_var, inner_iterable) for a supported flatMap mapper."""
+    if arg.type != "method_reference":
+        return None
+    named = arg.named_children
+    if len(named) >= 2 and named[-1].text == "stream":
+        inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
+        return inner_name, outer_item_name
+    return None
 
 
 def _apply_stream_post_ops(

@@ -7,7 +7,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
-No changes yet.
+### Added
+- Stream pipelines with `flatMap(List::stream)` rewrite to nested comprehensions
+  instead of falling back to a translated `flat_map` chain (#92).
 
 ## 0.2.0a1 - 2026-06-11
 
