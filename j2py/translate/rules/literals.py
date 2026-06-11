@@ -118,8 +118,9 @@ def _decode_text_block_escapes(content: str) -> str:
             index += 2
             continue
         if escape in "01234567":
+            max_len = 3 if escape in "0123" else 2
             end = index + 2
-            while end < min(index + 4, len(content)) and content[end] in "01234567":
+            while end < min(index + 1 + max_len, len(content)) and content[end] in "01234567":
                 end += 1
             decoded.append(chr(int(content[index + 1 : end], 8)))
             index = end
@@ -141,9 +142,9 @@ def _python_triple_quoted_string(value: str) -> str:
         return repr(value)
 
     delimiter = '"""'
-    if delimiter in value:
+    if delimiter in value or value.endswith('"'):
         delimiter = "'''"
-    if delimiter in value:
+    if delimiter in value or value.endswith(delimiter[0]):
         return repr(value)
 
     escaped = value.replace("\\", "\\\\")
