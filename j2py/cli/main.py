@@ -212,6 +212,11 @@ def compare(
         "--no-open",
         help="Print file paths only; do not open editor.",
     ),
+    validate: bool = typer.Option(
+        False,
+        "--validate/--no-validate",
+        help="Run mypy + ruff during generated translation.",
+    ),
 ) -> None:
     """Open a side-by-side diff of a Java source file and its Python translation."""
     if not source.exists():
@@ -233,7 +238,7 @@ def compare(
 
         cfg = _load_config(config)
         console.print(f"[bold]Translating[/bold] {source}")
-        result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=False)
+        result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
         _print_result_summary(result)
         py_path.parent.mkdir(parents=True, exist_ok=True)
         py_path.write_text(result.python_source)
@@ -243,7 +248,8 @@ def compare(
     if no_open:
         console.print(f"Java:   {source}", soft_wrap=True)
         console.print(f"Python: {py_path}", soft_wrap=True)
-        console.print(f"Diff:   {editor} --diff {source} {py_path}", soft_wrap=True)
+        diff_command = _format_command(_diff_args(source, py_path, editor))
+        console.print(f"Diff:   {diff_command}", soft_wrap=True)
         return
 
     _open_diff(source, py_path, editor)
@@ -254,23 +260,37 @@ def _resolve_py_path(source: Path, output: Path | None) -> Path:
 
 
 def _open_diff(source: Path, py_path: Path, editor: str) -> None:
+    args = _diff_args(source, py_path, editor)
     try:
-        subprocess.Popen([editor, "--diff", str(source), str(py_path)])
+        subprocess.Popen(args)
         console.print(f"[green]Opened diff in {editor}.[/green]")
     except FileNotFoundError:
-        _print_manual_diff(source, py_path, editor, f"Editor '{editor}' not found.")
+        _print_manual_diff(source, py_path, args, f"Editor '{editor}' not found.")
     except OSError as exc:
         _print_manual_diff(
             source,
             py_path,
-            editor,
+            args,
             f"Editor '{editor}' could not be launched: {exc}",
         )
 
 
-def _print_manual_diff(source: Path, py_path: Path, editor: str, message: str) -> None:
+def _diff_args(source: Path, py_path: Path, editor: str) -> list[str]:
+    args = [editor]
+    editor_name = Path(editor).name.lower()
+    if "code" in editor_name or "cursor" in editor_name:
+        args.append("--diff")
+    args.extend([str(source), str(py_path)])
+    return args
+
+
+def _format_command(args: list[str]) -> str:
+    return " ".join(args)
+
+
+def _print_manual_diff(source: Path, py_path: Path, args: list[str], message: str) -> None:
     console.print(f"[yellow]{message}[/yellow] To open the diff manually, run:")
-    console.print(f"  {editor} --diff {source} {py_path}", soft_wrap=True)
+    console.print(f"  {_format_command(args)}", soft_wrap=True)
     console.print(f"\nJava:   {source}", soft_wrap=True)
     console.print(f"Python: {py_path}", soft_wrap=True)
 

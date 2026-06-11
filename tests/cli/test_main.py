@@ -240,7 +240,7 @@ def test_cli_compare_editor_not_found_prints_manual_diff_command(
     monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
-    result = runner.invoke(app, ["compare", str(java), "--editor", "missing-editor"])
+    result = runner.invoke(app, ["compare", str(java), "--editor", "missing-code"])
 
     assert result.exit_code == 0
     assert "not found" in result.output
@@ -283,12 +283,34 @@ def test_cli_compare_editor_launch_os_error_prints_manual_diff_command(
     monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
-    result = runner.invoke(app, ["compare", str(java), "--editor", "blocked-editor"])
+    result = runner.invoke(app, ["compare", str(java), "--editor", "blocked-code"])
 
     assert result.exit_code == 0
     assert "could not be launched" in result.output
     assert "permission denied" in result.output
     assert "--diff" in result.output
+
+
+def test_cli_compare_generic_editor_omits_vscode_diff_flag(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--editor", "vimdiff"])
+
+    assert result.exit_code == 0
+    assert calls == [["vimdiff", str(java), str(python)]]
 
 
 def test_cli_compare_uses_config_when_translating_missing_python(
@@ -301,6 +323,7 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     java.write_text("public class Sample {}")
     config.write_text("type_map = {'String': 'Text'}\n")
     observed_string_types: list[str] = []
+    observed_validate: list[bool] = []
 
     def fake_translate_file(
         path: Path,
@@ -311,6 +334,7 @@ def test_cli_compare_uses_config_when_translating_missing_python(
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed_string_types.append(cfg.type_map["String"])
+        observed_validate.append(validate)
         return pipeline.TranslationResult(
             source_path=path,
             python_source="class Sample:\n    pass\n",
@@ -321,12 +345,13 @@ def test_cli_compare_uses_config_when_translating_missing_python(
 
     result = runner.invoke(
         app,
-        ["compare", str(java), "--config", str(config), "--no-open"],
+        ["compare", str(java), "--config", str(config), "--validate", "--no-open"],
     )
 
     assert result.exit_code == 0
     assert python.exists()
     assert observed_string_types == ["Text"]
+    assert observed_validate == [True]
 
 
 def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(
