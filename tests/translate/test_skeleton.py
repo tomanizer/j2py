@@ -508,6 +508,50 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "class Builder:" in result.source
     assert "def build(self, name: str) -> Entry:" in result.source
     assert "return Entry(name, 1)" in result.source
+    assert "def anonymous_writer(self, prefix: str) -> Writer:" in result.source
+    assert "class _J2pyAnonymous1(Writer):" in result.source
+    assert "def write(self, value: str) -> None:" in result.source
+    assert "print(prefix + value)" in result.source
+    assert "return _J2pyAnonymous1()" in result.source
+    assert "def local_entry(self, name: str) -> object:" in result.source
+    assert "class LocalEntry:" in result.source
+    assert "def value(self) -> str:" in result.source
+    assert "return LocalEntry()" in result.source
+    _assert_valid_python(result.source)
+
+
+def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class AnonymousHelpers {
+            interface Maker {
+                Runnable make(String prefix);
+            }
+
+            public Maker maker() {
+                return new Maker() {
+                    @Override
+                    public Runnable make(String prefix) {
+                        return () -> {
+                            System.out.println(prefix);
+                        };
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class _J2pyAnonymous1(Maker):" in result.source
+    assert "def make(self, prefix: str) -> Runnable:" in result.source
+    assert "def _j2py_lambda_1()" in result.source
+    assert "print(prefix)" in result.source
+    assert "return _j2py_lambda_1" in result.source
+    assert result.source.index("def _j2py_lambda_1(") < result.source.index(
+        "return _j2py_lambda_1",
+    )
     _assert_valid_python(result.source)
 
 
