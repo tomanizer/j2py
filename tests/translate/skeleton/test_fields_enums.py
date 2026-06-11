@@ -303,7 +303,7 @@ def test_interface_declaration_translates_to_protocol() -> None:
 
 
 
-def test_annotation_type_declaration_emits_valid_placeholder() -> None:
+def test_annotation_type_declaration_translates_marker_to_dataclass() -> None:
     result = translate_source_with_diagnostics(
         """
         public @interface Marker {
@@ -311,9 +311,98 @@ def test_annotation_type_declaration_emits_valid_placeholder() -> None:
         """,
     )
 
-    assert result.coverage == 0.0
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "@dataclass(frozen=True)" in result.source
     assert "class Marker:" in result.source
-    assert "TODO(j2py): unsupported annotation type declaration" in result.source
-    assert result.diagnostics.unhandled[0].node_type == "annotation_type_declaration"
+    assert "    pass" in result.source
+    assert "annotation type declaration requires manual translation" not in result.source
     assert_valid_python(result.source)
 
+
+def test_annotation_type_declaration_translates_elements_and_defaults() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Description {
+            String value() default "";
+            int count() default 0;
+            boolean enabled() default true;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'value: str = ""' in result.source
+    assert "count: int = 0" in result.source
+    assert "enabled: bool = True" in result.source
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_translates_array_and_class_elements() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface RequestMapping {
+            String[] value() default {};
+            Class<?>[] types() default {};
+            Class<?> type() default Object.class;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "value: tuple[str, ...] = ()" in result.source
+    assert "types: tuple[type[Any], ...] = ()" in result.source
+    assert "type_: type[Any] = object" in result.source
+    assert not any(
+        item.reason == "annotation type declaration requires manual translation"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_preserves_meta_annotations_as_warnings() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Target(ElementType.METHOD)
+        @Retention(RetentionPolicy.RUNTIME)
+        @Documented
+        public @interface ManagedOperation {
+            String description() default "";
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'description: str = ""' in result.source
+    assert any(
+        "preserved meta-annotation @Target" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert any(
+        "preserved meta-annotation @Retention" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_annotation_element_default_failure_is_member_level_only() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Broken {
+            Broken[] nested() default { @Broken };
+        }
+        """,
+    )
+
+    assert "@dataclass(frozen=True)" in result.source
+    assert "class Broken:" in result.source
+    assert not any(
+        item.node_type == "annotation_type_declaration" for item in result.diagnostics.unhandled
+    )
+    assert any(
+        item.reason == "unsupported annotation element default"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
