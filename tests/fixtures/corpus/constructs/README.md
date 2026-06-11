@@ -18,6 +18,7 @@ This directory contains small, focused `.java` files designed to exercise specif
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
 | InterfaceDefaults.java      | Interface `default` methods, `static` methods on interfaces | Interface default + static methods (#48) |
 | SealedClasses.java          | `sealed` interfaces, `permits`, `non-sealed`, records as permitted types | Sealed classes |
+| SuperMethodCalls.java       | `super.method(...)` as statement and return-expression receiver | Super method receiver calls |
 | SwitchFallthrough.java      | Intentional fall-through (colon style), complex blocks, switch expressions | Improved switch fall-through + complex rules (#51) |
 | TextBlocks.java             | Text blocks with indentation stripping, formatting, `.formatted()`, escapes | Text blocks (#49) |
 | VarKeyword.java             | `var` local inference in loops, streams, with generics/casts | Local `var` (modern Java) |
@@ -38,7 +39,7 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 | Tier | Files | How to run |
 |------|-------|------------|
 | Graduated (`make check`) | `AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
-| Future xfail (`make test-targets`) | `AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword` | `FUTURE_TARGETS` in the same test module |
+| Future xfail (`make test-targets`) | `AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`, `SwitchFallthrough`, `VarKeyword` | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into
 the normal Java/Python fixture pair suite if exact output is stable enough).

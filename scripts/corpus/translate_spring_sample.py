@@ -43,7 +43,7 @@ DEFAULT_MODULES = (
     "spring-beans/src/main/java",
 )
 
-# Curated minimal, dense construct examples (for broad coverage of specific Java features used in Spring).
+# Curated minimal, dense construct examples for broad Spring-used feature coverage.
 # These are small files targeting things like interface defaults, text blocks, anonymous classes,
 # switch fall-through, advanced enums, etc. They can be mixed in for "construct coverage" runs.
 CONSTRUCTS_DIR = REPO_ROOT / "tests" / "fixtures" / "corpus" / "constructs"
@@ -127,7 +127,8 @@ def parse_args() -> argparse.Namespace:
         default="lexical",
         help=(
             "File selection strategy. 'density' scores files by (distinct AST node types / size) "
-            "and prefers small but construct-rich files. 'random' uses a fixed seed for reproducibility."
+            "and prefers small but construct-rich files. 'random' uses a fixed seed for "
+            "reproducibility."
         ),
     )
     parser.add_argument(
@@ -140,13 +141,19 @@ def parse_args() -> argparse.Namespace:
         "--min-constructs",
         type=int,
         default=0,
-        help="Minimum number of (handled + unhandled) constructs for a file to be considered (0 = no filter).",
+        help=(
+            "Minimum number of (handled + unhandled) constructs for a file to be considered "
+            "(0 = no filter)."
+        ),
     )
     parser.add_argument(
         "--include-constructs",
         action="store_true",
-        help="Include (and prioritize) curated minimal construct files from tests/fixtures/corpus/constructs/. "
-             "Useful for ensuring broad coverage of specific Spring-used Java features.",
+        help=(
+            "Include (and prioritize) curated minimal construct files from "
+            "tests/fixtures/corpus/constructs/. Useful for ensuring broad coverage of "
+            "specific Spring-used Java features."
+        ),
     )
     parser.add_argument(
         "--baseline",
@@ -277,7 +284,8 @@ def collect_java_files(
     - lexical: original deterministic order (for stable baselines)
     - random: shuffled with fixed seed (reproducible)
     - density: prefer small files with high ratio of distinct tree-sitter Java node types.
-      Combined with max_loc / min_constructs this produces the "minimal but rich" files the user wants.
+      Combined with max_loc / min_constructs this produces the "minimal but rich" files
+      the user wants.
     """
     roots: list[Path] = []
     for module in modules:
@@ -298,12 +306,15 @@ def collect_java_files(
                 seen.add(path)
                 candidates.append(path)
 
+    construct_paths: list[Path] = []
     # Optionally mix in curated minimal construct examples (very small, high signal files)
     if include_constructs and CONSTRUCTS_DIR.exists():
         for path in sorted(CONSTRUCTS_DIR.glob("*.java")):
             if path not in seen:
                 seen.add(path)
+                construct_paths.append(path)
                 candidates.append(path)
+    construct_set = set(construct_paths)
 
     # Apply size / density filters (these enforce "minimal size" while keeping breadth)
     filtered: list[tuple[Path, int, int]] = []  # (path, loc, construct_count)
@@ -311,22 +322,52 @@ def collect_java_files(
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
             loc = len(text.splitlines())
-            if max_loc > 0 and loc > max_loc:
+            is_curated_construct = path in construct_set
+            if not is_curated_construct and max_loc > 0 and loc > max_loc:
                 continue
             # Quick parse to count constructs (distinct node types + total handled/unhandled proxy)
             parsed = parse_file(path)  # cheap enough for corpus runs
             node_types = {n.type for n in parsed.root.walk()}
             # Rough construct count: number of interesting nodes (decls, stmts, exprs)
             construct_count = len(node_types)
-            if min_constructs > 0 and construct_count < min_constructs:
+            if not is_curated_construct and min_constructs > 0 and construct_count < min_constructs:
                 continue
             filtered.append((path, loc, construct_count))
         except Exception:
             # Skip unparsable for selection purposes; measure_file will still report them
-            if min_constructs == 0:
+            if min_constructs == 0 or path in construct_set:
                 filtered.append((path, 999999, 0))
 
     if not filtered:
+        return []
+
+    if include_constructs and construct_set:
+        selected = [
+            path
+            for path, _, _ in sorted(item for item in filtered if item[0] in construct_set)
+        ]
+        remaining_limit = limit - len(selected)
+        if remaining_limit <= 0:
+            return selected[:limit]
+        selected.extend(
+            _select_files(
+                [item for item in filtered if item[0] not in construct_set],
+                strategy=strategy,
+                limit=remaining_limit,
+            ),
+        )
+        return selected
+
+    return _select_files(filtered, strategy=strategy, limit=limit)
+
+
+def _select_files(
+    filtered: list[tuple[Path, int, int]],
+    *,
+    strategy: str,
+    limit: int,
+) -> list[Path]:
+    if limit <= 0:
         return []
 
     if strategy == "random":
@@ -335,7 +376,7 @@ def collect_java_files(
         random.shuffle(filtered)
         selected = [p for p, _, _ in filtered[:limit]]
     elif strategy == "density":
-        # Density = distinct node types / LOC (higher is better for "broad coverage in minimal size")
+        # Density = distinct node types / LOC, preferring broad coverage in minimal size.
         scored = []
         for p, loc, cnt in filtered:
             density = cnt / max(1, loc)
@@ -353,7 +394,7 @@ def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
     try:
         relative = path.relative_to(repo).as_posix()
     except ValueError:
-        # Path is not under the Spring checkout (e.g. curated construct files from the j2py project).
+        # Path is not under the Spring checkout, e.g. curated j2py construct files.
         # Fall back to a path relative to the j2py root for reporting.
         if path.is_relative_to(REPO_ROOT):
             relative = path.relative_to(REPO_ROOT).as_posix()
@@ -590,7 +631,10 @@ def print_comparison(comparison: dict[str, Any]) -> None:
     print(f"Baseline comparison: {comparison['baseline_path']}")
     if comparison["metadata_mismatches"]:
         print(f"  Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
-        print("  WARNING: Samples are not directly comparable (different strategy, modules, limits, or construct inclusion).")
+        print(
+            "  WARNING: Samples are not directly comparable "
+            "(different strategy, modules, limits, or construct inclusion).",
+        )
         print("  Deltas and improvement/regression counts below are suppressed.")
     else:
         for metric, values in comparison["deltas"].items():

@@ -90,10 +90,11 @@ ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 make check         # ruff + mypy strict + normal pytest suite (excludes behavior, live_llm)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence tests (requires a JDK)
 make test-targets  # future xfail roadmap targets only (graduated targets run in make check)
-make corpus-spring # pinned Spring Framework corpus comparison
+make corpus-spring-dense-check # preferred Spring + curated-construct corpus comparison
+make corpus-spring # historical lexical Spring-only corpus comparison
 
-# Improved corpus modes (minimal size + broader construct coverage):
-make corpus-spring-dense  # density-based selection of small but rich files
+# Corpus modes:
+make corpus-spring-dense  # preferred density-based Spring + curated-construct sample
 make corpus-spring-broad  # extra modules + curated constructs/ mini-corpus
 
 # On-demand only (requires ANTHROPIC_API_KEY):
@@ -101,7 +102,10 @@ make test-llm-e2e  # exploratory live-LLM test of current skeleton quality
 # or: ANTHROPIC_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 ```
 
-The current pinned Spring sample baseline is:
+The preferred dense corpus baseline includes Spring files plus curated non-Spring
+construct fixtures and is stored at `tests/fixtures/corpus/spring-dense-baseline.json`.
+
+The historical lexical Spring-only baseline is:
 
 - parse success: 100.00%
 - generated Python syntax success: 93.00%
@@ -120,7 +124,7 @@ workflow.
 1. Add or update a target fixture if the construct is not yet supported.
 2. Implement the smallest deterministic rule in `j2py/translate/`.
 3. Graduate the behavior into normal tests once it passes.
-4. Run `make check`, `make test-targets`, `make corpus-spring` (and the dense/broad variants for better coverage of specific constructs).
-5. Update the Spring baseline only when the comparison has no regressions.
+4. Run `make check`, `make test-targets`, and `make corpus-spring-dense-check`.
+5. Update the dense corpus baseline only when the comparison has no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.

@@ -3,7 +3,12 @@
 The Spring corpus harness measures deterministic rule-layer progress against real Spring
 Framework Java source. It never calls the LLM layer.
 
-The default scoreboard is pinned to:
+The preferred progress scoreboard is the dense Spring + curated-construct corpus.
+It combines real Spring Framework files with the focused non-Spring construct files
+under `tests/fixtures/corpus/constructs/`, using density sampling to prefer small,
+construct-rich examples.
+
+The preferred baseline is pinned to:
 
 - Spring remote: `https://github.com/spring-projects/spring-framework.git`
 - Spring ref: `0c60266986197a191ff33eb498ebc8bac3dc933f`
@@ -11,18 +16,39 @@ The default scoreboard is pinned to:
 - Modules:
   - `spring-core/src/main/java`
   - `spring-beans/src/main/java`
+- Selection: `--strategy density --max-loc 250 --min-constructs 5 --include-constructs`
 
-Improved selection (via `--strategy`, `--max-loc`, `--min-constructs`, `--include-constructs`) is available for "minimal size + broad construct coverage" runs. See `make corpus-spring-dense` and `make corpus-spring-broad`.
+A curated "constructs" mini-corpus lives in `tests/fixtures/corpus/constructs/`. These
+are tiny, focused non-Spring files that guarantee coverage of important Java features
+used across Spring-style codebases (interface defaults + statics, text blocks,
+anonymous/sophisticated inner classes, switch fall-through + complex rules, advanced
+enums with constructors/methods, etc.). They are included in the preferred dense
+baseline and directly support the followup roadmap items under the #47 parent.
 
-A parallel curated "constructs" mini-corpus lives in `tests/fixtures/corpus/constructs/`. These are tiny, focused files that guarantee coverage of important Java features used across Spring (interface defaults + statics, text blocks, anonymous/sophisticated inner classes, switch fall-through + complex rules, advanced enums with constructors/methods, etc.). These directly support the followup roadmap items under the #47 parent.
+The preferred committed baseline lives at:
 
-The committed baseline lives at:
+```text
+tests/fixtures/corpus/spring-dense-baseline.json
+```
+
+The historical lexical Spring-only baseline lives at:
 
 ```text
 tests/fixtures/corpus/spring-sample-baseline.json
 ```
 
-Current committed baseline:
+Current preferred dense baseline:
+
+- parse success rate: 100.00%
+- generated Python syntax success rate: 98.00%
+- files included in coverage metrics: 43 of 100
+- average skeleton coverage: 98.26%
+- full-coverage files: 36 of 43 coverage-bearing files
+- files with unhandled constructs: 7 of 100
+- files below 80% coverage: 0 of 43 coverage-bearing files
+- all curated non-Spring construct fixtures are included in the selected sample
+
+Current historical lexical baseline:
 
 - parse success rate: 100.00%
 - generated Python syntax success rate: 93.00%
@@ -34,7 +60,25 @@ Current committed baseline:
 - per-file metrics committed for parse failures, syntax failures, coverage,
   unhandled node types, and unhandled reasons
 
-Run the scoreboard against an existing checkout:
+Run the preferred dense scoreboard against an existing checkout:
+
+```bash
+make corpus-spring-dense
+```
+
+Compare the preferred dense scoreboard against the committed baseline:
+
+```bash
+make corpus-spring-dense-check
+```
+
+Regenerate the preferred dense baseline intentionally:
+
+```bash
+make corpus-spring-dense-update-baseline
+```
+
+Run the historical lexical Spring-only scoreboard:
 
 ```bash
 make corpus-spring
@@ -46,25 +90,26 @@ Run a quick local 25-file smoke sample without comparing the committed baseline:
 make corpus-spring-smoke
 ```
 
-For minimal-size yet construct-dense files (good for driving new rules):
-
-```bash
-make corpus-spring-dense
-```
-
 For broader coverage (extra modules + the curated constructs/ mini-corpus):
 
 ```bash
 make corpus-spring-broad
 ```
 
-Clone or refresh the pinned Spring checkout explicitly:
+Clone or refresh the pinned Spring checkout explicitly for the preferred dense corpus:
 
 ```bash
-uv run python scripts/corpus/translate_spring_sample.py --clone --compare-baseline
+uv run python scripts/corpus/translate_spring_sample.py \
+  --clone \
+  --strategy density \
+  --max-loc 250 \
+  --min-constructs 5 \
+  --include-constructs \
+  --baseline tests/fixtures/corpus/spring-dense-baseline.json \
+  --compare-baseline
 ```
 
-Regenerate the committed baseline intentionally:
+Regenerate the historical lexical baseline intentionally:
 
 ```bash
 make corpus-spring-update-baseline
@@ -91,8 +136,9 @@ Scoreboard metrics:
 Newer runs can report additional signals (strategy used, max-loc / min-constructs filters,
 number of curated construct files mixed in, rough "construct density").
 
-Use the comparison output to decide whether a translation rule improved or regressed the
-real corpus before updating the baseline.
+Use `make corpus-spring-dense-check` to decide whether a translation rule improved or
+regressed the preferred corpus before updating the dense baseline. Use the historical
+lexical baseline only when continuity with older reports matters.
 
 Coverage aggregates only include files where the translator recorded at least one
 handled or unhandled construct. Files with no measured constructs, such as

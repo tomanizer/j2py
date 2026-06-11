@@ -1,4 +1,7 @@
-.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad clean ci-local-pr ci-local-governance
+
+SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
+SPRING_DENSE_ARGS := --strategy density --max-loc 250 --min-constructs 5 --include-constructs --baseline $(SPRING_DENSE_BASELINE)
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -38,9 +41,14 @@ corpus-spring-smoke:  ## Run a quick 25-file Spring corpus smoke sample without 
 corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
 	uv run python scripts/corpus/translate_spring_sample.py --update-baseline --compare-baseline
 
-corpus-spring-dense:  ## Density-based selection of minimal-size but construct-rich files (prefers high node-type diversity per LOC)
-	# Note: does not compare to the default baseline (different sampling parameters)
-	uv run python scripts/corpus/translate_spring_sample.py --strategy density --max-loc 250 --min-constructs 5
+corpus-spring-dense:  ## Run the preferred dense Spring + curated-construct corpus without comparing the baseline
+	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS)
+
+corpus-spring-dense-check:  ## Compare the preferred dense Spring + curated-construct corpus against its baseline
+	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS) --compare-baseline --fail-on-regression
+
+corpus-spring-dense-update-baseline:  ## Regenerate the preferred dense Spring + curated-construct corpus baseline intentionally
+	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS) --update-baseline
 
 corpus-spring-broad:  ## Broader + more extensive sample (more modules + curated construct files for the new roadmap items)
 	# Note: does not compare to the default baseline (different sampling parameters)
