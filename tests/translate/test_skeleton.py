@@ -159,7 +159,7 @@ def test_instance_field_initializer_can_reference_another_field() -> None:
     _assert_valid_python(python_source)
 
 
-def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
+def test_type_dispatch_overloads_emit_same_name_defs_behind_runtime_dispatcher() -> None:
     python_source, coverage = _translate_source(
         """
         public class Over {
@@ -169,15 +169,38 @@ def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
         """,
     )
 
+    assert coverage == 1.0
+    assert "from j2py_runtime import overloaded" in python_source
+    assert python_source.count("@overloaded") == 2
+    assert "def get(self, value: int) -> int:" in python_source
+    assert (
+        "def get(self, value: str) -> int:  # type: ignore[no-redef]  # noqa: F811"
+    ) in python_source
+    assert "NotImplementedError" not in python_source
+    assert "from typing import overload" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
+    """int and long both erase to Python int; runtime dispatch cannot tell them apart."""
+    python_source, coverage = _translate_source(
+        """
+        public class Over {
+            public int width(int value) { return value; }
+            public int width(long value) { return 1; }
+        }
+        """,
+    )
+
     assert coverage < 1.0
     assert "@overload" in python_source
-    assert "def get(self, value: int) -> int: ..." in python_source
-    assert "def get(self, value: str) -> int: ..." in python_source
+    assert "@overloaded" not in python_source
     assert (
-        "TODO(j2py): overloaded method get requires manual dispatch for signatures: "
-        "get(value: int); get(value: str)"
+        "TODO(j2py): overloaded method width requires manual dispatch for signatures: "
+        "width(value: int); width(value: int)"
     ) in python_source
-    assert "def get(self, *args: object) -> object:" in python_source
+    assert "def width(self, *args: object) -> object:" in python_source
+    assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
     _assert_valid_python(python_source)
 
 
@@ -487,6 +510,106 @@ def test_graduated_issue_8_overloads_target_fixture_translates() -> None:
     assert "def add(self, left: str | int, right: str | int) -> str | int:" in result.source
     assert "return left + right" in result.source
     _assert_valid_python(result.source)
+
+
+def test_graduated_issue_44_overload_chains_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "OverloadChains.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import overload" in result.source
+    # Chained this(...) delegation composes into one implementation signature.
+    assert (
+        'def __init__(self, default_target: str, feature_name_prefix: str = "", '
+        "sequence_generator: dict[str, int] | None = None) -> None:"
+    ) in result.source
+    # The constructed default uses a None sentinel, never a mutable default value.
+    assert "if sequence_generator is None:" in result.source
+    assert "sequence_generator = {}" in result.source
+    assert "dict[str, int] = {}" not in result.source
+    # Builder-style forwarding overload becomes a default parameter.
+    assert 'def generate(self, name: str, separator: str = "-") -> str:' in result.source
+    assert "return self.feature_name_prefix + separator + name" in result.source
+    _assert_valid_python(result.source)
+
+
+def test_overload_default_expression_diagnostics_are_preserved() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class CastDefaults {
+            private String name;
+
+            public CastDefaults() {
+                this((String) "default");
+            }
+
+            public CastDefaults(String name) {
+                this.name = name;
+            }
+
+            public String label() {
+                return label((String) "default");
+            }
+
+            public String label(String value) {
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'name: str | None = None' in result.source
+    assert 'separator: str = "-"' not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings].count(
+        "dropped Java cast; verify runtime type",
+    ) == 2
+    _assert_valid_python(result.source)
+
+
+def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "OverloadDispatch.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from j2py_runtime import overloaded" in result.source
+    assert "NotImplementedError" not in result.source
+    # Each Java overload stays a same-named def with its body translated 1:1.
+    assert result.source.count("def register_type(") == 2
+    assert (
+        "def register_type(self, type_: TypeReference, type_hint: Consumer[Builder]) "
+        "-> OverloadDispatch:"
+    ) in result.source
+    assert "*member_categories: MemberCategory" in result.source
+    # Sibling overload calls re-enter the dispatcher through self.
+    assert "return self.register_type(" in result.source
+    # Constructor groups with arity collisions dispatch as well, with this(...)
+    # delegation translated to self.__init__(...).
+    assert result.source.count("def __init__(") == 3
+    assert "self.__init__(name, generated_files, RuntimeHints())" in result.source
+    # Redefinitions carry the systematic suppressions for mypy and ruff.
+    assert result.source.count("# type: ignore[no-redef]  # noqa: F811") == 3
+    _assert_valid_python(result.source)
+
+
+def test_varargs_parameter_with_inline_comment_keeps_element_type() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class VarargsComments {
+            public void names(/* caller labels */ String... labels) {
+                System.out.println(labels.length);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def names(self, *labels: str) -> None:" in python_source
+    assert "block_comment" not in python_source
+    _assert_valid_python(python_source)
 
 
 def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:

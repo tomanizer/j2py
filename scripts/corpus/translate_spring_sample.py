@@ -43,6 +43,11 @@ DEFAULT_MODULES = (
     "spring-beans/src/main/java",
 )
 
+# Curated minimal, dense construct examples (for broad coverage of specific Java features used in Spring).
+# These are small files targeting things like interface defaults, text blocks, anonymous classes,
+# switch fall-through, advanced enums, etc. They can be mixed in for "construct coverage" runs.
+CONSTRUCTS_DIR = REPO_ROOT / "tests" / "fixtures" / "corpus" / "constructs"
+
 
 @dataclass(frozen=True)
 class FileMetric:
@@ -117,6 +122,33 @@ def parse_args() -> argparse.Namespace:
         help="Include src/test/java trees when --module is not provided.",
     )
     parser.add_argument(
+        "--strategy",
+        choices=["lexical", "random", "density"],
+        default="lexical",
+        help=(
+            "File selection strategy. 'density' scores files by (distinct AST node types / size) "
+            "and prefers small but construct-rich files. 'random' uses a fixed seed for reproducibility."
+        ),
+    )
+    parser.add_argument(
+        "--max-loc",
+        type=int,
+        default=0,
+        help="Maximum source lines per file (0 = unlimited). Encourages minimal-size test files.",
+    )
+    parser.add_argument(
+        "--min-constructs",
+        type=int,
+        default=0,
+        help="Minimum number of (handled + unhandled) constructs for a file to be considered (0 = no filter).",
+    )
+    parser.add_argument(
+        "--include-constructs",
+        action="store_true",
+        help="Include (and prioritize) curated minimal construct files from tests/fixtures/corpus/constructs/. "
+             "Useful for ensuring broad coverage of specific Spring-used Java features.",
+    )
+    parser.add_argument(
         "--baseline",
         type=Path,
         default=DEFAULT_BASELINE,
@@ -159,6 +191,10 @@ def main() -> int:
         modules=tuple(args.modules or DEFAULT_MODULES),
         limit=args.limit,
         include_tests=args.include_tests,
+        strategy=args.strategy,
+        max_loc=args.max_loc,
+        min_constructs=args.min_constructs,
+        include_constructs=args.include_constructs,
     )
     if not files:
         print(f"No Java files found under {repo}", file=sys.stderr)
@@ -173,6 +209,10 @@ def main() -> int:
         modules=tuple(args.modules or DEFAULT_MODULES),
         limit=args.limit,
         include_tests=args.include_tests,
+        strategy=args.strategy,
+        max_loc=args.max_loc,
+        min_constructs=args.min_constructs,
+        include_constructs=args.include_constructs,
     )
 
     write_json(args.json_out, metadata=metadata, summary=summary, metrics=metrics)
@@ -226,7 +266,19 @@ def collect_java_files(
     modules: tuple[str, ...],
     limit: int,
     include_tests: bool,
+    strategy: str = "lexical",
+    max_loc: int = 0,
+    min_constructs: int = 0,
+    include_constructs: bool = False,
 ) -> list[Path]:
+    """Collect Java files with improved strategies for minimal size + broad construct coverage.
+
+    Strategies:
+    - lexical: original deterministic order (for stable baselines)
+    - random: shuffled with fixed seed (reproducible)
+    - density: prefer small files with high ratio of distinct tree-sitter Java node types.
+      Combined with max_loc / min_constructs this produces the "minimal but rich" files the user wants.
+    """
     roots: list[Path] = []
     for module in modules:
         root = repo / module
@@ -239,18 +291,74 @@ def collect_java_files(
             roots.extend(sorted(repo.glob("*/src/test/java")))
 
     seen: set[Path] = set()
-    files: list[Path] = []
+    candidates: list[Path] = []
     for root in roots:
         for path in sorted(root.rglob("*.java")):
             if path not in seen:
                 seen.add(path)
-                files.append(path)
+                candidates.append(path)
 
-    return files[:limit]
+    # Optionally mix in curated minimal construct examples (very small, high signal files)
+    if include_constructs and CONSTRUCTS_DIR.exists():
+        for path in sorted(CONSTRUCTS_DIR.glob("*.java")):
+            if path not in seen:
+                seen.add(path)
+                candidates.append(path)
+
+    # Apply size / density filters (these enforce "minimal size" while keeping breadth)
+    filtered: list[tuple[Path, int, int]] = []  # (path, loc, construct_count)
+    for path in candidates:
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            loc = len(text.splitlines())
+            if max_loc > 0 and loc > max_loc:
+                continue
+            # Quick parse to count constructs (distinct node types + total handled/unhandled proxy)
+            parsed = parse_file(path)  # cheap enough for corpus runs
+            node_types = {n.type for n in parsed.root.walk()}
+            # Rough construct count: number of interesting nodes (decls, stmts, exprs)
+            construct_count = len(node_types)
+            if min_constructs > 0 and construct_count < min_constructs:
+                continue
+            filtered.append((path, loc, construct_count))
+        except Exception:
+            # Skip unparsable for selection purposes; measure_file will still report them
+            if min_constructs == 0:
+                filtered.append((path, 999999, 0))
+
+    if not filtered:
+        return []
+
+    if strategy == "random":
+        import random
+        random.seed(42)  # fixed for reproducibility across runs
+        random.shuffle(filtered)
+        selected = [p for p, _, _ in filtered[:limit]]
+    elif strategy == "density":
+        # Density = distinct node types / LOC (higher is better for "broad coverage in minimal size")
+        scored = []
+        for p, loc, cnt in filtered:
+            density = cnt / max(1, loc)
+            scored.append((density, -loc, p))  # prefer high density, then smaller files
+        scored.sort(reverse=True)
+        selected = [p for _, _, p in scored[:limit]]
+    else:
+        # lexical (default, stable for baselines)
+        selected = [p for p, _, _ in sorted(filtered)[:limit]]
+
+    return selected
 
 
 def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
-    relative = path.relative_to(repo).as_posix()
+    try:
+        relative = path.relative_to(repo).as_posix()
+    except ValueError:
+        # Path is not under the Spring checkout (e.g. curated construct files from the j2py project).
+        # Fall back to a path relative to the j2py root for reporting.
+        if path.is_relative_to(REPO_ROOT):
+            relative = path.relative_to(REPO_ROOT).as_posix()
+        else:
+            relative = path.as_posix()
     try:
         parsed = parse_file(path)
         symbols = extract_symbols(parsed)
@@ -323,6 +431,10 @@ def build_metadata(
     modules: tuple[str, ...],
     limit: int,
     include_tests: bool,
+    strategy: str = "lexical",
+    max_loc: int = 0,
+    min_constructs: int = 0,
+    include_constructs: bool = False,
 ) -> dict[str, Any]:
     return {
         "spring_remote": SPRING_REMOTE,
@@ -331,6 +443,10 @@ def build_metadata(
         "modules": list(modules),
         "limit": limit,
         "include_tests": include_tests,
+        "strategy": strategy,
+        "max_loc": max_loc,
+        "min_constructs": min_constructs,
+        "include_constructs": include_constructs,
     }
 
 
@@ -403,37 +519,58 @@ def compare_baseline(
     baseline_summary = baseline["summary"]
     baseline_metadata = baseline.get("metadata", {})
 
-    metric_specs = {
-        "parse_success_rate": "higher",
-        "syntax_success_rate": "higher",
-        "average_coverage": "higher",
-        "full_coverage_files": "higher",
-        "files_with_unhandled": "lower",
-        "files_below_coverage_threshold": "lower",
-    }
+    metadata_mismatches = [
+        key
+        for key in (
+            "spring_ref",
+            "modules",
+            "limit",
+            "include_tests",
+            "strategy",
+            "max_loc",
+            "min_constructs",
+            "include_constructs",
+        )
+        if baseline_metadata.get(key) != metadata.get(key)
+    ]
+
     deltas: dict[str, dict[str, Any]] = {}
     regressions: list[str] = []
     improvements: list[str] = []
-    for metric, direction in metric_specs.items():
-        baseline_value = baseline_summary[metric]
-        current_value = summary[metric]
-        delta = current_value - baseline_value
-        deltas[metric] = {
-            "baseline": baseline_value,
-            "current": current_value,
-            "delta": delta,
-            "direction": direction,
-        }
-        if _is_regression(delta, direction):
-            regressions.append(metric)
-        elif _is_improvement(delta, direction):
-            improvements.append(metric)
 
-    metadata_mismatches = [
-        key
-        for key in ("spring_ref", "modules", "limit", "include_tests")
-        if baseline_metadata.get(key) != metadata.get(key)
-    ]
+    if not metadata_mismatches:
+        # Only compute deltas when samples are comparable
+        metric_specs = {
+            "parse_success_rate": "higher",
+            "syntax_success_rate": "higher",
+            "average_coverage": "higher",
+            "full_coverage_files": "higher",
+            "files_with_unhandled": "lower",
+            "files_below_coverage_threshold": "lower",
+        }
+        for metric, direction in metric_specs.items():
+            baseline_value = baseline_summary[metric]
+            current_value = summary[metric]
+            delta = current_value - baseline_value
+            deltas[metric] = {
+                "baseline": baseline_value,
+                "current": current_value,
+                "delta": delta,
+                "direction": direction,
+            }
+            if _is_regression(delta, direction):
+                regressions.append(metric)
+            elif _is_improvement(delta, direction):
+                improvements.append(metric)
+
+    file_regressions = (
+        _empty_file_regressions()
+        if metadata_mismatches
+        else _file_regressions(
+            baseline.get("files", []),
+            [asdict(metric) for metric in metrics],
+        )
+    )
 
     return {
         "baseline_path": str(path),
@@ -441,10 +578,7 @@ def compare_baseline(
         "improvements": improvements,
         "regressions": regressions,
         "metadata_mismatches": metadata_mismatches,
-        "file_regressions": _file_regressions(
-            baseline.get("files", []),
-            [asdict(metric) for metric in metrics],
-        ),
+        "file_regressions": file_regressions,
         "baseline_top_unhandled_node_types": baseline_summary["top_unhandled_node_types"],
         "current_top_unhandled_node_types": summary["top_unhandled_node_types"],
         "baseline_top_unhandled_reasons": baseline_summary["top_unhandled_reasons"],
@@ -454,19 +588,23 @@ def compare_baseline(
 
 def print_comparison(comparison: dict[str, Any]) -> None:
     print(f"Baseline comparison: {comparison['baseline_path']}")
-    for metric, values in comparison["deltas"].items():
-        print(
-            f"  {metric}: {_format_metric(values['baseline'])} -> "
-            f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
-        )
     if comparison["metadata_mismatches"]:
-        print(f"Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
-    if comparison["improvements"]:
-        print(f"Improvements: {', '.join(comparison['improvements'])}")
-    if comparison["regressions"]:
-        print(f"Regressions: {', '.join(comparison['regressions'])}")
+        print(f"  Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
+        print("  WARNING: Samples are not directly comparable (different strategy, modules, limits, or construct inclusion).")
+        print("  Deltas and improvement/regression counts below are suppressed.")
     else:
-        print("Regressions: none")
+        for metric, values in comparison["deltas"].items():
+            print(
+                f"  {metric}: {_format_metric(values['baseline'])} -> "
+                f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
+            )
+    if not comparison["metadata_mismatches"]:
+        if comparison["improvements"]:
+            print(f"Improvements: {', '.join(comparison['improvements'])}")
+        if comparison["regressions"]:
+            print(f"Regressions: {', '.join(comparison['regressions'])}")
+        else:
+            print("Regressions: none")
     print("Top unhandled node types:")
     print(f"  baseline: {_top_list(comparison['baseline_top_unhandled_node_types'])}")
     print(f"  current:  {_top_list(comparison['current_top_unhandled_node_types'])}")
@@ -538,6 +676,16 @@ def _file_regressions(
         "coverage_drops": coverage_drops,
         "unhandled_increases": unhandled_increases,
         "new_unhandled_reasons": new_unhandled_reasons,
+    }
+
+
+def _empty_file_regressions() -> dict[str, list[dict[str, Any]]]:
+    return {
+        "parse_failures": [],
+        "syntax_failures": [],
+        "coverage_drops": [],
+        "unhandled_increases": [],
+        "new_unhandled_reasons": [],
     }
 
 

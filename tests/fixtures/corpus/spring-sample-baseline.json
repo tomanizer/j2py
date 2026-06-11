@@ -16,7 +16,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 100,
+      "handled_count": 99,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/AccessControl.java",
@@ -40,29 +40,29 @@
       "warning_count": 2
     },
     {
-      "coverage": 0.9210526315789473,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 35,
+      "handled_count": 42,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/ClassNameGenerator.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "constructor_declaration:3",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
-      "coverage": 0.7894736842105263,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 15,
+      "handled_count": 35,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/DefaultGenerationContext.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "constructor_declaration:4",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:4",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 9
     },
     {
@@ -79,17 +79,17 @@
       "warning_count": 5
     },
     {
-      "coverage": 0.9,
+      "coverage": 0.975,
       "error": "",
-      "handled_count": 27,
+      "handled_count": 39,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/FileSystemGeneratedFiles.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:2;switch_expression:1",
-      "unhandled_reasons": "overloaded method copy requires manual dispatch:2;switch expression without default:1",
-      "warning_count": 5
+      "unhandled_count": 1,
+      "unhandled_node_types": "switch_expression:1",
+      "unhandled_reasons": "switch expression without default:1",
+      "warning_count": 6
     },
     {
       "coverage": 0.0,
@@ -107,7 +107,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 47,
+      "handled_count": 48,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedClass.java",
@@ -118,16 +118,16 @@
       "warning_count": 7
     },
     {
-      "coverage": 0.8974358974358975,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 35,
+      "handled_count": 52,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedClasses.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:4",
-      "unhandled_reasons": "overloaded method add_for_feature_component requires manual dispatch:2;overloaded method get_or_add_for_feature_component requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 9
     },
     {
@@ -157,16 +157,16 @@
       "warning_count": 5
     },
     {
-      "coverage": 0.75,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 12,
+      "handled_count": 34,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedMethods.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "constructor_declaration:2;method_declaration:2",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2;overloaded method add requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -209,16 +209,16 @@
       "warning_count": 8
     },
     {
-      "coverage": 0.9411764705882353,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 32,
+      "handled_count": 41,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/MethodName.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method and_ requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 7
     },
     {
@@ -248,16 +248,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.8333333333333334,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 10,
+      "handled_count": 16,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/ValueCodeGenerationException.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "constructor_declaration:2",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 2
     },
     {
@@ -391,29 +391,29 @@
       "warning_count": 8
     },
     {
-      "coverage": 0.9111111111111111,
+      "coverage": 0.9591836734693877,
       "error": "",
-      "handled_count": 41,
+      "handled_count": 47,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/JdkProxyHint.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:2;method_invocation:2",
-      "unhandled_reasons": "equals invocation with unexpected argument count:2;overloaded method proxied_interfaces requires manual dispatch:2",
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_invocation:2",
+      "unhandled_reasons": "equals invocation with unexpected argument count:2",
       "warning_count": 14
     },
     {
-      "coverage": 0.7777777777777778,
+      "coverage": 0.9574468085106383,
       "error": "",
-      "handled_count": 28,
+      "handled_count": 45,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/LambdaHint.java",
       "syntax_ok": true,
-      "unhandled_count": 8,
-      "unhandled_node_types": "method_declaration:8",
-      "unhandled_reasons": "overloaded method of requires manual dispatch:2;overloaded method on_reachable_type requires manual dispatch:2;overloaded method with_declaring_method requires manual dispatch:2;overloaded method with_interfaces requires manual dispatch:2",
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method of requires manual dispatch:2",
       "warning_count": 15
     },
     {
@@ -443,30 +443,30 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.5714285714285714,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 4,
+      "handled_count": 13,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ProxyHints.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method register_jdk_proxy requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
-      "coverage": 0.7435897435897436,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 29,
+      "handled_count": 63,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ReflectionHints.java",
       "syntax_ok": true,
-      "unhandled_count": 10,
-      "unhandled_node_types": "method_declaration:10",
-      "unhandled_reasons": "overloaded method get_type_hint requires manual dispatch:2;overloaded method register_lambda requires manual dispatch:2;overloaded method register_type requires manual dispatch:4;overloaded method register_type_if_present requires manual dispatch:2",
-      "warning_count": 20
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 22
     },
     {
       "coverage": 1.0,
@@ -495,16 +495,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.9024390243902439,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 37,
+      "handled_count": 49,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ResourceHints.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:4",
-      "unhandled_reasons": "overloaded method register_pattern requires manual dispatch:2;overloaded method register_type requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 10
     },
     {
@@ -560,16 +560,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.6,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 6,
+      "handled_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/SerializationHints.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:4",
-      "unhandled_reasons": "overloaded method register_type requires manual dispatch:4",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -586,16 +586,16 @@
       "warning_count": 2
     },
     {
-      "coverage": 0.92,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 69,
+      "handled_count": 89,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/TypeHint.java",
       "syntax_ok": true,
-      "unhandled_count": 6,
-      "unhandled_node_types": "method_declaration:6",
-      "unhandled_reasons": "overloaded method on_reachable_type requires manual dispatch:2;overloaded method with_constructor requires manual dispatch:2;overloaded method with_method requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 24
     },
     {
@@ -690,17 +690,17 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.8695652173913043,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 20,
+      "handled_count": 30,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/annotation/RegisterReflectionReflectiveProcessor.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method register_reflection_hints requires manual dispatch:3",
-      "warning_count": 2
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
     },
     {
       "coverage": 1.0,
@@ -742,30 +742,30 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.5,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 2,
+      "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ProxyHintsPredicates.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method for_interfaces requires manual dispatch:2",
-      "warning_count": 2
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
     },
     {
-      "coverage": 0.8709677419354839,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 108,
+      "handled_count": 162,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/ReflectionHintsPredicates.java",
       "syntax_ok": true,
-      "unhandled_count": 16,
-      "unhandled_node_types": "method_declaration:16",
-      "unhandled_reasons": "overloaded method on_field requires manual dispatch:3;overloaded method on_field_access requires manual dispatch:3;overloaded method on_java_serialization requires manual dispatch:2;overloaded method on_method requires manual dispatch:3;overloaded method on_method_invocation requires manual dispatch:3;overloaded method on_type requires manual dispatch:2",
-      "warning_count": 40
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 46
     },
     {
       "coverage": 1.0,
@@ -794,16 +794,16 @@
       "warning_count": 6
     },
     {
-      "coverage": 0.5,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 2,
+      "handled_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/predicate/SerializationHintsPredicates.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method on_type requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 2
     },
     {
@@ -833,17 +833,17 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.8333333333333334,
+      "coverage": 0.971830985915493,
       "error": "",
-      "handled_count": 50,
+      "handled_count": 69,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/support/FilePatternResourceHintsRegistrar.java",
       "syntax_ok": true,
-      "unhandled_count": 10,
-      "unhandled_node_types": "method_declaration:10",
-      "unhandled_reasons": "overloaded method for_class_path_locations requires manual dispatch:2;overloaded method with_class_path_locations requires manual dispatch:2;overloaded method with_classpath_locations requires manual dispatch:2;overloaded method with_file_extensions requires manual dispatch:2;overloaded method with_file_prefixes requires manual dispatch:2",
-      "warning_count": 16
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method for_class_path_locations requires manual dispatch:2",
+      "warning_count": 18
     },
     {
       "coverage": 1.0,
@@ -895,7 +895,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "coverage": 1.0,
@@ -924,9 +924,9 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9904761904761905,
+      "coverage": 0.9902912621359223,
       "error": "",
-      "handled_count": 104,
+      "handled_count": 102,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/nativex/BasicJsonWriter.java",
@@ -963,29 +963,29 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.8541666666666666,
+      "coverage": 0.975609756097561,
       "error": "",
-      "handled_count": 41,
+      "handled_count": 80,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/nativex/ReflectionHintsAttributes.java",
       "syntax_ok": true,
-      "unhandled_count": 7,
-      "unhandled_node_types": "lambda_expression:1;method_declaration:5;method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;block lambda requires local helper scope:1;overloaded method to_attributes requires manual dispatch:5",
-      "warning_count": 4
+      "unhandled_count": 2,
+      "unhandled_node_types": "lambda_expression:1;method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;block lambda requires local helper scope:1",
+      "warning_count": 5
     },
     {
-      "coverage": 0.8666666666666667,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 13,
+      "handled_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/nativex/ResourceHintsAttributes.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method to_attributes requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 0
     },
     {
@@ -1080,17 +1080,17 @@
       "warning_count": 11
     },
     {
-      "coverage": 0.976878612716763,
+      "coverage": 0.9636363636363636,
       "error": "",
-      "handled_count": 169,
+      "handled_count": 159,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/AnnotationWriter.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:4",
-      "unhandled_reasons": "overloaded method compute_annotations_size requires manual dispatch:2;overloaded method put_annotations requires manual dispatch:2",
-      "warning_count": 79
+      "unhandled_count": 6,
+      "unhandled_node_types": "method_declaration:6",
+      "unhandled_reasons": "overloaded method compute_annotations_size requires manual dispatch:2;overloaded method create requires manual dispatch:2;overloaded method put_annotations requires manual dispatch:2",
+      "warning_count": 72
     },
     {
       "coverage": 0.8360655737704918,
@@ -1106,30 +1106,30 @@
       "warning_count": 22
     },
     {
-      "coverage": 0.9852216748768473,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 200,
+      "handled_count": 207,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ByteVector.java",
       "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "constructor_declaration:3",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 83
     },
     {
-      "coverage": 0.9944178628389154,
+      "coverage": 0.9984508133230054,
       "error": "",
-      "handled_count": 1247,
+      "handled_count": 1289,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ClassReader.java",
       "syntax_ok": false,
-      "unhandled_count": 7,
-      "unhandled_node_types": "constructor_declaration:5;switch_block_statement_group:1;unary_expression:1",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;switch fall-through requires manual translation:1;unsupported unary operator ~:1",
-      "warning_count": 478
+      "unhandled_count": 2,
+      "unhandled_node_types": "switch_block_statement_group:1;unary_expression:1",
+      "unhandled_reasons": "switch fall-through requires manual translation:1;unsupported unary operator ~:1",
+      "warning_count": 501
     },
     {
       "coverage": 1.0,
@@ -1158,9 +1158,9 @@
       "warning_count": 21
     },
     {
-      "coverage": 0.9973753280839895,
+      "coverage": 0.9973821989528796,
       "error": "",
-      "handled_count": 380,
+      "handled_count": 381,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ClassWriter.java",
@@ -1168,7 +1168,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "unary_expression:1",
       "unhandled_reasons": "unsupported unary operator ~:1",
-      "warning_count": 126
+      "warning_count": 127
     },
     {
       "coverage": 0.9743589743589743,
@@ -1262,22 +1262,22 @@
       "warning_count": 40
     },
     {
-      "coverage": 0.9892241379310345,
+      "coverage": 0.9958071278825996,
       "error": "",
-      "handled_count": 459,
+      "handled_count": 475,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/Frame.java",
       "syntax_ok": false,
-      "unhandled_count": 5,
-      "unhandled_node_types": "method_declaration:5",
-      "unhandled_reasons": "overloaded method merge requires manual dispatch:2;overloaded method pop requires manual dispatch:3",
-      "warning_count": 104
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method merge requires manual dispatch:2",
+      "warning_count": 107
     },
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 36,
+      "handled_count": 37,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/Handle.java",
@@ -1285,19 +1285,19 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 18
+      "warning_count": 19
     },
     {
-      "coverage": 0.9523809523809523,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 40,
+      "handled_count": 49,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/Handler.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "constructor_declaration:2",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 18
     }
   ],
@@ -1313,23 +1313,19 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.9020897301616405,
+    "average_coverage": 0.9471456688483939,
     "coverage_file_count": 92,
     "coverage_threshold": 0.8,
-    "files_below_coverage_threshold": 12,
+    "files_below_coverage_threshold": 4,
     "files_scanned": 100,
-    "files_with_unhandled": 45,
-    "full_coverage_files": 47,
+    "files_with_unhandled": 27,
+    "full_coverage_files": 65,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.93,
     "top_unhandled_node_types": [
       [
         "method_declaration",
-        112
-      ],
-      [
-        "constructor_declaration",
-        21
+        28
       ],
       [
         "method_invocation",
@@ -1362,18 +1358,6 @@
     ],
     "top_unhandled_reasons": [
       [
-        "overloaded method __init__ requires manual dispatch",
-        21
-      ],
-      [
-        "overloaded method register_type requires manual dispatch",
-        10
-      ],
-      [
-        "overloaded method to_attributes requires manual dispatch",
-        7
-      ],
-      [
         "equals invocation with unexpected argument count",
         6
       ],
@@ -1382,39 +1366,7 @@
         4
       ],
       [
-        "overloaded method on_reachable_type requires manual dispatch",
-        4
-      ],
-      [
-        "overloaded method on_type requires manual dispatch",
-        4
-      ],
-      [
         "unsupported expression super",
-        3
-      ],
-      [
-        "overloaded method register_jdk_proxy requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method register_reflection_hints requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method on_field requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method on_field_access requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method on_method requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method on_method_invocation requires manual dispatch",
         3
       ],
       [
@@ -1430,16 +1382,60 @@
         3
       ],
       [
-        "overloaded method pop requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method copy requires manual dispatch",
+        "overloaded method with_ requires manual dispatch",
         2
       ],
       [
-        "overloaded method add_for_feature_component requires manual dispatch",
+        "overloaded method generate_code requires manual dispatch",
         2
+      ],
+      [
+        "overloaded method of requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method is_primitive requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method for_class_path_locations requires manual dispatch",
+        2
+      ],
+      [
+        "ambiguous get invocation requires receiver collection type",
+        2
+      ],
+      [
+        "overloaded method compute_annotations_size requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method create requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method put_annotations requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method read requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method write requires manual dispatch",
+        2
+      ],
+      [
+        "overloaded method merge requires manual dispatch",
+        2
+      ],
+      [
+        "switch expression without default",
+        1
+      ],
+      [
+        "unsupported stream intermediate: flatMap",
+        1
       ]
     ]
   }
