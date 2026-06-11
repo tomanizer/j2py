@@ -74,6 +74,10 @@ make check         # ruff + mypy strict + normal pytest suite (excludes live_llm
 make test-targets  # roadmap xfail targets
 make corpus-spring # pinned Spring Framework corpus comparison
 
+# Improved corpus modes (minimal size + broader construct coverage):
+make corpus-spring-dense  # density-based selection of small but rich files
+make corpus-spring-broad  # extra modules + curated constructs/ mini-corpus
+
 # On-demand only (requires ANTHROPIC_API_KEY):
 make test-llm-e2e  # exploratory live-LLM test of current skeleton quality
 # or: ANTHROPIC_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
@@ -98,7 +102,7 @@ workflow.
 1. Add or update a target fixture if the construct is not yet supported.
 2. Implement the smallest deterministic rule in `j2py/translate/`.
 3. Graduate the behavior into normal tests once it passes.
-4. Run `make check`, `make test-targets`, and `make corpus-spring`.
+4. Run `make check`, `make test-targets`, `make corpus-spring` (and the new dense/broad variants for better coverage of specific constructs).
 5. Update the Spring baseline only when the comparison has no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.

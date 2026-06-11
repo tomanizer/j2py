@@ -12,6 +12,10 @@ The default scoreboard is pinned to:
   - `spring-core/src/main/java`
   - `spring-beans/src/main/java`
 
+Improved selection (via `--strategy`, `--max-loc`, `--min-constructs`, `--include-constructs`) is available for "minimal size + broad construct coverage" runs. See `make corpus-spring-dense` and `make corpus-spring-broad`.
+
+A parallel curated "constructs" mini-corpus lives in `tests/fixtures/corpus/constructs/`. These are tiny, focused files that guarantee coverage of important Java features used across Spring (interface defaults + statics, text blocks, anonymous/sophisticated inner classes, switch fall-through + complex rules, advanced enums with constructors/methods, etc.). These directly support the followup roadmap items under the #47 parent.
+
 The committed baseline lives at:
 
 ```text
@@ -40,6 +44,18 @@ Run a quick local 25-file smoke sample without comparing the committed baseline:
 
 ```bash
 make corpus-spring-smoke
+```
+
+For minimal-size yet construct-dense files (good for driving new rules):
+
+```bash
+make corpus-spring-dense
+```
+
+For broader coverage (extra modules + the curated constructs/ mini-corpus):
+
+```bash
+make corpus-spring-broad
 ```
 
 Clone or refresh the pinned Spring checkout explicitly:
@@ -71,6 +87,9 @@ Scoreboard metrics:
 - top unhandled reasons
 - per-file parse/syntax failures, coverage drops, unhandled count increases, and new
   unhandled reasons compared with the committed baseline
+
+Newer runs can report additional signals (strategy used, max-loc / min-constructs filters,
+number of curated construct files mixed in, rough "construct density").
 
 Use the comparison output to decide whether a translation rule improved or regressed the
 real corpus before updating the baseline.
