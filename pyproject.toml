@@ -52,6 +52,6 @@ testpaths = ["tests"]
 addopts = "--tb=short -m 'not behavior and not live_llm and not target_translation'"
 markers = [
     "behavior: Java/Python behavior-equivalence tests that require a local JDK. Excluded from normal test runs; run with: pytest -m behavior tests/behavior",
-    "target_translation: roadmap Java-to-Python translation targets that are excluded from make check",
+    "target_translation: graduated and future Java-to-Python roadmap targets that are excluded from make check",
     "live_llm: end-to-end exploratory tests that make live calls to the Anthropic API. These are excluded from normal test runs and make check. Run on demand with: ANTHROPIC_API_KEY=... pytest -m live_llm tests/llm/test_e2e_llm.py -v -s",
 ]

@@ -75,7 +75,7 @@ ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```bash
 make check         # ruff + mypy strict + normal pytest suite
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence tests (requires a JDK)
-make test-targets  # roadmap xfail targets
+make test-targets  # graduated roadmap fixtures + future xfail targets
 make corpus-spring # pinned Spring Framework corpus comparison
 
 # Improved corpus modes (minimal size + broader construct coverage):
@@ -106,7 +106,7 @@ workflow.
 1. Add or update a target fixture if the construct is not yet supported.
 2. Implement the smallest deterministic rule in `j2py/translate/`.
 3. Graduate the behavior into normal tests once it passes.
-4. Run `make check`, `make test-targets`, `make corpus-spring` (and the new dense/broad variants for better coverage of specific constructs).
+4. Run `make check`, `make test-targets`, `make corpus-spring` (and the dense/broad variants for better coverage of specific constructs).
 5. Update the Spring baseline only when the comparison has no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.
