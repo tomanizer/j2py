@@ -102,6 +102,7 @@ def translate_class(
             if child.type in {"constructor_declaration", "method_declaration"}
         ]
     )
+    class_method_names = _member_method_names(members, cfg)
 
     lines = [f"class {class_name}{_base_suffix(node)}:"]
     static_field_lines, instance_init_lines = _translate_fields(
@@ -143,6 +144,7 @@ def translate_class(
                     diagnostics=diagnostics,
                     class_fields=instance_field_names,
                     class_field_types=instance_field_types,
+                    class_methods=class_method_names,
                     pre_body_lines=(
                         instance_init_lines if group[0].type == "constructor_declaration" else []
                     ),
@@ -156,6 +158,7 @@ def translate_class(
             diagnostics=diagnostics,
             class_fields=instance_field_names,
             class_field_types=instance_field_types,
+            class_methods=class_method_names,
             allow_local_helpers=True,
         )
         pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
@@ -176,21 +179,39 @@ def _translate_interface(
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     body = node.child_by_field("body")
-    methods = [] if body is None else body.find_all("method_declaration")
+    methods = [] if body is None else list(body.find_all("method_declaration"))
+    class_method_names = _member_method_names(methods, cfg)
 
     lines = [f"class {class_name}(Protocol):"]
     wrote_member = False
     for method in methods:
         _record_annotation_diagnostics(method, cfg, diagnostics)
-        diagnostics.record(method, supported=True, reason="translated interface method")
-        name = _member_python_name(method)
-        params = _parameter_infos(method, cfg)
-        return_type = _return_type(method, cfg)
+        method_body = _method_body(method)
+        if method_body is not None:
+            reason = (
+                "translated interface static method"
+                if "static" in _modifiers(method)
+                else "translated interface default method"
+            )
+            diagnostics.record(method, supported=True, reason=reason)
+            ctx = TranslationContext(
+                cfg=cfg,
+                diagnostics=diagnostics,
+                class_fields=set(),
+                class_field_types={},
+                class_methods=class_method_names,
+                allow_local_helpers=True,
+            )
+            lines.extend(_translate_method(method, ctx, supported_reason=reason))
+            wrote_member = True
+            continue
+
+        diagnostics.record(method, supported=True, reason="translated abstract interface method")
         signature = _signature(
-            name,
-            params,
-            return_type=return_type,
-            include_self=True,
+            _member_python_name(method),
+            _parameter_infos(method, cfg),
+            return_type=_return_type(method, cfg),
+            include_self="static" not in _modifiers(method),
             emit_type_hints=cfg.emit_type_hints,
         )
         lines.append(f"    {signature}: ...")
@@ -363,6 +384,20 @@ def _instance_field_types(fields: list[FieldInfo]) -> dict[str, str]:
     return {field.name: field.py_type for field in fields if not field.is_static}
 
 
+def _member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
+    return {
+        translate_method_name(_raw_member_name(member), snake_case=cfg.snake_case_methods)
+        for member in members
+    }
+
+
+def _raw_member_name(member: JavaNode) -> str:
+    if member.type == "constructor_declaration":
+        return "__init__"
+    name_node = member.child_by_field("name")
+    return name_node.text if name_node is not None else "unknown"
+
+
 def _translate_fields(
     class_node: JavaNode,
     fields: list[FieldInfo],
@@ -510,6 +545,7 @@ def _translate_method(
     ctx: TranslationContext,
     *,
     unsupported_reason: str | None = None,
+    supported_reason: str = "translated method declaration",
     pre_body_lines: list[str] | None = None,
 ) -> list[str]:
     _record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
@@ -517,7 +553,7 @@ def _translate_method(
     ctx.diagnostics.record(
         node,
         supported=supported and unsupported_reason is None,
-        reason=unsupported_reason or "translated method declaration",
+        reason=unsupported_reason or supported_reason,
     )
 
     is_constructor = node.type == "constructor_declaration"
@@ -573,6 +609,7 @@ def _translate_overloaded_members(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str] | None = None,
+    class_methods: set[str] | None = None,
     pre_body_lines: list[str],
 ) -> list[str]:
     name = _member_python_name(members[0])
@@ -588,6 +625,7 @@ def _translate_overloaded_members(
             diagnostics=diagnostics,
             class_fields=class_fields,
             class_field_types=field_types,
+            class_methods=class_methods or set(),
             pre_body_lines=pre_body_lines,
         )
         if merged_constructor is not None:
@@ -599,6 +637,7 @@ def _translate_overloaded_members(
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_field_types=field_types,
+        class_methods=class_methods or set(),
     )
     if merged_method is not None:
         return merged_method
@@ -632,6 +671,7 @@ def _merged_constructor_overload(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_methods: set[str],
     pre_body_lines: list[str],
 ) -> list[str] | None:
     implementation = _constructor_implementation_candidate(members, cfg)
@@ -662,6 +702,7 @@ def _merged_constructor_overload(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=class_fields,
+        class_methods=class_methods,
         allow_local_helpers=True,
     )
     ctx.class_field_types = dict(class_field_types)
@@ -702,6 +743,7 @@ def _merged_method_overload(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_methods: set[str],
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -744,6 +786,7 @@ def _merged_method_overload(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=class_fields,
+        class_methods=class_methods,
         allow_local_helpers=True,
     )
     ctx.class_field_types = dict(class_field_types)
