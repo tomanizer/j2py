@@ -534,6 +534,16 @@ def _translate_method(
 
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     lines.extend(pre_body_lines or [])
+
+    # Flush any helpers generated for block lambdas encountered while walking
+    # the body (including deep inside expressions). They are placed after any
+    # pre-body initialization but before the original statements so the names
+    # are defined for the whole method and grouped for review.
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
     lines.extend(body_lines)
     return lines
 
@@ -648,6 +658,14 @@ def _merged_constructor_overload(
     )
     lines.append(f"    {signature}:")
     lines.extend(pre_body_lines)
+
+    # Flush block-lambda helpers for the merged constructor implementation
+    # (same pattern as the normal method path).
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
     body = _method_body(implementation)
     lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
     return lines
@@ -717,6 +735,13 @@ def _merged_method_overload(
     )
     lines.append(f"    {signature}:")
     body = _method_body(members[0])
+
+    # Flush block-lambda helpers for this merged method implementation.
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
     lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
     return lines
 

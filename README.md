@@ -27,9 +27,11 @@ Current deterministic rule support includes:
 
 Known gaps include:
 
-- complex stream pipelines, unsupported collectors, and complex/block lambda or
-  method-reference contexts
+- some advanced stream collectors, long/complex chains, and certain method-reference
+  contexts (many common cases like toSet/joining, distinct/sorted, basic groupingBy
+  now supported via comprehensions or small helpers; block lambdas in streams handled)
 - switch fall-through and complex switch rule blocks
+
 - `switch` and switch expressions
 - complex constructor dispatch and non-trivial overload bodies
 - enum constructors/default interface methods/annotation semantics

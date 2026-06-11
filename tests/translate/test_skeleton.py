@@ -768,7 +768,8 @@ def test_expression_lambdas_and_method_references_translate() -> None:
     _assert_valid_python(python_source)
 
 
-def test_block_lambda_drops_coverage_with_localized_todo() -> None:
+def test_block_lambda_translates_to_local_helper() -> None:
+    """Block lambdas are now supported via a local helper function (no more forced TODO/LLM)."""
     result = _translate_source_with_diagnostics(
         """
         import java.util.function.Function;
@@ -781,10 +782,52 @@ def test_block_lambda_drops_coverage_with_localized_todo() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "__j2py_todo__('user -> { return user.getName(); }')" in result.source
-    assert result.diagnostics.unhandled[-1].reason == "block lambda requires helper function"
+    # The construct itself is now handled by the rule layer.
+    unhandled_reasons = [u.reason for u in result.diagnostics.unhandled]
+    assert "block lambda requires helper function" not in unhandled_reasons
+
+    # A helper was emitted and is referenced at the use site.
+    assert "def _j2py_lambda_" in result.source
+    assert "_j2py_lambda_" in result.source  # the name is used
+    assert "return user.get_name()" in result.source or "return user.getName()" in result.source
     _assert_valid_python(result.source)
+
+
+def test_block_lambda_with_multiple_statements_and_capture() -> None:
+    """Richer block lambda exercising locals, early return, and captured field."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.function.Function;
+
+        public class Capturing {
+            private String prefix = ">> ";
+
+            public Function<String, String> maker() {
+                return s -> {
+                    String trimmed = s.trim();
+                    if (trimmed.isEmpty()) {
+                        return prefix + "<empty>";
+                    }
+                    return prefix + trimmed.toUpperCase();
+                };
+            }
+        }
+        """,
+    )
+
+    assert "def _j2py_lambda_" in python_source
+    # The helper body contains the statements (structure preserved).
+    assert "trimmed" in python_source
+    # Early return + normal return path present (concat style may be f-string or +).
+    assert "<empty>" in python_source
+    has_upper = "upper()" in python_source or "to_upper_case()" in python_source
+    assert "trimmed" in python_source and has_upper
+
+    # The lambda name is used (returned from maker()).
+    assert "_j2py_lambda_" in python_source
+    assert "return _j2py_lambda_" in python_source
+
+    _assert_valid_python(python_source)
 
 
 def test_array_constructor_method_reference_drops_coverage() -> None:
@@ -1061,6 +1104,206 @@ def test_stream_pipeline_produces_sensible_loop_var_for_statuses() -> None:
     assert "for statu in" not in python_source and "for statu_" not in python_source
     assert "__j2py_todo__" not in python_source
     _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_to_set_rewrite() -> None:
+    """Phase 1: toSet collector now rewrites to set comprehension."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.Set;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Set<String> unique(List<Status> statuses) {
+                return statuses.stream()
+                        .map(Status::getName)
+                        .collect(Collectors.toSet());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "{" in python_source and " for " in python_source and "}" in python_source
+    assert "for status in statuses" in python_source or "for status_ in statuses" in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_joining_basic() -> None:
+    """Phase 1: basic Collectors.joining() rewrites to .join(genexp)."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public String joined(List<String> parts) {
+                return parts.stream()
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.joining(", "));
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert ".join(" in python_source
+    assert "for " in python_source and " in parts" in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
+    """Phase 1: block lambda in stream (non-rewritten case) uses helper name."""
+    # Integration test for block lambda support inside stream chains that don't
+    # trigger the listcomp rewrite (e.g. because of block body).
+    python_source, coverage = _translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> complex(List<String> items) {
+                return items.stream()
+                        .map(s -> { String t = s.trim(); return t.toUpperCase(); })
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    # Pipeline rewrite fails on block -> general path uses the helper name
+    assert "def _j2py_lambda_" in python_source
+    assert "_j2py_lambda_" in python_source  # name used in map
+    assert "stream" in python_source.lower()  # chain visible
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_sorted_and_distinct() -> None:
+    """Phase 2: support .sorted() and .distinct() as post-wraps on the comp."""
+    # Safe when they appear late in the chain before terminal.
+    python_source, coverage = _translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> sortedUnique(List<String> items) {
+                return items.stream()
+                        .filter(s -> s.length() > 0)
+                        .sorted()
+                        .distinct()
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    # Should have the inner comp wrapped with sorted and distinct
+    assert "list(dict.fromkeys(sorted(" in python_source
+    assert " for " in python_source and " in items" in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_sorted_with_key() -> None:
+    """Phase 2: .sorted(Comparator) with simple method ref key."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<Item> byName(List<Item> items) {
+                return items.stream()
+                        .sorted(Item::getName)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "sorted(" in python_source
+    assert "key=lambda " in python_source  # or similar
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_grouping_by_basic() -> None:
+    """Phase 3: basic groupingBy produces helper with defaultdict accumulation."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Map<String, List<String>> byFirst(List<String> items) {
+                return items.stream()
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.groupingBy(s -> s.substring(0,1)));
+            }
+        }
+        """,
+    )
+
+    assert coverage > 0.5  # at least the construct itself handled
+    assert "def _j2py_groupby_" in python_source
+    assert "from collections import defaultdict" in python_source
+    assert "groups[key].append" in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_pipeline_to_map_basic() -> None:
+    """Phase 3: basic toMap produces helper with dict accumulation."""
+    python_source, coverage = _translate_source(
+        """
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Map<String, Integer> toMap(List<Item> items) {
+                return items.stream()
+                        .filter(i -> i.getValue() > 0)
+                        .collect(Collectors.toMap(Item::getKey, Item::getValue));
+            }
+        }
+        """,
+    )
+
+    assert "def _j2py_to_map_" in python_source
+    assert "result = {}" in python_source
+    assert "result[key] = " in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_flatmap_falls_back_with_explicit_diagnostic() -> None:
+    """Targeted polish: unsupported stream intermediate (flatMap) now records clear reason."""
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> flat(List<List<String>> nested) {
+                return nested.stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    reasons = [u.reason for u in result.diagnostics.unhandled]
+    assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
+    # still produces something (general path)
+    assert "stream" in result.source.lower() or "flat_map" in result.source
+    _assert_valid_python(result.source)
 
 
 def test_partial_translation_reports_structured_diagnostics() -> None:

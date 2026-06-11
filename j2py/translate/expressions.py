@@ -300,6 +300,16 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
 
 def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str | None:
+    """Translate simple-to-medium stream pipelines to Python comps or small helpers.
+
+    Hybrid policy (addressing plan open question): rewrite to clean, reviewable
+    Python (list/set comps, .join, or small accumulation helpers) for common
+    cases where the mapping is direct and doesn't obscure the original logic.
+    For complex/unsupported intermediates (flatMap, custom collectors, reduce,
+    etc.) we fall back to the general translated chain so the intentional
+    "streamy" structure remains visible to reviewers. This keeps line-level
+    correspondence and avoids over-Pythonification.
+    """
     chain = _stream_chain(node)
     if chain is None:
         return None
@@ -309,13 +319,24 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         return None
 
     terminal_name, terminal_arg = operations[-1]
-    if terminal_name == "collect" and not _is_collectors_to_list(terminal_arg):
+    is_to_list = terminal_name == "toList" or (
+        terminal_name == "collect" and _is_collectors_to_list(terminal_arg)
+    )
+    is_to_set = terminal_name == "collect" and _is_collectors_to_set(terminal_arg)
+    is_joining = terminal_name == "collect" and _is_collectors_joining(terminal_arg)
+    is_grouping = terminal_name == "collect" and _is_collectors_grouping_by(terminal_arg)
+    is_to_map = terminal_name == "collect" and _is_collectors_to_map(terminal_arg)
+    if not (is_to_list or is_to_set or is_joining or is_grouping or is_to_map):
         return None
+
 
     source = translate_expression(source_node, ctx)
     item_name = _stream_item_name(source, ctx)
     current_expr = item_name
     filters: list[str] = []
+    has_distinct = False
+    has_sorted = False
+    sorted_key = None
     for operation, arg in operations[:-1]:
         if operation == "map" and arg is not None:
             mapped = _stream_map_expression(arg, item_name, ctx)
@@ -329,10 +350,121 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
                 return None
             filters.append(predicate)
             continue
+        if operation == "distinct":
+            has_distinct = True
+            continue
+        if operation == "sorted":
+            has_sorted = True
+            if arg is not None:
+                k = _stream_map_expression(arg, item_name, ctx)
+                if k:
+                    sorted_key = k
+            continue
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason=f"unsupported stream intermediate: {operation}",
+        )
         return None
 
+    if is_grouping:
+        # Phase 3 basic support for groupingBy using helper + defaultdict (per plan)
+        # key mapper from first arg to groupingBy; value is the post-map item
+        key_mapper = item_name
+        if terminal_arg is not None and terminal_arg.named_children:
+            key_arg = terminal_arg.named_children[0]
+            k = _stream_map_expression(key_arg, item_name, ctx)
+            if k:
+                key_mapper = k
+        filter_conds = " and ".join(filters) if filters else None
+        has_pending = hasattr(ctx, "pending_local_helpers")
+        helper_id = len(ctx.pending_local_helpers) + 1 if has_pending else 1
+        helper_name = f"_j2py_groupby_{helper_id}"
+        helper_lines = [
+            f"        def {helper_name}(source):",
+            "            from collections import defaultdict",
+            "            groups = defaultdict(list)",
+            f"            for {item_name} in source:",
+        ]
+        if filter_conds:
+            helper_lines.append(f"                if not ({filter_conds}): continue")
+        if current_expr != item_name:
+            helper_lines.append(f"                mapped = {current_expr}")
+            val = "mapped"
+        else:
+            val = item_name
+        helper_lines.append(f"                key = {key_mapper}")
+        helper_lines.append(f"                groups[key].append({val})")
+        helper_lines.append("            return dict(groups)")
+        if hasattr(ctx, "pending_local_helpers"):
+            ctx.pending_local_helpers.append(helper_lines)
+        return f"{helper_name}({source})"
+
+    if is_to_map:
+        # Phase 3 simple toMap support (dict via helper, like groupingBy).
+        # (dict-comp for very simple cases could be added later)
+        key_mapper = item_name
+        value_mapper = current_expr
+        if terminal_arg is not None and len(terminal_arg.named_children) >= 2:
+            key_arg = terminal_arg.named_children[0]
+            val_arg = terminal_arg.named_children[1]
+            k = _stream_map_expression(key_arg, item_name, ctx)
+            if k:
+                key_mapper = k
+            v = _stream_map_expression(val_arg, item_name, ctx)
+            if v:
+                value_mapper = v
+        filter_conds = " and ".join(filters) if filters else None
+        has_pending = hasattr(ctx, "pending_local_helpers")
+        helper_id = len(ctx.pending_local_helpers) + 1 if has_pending else 1
+        helper_name = f"_j2py_to_map_{helper_id}"
+        helper_lines = [
+            f"        def {helper_name}(source):",
+            "            result = {}",
+            f"            for {item_name} in source:",
+        ]
+        if filter_conds:
+            helper_lines.append(f"                if not ({filter_conds}): continue")
+        if current_expr != item_name:
+            helper_lines.append(f"                mapped = {current_expr}")
+            # value_mapper may reference the original item_name; use translated
+        helper_lines.append(f"                key = {key_mapper}")
+        helper_lines.append(f"                result[key] = {value_mapper}")
+        helper_lines.append("            return result")
+        if hasattr(ctx, "pending_local_helpers"):
+            ctx.pending_local_helpers.append(helper_lines)
+        return f"{helper_name}({source})"
+
     filter_suffix = f" if {' and '.join(filters)}" if filters else ""
-    return f"[{current_expr} for {item_name} in {source}{filter_suffix}]"
+    if is_to_set:
+        base = f"{{{current_expr} for {item_name} in {source}{filter_suffix}}}"
+    elif is_joining:
+        # Basic joining support (delimiter only for phase 1; prefix/suffix fall to general)
+        delim = '""'
+        if terminal_arg is not None and terminal_arg.named_children:
+            # First arg is usually the delimiter string literal or expr
+            delim = translate_expression(terminal_arg.named_children[0], ctx)
+        base = f"({current_expr} for {item_name} in {source}{filter_suffix})"
+        # for joining, wraps like sorted/distinct would apply to the iterable before join
+        if has_sorted:
+            if sorted_key:
+                base = f"sorted({base}, key=lambda {item_name}: {sorted_key})"
+            else:
+                base = f"sorted({base})"
+        if has_distinct:
+            base = f"list(dict.fromkeys({base}))"
+        return f"{delim}.join({base})"
+    else:
+        base = f"[{current_expr} for {item_name} in {source}{filter_suffix}]"
+
+    if has_sorted:
+        if sorted_key:
+            base = f"sorted({base}, key=lambda {item_name}: {sorted_key})"
+        else:
+            base = f"sorted({base})"
+    if has_distinct:
+        base = f"list(dict.fromkeys({base}))"
+    return base
 
 
 def _stream_chain(node: JavaNode) -> tuple[JavaNode, list[tuple[str, JavaNode | None]]] | None:
@@ -368,6 +500,58 @@ def _is_collectors_to_list(node: JavaNode | None) -> bool:
         and receiver.text == "Collectors"
         and name is not None
         and name.text == "toList"
+    )
+
+
+def _is_collectors_to_set(node: JavaNode | None) -> bool:
+    if node is None or node.type != "method_invocation":
+        return False
+    receiver = node.child_by_field("object")
+    name = node.child_by_field("name")
+    return (
+        receiver is not None
+        and receiver.text == "Collectors"
+        and name is not None
+        and name.text == "toSet"
+    )
+
+
+def _is_collectors_joining(node: JavaNode | None) -> bool:
+    if node is None or node.type != "method_invocation":
+        return False
+    receiver = node.child_by_field("object")
+    name = node.child_by_field("name")
+    return (
+        receiver is not None
+        and receiver.text == "Collectors"
+        and name is not None
+        and name.text == "joining"
+    )
+
+
+def _is_collectors_grouping_by(node: JavaNode | None) -> bool:
+    if node is None or node.type != "method_invocation":
+        return False
+    receiver = node.child_by_field("object")
+    name = node.child_by_field("name")
+    return (
+        receiver is not None
+        and receiver.text == "Collectors"
+        and name is not None
+        and name.text == "groupingBy"
+    )
+
+
+def _is_collectors_to_map(node: JavaNode | None) -> bool:
+    if node is None or node.type != "method_invocation":
+        return False
+    receiver = node.child_by_field("object")
+    name = node.child_by_field("name")
+    return (
+        receiver is not None
+        and receiver.text == "Collectors"
+        and name is not None
+        and name.text == "toMap"
     )
 
 
@@ -464,6 +648,76 @@ def _lambda_body_expression(
     return body
 
 
+def _translate_block_lambda(node: JavaNode, ctx: TranslationContext) -> str:
+    """Translate a Java block lambda by emitting a local helper function.
+
+    The helper def is appended to ctx.pending_local_helpers (later flushed near
+    the top of the enclosing method). Only the helper name is returned so it can
+    be used in any expression position while preserving reviewability.
+    """
+    params_node = node.child_by_field("parameters")
+    body_node = node.child_by_field("body")
+    if params_node is None or body_node is None:
+        ctx.diagnostics.record(node, supported=False, reason="malformed lambda expression")
+        return f"__j2py_todo__({node.text!r})"
+
+    params = _lambda_parameters(params_node, ctx)
+
+    # Stable, unique-within-method name. Sequential id keeps names short and
+    # deterministic per method.
+    helper_id = len(ctx.pending_local_helpers) + 1
+    helper_name = f"_j2py_lambda_{helper_id}"
+
+    # Snapshot scope so lambda params/locals don't leak, but outer captures
+    # (including self via in_instance_method + class_fields) remain visible.
+    previous_locals = set(ctx.local_names)
+    previous_types = dict(ctx.variable_types)
+    previous_aliases = dict(ctx.expression_aliases)
+
+    for raw_name, _py_name, py_type in params:
+        ctx.local_names.add(raw_name)
+        if py_type is not None:
+            ctx.variable_types[raw_name] = py_type
+
+    try:
+        # Local import to avoid circular dependency with statements.py
+        # (statements imports translate_expression; we only need translate_body
+        # for the block-lambda helper path).
+        from j2py.translate.statements import translate_body
+
+        # Body of the helper is indented one level deeper than a normal method body.
+        body_lines = translate_body(body_node, ctx, indent="            ")
+    finally:
+        ctx.local_names = previous_locals
+        ctx.variable_types = previous_types
+        ctx.expression_aliases = previous_aliases
+
+    # Build signature. Follow the style of expression lambdas (types only when known).
+    if params:
+        sig_parts: list[str] = []
+        for _raw, py_name, py_type in params:
+            if ctx.cfg.emit_type_hints and py_type:
+                sig_parts.append(f"{py_name}: {py_type}")
+            else:
+                sig_parts.append(py_name)
+        sig = f"{helper_name}({', '.join(sig_parts)})"
+    else:
+        sig = f"{helper_name}()"
+
+    helper_lines: list[str] = [
+        f"        def {sig}:",
+        *body_lines,
+    ]
+
+    ctx.pending_local_helpers.append(helper_lines)
+    ctx.diagnostics.record(
+        node,
+        supported=True,
+        reason="translated block lambda as local helper function",
+    )
+    return helper_name
+
+
 def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str:
     params_node = node.child_by_field("parameters")
     body_node = node.child_by_field("body")
@@ -472,12 +726,7 @@ def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str
         return f"__j2py_todo__({node.text!r})"
 
     if body_node.type == "block":
-        ctx.diagnostics.record(
-            node,
-            supported=False,
-            reason="block lambda requires helper function",
-        )
-        return f"__j2py_todo__({node.text!r})"
+        return _translate_block_lambda(node, ctx)
 
     params = _lambda_parameters(params_node, ctx)
     previous_locals = set(ctx.local_names)

@@ -77,6 +77,11 @@ class TranslationContext:
     expression_aliases: dict[str, str] = field(default_factory=dict)
     in_instance_method: bool = False
 
+    # Block lambdas (and future local helpers) are collected here during expression
+    # translation and flushed near the top of the enclosing method body so the
+    # generated names are in scope and the structure remains reviewable.
+    pending_local_helpers: list[list[str]] = field(default_factory=list)
+
 
 def _compact_text(text: str, *, limit: int = 160) -> str:
     compacted = " ".join(text.split())
