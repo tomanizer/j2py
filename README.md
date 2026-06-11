@@ -14,6 +14,7 @@ Current deterministic rule support includes:
 - tree-sitter Java parsing and symbol extraction
 - class, nested class, basic local/anonymous class helpers, interface, enum, and record
   skeletons
+- interface abstract methods, default methods, and static methods
 - fields, constructors, methods, overload stubs, and simple overload merges
 - common expressions: literals, identifiers, field access, arrays, class literals,
   assignments, updates, ternaries, null checks, common collection calls, and string concat
@@ -36,7 +37,7 @@ Known gaps include:
 - complex constructor dispatch and non-trivial overload bodies
 - advanced inner-class captures, outer-`this` qualification, and anonymous classes with
   non-method members
-- enum constructors/default interface methods/annotation semantics
+- enum constructors and annotation semantics
 - behavioral equivalence testing between Java and Python
 - framework semantics such as Spring dependency injection or Hibernate mappings
 
@@ -81,7 +82,7 @@ The current pinned Spring sample baseline is:
 
 - parse success: 100.00%
 - generated Python syntax success: 91.00%
-- average skeleton coverage: 89.56% across 92 coverage-bearing files
+- average skeleton coverage: 89.59% across 92 coverage-bearing files
 - full-coverage files: 43 of 92 coverage-bearing files
 - files with unhandled constructs: 49 of 100
 - files below 80% coverage: 12 of 92 coverage-bearing files

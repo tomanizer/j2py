@@ -195,8 +195,20 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
                 return "value";
             }
 
+            public String assertThat(String value) {
+                return value;
+            }
+
             public String call() {
                 return list();
+            }
+
+            public String callHelper(String value) {
+                return assertThat(value);
+            }
+
+            public String callGlobal(String value) {
+                return when(value);
             }
 
             public String callExternal(BuiltinHelper helper) {
@@ -208,8 +220,11 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
 
     assert coverage == 1.0
     assert "def list_(self) -> str:" in python_source
-    assert "return list_()" in python_source
+    assert "return self.list_()" in python_source
     assert "return list()" not in python_source
+    assert "return self.assert_that(value)" in python_source
+    assert "return when(value)" in python_source
+    assert "return self.when(value)" not in python_source
     assert "return helper.list()" in python_source
     assert "return helper.list_()" not in python_source
     _assert_valid_python(python_source)
@@ -505,6 +520,41 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     _assert_valid_python(result.source)
 
 
+def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class AnonymousHelpers {
+            interface Maker {
+                Runnable make(String prefix);
+            }
+
+            public Maker maker() {
+                return new Maker() {
+                    @Override
+                    public Runnable make(String prefix) {
+                        return () -> {
+                            System.out.println(prefix);
+                        };
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class _J2pyAnonymous1(Maker):" in result.source
+    assert "def make(self, prefix: str) -> Runnable:" in result.source
+    assert "def _j2py_lambda_1()" in result.source
+    assert "print(prefix)" in result.source
+    assert "return _j2py_lambda_1" in result.source
+    assert result.source.index("def _j2py_lambda_1(") < result.source.index(
+        "return _j2py_lambda_1",
+    )
+    _assert_valid_python(result.source)
+
+
 def test_graduated_issue_20_functional_stream_target_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "Functional.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -584,6 +634,59 @@ def test_switch_statement_translates_returning_cases() -> None:
     assert "return 1" in python_source
     assert "else:" in python_source
     assert "return 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_switch_statement_merges_grouped_labels_and_ignores_label_comments() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                    // grouped with the next label
+                    case 2:
+                        return 3;
+                    default:
+                        return 0;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value in (1, 2):" in python_source
+    assert "# grouped with the next label" in python_source
+    assert "TODO(j2py): unsupported switch group line_comment" not in python_source
+    assert "return 3" in python_source
+    assert "else:" in python_source
+    assert "return 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_switch_statement_merges_grouped_default_label() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                        return 1;
+                    case 2:
+                    default:
+                        throw new IllegalArgumentException();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value == 1:" in python_source
+    assert "else:" in python_source
+    assert "raise ValueError()" in python_source
+    assert "TODO(j2py): switch fall-through requires manual translation" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -849,6 +952,27 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     _assert_valid_python(python_source)
 
 
+def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
+    python_source, coverage = _translate_source(
+        '''
+        public class TextBlocks {
+            public String message() {
+                return """
+                    alpha\\s
+                    beta\\
+                    gamma
+                    """;
+            }
+        }
+        ''',
+    )
+
+    assert coverage == 1.0
+    assert 'return """alpha \nbetagamma\n"""' in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
 def test_sized_array_creation_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "ArrayCreation.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -1033,6 +1157,28 @@ def test_ambiguous_get_invocation_drops_coverage() -> None:
     assert result.diagnostics.unhandled[-1].reason == (
         "ambiguous get invocation requires receiver collection type"
     )
+    _assert_valid_python(result.source)
+
+
+def test_class_style_get_invocation_preserves_static_factory_call() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class Calls {
+            public Object type(Class<?> value) {
+                return ClassName.get(value);
+            }
+
+            public Object qualified(Class<?> value) {
+                return com.example.ClassName.get(value);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return class_name.get(value)" in result.source
+    assert "return com.example.class_name.get(value)" in result.source
+    assert not result.diagnostics.unhandled
     _assert_valid_python(result.source)
 
 
@@ -1892,6 +2038,51 @@ def test_interface_declaration_translates_to_protocol() -> None:
         "interface_declaration",
         "method_declaration",
     ]
+    _assert_valid_python(result.source)
+
+
+def test_interface_default_and_static_methods_translate_to_protocol_bodies() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public interface Greeter {
+            void greet(String name);
+
+            default String greeting(String name) {
+                return "Hello " + name;
+            }
+
+            default String repeat(String name) {
+                greet(name);
+                return greeting(name);
+            }
+
+            static String systemName() {
+                return "j2py";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "from typing import Protocol" in result.source
+    assert "class Greeter(Protocol):" in result.source
+    assert "def greet(self, name: str) -> None: ..." in result.source
+    assert "def greeting(self, name: str) -> str:" in result.source
+    assert 'return f"Hello {name}"' in result.source
+    assert "self.greet(name)" in result.source
+    assert "return self.greeting(name)" in result.source
+    assert "@staticmethod" in result.source
+    assert "def system_name() -> str:" in result.source
+    assert 'return "j2py"' in result.source
+    assert not result.diagnostics.unhandled
+    assert any(
+        diagnostic.reason == "translated interface default method"
+        for diagnostic in result.diagnostics.handled
+    )
+    assert any(
+        diagnostic.reason == "translated interface static method"
+        for diagnostic in result.diagnostics.handled
+    )
     _assert_valid_python(result.source)
 
 
