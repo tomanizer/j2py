@@ -48,12 +48,6 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
         reason="Anonymous classes with non-method members are not fully supported",
     ),
     TranslationTarget(
-        fixture="SwitchFallthrough.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
-        tracking="switch-fallthrough",
-        reason="Switch fall-through is not fully supported",
-    ),
-    TranslationTarget(
         fixture="SuperMethodCalls.java",
         fixture_root=CORPUS_CONSTRUCT_FIXTURES,
         tracking="super-method-calls",

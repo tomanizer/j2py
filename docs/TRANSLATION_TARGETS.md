@@ -27,11 +27,11 @@ The suite has three lanes:
 - **Graduated corpus constructs**: Java fixtures under
   `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
   (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`,
-  `TextBlocks`, `VarKeyword`). These also run in `make check`.
+  `TextBlocks`, `VarKeyword`, `SwitchFallthrough`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
   behavior that should become supported next. Corpus constructs still below full rule
-  coverage (`AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`,
-  `SwitchFallthrough`) are included here. These are marked
+  coverage (`AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`) are included
+  here. These are marked
   `target_translation` and run via `make test-targets`.
 
 Current future corpus-construct backlog:
