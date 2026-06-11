@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 import j2py.pipeline as pipeline
 from j2py.cli.main import app
 from j2py.validate.checks import ValidationResult
+from j2py.verify.structure import StructuralVerificationResult
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
@@ -162,6 +163,86 @@ def test_cli_translate_exits_nonzero_on_validation_failure(
     assert "ruff failed" in result.output
 
 
+def test_cli_translate_exits_nonzero_on_structural_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+            used_llm=True,
+            structural_verification=StructuralVerificationResult(
+                errors=["Missing method in class Sample: run"],
+            ),
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["translate", str(source), "--no-validate", "--dry-run"])
+
+    assert result.exit_code == 1
+    assert "Structural verification issues:" in result.output
+    assert "Missing method in class Sample: run" in result.output
+
+
+def test_cli_translate_directory_exits_nonzero_on_structural_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text("public class Sample {}")
+    output = tmp_path / "out"
+
+    def fake_translate_directory(
+        source_root: Path,
+        output_root: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.DirectoryTranslationResult:
+        result = pipeline.TranslationResult(
+            source_path=source_root / "Sample.java",
+            python_source="class Sample:\n    pass\n",
+            used_llm=True,
+            output_path=output_root / "Sample.py",
+            structural_verification=StructuralVerificationResult(
+                errors=["Missing method in class Sample: run"],
+            ),
+        )
+        return pipeline.DirectoryTranslationResult(
+            source_root=source_root,
+            output_root=output_root,
+            files=[result],
+            order=[source_root / "Sample.java"],
+            warnings=[],
+        )
+
+    monkeypatch.setattr(pipeline, "translate_directory", fake_translate_directory)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["translate", str(source), "--output", str(output)])
+
+    assert result.exit_code == 1
+    assert "Translation verification failures:" in result.output
+    assert "Structural verification issues:" in result.output
+    assert "Missing method in class Sample: run" in result.output
+
+
 def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
     """Files using @overloaded dispatch get j2py_runtime.py written next to them."""
     source = tmp_path / "Over.java"
@@ -264,7 +345,7 @@ def test_cli_compare_missing_python_translates_without_llm_and_opens_diff(
     monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
-    result = runner.invoke(app, ["compare", str(java)])
+    result = runner.invoke(app, ["compare", str(java), "--no-validate"])
 
     assert result.exit_code == 0
     assert python.exists()
@@ -416,7 +497,7 @@ def test_cli_compare_uses_config_when_translating_missing_python(
 
     result = runner.invoke(
         app,
-        ["compare", str(java), "--config", str(config), "--validate", "--no-open"],
+        ["compare", str(java), "--config", str(config), "--no-open"],
     )
 
     assert result.exit_code == 0

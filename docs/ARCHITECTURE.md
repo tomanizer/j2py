@@ -30,12 +30,17 @@ Java source file(s)
 │                                                       │
 │   Returns source, diagnostics, and coverage           │
 └───────┬───────────────────────────────────────────────┘
-        │  coverage < 1.0
+        │  coverage < 1.0 or syntax/type pre-validation fails
         ▼
 ┌───────────────┐
 │   llm/        │  Claude API (Anthropic SDK)
 │               │  prompts.py  → structured system + user messages
 │               │  client.py   → disk-cached, tenacity retry
+└───────┬───────┘
+        │
+        ▼
+┌───────────────┐
+│   verify/     │  post-LLM class/method presence + order checks
 └───────┬───────┘
         │
         ▼
@@ -76,7 +81,8 @@ Java source file(s)
   - `literals.py`: literal token normalisation
 
 ### `llm/` — LLM completion
-- Called only when `skeleton.py` coverage < 1.0
+- Called when `skeleton.py` coverage < 1.0, or when a full-coverage skeleton fails
+  syntax/type pre-validation
 - `prompts.py`: builds a structured prompt with the Java source, partial skeleton, and
   project context plus rule diagnostics; output is plain Python source (no markdown
   fences)
@@ -85,10 +91,15 @@ Java source file(s)
   fingerprint, diagnostics, and validation feedback; 3 retries with exponential
   back-off via `tenacity`
 
+### `verify/` — Structural verification
+- Runs after LLM completion and compares Java symbols with the returned Python AST
+- Checks class and method presence plus declaration order; constructors map to `__init__`
+- Structural failures are stored on `TranslationResult` and fed into the single LLM retry
+
 ### `validate/` — Output validation
 - `checks.py`: three-stage check: syntax → ruff → mypy
 - Returns `ValidationResult`; never raises; errors are collected, not thrown
-- Exposed on `TranslationResult` when validation is requested; can be run standalone
+- Exposed on `TranslationResult` by default; callers can pass `validate=False`
 
 ### `config/` — Layered configuration
 - `default.py`: canonical type, collection, exception, import, and literal maps
@@ -100,7 +111,8 @@ Java source file(s)
 - `translate_file(path, cfg, use_llm, model, validate) → TranslationResult`
 - `translate_directory(source_root, output_root, cfg, use_llm, model, validate) →
   DirectoryTranslationResult`
-- Calls parse → analyze → skeleton → (optionally) LLM → (optionally) validation
+- Calls parse → analyze → skeleton → (optionally) LLM with post-LLM verification →
+  validation
 - Directory mode builds the dependency graph and translates files in dependency order
 
 ### `cli/` — User interface
@@ -122,6 +134,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Python 3.11+ output with type hints | [ADR 0005](decisions/0005-python-311-target-with-type-hints.md) |
 | Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md) |
 | Type declaration translation | [ADR 0007](decisions/0007-type-declaration-translation.md) |
+| Post-LLM structural verification | [ADR 0010](decisions/0010-post-llm-structural-verification.md) |
 
 ## Dependency rules
 
@@ -129,6 +142,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 - `analyze/` imports `parse/` only
 - `translate/` imports `parse/`, `analyze/`, `config/`
 - `llm/` has no parse/analyze/translate imports; pipeline passes context into it
+- `verify/` imports `analyze/` symbols and pure naming helpers only
 - `validate/` imports nothing from j2py
 - `pipeline.py` is the single place that imports across all stages
 - `cli/` imports `pipeline.py` and `config/` only
