@@ -8,12 +8,22 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
+- `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
+  that warnings do not reduce node coverage.
+- Strict xfail `FUTURE_TARGETS` for four corpus constructs still below full rule coverage
+  (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Dependency graph resolves simple type names only when unambiguous; ambiguous `User`-style
+  collisions no longer pick an arbitrary file.
+- `j2py analyze` docstring no longer claims dependency-graph output.
+- `TranslationResult.confidence` documented as rule-layer coverage (unchanged after LLM).
+- Agent docs (`AGENTS.md`, `CLAUDE.md`) updated for graduated vs xfail test tiers.
 - Graduated target fixtures (`tests/fixtures/java/targets/`) now run in `make check` and
   CI; `make test-targets` is reserved for strict `xfail` entries in `FUTURE_TARGETS`.
 - CLI `analyze` reports record types, nested declarations, and parse-error status.

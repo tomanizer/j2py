@@ -54,9 +54,9 @@ Every PR must pass:
 make check     # lint (ruff) + typecheck (mypy strict) + test (pytest)
 ```
 
-Note: `make check` (and normal `pytest`) deliberately exclude the `live_llm`
-marker. The one exploratory live-LLM test can only be run on demand (see
-constraints above).
+Note: `make check` (and normal `pytest`) exclude the `behavior` and `live_llm`
+markers. Graduated roadmap fixtures under `tests/fixtures/java/targets/` run in
+`make check`; future xfail contracts run via `make test-targets`.
 
 CI runs the same checks. A red CI means `make check` was skipped.
 

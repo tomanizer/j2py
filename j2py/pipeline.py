@@ -22,7 +22,7 @@ class TranslationResult:
     source_path: Path
     python_source: str
     used_llm: bool = False
-    confidence: float = 1.0   # 0.0–1.0; <0.8 means LLM was needed for significant portions
+    confidence: float = 1.0   # rule-layer coverage (0.0–1.0); not updated after LLM completion
     parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
