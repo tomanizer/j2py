@@ -15,7 +15,7 @@ from j2py.translate.rules.naming import (
     translate_field_name,
     translate_method_name,
 )
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import java_default_value, translate_type
 
 
 def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
@@ -242,7 +242,7 @@ def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
             (child for child in node.named_children if child.type != "dimensions_expr"),
             None,
         )
-        default = _array_default_value(type_node.text if type_node is not None else "Object")
+        default = java_default_value(type_node.text if type_node is not None else "Object")
         size = translate_expression(dimensions[0].named_children[0], ctx)
         return f"[{default}] * {size}"
     if len(dimensions) > 1:
@@ -258,19 +258,6 @@ def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
         reason="array creation without initializer requires size handling",
     )
     return f"__j2py_todo__({node.text!r})"
-
-
-def _array_default_value(java_type: str) -> str:
-    base_type = java_type.split("<", 1)[0].strip()
-    if base_type in {"byte", "short", "int", "long"}:
-        return "0"
-    if base_type in {"float", "double"}:
-        return "0.0"
-    if base_type == "boolean":
-        return "False"
-    if base_type == "char":
-        return r'"\0"'
-    return "None"
 
 
 def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
@@ -438,7 +425,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "compareTo" and receiver and args:
         return f"({receiver} > {args}) - ({receiver} < {args})"
 
-    if receiver == "self":
+    if receiver in {"self", ""}:
         py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
     else:
         py_method = translate_attribute_method_name(
@@ -1175,7 +1162,10 @@ def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str
         ctx.diagnostics.record(node, supported=False, reason="malformed update expression")
         return f"__j2py_todo__({node.text!r})"
 
-    operator = children[0].text if children[0].text in {"++", "--"} else children[-1].text
+    operator = next(
+        (child.text for child in children if child.text in {"++", "--"}),
+        children[-1].text,
+    )
     target = translate_expression(named_children[0], ctx)
     if operator == "++":
         return f"{target} += 1"

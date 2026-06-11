@@ -16,7 +16,7 @@ from j2py.translate.rules.naming import (
     translate_field_name,
     translate_method_name,
 )
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import java_default_value, translate_type
 from j2py.translate.statements import translate_body
 
 TYPE_DECLARATION_NODES = {
@@ -421,7 +421,7 @@ def _translate_fields(
             supported=True,
             reason="translated Java default value for instance field",
         )
-        default_value = _java_field_default_value(field.java_type)
+        default_value = java_default_value(field.java_type)
         annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
         target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
         instance_init_lines.append(f"        {target} = {default_value}")
@@ -472,7 +472,7 @@ def _translate_static_field(
             supported=True,
             reason="translated Java default value for static field",
         )
-        default_value = _java_field_default_value(field.java_type)
+        default_value = java_default_value(field.java_type)
         annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
         return [
             f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}",
@@ -483,21 +483,6 @@ def _translate_static_field(
         f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = "
         f"{translate_expression(field.initializer, ctx)}",
     ]
-
-
-def _java_field_default_value(java_type: str) -> str:
-    base_type = java_type.split("<", 1)[0].strip()
-    if base_type.endswith("[]"):
-        return "None"
-    if base_type in {"byte", "short", "int", "long"}:
-        return "0"
-    if base_type in {"float", "double"}:
-        return "0.0"
-    if base_type == "boolean":
-        return "False"
-    if base_type == "char":
-        return r'"\0"'
-    return "None"
 
 
 def _member_groups(members: list[JavaNode]) -> list[list[JavaNode]]:

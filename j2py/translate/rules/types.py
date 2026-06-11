@@ -73,6 +73,22 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
     return java_type
 
 
+def java_default_value(java_type: str) -> str:
+    """Return the Java default value expression for a field or sized array element."""
+    base_type = _strip_type_annotations(java_type).split("<", 1)[0].strip()
+    if base_type.endswith("[]"):
+        return "None"
+    if base_type in {"byte", "short", "int", "long"}:
+        return "0"
+    if base_type in {"float", "double"}:
+        return "0.0"
+    if base_type == "boolean":
+        return "False"
+    if base_type == "char":
+        return r'"\0"'
+    return "None"
+
+
 def _split_type_params(params_str: str) -> list[str]:
     """Split comma-separated type params respecting nested angle brackets."""
     depth = 0

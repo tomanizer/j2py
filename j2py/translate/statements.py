@@ -319,6 +319,9 @@ def _translate_try_with_resources(
     resource_bindings: list[tuple[str, str]] = []
     for resource in direct_children_by_type(resources, "resource"):
         named = resource.named_children
+        if len(named) == 1:
+            resource_parts.append(translate_expression(named[0], ctx))
+            continue
         if len(named) < 3:
             ctx.diagnostics.record(
                 resource,

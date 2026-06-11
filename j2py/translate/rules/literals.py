@@ -30,7 +30,7 @@ def translate_literal(token: str, cfg: TranslationConfig) -> str:
 
     # Java octal: 0777 → Python 0o777
     if re.match(r"^0[0-7_]+$", token) and not token.lower().startswith("0o"):
-        return f"0o{token[1:]}"
+        return f"0o{token[1:].lstrip('_')}"
 
     # Char literal: 'a' → "a"
     if re.match(r"^'[^']'$", token) or re.match(r"^'\\.'$", token):

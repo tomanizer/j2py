@@ -181,6 +181,28 @@ def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
     _assert_valid_python(python_source)
 
 
+def test_receiverless_method_call_escapes_python_builtin_name() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class BuiltinName {
+            public String list() {
+                return "value";
+            }
+
+            public String call() {
+                return list();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def list_(self) -> str:" in python_source
+    assert "return list_()" in python_source
+    assert "return list()" not in python_source
+    _assert_valid_python(python_source)
+
+
 def test_non_empty_collection_constructor_translates_to_copy() -> None:
     python_source, coverage = _translate_source(
         """
@@ -257,6 +279,25 @@ def test_prefix_and_postfix_updates_translate() -> None:
     assert coverage == 1.0
     assert python_source.count("value += 1") == 2
     assert python_source.count("value -= 1") == 2
+    assert "unsupported update operator" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_update_expression_operator_search_ignores_comment_tokens() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Updates {
+            public int apply(int value) {
+                /* prefix marker */ ++value;
+                value /* postfix marker */ ++;
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("value += 1") == 2
     assert "unsupported update operator" not in python_source
     _assert_valid_python(python_source)
 
@@ -853,6 +894,26 @@ def test_try_with_resources_target_fixture_translates() -> None:
     assert "return resource.read()" in result.source
     assert "__j2py_todo__" not in result.source
     _assert_valid_python(result.source)
+
+
+def test_try_with_resources_effectively_final_resource_translates() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class TryWithResourceVariable {
+            public String read(Resource resource) {
+                try (resource) {
+                    return resource.read();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "with resource:" in python_source
+    assert "return resource.read()" in python_source
+    assert "malformed try-with-resources resource" not in python_source
+    _assert_valid_python(python_source)
 
 
 def test_static_initializer_and_synchronized_target_fixture_translates() -> None:
