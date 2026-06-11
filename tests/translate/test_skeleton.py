@@ -908,6 +908,27 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     _assert_valid_python(python_source)
 
 
+def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
+    python_source, coverage = _translate_source(
+        '''
+        public class TextBlocks {
+            public String message() {
+                return """
+                    alpha\\s
+                    beta\\
+                    gamma
+                    """;
+            }
+        }
+        ''',
+    )
+
+    assert coverage == 1.0
+    assert 'return """alpha \nbetagamma\n"""' in python_source
+    assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
 def test_sized_array_creation_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "ArrayCreation.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
