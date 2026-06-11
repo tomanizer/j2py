@@ -106,6 +106,47 @@ def test_cli_translate_exits_nonzero_on_validation_failure(
     assert "ruff failed" in result.output
 
 
+def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
+    """Files using @overloaded dispatch get j2py_runtime.py written next to them."""
+    source = tmp_path / "Over.java"
+    source.write_text(
+        """
+        public class Over {
+            public int get(int value) { return value; }
+            public int get(String value) { return 1; }
+        }
+        """,
+    )
+    output = tmp_path / "Over.py"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert "from j2py_runtime import overloaded" in output.read_text()
+    runtime = tmp_path / "j2py_runtime.py"
+    assert runtime.exists()
+    assert "class overloaded" in runtime.read_text()
+
+
+def test_cli_translate_skips_runtime_module_when_dispatch_unused(tmp_path: Path) -> None:
+    source = tmp_path / "Plain.java"
+    source.write_text("public class Plain {}")
+    output = tmp_path / "Plain.py"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert not (tmp_path / "j2py_runtime.py").exists()
+
+
 def test_cli_compare_existing_python_skips_translation_and_opens_diff(
     tmp_path: Path,
     monkeypatch,
@@ -286,3 +327,36 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     assert result.exit_code == 0
     assert python.exists()
     assert observed_string_types == ["Text"]
+
+
+def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="from j2py_runtime import overloaded\n\nclass Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--no-open"])
+
+    assert result.exit_code == 0
+    assert "from j2py_runtime import overloaded" in python.read_text()
+    runtime = tmp_path / "j2py_runtime.py"
+    assert runtime.exists()
+    assert "class overloaded" in runtime.read_text()

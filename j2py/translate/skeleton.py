@@ -9,6 +9,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
 from j2py.translate.classes import top_level_classes, translate_class
 from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.runtime import RUNTIME_IMPORT_LINE
 
 
 @dataclass
@@ -83,17 +84,20 @@ def _import_lines(
             imports.update(line for line in mapped.splitlines() if line.strip())
 
     flattened = "\n".join(line for block in class_blocks for line in block)
+    stripped_lines = {line.strip() for block in class_blocks for line in block}
     if "@dataclass(frozen=True)" in flattened:
         imports.add("from dataclasses import dataclass")
     if "Enum):" in flattened:
         imports.add("from enum import Enum")
+    if "@overloaded" in stripped_lines:
+        imports.add(RUNTIME_IMPORT_LINE)
 
     typing_names: set[str] = set()
     if "Any" in flattened:
         typing_names.add("Any")
     if "(Protocol):" in flattened:
         typing_names.add("Protocol")
-    if "@overload" in flattened:
+    if "@overload" in stripped_lines:
         typing_names.add("overload")
     if typing_names:
         imports.add(f"from typing import {', '.join(sorted(typing_names))}")

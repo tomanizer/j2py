@@ -77,11 +77,27 @@ def _translate_single(
     dest = output or source.with_suffix(".py")
     dest.write_text(result.python_source)
     console.print(f"[green]Written:[/green] {dest}")
+    _emit_runtime_module(dest.parent, [result.python_source])
 
     if validate and result.validation is not None:
         _print_validation(result.validation)
         if not result.validation.ok:
             raise typer.Exit(code=1)
+
+
+def _emit_runtime_module(output_root: Path, sources: list[str]) -> None:
+    """Vendor j2py_runtime.py next to translated output when dispatch is used."""
+    from j2py.translate.runtime import (
+        RUNTIME_IMPORT_LINE,
+        RUNTIME_MODULE_NAME,
+        runtime_module_source,
+    )
+
+    if not any(RUNTIME_IMPORT_LINE in source for source in sources):
+        return
+    runtime_path = output_root / f"{RUNTIME_MODULE_NAME}.py"
+    runtime_path.write_text(runtime_module_source())
+    console.print(f"[green]Written:[/green] {runtime_path} (overload dispatch runtime)")
 
 
 def _translate_dir(
@@ -129,6 +145,9 @@ def _translate_dir(
                 result.output_path.parent.mkdir(parents=True, exist_ok=True)
                 result.output_path.write_text(result.python_source)
             progress.advance(task)
+
+    if not dry_run:
+        _emit_runtime_module(output, [result.python_source for result in batch.files])
 
     console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
     failures = [
@@ -219,6 +238,7 @@ def compare(
         py_path.parent.mkdir(parents=True, exist_ok=True)
         py_path.write_text(result.python_source)
         console.print(f"[green]Written:[/green] {py_path}")
+        _emit_runtime_module(py_path.parent, [result.python_source])
 
     if no_open:
         console.print(f"Java:   {source}", soft_wrap=True)

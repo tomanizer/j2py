@@ -1,7 +1,9 @@
 # ADR 0006 — Overload translation policy
 
 **Date:** 2026-06-10
-**Status:** Accepted
+**Status:** Accepted (extended by [ADR 0009](0009-two-tier-overload-translation.md):
+chained delegation merges, sentinel defaults, and runtime dispatch for
+type-dispatch groups)
 
 ## Context
 

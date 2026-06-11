@@ -1,11 +1,12 @@
 # Translation Target Tests
 
-The normal fixture suite records behavior that j2py already supports. The target suite
-records behavior j2py needs to support next.
+The normal fixture suite records behavior that j2py already supports as exact Java to
+Python fixture pairs. The target suite records roadmap examples and graduated roadmap
+fixtures that should keep translating cleanly.
 
-Target tests are allowed to fail today. They are marked with `target_translation` and
-excluded from `make check` so roadmap work can add realistic Java examples before the
-translator can handle them.
+Target tests are marked with `target_translation` and excluded from `make check`.
+This keeps the normal gate focused on the supported fixture contract while letting
+roadmap examples run on demand.
 
 Run the normal gate:
 
@@ -19,7 +20,15 @@ Run the roadmap target scoreboard:
 make test-targets
 ```
 
-Each target case has:
+The suite has two lanes:
+
+- **Graduated targets**: Java fixtures under `tests/fixtures/java/targets/` that now
+  translate deterministically. These must parse, produce valid Python, reach
+  `coverage == 1.0`, and report no unhandled diagnostics.
+- **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
+  behavior that should become supported next.
+
+Each future target case has:
 
 - a Java fixture under `tests/fixtures/java/targets/`
 - expected Python fragments that describe the future translation contract
@@ -28,16 +37,17 @@ Each target case has:
 
 When implementing a translation rule:
 
-1. Run `make test-targets` and identify the xfail target that should become supported.
+1. Run `make test-targets` and identify the future or graduated target affected by the
+   change.
 2. Implement the smallest deterministic rule that makes that target pass.
 3. Move or copy the now-supported behavior into the normal fixture suite under
    `tests/fixtures/java/` and `tests/fixtures/python/`.
-4. Remove the `xfail` mark for the target, or delete the target if the normal fixture
-   fully covers it.
+4. Move the target from `FUTURE_TARGETS` into the graduated fixture check, or delete it
+   if the normal fixture fully covers it.
 5. Run `make check` and `make test-targets`.
 
 This gives us two signals:
 
 - `make check`: supported behavior must stay green.
-- `make test-targets`: roadmap behavior shows what is still missing and alerts us when
-  a target unexpectedly starts passing.
+- `make test-targets`: graduated roadmap behavior must stay green, and future xfail
+  targets alert us when missing behavior unexpectedly starts passing.

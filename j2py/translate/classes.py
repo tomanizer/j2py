@@ -27,6 +27,22 @@ TYPE_DECLARATION_NODES = {
     "annotation_type_declaration",
 }
 
+# Java literal node types that are safe as Python default parameter values.
+# Anything else (constructor calls, collection literals, ...) must become a
+# None sentinel so the default is not shared across calls.
+_IMMUTABLE_LITERAL_NODES = {
+    "decimal_integer_literal",
+    "hex_integer_literal",
+    "octal_integer_literal",
+    "binary_integer_literal",
+    "decimal_floating_point_literal",
+    "string_literal",
+    "character_literal",
+    "true",
+    "false",
+    "null_literal",
+}
+
 
 @dataclass(frozen=True)
 class FieldInfo:
@@ -44,6 +60,7 @@ class ParameterInfo:
     raw_name: str
     py_name: str
     py_type: str
+    is_spread: bool = False
 
 
 def top_level_classes(root: JavaNode) -> list[JavaNode]:
@@ -674,15 +691,17 @@ def _translate_method(
     ctx: TranslationContext,
     *,
     unsupported_reason: str | None = None,
-    supported_reason: str = "translated method declaration",
     pre_body_lines: list[str] | None = None,
+    decorator_lines: list[str] | None = None,
+    def_line_suffix: str = "",
+    supported_reason: str | None = None,
 ) -> list[str]:
     _record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
     supported = node.type in {"constructor_declaration", "method_declaration"}
     ctx.diagnostics.record(
         node,
         supported=supported and unsupported_reason is None,
-        reason=unsupported_reason or supported_reason,
+        reason=unsupported_reason or supported_reason or "translated method declaration",
     )
 
     is_constructor = node.type == "constructor_declaration"
@@ -704,11 +723,11 @@ def _translate_method(
     if unsupported_reason is not None:
         return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
-    lines: list[str] = []
+    lines: list[str] = list(decorator_lines or [])
     if is_static:
         lines.append("    @staticmethod")
     returns = f" -> {return_type}" if ctx.cfg.emit_type_hints else ""
-    lines.append(f"    def {py_name}({', '.join(params)}){returns}:")
+    lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
 
     body = node.child_by_field("body")
     if body is None:
@@ -759,27 +778,38 @@ def _translate_overloaded_members(
         )
         if merged_constructor is not None:
             return merged_constructor
+    else:
+        merged_method = _merged_method_overload(
+            members,
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=class_fields,
+            class_field_types=field_types,
+            class_methods=class_methods or set(),
+        )
+        if merged_method is not None:
+            return merged_method
 
-    merged_method = _merged_method_overload(
+        forwarded_method = _merged_forwarding_method_overload(
+            members,
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=class_fields,
+            class_field_types=field_types,
+        )
+        if forwarded_method is not None:
+            return forwarded_method
+
+    dispatched = _dispatch_overload_members(
         members,
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_field_types=field_types,
-        class_methods=class_methods or set(),
+        pre_body_lines=pre_body_lines,
     )
-    if merged_method is not None:
-        return merged_method
-
-    dispatched_method = _dispatch_overloaded_members(
-        members,
-        cfg=cfg,
-        diagnostics=diagnostics,
-        class_fields=class_fields,
-        class_field_types=field_types,
-    )
-    if dispatched_method is not None:
-        return dispatched_method
+    if dispatched is not None:
+        return dispatched
 
     for member in members:
         diagnostics.record(
@@ -803,6 +833,21 @@ def _translate_overloaded_members(
     return lines
 
 
+@dataclass(frozen=True)
+class _OverloadForward:
+    """One member of an overload group with its forwarded argument nodes, if any."""
+
+    member: JavaNode
+    params: list[ParameterInfo]
+    forwarded: list[JavaNode] | None
+
+
+@dataclass(frozen=True)
+class _MergedDefault:
+    text: str
+    is_literal: bool
+
+
 def _merged_constructor_overload(
     members: list[JavaNode],
     *,
@@ -813,29 +858,30 @@ def _merged_constructor_overload(
     class_methods: set[str],
     pre_body_lines: list[str],
 ) -> list[str] | None:
-    implementation = _constructor_implementation_candidate(members, cfg)
-    if implementation is None:
+    forwards = [
+        _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
+        for member in members
+    ]
+    merged = _resolve_overload_defaults(forwards, cfg)
+    if merged is None:
         return None
-
-    params = _parameter_infos(implementation, cfg)
-    defaults: dict[str, str] = {}
-    for member in members:
-        if member == implementation:
-            continue
-        forwarded_args = _constructor_delegation_args(member, cfg)
-        if forwarded_args is None or len(forwarded_args) != len(params):
-            return None
-        for param, arg in zip(params, forwarded_args, strict=True):
-            defaults[param.py_name] = arg
+    impl, defaults_by_position, throwaway_diagnostics = merged
+    diagnostics.handled.extend(throwaway_diagnostics.handled)
+    diagnostics.unhandled.extend(throwaway_diagnostics.unhandled)
+    diagnostics.warnings.extend(throwaway_diagnostics.warnings)
 
     diagnostics.record(
-        implementation,
+        impl.member,
         supported=True,
         reason="translated overloaded constructor implementation",
     )
-    for member in members:
-        if member != implementation:
-            diagnostics.record(member, supported=True, reason="translated constructor delegation")
+    for forward in forwards:
+        if forward is not impl:
+            diagnostics.record(
+                forward.member,
+                supported=True,
+                reason="translated constructor delegation",
+            )
 
     ctx = TranslationContext(
         cfg=cfg,
@@ -846,22 +892,27 @@ def _merged_constructor_overload(
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = True
-    for param in params:
-        ctx.param_names.add(param.raw_name)
-        ctx.variable_types[param.raw_name] = param.py_type
+    for param in impl.params:
+        _register_param(ctx, param)
+
+    signature_params, defaults, sentinel_lines = _defaulted_parameters(
+        impl.params,
+        defaults_by_position,
+    )
 
     lines = _overload_stubs(members, cfg)
     signature = _signature(
         "__init__",
-        params,
+        signature_params,
         return_type="None",
         include_self=True,
         defaults=defaults,
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    body = _method_body(implementation)
+    body = _method_body(impl.member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    lines.extend(sentinel_lines)
     lines.extend(pre_body_lines)
 
     # Flush block-lambda helpers for the merged constructor implementation
@@ -873,6 +924,246 @@ def _merged_constructor_overload(
 
     lines.extend(body_lines)
     return lines
+
+
+def _merged_forwarding_method_overload(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+) -> list[str] | None:
+    """Merge builder-style overloads where shorter ones forward to the longest one."""
+    if any(member.type != "method_declaration" for member in members):
+        return None
+    is_static = "static" in _modifiers(members[0])
+    if any(("static" in _modifiers(member)) != is_static for member in members):
+        return None
+
+    forwards = [
+        _OverloadForward(member, _parameter_infos(member, cfg), _method_forward_args(member))
+        for member in members
+    ]
+    merged = _resolve_overload_defaults(forwards, cfg)
+    if merged is None:
+        return None
+    impl, defaults_by_position, throwaway_diagnostics = merged
+    if _method_body(impl.member) is None:
+        return None
+    diagnostics.handled.extend(throwaway_diagnostics.handled)
+    diagnostics.unhandled.extend(throwaway_diagnostics.unhandled)
+    diagnostics.warnings.extend(throwaway_diagnostics.warnings)
+
+    diagnostics.record(
+        impl.member,
+        supported=True,
+        reason="translated overloaded method implementation",
+    )
+    for forward in forwards:
+        if forward is not impl:
+            diagnostics.record(
+                forward.member,
+                supported=True,
+                reason="translated forwarding method overload",
+            )
+
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        allow_local_helpers=True,
+    )
+    ctx.class_field_types = dict(class_field_types)
+    ctx.in_instance_method = not is_static
+    for param in impl.params:
+        _register_param(ctx, param)
+
+    signature_params, defaults, sentinel_lines = _defaulted_parameters(
+        impl.params,
+        defaults_by_position,
+    )
+    return_type = _union_types(_return_type(member, cfg) for member in members)
+
+    lines = _overload_stubs(members, cfg)
+    if is_static:
+        lines.append("    @staticmethod")
+    signature = _signature(
+        _member_python_name(impl.member),
+        signature_params,
+        return_type=return_type,
+        include_self=not is_static,
+        defaults=defaults,
+        emit_type_hints=cfg.emit_type_hints,
+    )
+    lines.append(f"    {signature}:")
+    body = _method_body(impl.member)
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    lines.extend(sentinel_lines)
+
+    # Flush block-lambda helpers for the merged method implementation.
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
+    lines.extend(body_lines)
+    return lines
+
+
+def _resolve_overload_defaults(
+    forwards: list[_OverloadForward],
+    cfg: TranslationConfig,
+) -> tuple[_OverloadForward, dict[int, _MergedDefault], TranslationDiagnostics] | None:
+    """Resolve forwarding chains into per-position defaults on the implementation.
+
+    Returns None unless the group has exactly one non-forwarding implementation,
+    pairwise-distinct arities, and every other overload passes its own parameters
+    through positionally and forwards only closed expressions for the rest.
+    """
+    implementations = [forward for forward in forwards if forward.forwarded is None]
+    if len(implementations) != 1:
+        return None
+    impl = implementations[0]
+    if not impl.params:
+        return None
+
+    arities = [len(forward.params) for forward in forwards]
+    if len(set(arities)) != len(arities):
+        return None
+    by_arity = {len(forward.params): forward for forward in forwards}
+
+    defaults_by_position: dict[int, _MergedDefault] = {}
+    throwaway_diagnostics = TranslationDiagnostics()
+    throwaway = TranslationContext(cfg=cfg, diagnostics=throwaway_diagnostics)
+    for forward in forwards:
+        if forward is impl:
+            continue
+        vector = _resolve_forward_chain(forward, by_arity, impl)
+        if vector is None or len(vector) != len(impl.params):
+            return None
+        prefix = len(forward.params)
+        for position, entry in enumerate(vector):
+            if position < prefix:
+                if entry != position:
+                    return None
+                continue
+            if isinstance(entry, int):
+                return None
+            default = _MergedDefault(
+                text=translate_expression(entry, throwaway),
+                is_literal=_is_immutable_literal(entry),
+            )
+            existing = defaults_by_position.get(position)
+            if existing is not None and existing != default:
+                return None
+            defaults_by_position[position] = default
+
+    if not defaults_by_position:
+        return None
+    return impl, defaults_by_position, throwaway_diagnostics
+
+
+def _resolve_forward_chain(
+    start: _OverloadForward,
+    by_arity: dict[int, _OverloadForward],
+    impl: _OverloadForward,
+) -> list[int | JavaNode] | None:
+    """Follow this(...)/method forwarding hops down to the implementation arity.
+
+    Vector entries are either an index into ``start``'s parameters (pass-through)
+    or a closed expression node contributed somewhere along the chain.
+    """
+    assert start.forwarded is not None
+    own_names = {param.raw_name: index for index, param in enumerate(start.params)}
+    vector = _forward_entries(start.forwarded, own_names)
+    if vector is None:
+        return None
+
+    visited = {len(start.params)}
+    while True:
+        arity = len(vector)
+        if arity in visited:
+            return None
+        visited.add(arity)
+        target = by_arity.get(arity)
+        if target is None:
+            return None
+        if target is impl:
+            return vector
+        if target.forwarded is None:
+            return None
+        target_names = {param.raw_name: index for index, param in enumerate(target.params)}
+        next_vector: list[int | JavaNode] = []
+        for arg in target.forwarded:
+            if arg.type == "identifier" and arg.text in target_names:
+                next_vector.append(vector[target_names[arg.text]])
+            elif _references_names(arg, set(target_names)):
+                return None
+            else:
+                next_vector.append(arg)
+        vector = next_vector
+
+
+def _forward_entries(
+    args: list[JavaNode],
+    own_names: dict[str, int],
+) -> list[int | JavaNode] | None:
+    entries: list[int | JavaNode] = []
+    for arg in args:
+        if arg.type == "identifier" and arg.text in own_names:
+            entries.append(own_names[arg.text])
+        elif _references_names(arg, set(own_names)):
+            return None
+        else:
+            entries.append(arg)
+    return entries
+
+
+def _references_names(node: JavaNode, names: set[str]) -> bool:
+    return any(child.type == "identifier" and child.text in names for child in node.walk())
+
+
+def _is_immutable_literal(node: JavaNode) -> bool:
+    if node.type in _IMMUTABLE_LITERAL_NODES:
+        return True
+    if node.type == "unary_expression":
+        children = node.named_children
+        return len(children) == 1 and children[0].type in _IMMUTABLE_LITERAL_NODES
+    return False
+
+
+def _defaulted_parameters(
+    params: list[ParameterInfo],
+    defaults_by_position: dict[int, _MergedDefault],
+) -> tuple[list[ParameterInfo], dict[str, str], list[str]]:
+    """Apply merged defaults to the implementation parameters.
+
+    Immutable literals become plain Python default values. Anything else uses a
+    None sentinel plus a normalization line so mutable defaults are not shared.
+    """
+    signature_params: list[ParameterInfo] = []
+    defaults: dict[str, str] = {}
+    sentinel_lines: list[str] = []
+    for position, param in enumerate(params):
+        default = defaults_by_position.get(position)
+        if default is None:
+            signature_params.append(param)
+            continue
+        if default.is_literal:
+            signature_params.append(param)
+            defaults[param.py_name] = default.text
+            continue
+        annotation = (
+            param.py_type if param.py_type.endswith("| None") else f"{param.py_type} | None"
+        )
+        signature_params.append(
+            ParameterInfo(raw_name=param.raw_name, py_name=param.py_name, py_type=annotation),
+        )
+        defaults[param.py_name] = "None"
+        sentinel_lines.append(f"        if {param.py_name} is None:")
+        sentinel_lines.append(f"            {param.py_name} = {default.text}")
+    return signature_params, defaults, sentinel_lines
 
 
 def _merged_method_overload(
@@ -913,6 +1204,7 @@ def _merged_method_overload(
             raw_name=param_sets[0][index].raw_name,
             py_name=param_sets[0][index].py_name,
             py_type=_union_types(params[index].py_type for params in param_sets),
+            is_spread=param_sets[0][index].is_spread,
         )
         for index in range(len(param_sets[0]))
     ]
@@ -931,8 +1223,7 @@ def _merged_method_overload(
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = not is_static
     for param in merged_params:
-        ctx.param_names.add(param.raw_name)
-        ctx.variable_types[param.raw_name] = param.py_type
+        _register_param(ctx, param)
 
     lines = _overload_stubs(members, cfg)
     if is_static:
@@ -958,102 +1249,8 @@ def _merged_method_overload(
     return lines
 
 
-def _dispatch_overloaded_members(
-    members: list[JavaNode],
-    *,
-    cfg: TranslationConfig,
-    diagnostics: TranslationDiagnostics,
-    class_fields: set[str],
-    class_field_types: dict[str, str],
-) -> list[str] | None:
-    if any(member.type != "method_declaration" for member in members):
-        return None
-    param_sets = [_parameter_infos(member, cfg) for member in members]
-    param_counts = [len(params) for params in param_sets]
-    if len(set(param_counts)) != len(param_counts):
-        return None
-    is_static = "static" in _modifiers(members[0])
-    if any(("static" in _modifiers(member)) != is_static for member in members):
-        return None
-
-    name = _member_python_name(members[0])
-    return_type = _union_types(_return_type(member, cfg) for member in members)
-    for member in members:
-        diagnostics.record(member, supported=True, reason="translated overloaded method dispatch")
-
-    dispatch_ctx = TranslationContext(
-        cfg=cfg,
-        diagnostics=diagnostics,
-        class_fields=class_fields,
-        class_field_types=class_field_types,
-        allow_local_helpers=True,
-    )
-    dispatch_ctx.in_instance_method = not is_static
-    branch_bodies: list[tuple[list[ParameterInfo], list[str]]] = []
-    for member, params in zip(members, param_sets, strict=True):
-        previous_param_names = set(dispatch_ctx.param_names)
-        previous_types = dict(dispatch_ctx.variable_types)
-        for param in params:
-            dispatch_ctx.param_names.add(param.raw_name)
-            dispatch_ctx.variable_types[param.raw_name] = param.py_type
-        body = _method_body(member)
-        body_lines = (
-            translate_body(body, dispatch_ctx, indent="            ")
-            if body
-            else ["            pass"]
-        )
-        dispatch_ctx.param_names = previous_param_names
-        dispatch_ctx.variable_types = previous_types
-        branch_bodies.append((params, body_lines))
-
-    lines = _overload_stubs(members, cfg)
-    if is_static:
-        lines.append("    @staticmethod")
-    fallback_params = "*args: object" if is_static else "self, *args: object"
-    lines.append(f"    def {name}({fallback_params}) -> {return_type}:")
-    if dispatch_ctx.pending_local_helpers:
-        for helper in dispatch_ctx.pending_local_helpers:
-            lines.append("")
-            lines.extend(helper)
-
-    for params, body_lines in branch_bodies:
-        lines.append(f"        if len(args) == {len(params)}:")
-        if params:
-            target_names = ", ".join(param.py_name for param in params)
-            source = "args[0]" if len(params) == 1 else "args"
-            lines.append(f"            {target_names} = {source}")
-        lines.extend(body_lines)
-        if not _lines_end_with_terminal(body_lines):
-            lines.append("            return None")
-    lines.append(f'        raise TypeError("No matching overload for {name}")')
-    return lines
-
-
-def _lines_end_with_terminal(lines: list[str]) -> bool:
-    for line in reversed(lines):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        return stripped.startswith(("return", "raise"))
-    return False
-
-
-def _constructor_implementation_candidate(
-    members: list[JavaNode],
-    cfg: TranslationConfig,
-) -> JavaNode | None:
-    candidates = [
-        member
-        for member in members
-        if _constructor_delegation_args(member, cfg) is None
-        and len(_parameter_infos(member, cfg)) > 0
-    ]
-    if len(candidates) != 1:
-        return None
-    return candidates[0]
-
-
-def _constructor_delegation_args(member: JavaNode, cfg: TranslationConfig) -> list[str] | None:
+def _constructor_forward_args(member: JavaNode) -> list[JavaNode] | None:
+    """Return the argument nodes of a pure this(...) delegating constructor."""
     body = _method_body(member)
     if body is None:
         return None
@@ -1065,10 +1262,154 @@ def _constructor_delegation_args(member: JavaNode, cfg: TranslationConfig) -> li
     if target is None or target.type != "this":
         return None
     args_node = first_child_by_type(invocation, "argument_list")
-    if args_node is None:
-        return []
-    ctx = TranslationContext(cfg=cfg, diagnostics=TranslationDiagnostics())
-    return [translate_expression(arg, ctx) for arg in args_node.named_children]
+    return [] if args_node is None else list(args_node.named_children)
+
+
+def _method_forward_args(member: JavaNode) -> list[JavaNode] | None:
+    """Return the argument nodes of a pure same-name forwarding method overload."""
+    name_node = member.child_by_field("name")
+    if name_node is None:
+        return None
+    body = _method_body(member)
+    if body is None:
+        return None
+    children = body.named_children
+    if len(children) != 1:
+        return None
+    statement = children[0]
+    if statement.type in {"return_statement", "expression_statement"}:
+        inner = statement.named_children
+        if len(inner) != 1:
+            return None
+        invocation = inner[0]
+    else:
+        return None
+    if invocation.type != "method_invocation":
+        return None
+    invoked_name = invocation.child_by_field("name")
+    if invoked_name is None or invoked_name.text != name_node.text:
+        return None
+    receiver = invocation.child_by_field("object")
+    if receiver is not None and receiver.type != "this":
+        return None
+    args_node = first_child_by_type(invocation, "argument_list")
+    return [] if args_node is None else list(args_node.named_children)
+
+
+def _dispatch_overload_members(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    pre_body_lines: list[str],
+) -> list[str] | None:
+    """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
+
+    This preserves every Java overload body 1:1. It only applies when the erased
+    Python signatures stay pairwise distinct, so runtime dispatch has a chance of
+    telling the overloads apart (see ADR 0009).
+    """
+    if any(
+        member.type not in {"constructor_declaration", "method_declaration"} for member in members
+    ):
+        return None
+    if any(member.type != members[0].type for member in members):
+        return None
+    if any("static" in _modifiers(member) for member in members):
+        return None
+
+    erased = [_erased_overload_signature(member, cfg) for member in members]
+    if len(set(erased)) != len(erased):
+        return None
+
+    is_constructor = members[0].type == "constructor_declaration"
+    reason = (
+        "translated overloaded constructor via runtime dispatch"
+        if is_constructor
+        else "translated overloaded method via runtime dispatch"
+    )
+
+    name_node = members[0].child_by_field("name")
+    java_name = name_node.text if name_node is not None and not is_constructor else ""
+    lines: list[str] = []
+    for index, member in enumerate(members):
+        if index:
+            lines.append("")
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=class_fields,
+            class_field_types=dict(class_field_types),
+            allow_local_helpers=True,
+            self_dispatch_methods={java_name} if java_name else set(),
+        )
+        member_pre_body = (
+            pre_body_lines if is_constructor and not _has_this_delegation(member) else []
+        )
+        lines.extend(
+            _translate_method(
+                member,
+                ctx,
+                pre_body_lines=member_pre_body,
+                decorator_lines=["    @overloaded"],
+                def_line_suffix=("" if index == 0 else "  # type: ignore[no-redef]  # noqa: F811"),
+                supported_reason=reason,
+            ),
+        )
+    return lines
+
+
+def _erased_overload_signature(member: JavaNode, cfg: TranslationConfig) -> tuple[str, ...]:
+    return tuple(
+        ("*" if param.is_spread else "") + _erase_py_type(param.py_type)
+        for param in _parameter_infos(member, cfg)
+    )
+
+
+def _erase_py_type(py_type: str) -> str:
+    """Reduce a Python annotation to the part isinstance dispatch can see."""
+    text = py_type.strip()
+    prefix = ""
+    if text.startswith("*"):
+        prefix, text = "*", text[1:].strip()
+    parts = _split_top_level_union(text)
+    if len(parts) > 1:
+        return prefix + " | ".join(sorted({_erase_py_type(part) for part in parts}))
+    base = text.split("[", 1)[0].strip()
+    if base in {"Callable", "typing.Callable", "collections.abc.Callable"}:
+        base = "Callable"
+    return prefix + base
+
+
+def _split_top_level_union(text: str) -> list[str]:
+    parts: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in text:
+        if char in "[(":
+            depth += 1
+        elif char in "])":
+            depth -= 1
+        if char == "|" and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current).strip())
+    return [part for part in parts if part]
+
+
+def _has_this_delegation(member: JavaNode) -> bool:
+    body = _method_body(member)
+    if body is None:
+        return False
+    for invocation in body.find_all("explicit_constructor_invocation"):
+        target = invocation.named_children[0] if invocation.named_children else None
+        if target is not None and target.type == "this":
+            return True
+    return False
 
 
 def _overload_stubs(members: list[JavaNode], cfg: TranslationConfig) -> list[str]:
@@ -1102,11 +1443,16 @@ def _signature(
 ) -> str:
     defaults = defaults or {}
     rendered = ["self"] if include_self else []
-    rendered.extend(
-        (f"{param.py_name}: {param.py_type}" if emit_type_hints else param.py_name)
-        + (f" = {defaults[param.py_name]}" if param.py_name in defaults else "")
-        for param in params
-    )
+    for param in params:
+        prefix = "*" if param.is_spread else ""
+        text = (
+            f"{prefix}{param.py_name}: {param.py_type}"
+            if emit_type_hints
+            else f"{prefix}{param.py_name}"
+        )
+        if param.py_name in defaults and not param.is_spread:
+            text += f" = {defaults[param.py_name]}"
+        rendered.append(text)
     returns = f" -> {return_type}" if emit_type_hints else ""
     return f"def {name}({', '.join(rendered)}){returns}"
 
@@ -1121,7 +1467,8 @@ def _union_types(types: Iterable[str]) -> str:
 
 def _readable_signature(member: JavaNode, cfg: TranslationConfig) -> str:
     params = ", ".join(
-        f"{param.py_name}: {param.py_type}" for param in _parameter_infos(member, cfg)
+        f"{'*' if param.is_spread else ''}{param.py_name}: {param.py_type}"
+        for param in _parameter_infos(member, cfg)
     )
     return f"{_member_python_name(member)}({params})"
 
@@ -1177,14 +1524,34 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
 
     infos: list[ParameterInfo] = []
     for param in params_node.find_all("formal_parameter", "spread_parameter"):
+        is_spread = param.type == "spread_parameter"
         type_node = param.child_by_field("type")
         name_node = param.child_by_field("name")
+        if is_spread:
+            # spread_parameter has no name/type fields: the name lives in a
+            # nested variable_declarator and the element type is the first
+            # non-declarator named child.
+            declarator = first_child_by_type(param, "variable_declarator")
+            if declarator is not None:
+                name_node = declarator.child_by_field("name") or name_node
+            if type_node is None:
+                type_node = next(
+                    (
+                        child
+                        for child in param.named_children
+                        if child.type not in {"variable_declarator", "modifiers"}
+                        and not is_comment(child)
+                    ),
+                    None,
+                )
         raw_name = name_node.text if name_node is not None else "_"
+        py_type = translate_type(type_node.text if type_node is not None else "Object", cfg)
         infos.append(
             ParameterInfo(
                 raw_name=raw_name,
                 py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
-                py_type=translate_type(type_node.text if type_node is not None else "Object", cfg),
+                py_type=py_type.removeprefix("*"),
+                is_spread=is_spread,
             ),
         )
     return infos
@@ -1193,13 +1560,22 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
 def _params(node: JavaNode, ctx: TranslationContext) -> list[str]:
     params: list[str] = []
     for param in _parameter_infos(node, ctx.cfg):
-        ctx.param_names.add(param.raw_name)
-        ctx.variable_types[param.raw_name] = param.py_type
+        _register_param(ctx, param)
+        prefix = "*" if param.is_spread else ""
         if ctx.cfg.emit_type_hints:
-            params.append(f"{param.py_name}: {param.py_type}")
+            params.append(f"{prefix}{param.py_name}: {param.py_type}")
         else:
-            params.append(param.py_name)
+            params.append(f"{prefix}{param.py_name}")
     return params
+
+
+def _register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
+    ctx.param_names.add(param.raw_name)
+    # A Java varargs parameter is a tuple of elements at runtime; the list type
+    # keeps collection heuristics (len, indexing, iteration) working.
+    ctx.variable_types[param.raw_name] = (
+        f"list[{param.py_type}]" if param.is_spread else param.py_type
+    )
 
 
 def _field_assignment(name: str, py_type: str, cfg: TranslationConfig) -> str:
