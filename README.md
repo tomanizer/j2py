@@ -36,8 +36,8 @@ Known gaps include:
 
 - four corpus constructs still tracked as strict xfail targets: advanced stream collectors
   and long chains (`AdvancedStreams`), anonymous/local/inner classes with non-method
-  members (`AnonymousAndInner`), switch fall-through (`SwitchFallthrough`), and local
-  `var` inference (`VarKeyword`)
+  members (`AnonymousAndInner`), switch fall-through (`SwitchFallthrough`), and
+  `super.method(...)` receiver calls (`SuperMethodCalls`)
 - overload groups whose erased Python signatures collide (e.g. `int` vs `long`)
   and static-method overload groups still fall back to manual-dispatch TODOs
 - enum constant class bodies, complex enum static initialization, and annotation semantics
@@ -45,7 +45,8 @@ Known gaps include:
 - framework semantics such as Spring dependency injection or Hibernate mappings
 
 Graduated in `make check` (no longer listed as gaps): common switch forms, interface
-defaults/statics, text blocks, sealed classes, records, and instance `synchronized(this)`.
+defaults/statics, text blocks, sealed classes, records, instance `synchronized(this)`,
+and local `var` inference.
 
 ## Quick Start
 

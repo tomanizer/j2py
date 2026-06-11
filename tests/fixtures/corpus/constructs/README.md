@@ -38,8 +38,8 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 
 | Tier | Files | How to run |
 |------|-------|------------|
-| Graduated (`make check`) | `AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
-| Future xfail (`make test-targets`) | `AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`, `SwitchFallthrough`, `VarKeyword` | `FUTURE_TARGETS` in the same test module |
+| Graduated (`make check`) | `AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
+| Future xfail (`make test-targets`) | `AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`, `SwitchFallthrough` | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into
 the normal Java/Python fixture pair suite if exact output is stable enough).

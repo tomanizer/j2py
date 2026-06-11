@@ -519,4 +519,48 @@ def test_synchronized_non_this_lock_keeps_review_warning() -> None:
     )
 
 
+def test_var_local_and_enhanced_for_infer_types() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.ArrayList;
+        import java.util.List;
+        import java.util.Map;
 
+        public class VarDemo {
+            public List<String> demo(List<Map<String, Object>> data) {
+                var results = new ArrayList<String>();
+                for (var item : data) {
+                    var name = (String) item.get("name");
+                    results.add(name);
+                }
+                return results;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert ": var" not in python_source
+    assert "results: list[str] = []" in python_source
+    assert "name = item.get(\"name\")" in python_source
+    assert_valid_python(python_source)
+
+
+def test_var_cast_double_division_uses_true_division() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+
+        public class Average {
+            public double average(List<Integer> numbers) {
+                var sum = numbers.stream().mapToInt(Integer::intValue).sum();
+                var average = numbers.isEmpty() ? 0.0 : (double) sum / numbers.size();
+                return average;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
