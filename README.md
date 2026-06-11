@@ -28,6 +28,7 @@ Current deterministic rule support includes:
 - dependency-ordered directory translation
 - structured diagnostics, confidence, optional validation, and optional Anthropic
   completion for partial translations
+- side-by-side Java/Python review through the `j2py compare` CLI command
 
 Known gaps include:
 
@@ -59,6 +60,19 @@ Translate a directory in dependency order:
 
 ```bash
 uv run j2py translate path/to/java/root --output translated_py --no-llm
+```
+
+Open a side-by-side Java/Python diff in VS Code, generating the Python file first if
+needed:
+
+```bash
+uv run j2py compare tests/fixtures/java/HelloWorld.java --no-llm
+```
+
+Print the compare paths without opening an editor:
+
+```bash
+uv run j2py compare tests/fixtures/java/HelloWorld.java --no-open --no-llm
 ```
 
 Use LLM completion only when `ANTHROPIC_API_KEY` is set:
