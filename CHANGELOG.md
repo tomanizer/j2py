@@ -15,6 +15,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   that warnings do not reduce node coverage.
 - Strict xfail `FUTURE_TARGETS` for four corpus constructs still below full rule coverage
   (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword`).
+- Graduated corpus construct regression tests in `make check` for five constructs that
+  reach full skeleton coverage (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`,
+  `SealedClasses`, `TextBlocks`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
