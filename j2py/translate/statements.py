@@ -10,6 +10,14 @@ from j2py.translate.node_utils import direct_children_by_type, first_child_by_ty
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
 
+TYPE_DECLARATION_NODES = {
+    "class_declaration",
+    "interface_declaration",
+    "enum_declaration",
+    "record_declaration",
+    "annotation_type_declaration",
+}
+
 
 def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     lines: list[str] = []
@@ -89,6 +97,14 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "continue_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated continue statement")
         return [f"{indent}continue"]
+
+    if node.type in TYPE_DECLARATION_NODES:
+        from j2py.translate.classes import translate_class
+
+        return [
+            f"{indent}{line}" if line else line
+            for line in translate_class(node, ctx.cfg, ctx.diagnostics)
+        ]
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported statement {node.type}")
     return [f"{indent}# TODO(j2py): unsupported {node.type}", f"{indent}pass"]

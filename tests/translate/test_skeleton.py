@@ -493,6 +493,15 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "class Builder:" in result.source
     assert "def build(self, name: str) -> Entry:" in result.source
     assert "return Entry(name, 1)" in result.source
+    assert "def anonymous_writer(self, prefix: str) -> Writer:" in result.source
+    assert "class _J2pyAnonymous1(Writer):" in result.source
+    assert "def write(self, value: str) -> None:" in result.source
+    assert "print(prefix + value)" in result.source
+    assert "return _J2pyAnonymous1()" in result.source
+    assert "def local_entry(self, name: str) -> object:" in result.source
+    assert "class LocalEntry:" in result.source
+    assert "def value(self) -> str:" in result.source
+    assert "return LocalEntry()" in result.source
     _assert_valid_python(result.source)
 
 
