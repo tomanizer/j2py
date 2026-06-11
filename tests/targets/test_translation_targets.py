@@ -33,8 +33,12 @@ class TranslationTarget:
         return TARGET_FIXTURES / self.fixture
 
 
-GRADUATED_TARGET_FIXTURES = tuple(path.name for path in sorted(TARGET_FIXTURES.glob("*.java")))
 FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
+GRADUATED_TARGET_FIXTURES = tuple(
+    path.name
+    for path in sorted(TARGET_FIXTURES.glob("*.java"))
+    if path.name not in {target.fixture for target in FUTURE_TARGETS}
+)
 
 
 def test_target_java_fixtures_parse_without_errors() -> None:
