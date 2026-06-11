@@ -2,7 +2,7 @@
 
 import pytest
 
-from j2py.translate.rules.naming import camel_to_snake, safe_identifier
+from j2py.translate.rules.naming import camel_to_snake, safe_attribute_name, safe_identifier
 
 
 @pytest.mark.parametrize("camel, snake", [
@@ -26,3 +26,13 @@ def test_camel_to_snake(camel: str, snake: str):
 ])
 def test_safe_identifier(name: str, expected: str):
     assert safe_identifier(name) == expected
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("open", "open"),
+    ("list", "list"),
+    ("class", "class_"),
+    ("myVar", "myVar"),
+])
+def test_safe_attribute_name(name: str, expected: str):
+    assert safe_attribute_name(name) == expected

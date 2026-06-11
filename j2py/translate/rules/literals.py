@@ -12,9 +12,9 @@ def translate_literal(token: str, cfg: TranslationConfig) -> str:
     if token in cfg.literal_map:
         return cfg.literal_map[token]
 
-    # Long suffix: 100L → 100
-    if re.match(r"^\d+[Ll]$", token):
-        return token[:-1]
+    # Long suffix: 100L, 0xFFL, 0b1010L → suffixless Python integer
+    if re.match(r"^(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|\d[\d_]*)[Ll]$", token):
+        token = token[:-1]
 
     # Float suffix: 1.0f, 1.0F → 1.0
     if re.match(r"^[\d.]+[fF]$", token):
@@ -27,6 +27,11 @@ def translate_literal(token: str, cfg: TranslationConfig) -> str:
     # Hex: 0xFF → same in Python
     # Binary: 0b1010 → same in Python
     # Underscore separators: 1_000_000 → same in Python
+
+    # Java octal: 0777 → Python 0o777
+    if re.match(r"^0[0-7_]+$", token) and not token.lower().startswith("0o"):
+        digits = token[1:].lstrip("_") or "0"
+        return f"0o{digits}"
 
     # Char literal: 'a' → "a"
     if re.match(r"^'[^']'$", token) or re.match(r"^'\\.'$", token):

@@ -16,8 +16,9 @@ Current deterministic rule support includes:
 - fields, constructors, methods, overload stubs, and simple overload merges
 - common expressions: literals, identifiers, field access, arrays, class literals,
   assignments, updates, ternaries, null checks, common collection calls, and string concat
-- simple stream pipelines: `stream().map(...).filter(...).collect(Collectors.toList())`
-  and `toList()` when mapper/predicate forms are supported
+- common stream pipelines: `map`, `filter`, `distinct`, `sorted`, simple collectors
+  such as `toList`, `toSet`, `joining`, basic `groupingBy`/`toMap`, and supported
+  block lambdas
 - control flow: `if`/`else`, enhanced and classic `for`, `while`, `do while`,
   safe `switch` forms, `try`/`catch`/`finally`, `throw`, `break`, and `continue`
 - configured import emission, naming policy, type maps, exception maps, and comment flags
@@ -31,8 +32,6 @@ Known gaps include:
   contexts (many common cases like toSet/joining, distinct/sorted, basic groupingBy
   now supported via comprehensions or small helpers; block lambdas in streams handled)
 - switch fall-through and complex switch rule blocks
-
-- `switch` and switch expressions
 - complex constructor dispatch and non-trivial overload bodies
 - enum constructors/default interface methods/annotation semantics
 - behavioral equivalence testing between Java and Python
@@ -79,10 +78,10 @@ The current pinned Spring sample baseline is:
 
 - parse success: 100.00%
 - generated Python syntax success: 91.00%
-- average skeleton coverage: 78.35%
-- full-coverage files: 32 of 100
-- files with unhandled constructs: 60 of 100
-- files below 80% coverage: 28 of 100
+- average skeleton coverage: 89.56% across 92 coverage-bearing files
+- full-coverage files: 43 of 92 coverage-bearing files
+- files with unhandled constructs: 49 of 100
+- files below 80% coverage: 12 of 92 coverage-bearing files
 - sample size: 100 files with committed per-file failure metrics
 
 See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and

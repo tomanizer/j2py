@@ -32,7 +32,7 @@ def _assert_valid_python(source: str) -> None:
     ("fixture_name", "expected_coverage"),
     [
         ("HelloWorld", 1.0),
-        ("Fields", None),
+        ("Fields", 1.0),
     ],
 )
 def test_translate_fixture_with_rule_layer(
@@ -52,11 +52,40 @@ def test_translate_fixture_with_rule_layer(
     _assert_valid_python(python_source)
 
 
-def test_field_without_constructor_assignment_drops_coverage() -> None:
+def test_field_without_constructor_assignment_uses_java_default() -> None:
     python_source, coverage = _translate_source("public class FieldOnly { private int count; }")
 
-    assert coverage < 1.0
-    assert "TODO(j2py): verify default value for field count" in python_source
+    assert coverage == 1.0
+    assert "self.count: int = 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_uninitialized_field_defaults_use_java_semantics() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Defaults {
+            private int count;
+            private long total;
+            private double ratio;
+            private boolean enabled;
+            private char marker;
+            private String name;
+            private int[] values;
+            private static boolean ready;
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "ready: bool = False" in python_source
+    assert "self.count: int = 0" in python_source
+    assert "self.total: int = 0" in python_source
+    assert "self.ratio: float = 0.0" in python_source
+    assert "self.enabled: bool = False" in python_source
+    assert 'self.marker: str = "\\0"' in python_source
+    assert "self.name: str | None = None" in python_source
+    assert "self.values: list[int] | None = None" in python_source
+    assert "TODO(j2py): verify default value" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -152,23 +181,72 @@ def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
     _assert_valid_python(python_source)
 
 
-def test_non_empty_collection_constructor_drops_coverage() -> None:
+def test_receiverless_method_call_escapes_python_builtin_name() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class BuiltinHelper {
+            public String list() {
+                return "external";
+            }
+        }
+
+        public class BuiltinName {
+            public String list() {
+                return "value";
+            }
+
+            public String call() {
+                return list();
+            }
+
+            public String callExternal(BuiltinHelper helper) {
+                return helper.list();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def list_(self) -> str:" in python_source
+    assert "return list_()" in python_source
+    assert "return list()" not in python_source
+    assert "return helper.list()" in python_source
+    assert "return helper.list_()" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_non_empty_collection_constructor_translates_to_copy() -> None:
     python_source, coverage = _translate_source(
         """
         import java.util.ArrayList;
+        import java.util.HashMap;
+        import java.util.HashSet;
         import java.util.List;
+        import java.util.Map;
+        import java.util.Set;
 
         public class Copy {
             public List<String> copy(List<String> people) {
                 List<String> copied = new ArrayList<>(people);
                 return copied;
             }
+
+            public Map<String, String> copyMap(Map<String, String> source) {
+                return new HashMap<>(source);
+            }
+
+            public Set<String> copySet(Set<String> source) {
+                return new HashSet<>(source);
+            }
         }
         """,
     )
 
-    assert coverage < 1.0
-    assert "__j2py_todo__('new ArrayList<>(people)')" in python_source
+    assert coverage == 1.0
+    assert "copied = list(people)" in python_source
+    assert "return dict(source)" in python_source
+    assert "return set(source)" in python_source
+    assert "__j2py_todo__" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -192,6 +270,47 @@ def test_compound_assignment_translates() -> None:
     assert coverage == 1.0
     assert "self.count += delta" in python_source
     assert "self.count = delta" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_prefix_and_postfix_updates_translate() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Updates {
+            public int apply(int value) {
+                ++value;
+                value++;
+                --value;
+                value--;
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("value += 1") == 2
+    assert python_source.count("value -= 1") == 2
+    assert "unsupported update operator" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_update_expression_operator_search_ignores_comment_tokens() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Updates {
+            public int apply(int value) {
+                /* prefix marker */ ++value;
+                value /* postfix marker */ ++;
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("value += 1") == 2
+    assert "unsupported update operator" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -678,6 +797,158 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     _assert_valid_python(compound_result.source)
 
 
+def test_hex_literals_inline_argument_comments_and_primitive_class_literals_translate() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class LowRisk {
+            public Class<?> primitive() {
+                return boolean.class;
+            }
+
+            public int mask() {
+                return 0xFF;
+            }
+
+            public int longMask() {
+                return 0xFFFFL;
+            }
+
+            public int octal() {
+                return 0777;
+            }
+
+            public int underscoredOctal() {
+                return 077_7;
+            }
+
+            public LowRisk() {
+                super(/* latest api = */ 0x09);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return bool" in python_source
+    assert "return 0xFF" in python_source
+    assert "return 0xFFFF" in python_source
+    assert "return 0o777" in python_source
+    assert "return 0o77_7" in python_source
+    assert "super().__init__(0x09)" in python_source
+    assert "__j2py_todo__" not in python_source
+    assert "unsupported expression block_comment" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_sized_array_creation_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "ArrayCreation.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return [0] * size" in result.source
+    assert "__j2py_todo__" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_sized_array_creation_uses_java_default_values() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Arrays {
+            public boolean[] flags(int size) {
+                return new boolean[size];
+            }
+
+            public double[] values(int size) {
+                return new double[size];
+            }
+
+            public char[] chars(int size) {
+                return new char[size];
+            }
+
+            public String[] names(int size) {
+                return new String[size];
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return [False] * size" in python_source
+    assert "return [0.0] * size" in python_source
+    assert 'return ["\\0"] * size' in python_source
+    assert "return [None] * size" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class Arrays {
+            public int[][] matrix(int rows, int cols) {
+                return new int[rows][cols];
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "__j2py_todo__('new int[rows][cols]')" in result.source
+    assert [
+        diagnostic.reason for diagnostic in result.diagnostics.unhandled
+    ] == ["multidimensional array creation requires nested allocation handling"]
+    _assert_valid_python(result.source)
+
+
+def test_try_with_resources_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "TryWithResources.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "with factory.open() as resource:" in result.source
+    assert "return resource.read()" in result.source
+    assert "__j2py_todo__" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_try_with_resources_effectively_final_resource_translates() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class TryWithResourceVariable {
+            public String read(Resource resource) {
+                try (resource) {
+                    return resource.read();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "with resource:" in python_source
+    assert "return resource.read()" in python_source
+    assert "malformed try-with-resources resource" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_static_initializer_and_synchronized_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "StaticAndSynchronized.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "initialize()" in result.source
+    assert "with self:" in result.source
+    assert "run()" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "synchronized block translated as context manager; verify lock semantics",
+    ]
+    _assert_valid_python(result.source)
+
+
 def test_common_spring_expression_shapes_translate() -> None:
     python_source, coverage = _translate_source(
         """
@@ -885,7 +1156,7 @@ def test_block_lambda_with_multiple_statements_and_capture() -> None:
     _assert_valid_python(python_source)
 
 
-def test_array_constructor_method_reference_drops_coverage() -> None:
+def test_array_constructor_method_reference_in_to_array_translates() -> None:
     result = _translate_source_with_diagnostics(
         """
         import java.util.List;
@@ -898,11 +1169,13 @@ def test_array_constructor_method_reference_drops_coverage() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "__j2py_todo__('String[]::new')" in result.source
-    assert result.diagnostics.unhandled[-1].reason == (
-        "array constructor method reference requires collection conversion"
-    )
+    assert result.coverage == 1.0
+    assert "return list(names)" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert not result.diagnostics.unhandled
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "array constructor method reference translated as list factory",
+    ]
     _assert_valid_python(result.source)
 
 
@@ -1573,8 +1846,10 @@ def test_stream_flatmap_falls_back_with_explicit_diagnostic() -> None:
 def test_partial_translation_reports_structured_diagnostics() -> None:
     result = _translate_source_with_diagnostics(
         """
-        public class FieldOnly {
-            private int count;
+        public class Arrays {
+            public int[][] matrix(int rows, int cols) {
+                return new int[rows][cols];
+            }
         }
         """,
     )
@@ -1582,11 +1857,11 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
     assert result.coverage < 1.0
     assert result.diagnostics.unhandled
     diagnostic = result.diagnostics.unhandled[0]
-    assert diagnostic.node_type == "field_declaration"
-    assert diagnostic.line == 3
-    assert diagnostic.text == "private int count;"
+    assert diagnostic.node_type == "array_creation_expression"
+    assert diagnostic.line == 4
+    assert diagnostic.text == "new int[rows][cols]"
     assert (
-        diagnostic.reason == "instance field declaration without initializer needs default review"
+        diagnostic.reason == "multidimensional array creation requires nested allocation handling"
     )
 
 

@@ -59,6 +59,12 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "try_statement":
         return _translate_try(node, ctx, indent=indent)
 
+    if node.type == "try_with_resources_statement":
+        return _translate_try_with_resources(node, ctx, indent=indent)
+
+    if node.type == "synchronized_statement":
+        return _translate_synchronized(node, ctx, indent=indent)
+
     if node.type == "switch_expression":
         # In tree-sitter-java the node type for both traditional colon switch
         # *statements* and arrow switch *expressions* is "switch_expression".
@@ -294,6 +300,83 @@ def _translate_try(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
             else [f"{indent}    pass"],
         )
 
+    return lines
+
+
+def _translate_try_with_resources(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    resources = first_child_by_type(node, "resource_specification")
+    body = first_child_by_type(node, "block")
+    if resources is None or body is None:
+        ctx.diagnostics.record(node, supported=False, reason="malformed try-with-resources")
+        return [f"{indent}# TODO(j2py): malformed try-with-resources", f"{indent}pass"]
+
+    resource_parts: list[str] = []
+    resource_bindings: list[tuple[str, str]] = []
+    for resource in direct_children_by_type(resources, "resource"):
+        named = resource.named_children
+        if len(named) == 1:
+            resource_parts.append(translate_expression(named[0], ctx))
+            continue
+        if len(named) < 3:
+            ctx.diagnostics.record(
+                resource,
+                supported=False,
+                reason="malformed try-with-resources resource",
+            )
+            return [
+                f"{indent}# TODO(j2py): malformed try-with-resources resource",
+                f"{indent}pass",
+            ]
+        type_node, name_node, value_node = named[0], named[1], named[-1]
+        raw_name = name_node.text
+        py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
+        py_type = translate_type(type_node.text, ctx.cfg)
+        resource_parts.append(f"{translate_expression(value_node, ctx)} as {py_name}")
+        resource_bindings.append((raw_name, py_type))
+
+    if not resource_parts:
+        ctx.diagnostics.record(node, supported=False, reason="try-with-resources without resources")
+        return [f"{indent}# TODO(j2py): try-with-resources without resources", f"{indent}pass"]
+
+    ctx.diagnostics.record(node, supported=True, reason="translated try-with-resources statement")
+    previous_locals = set(ctx.local_names)
+    previous_types = dict(ctx.variable_types)
+    for raw_name, py_type in resource_bindings:
+        ctx.local_names.add(raw_name)
+        ctx.variable_types[raw_name] = py_type
+    try:
+        lines = [f"{indent}with {', '.join(resource_parts)}:"]
+        lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
+    finally:
+        ctx.local_names = previous_locals
+        ctx.variable_types = previous_types
+    return lines
+
+
+def _translate_synchronized(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    lock = first_child_by_type(node, "parenthesized_expression")
+    body = first_child_by_type(node, "block")
+    if lock is None or body is None:
+        ctx.diagnostics.record(node, supported=False, reason="malformed synchronized statement")
+        return [f"{indent}# TODO(j2py): malformed synchronized statement", f"{indent}pass"]
+
+    ctx.diagnostics.record(node, supported=True, reason="translated synchronized statement")
+    ctx.diagnostics.warn(
+        node,
+        reason="synchronized block translated as context manager; verify lock semantics",
+    )
+    lines = [f"{indent}with {translate_expression(lock, ctx)}:"]
+    lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     return lines
 
 

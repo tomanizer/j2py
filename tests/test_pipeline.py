@@ -11,6 +11,7 @@ from j2py.validate.checks import ValidationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CFG = ConfigLoader().add_defaults().build()
+PARTIAL_FIXTURE = FIXTURES / "java" / "PartialUnsupported.java"
 
 
 def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
@@ -26,14 +27,13 @@ def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
 
 
 def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=False)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=False)
 
     assert not result.used_llm
     assert result.confidence < 1.0
     assert result.diagnostics is not None
     assert result.diagnostics.unhandled
-    assert "TODO(j2py): verify default value for field enabled" in result.python_source
-    assert result.python_source == (FIXTURES / "python" / "Fields.py").read_text()
+    assert "__j2py_todo__('new int[rows][cols]')" in result.python_source
     ast.parse(result.python_source)
 
 
@@ -48,19 +48,19 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         config_fingerprint: str,
         model: str,
     ) -> str:
-        assert "public class Fields" in java_source
-        assert "TODO(j2py): verify default value for field enabled" in partial_python
+        assert "public class PartialUnsupported" in java_source
+        assert "__j2py_todo__('new int[rows][cols]')" in partial_python
         assert "package: com.example" in context
-        assert "field_declaration" in diagnostics
+        assert "array_creation_expression" in diagnostics
         assert validation_feedback == ""
         assert config_fingerprint
         assert model == "claude-test"
-        return "class Fields:\n    pass\n"
+        return "class PartialUnsupported:\n    pass\n"
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
 
     result = translate_file(
-        FIXTURES / "java" / "Fields.java",
+        PARTIAL_FIXTURE,
         cfg=CFG,
         use_llm=True,
         model="claude-test",
@@ -69,7 +69,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     assert result.used_llm
     assert result.confidence < 1.0
     assert result.diagnostics is not None
-    assert result.python_source == "class Fields:\n    pass\n"
+    assert result.python_source == "class PartialUnsupported:\n    pass\n"
 
 
 def test_translate_file_can_validate_generated_source(monkeypatch) -> None:
@@ -100,7 +100,7 @@ def test_translate_file_reports_validation_failure_for_invalid_llm_output(
 ) -> None:
     monkeypatch.setattr(llm_client, "translate_with_llm", lambda **kwargs: "def broken(:\n")
 
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
     assert result.used_llm
     assert result.validation is not None
@@ -115,7 +115,7 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
         calls.append(kwargs["validation_feedback"])
         if len(calls) == 1:
             return "def broken(:\n"
-        return "class Fields:\n    pass\n"
+        return "class PartialUnsupported:\n    pass\n"
 
     def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
         if source.startswith("def broken"):
@@ -134,12 +134,12 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
     monkeypatch.setattr(pipeline, "validate_source", fake_validate)
 
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
     assert result.used_llm
     assert calls[0] == ""
     assert "SyntaxError:" in calls[1]
-    assert result.python_source == "class Fields:\n    pass\n"
+    assert result.python_source == "class PartialUnsupported:\n    pass\n"
     assert result.validation is not None
     assert result.validation.ok
 
@@ -149,7 +149,7 @@ def test_translate_file_does_not_retry_when_llm_output_validates(monkeypatch) ->
 
     def fake_translate_with_llm(**kwargs) -> str:
         calls.append(kwargs["validation_feedback"])
-        return "class Fields:\n    pass\n"
+        return "class PartialUnsupported:\n    pass\n"
 
     def fake_validate(source: str, path: Path | None = None) -> ValidationResult:
         return ValidationResult(
@@ -162,7 +162,7 @@ def test_translate_file_does_not_retry_when_llm_output_validates(monkeypatch) ->
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
     monkeypatch.setattr(pipeline, "validate_source", fake_validate)
 
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
     assert calls == [""]
     assert result.validation is not None
@@ -186,7 +186,7 @@ def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) ->
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
     monkeypatch.setattr(pipeline, "validate_source", fake_validate)
 
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True, validate=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
     assert len(calls) == 2
     assert calls[0] == ""
@@ -205,7 +205,7 @@ def test_translate_file_does_not_retry_when_validation_disabled(monkeypatch) -> 
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
 
-    result = translate_file(FIXTURES / "java" / "Fields.java", cfg=CFG, use_llm=True)
+    result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True)
 
     assert calls == [""]
     assert result.validation is None

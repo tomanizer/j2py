@@ -16,7 +16,7 @@ from j2py.translate.rules.naming import (
     translate_field_name,
     translate_method_name,
 )
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import java_default_value, translate_type
 from j2py.translate.statements import translate_body
 
 TYPE_DECLARATION_NODES = {
@@ -33,6 +33,7 @@ class FieldInfo:
     node: JavaNode
     name: str
     py_name: str
+    java_type: str
     py_type: str
     is_static: bool
     initializer: JavaNode | None
@@ -311,6 +312,7 @@ def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInf
                         name_node.text,
                         snake_case=cfg.snake_case_fields,
                     ),
+                    java_type=java_type,
                     py_type=translate_type(java_type, cfg),
                     is_static="static" in modifiers,
                     initializer=declarator.child_by_field("value"),
@@ -416,22 +418,35 @@ def _translate_fields(
 
         diagnostics.record(
             field.node,
-            supported=False,
-            reason="instance field declaration without initializer needs default review",
+            supported=True,
+            reason="translated Java default value for instance field",
         )
-        instance_init_lines.append(
-            f"        # TODO(j2py): verify default value for field {field.py_name}",
-        )
-        target = _field_assignment(f"self.{field.py_name}", f"{field.py_type} | None", cfg)
-        instance_init_lines.append(f"        {target} = None")
+        default_value = java_default_value(field.java_type)
+        annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+        target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
+        instance_init_lines.append(f"        {target} = {default_value}")
 
     supported_members = {
         "field_declaration",
         "constructor_declaration",
         "method_declaration",
+        "static_initializer",
         *TYPE_DECLARATION_NODES,
     }
     for child in body.named_children:
+        if child.type == "static_initializer":
+            diagnostics.record(child, supported=True, reason="translated static initializer")
+            static_body = first_child_by_type(child, "block")
+            static_lines.extend(
+                translate_body(
+                    static_body,
+                    static_ctx,
+                    indent="    ",
+                )
+                if static_body is not None
+                else ["    pass"]
+            )
+            continue
         if child.type in supported_members:
             continue
         if is_comment(child):
@@ -454,12 +469,13 @@ def _translate_static_field(
     if field.initializer is None:
         diagnostics.record(
             field.node,
-            supported=False,
-            reason="static field declaration without initializer needs default review",
+            supported=True,
+            reason="translated Java default value for static field",
         )
+        default_value = java_default_value(field.java_type)
+        annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
         return [
-            f"    # TODO(j2py): verify default value for static field {field.py_name}",
-            f"    {_field_assignment(field.py_name, f'{field.py_type} | None', ctx.cfg)} = None",
+            f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}",
         ]
 
     diagnostics.record(field.node, supported=True, reason="translated static field declaration")
