@@ -155,6 +155,7 @@ def translate_class(
             diagnostics=diagnostics,
             class_fields=instance_field_names,
             class_field_types=instance_field_types,
+            allow_local_helpers=True,
         )
         pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
         lines.extend(_translate_method(member, ctx, pre_body_lines=pre_body_lines))
@@ -532,6 +533,7 @@ def _translate_method(
     if body is None:
         body = first_child_by_type(node, "block", "constructor_body")
 
+    ctx.allow_local_helpers = True
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     lines.extend(pre_body_lines or [])
 
@@ -640,7 +642,12 @@ def _merged_constructor_overload(
         if member != implementation:
             diagnostics.record(member, supported=True, reason="translated constructor delegation")
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        allow_local_helpers=True,
+    )
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = True
     for param in params:
@@ -657,6 +664,8 @@ def _merged_constructor_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
+    body = _method_body(implementation)
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     lines.extend(pre_body_lines)
 
     # Flush block-lambda helpers for the merged constructor implementation
@@ -666,8 +675,7 @@ def _merged_constructor_overload(
             lines.append("")
             lines.extend(helper)
 
-    body = _method_body(implementation)
-    lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
+    lines.extend(body_lines)
     return lines
 
 
@@ -716,7 +724,12 @@ def _merged_method_overload(
     for member in members:
         diagnostics.record(member, supported=True, reason="translated overloaded method")
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        allow_local_helpers=True,
+    )
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = not is_static
     for param in merged_params:
@@ -735,6 +748,7 @@ def _merged_method_overload(
     )
     lines.append(f"    {signature}:")
     body = _method_body(members[0])
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
 
     # Flush block-lambda helpers for this merged method implementation.
     if ctx.pending_local_helpers:
@@ -742,7 +756,7 @@ def _merged_method_overload(
             lines.append("")
             lines.extend(helper)
 
-    lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
+    lines.extend(body_lines)
     return lines
 
 

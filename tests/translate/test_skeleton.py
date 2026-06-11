@@ -1232,6 +1232,80 @@ def test_stream_pipeline_sorted_with_key() -> None:
     _assert_valid_python(python_source)
 
 
+def test_stream_sorted_before_map_falls_back_to_preserve_order() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> sortedNames(List<Item> items) {
+                return items.stream()
+                        .sorted()
+                        .map(Item::getName)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "stream map after sorted/distinct requires order-preserving translation" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "return sorted([item.get_name() for item in items])" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_stream_distinct_before_map_falls_back_to_preserve_order() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> uniqueNames(List<Item> items) {
+                return items.stream()
+                        .distinct()
+                        .map(Item::getName)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "stream map after sorted/distinct requires order-preserving translation" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "dict.fromkeys([item.get_name() for item in items])" not in result.source
+    _assert_valid_python(result.source)
+
+
+def test_joining_with_prefix_suffix_falls_back() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public String joined(List<String> parts) {
+                return parts.stream()
+                        .collect(Collectors.joining(", ", "[", "]"));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "Collectors.joining with prefix/suffix requires manual translation" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    _assert_valid_python(result.source)
+
+
 def test_stream_pipeline_grouping_by_basic() -> None:
     """Phase 3: basic groupingBy produces helper with defaultdict accumulation."""
     python_source, coverage = _translate_source(
@@ -1279,6 +1353,96 @@ def test_stream_pipeline_to_map_basic() -> None:
     assert "result = {}" in python_source
     assert "result[key] = " in python_source
     assert "__j2py_todo__" not in python_source
+    _assert_valid_python(python_source)
+
+
+def test_to_map_with_merge_function_falls_back() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Map<String, Integer> toMap(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.toMap(Item::getKey, Item::getValue, (a, b) -> b));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "Collectors.toMap with merge/supplier arguments requires manual translation" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    _assert_valid_python(result.source)
+
+
+def test_block_lambda_in_field_initializer_does_not_emit_undefined_helper() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.function.Function;
+
+        public class FieldLambda {
+            private Function<String, String> mapper = s -> { return s.trim(); };
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "_j2py_lambda_" not in result.source
+    assert "__j2py_todo__" in result.source
+    assert any(
+        "block lambda requires local helper scope" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    _assert_valid_python(result.source)
+
+
+def test_grouping_by_in_field_initializer_does_not_emit_undefined_helper() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class FieldStream {
+            private Map<String, List<String>> groups = items.stream()
+                    .collect(Collectors.groupingBy(s -> s.substring(0, 1)));
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "_j2py_groupby_" not in result.source
+    assert any(
+        "Collectors.groupingBy requires local helper scope" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    _assert_valid_python(result.source)
+
+
+def test_merged_overload_block_lambda_emits_helper_before_use() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.function.Function;
+
+        public class Overloaded {
+            public Function<String, String> mapper(String prefix) {
+                return s -> { return prefix + s.trim(); };
+            }
+
+            public Function<Integer, String> mapper(Integer prefix) {
+                return s -> { return prefix + s.trim(); };
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def _j2py_lambda_1(" in python_source
+    assert python_source.index("def _j2py_lambda_1(") < python_source.index("return _j2py_lambda_1")
     _assert_valid_python(python_source)
 
 

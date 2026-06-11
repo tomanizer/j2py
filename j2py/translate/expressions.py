@@ -329,36 +329,91 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
     if not (is_to_list or is_to_set or is_joining or is_grouping or is_to_map):
         return None
 
+    collector_arg_count = _method_invocation_arg_count(terminal_arg)
+    if (is_to_list or is_to_set) and collector_arg_count not in {None, 0}:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="collector without arguments received unexpected arguments",
+        )
+        return None
+    if is_joining and collector_arg_count not in {0, 1}:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="Collectors.joining with prefix/suffix requires manual translation",
+        )
+        return None
+    if is_grouping and collector_arg_count != 1:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="Collectors.groupingBy with downstream collector requires manual translation",
+        )
+        return None
+    if is_to_map and collector_arg_count != 2:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="Collectors.toMap with merge/supplier arguments requires manual translation",
+        )
+        return None
 
     source = translate_expression(source_node, ctx)
     item_name = _stream_item_name(source, ctx)
     current_expr = item_name
     filters: list[str] = []
-    has_distinct = False
-    has_sorted = False
-    sorted_key = None
+    post_ops: list[tuple[str, str | None]] = []
     for operation, arg in operations[:-1]:
         if operation == "map" and arg is not None:
+            if post_ops:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        f"stream {operation} after sorted/distinct requires "
+                        "order-preserving translation"
+                    ),
+                )
+                return None
             mapped = _stream_map_expression(arg, item_name, ctx)
             if mapped is None:
                 return None
             current_expr = mapped
             continue
         if operation == "filter" and arg is not None:
+            if post_ops:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        f"stream {operation} after sorted/distinct requires "
+                        "order-preserving translation"
+                    ),
+                )
+                return None
             predicate = _stream_filter_expression(arg, current_expr, item_name, ctx)
             if predicate is None:
                 return None
             filters.append(predicate)
             continue
         if operation == "distinct":
-            has_distinct = True
+            post_ops.append(("distinct", None))
             continue
         if operation == "sorted":
-            has_sorted = True
+            sorted_key = None
             if arg is not None:
+                if current_expr != item_name:
+                    ctx.diagnostics.record(
+                        node,
+                        supported=False,
+                        reason="sorted comparator after map requires mapped-value translation",
+                    )
+                    return None
                 k = _stream_map_expression(arg, item_name, ctx)
                 if k:
                     sorted_key = k
+            post_ops.append(("sorted", sorted_key))
             continue
         ctx.diagnostics.record(
             node,
@@ -367,7 +422,29 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         )
         return None
 
+    if (is_grouping or is_to_map) and post_ops:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="collector helper with sorted/distinct requires order-preserving translation",
+        )
+        return None
+
     if is_grouping:
+        if not ctx.allow_local_helpers:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="Collectors.groupingBy requires local helper scope",
+            )
+            return None
+        if current_expr != item_name:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="Collectors.groupingBy after map requires mapped-value helper",
+            )
+            return None
         # Phase 3 basic support for groupingBy using helper + defaultdict (per plan)
         # key mapper from first arg to groupingBy; value is the post-map item
         key_mapper = item_name
@@ -377,8 +454,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             if k:
                 key_mapper = k
         filter_conds = " and ".join(filters) if filters else None
-        has_pending = hasattr(ctx, "pending_local_helpers")
-        helper_id = len(ctx.pending_local_helpers) + 1 if has_pending else 1
+        helper_id = len(ctx.pending_local_helpers) + 1
         helper_name = f"_j2py_groupby_{helper_id}"
         helper_lines = [
             f"        def {helper_name}(source):",
@@ -396,11 +472,24 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         helper_lines.append(f"                key = {key_mapper}")
         helper_lines.append(f"                groups[key].append({val})")
         helper_lines.append("            return dict(groups)")
-        if hasattr(ctx, "pending_local_helpers"):
-            ctx.pending_local_helpers.append(helper_lines)
+        ctx.pending_local_helpers.append(helper_lines)
         return f"{helper_name}({source})"
 
     if is_to_map:
+        if not ctx.allow_local_helpers:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="Collectors.toMap requires local helper scope",
+            )
+            return None
+        if current_expr != item_name:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="Collectors.toMap after map requires mapped-value helper",
+            )
+            return None
         # Phase 3 simple toMap support (dict via helper, like groupingBy).
         # (dict-comp for very simple cases could be added later)
         key_mapper = item_name
@@ -415,8 +504,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             if v:
                 value_mapper = v
         filter_conds = " and ".join(filters) if filters else None
-        has_pending = hasattr(ctx, "pending_local_helpers")
-        helper_id = len(ctx.pending_local_helpers) + 1 if has_pending else 1
+        helper_id = len(ctx.pending_local_helpers) + 1
         helper_name = f"_j2py_to_map_{helper_id}"
         helper_lines = [
             f"        def {helper_name}(source):",
@@ -431,12 +519,18 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         helper_lines.append(f"                key = {key_mapper}")
         helper_lines.append(f"                result[key] = {value_mapper}")
         helper_lines.append("            return result")
-        if hasattr(ctx, "pending_local_helpers"):
-            ctx.pending_local_helpers.append(helper_lines)
+        ctx.pending_local_helpers.append(helper_lines)
         return f"{helper_name}({source})"
 
     filter_suffix = f" if {' and '.join(filters)}" if filters else ""
     if is_to_set:
+        if any(operation == "sorted" for operation, _key in post_ops):
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="sorted before Collectors.toSet requires order-discarding review",
+            )
+            return None
         base = f"{{{current_expr} for {item_name} in {source}{filter_suffix}}}"
     elif is_joining:
         # Basic joining support (delimiter only for phase 1; prefix/suffix fall to general)
@@ -445,25 +539,26 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             # First arg is usually the delimiter string literal or expr
             delim = translate_expression(terminal_arg.named_children[0], ctx)
         base = f"({current_expr} for {item_name} in {source}{filter_suffix})"
-        # for joining, wraps like sorted/distinct would apply to the iterable before join
-        if has_sorted:
-            if sorted_key:
-                base = f"sorted({base}, key=lambda {item_name}: {sorted_key})"
-            else:
-                base = f"sorted({base})"
-        if has_distinct:
-            base = f"list(dict.fromkeys({base}))"
+        base = _apply_stream_post_ops(base, post_ops, item_name)
         return f"{delim}.join({base})"
     else:
         base = f"[{current_expr} for {item_name} in {source}{filter_suffix}]"
 
-    if has_sorted:
-        if sorted_key:
-            base = f"sorted({base}, key=lambda {item_name}: {sorted_key})"
-        else:
-            base = f"sorted({base})"
-    if has_distinct:
-        base = f"list(dict.fromkeys({base}))"
+    return _apply_stream_post_ops(base, post_ops, item_name)
+
+
+def _apply_stream_post_ops(
+    base: str,
+    post_ops: list[tuple[str, str | None]],
+    item_name: str,
+) -> str:
+    for operation, key in post_ops:
+        if operation == "sorted":
+            base = (
+                f"sorted({base}, key=lambda {item_name}: {key})" if key else f"sorted({base})"
+            )
+        elif operation == "distinct":
+            base = f"list(dict.fromkeys({base}))"
     return base
 
 
@@ -553,6 +648,15 @@ def _is_collectors_to_map(node: JavaNode | None) -> bool:
         and name is not None
         and name.text == "toMap"
     )
+
+
+def _method_invocation_arg_count(node: JavaNode | None) -> int | None:
+    if node is None or node.type != "method_invocation":
+        return None
+    args_node = node.child_by_field("arguments") or first_child_by_type(node, "argument_list")
+    if args_node is None:
+        return 0
+    return len(args_node.named_children)
 
 
 def _stream_item_name(source: str, ctx: TranslationContext) -> str:
@@ -655,6 +759,14 @@ def _translate_block_lambda(node: JavaNode, ctx: TranslationContext) -> str:
     the top of the enclosing method). Only the helper name is returned so it can
     be used in any expression position while preserving reviewability.
     """
+    if not ctx.allow_local_helpers:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="block lambda requires local helper scope",
+        )
+        return f"__j2py_todo__({node.text!r})"
+
     params_node = node.child_by_field("parameters")
     body_node = node.child_by_field("body")
     if params_node is None or body_node is None:

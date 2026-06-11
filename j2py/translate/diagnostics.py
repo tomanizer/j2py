@@ -76,6 +76,7 @@ class TranslationContext:
     variable_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)
     in_instance_method: bool = False
+    allow_local_helpers: bool = False
 
     # Block lambdas (and future local helpers) are collected here during expression
     # translation and flushed near the top of the enclosing method body so the
