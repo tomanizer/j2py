@@ -49,7 +49,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--tb=short"
+addopts = "--tb=short -m 'not live_llm'"
 markers = [
     "target_translation: roadmap Java-to-Python translation targets that are excluded from make check",
+    "live_llm: end-to-end exploratory tests that make live calls to the Anthropic API. These are excluded from normal test runs and make check. Run on demand with: ANTHROPIC_API_KEY=... pytest -m live_llm tests/llm/test_e2e_llm.py -v -s",
 ]

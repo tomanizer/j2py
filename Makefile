@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-targets test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
+.PHONY: check lint format typecheck test test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline clean ci-local-pr ci-local-governance
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -14,10 +14,14 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run mypy j2py/
 
 test:  ## Run test suite
-	uv run pytest -m "not target_translation"
+	uv run pytest -m "not target_translation and not live_llm"
 
 test-targets:  ## Run xfail Java-to-Python roadmap target tests
 	uv run pytest tests/targets -m target_translation -rxXs
+
+test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
+	@echo "Running live LLM exploratory test. This is excluded from normal make check."
+	uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 
 test-cov:  ## Run tests with coverage report
 	uv run pytest --cov=j2py --cov-report=term-missing --cov-report=xml

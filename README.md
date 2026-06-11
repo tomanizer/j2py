@@ -66,9 +66,13 @@ ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ## Quality Gates
 
 ```bash
-make check         # ruff + mypy strict + normal pytest suite
+make check         # ruff + mypy strict + normal pytest suite (excludes live_llm)
 make test-targets  # roadmap xfail targets
 make corpus-spring # pinned Spring Framework corpus comparison
+
+# On-demand only (requires ANTHROPIC_API_KEY):
+make test-llm-e2e  # exploratory live-LLM test of current skeleton quality
+# or: ANTHROPIC_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 ```
 
 The current pinned Spring sample baseline is:
