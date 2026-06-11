@@ -578,6 +578,58 @@ def test_switch_statement_translates_returning_cases() -> None:
     _assert_valid_python(python_source)
 
 
+def test_switch_statement_merges_grouped_labels_and_ignores_label_comments() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                    // grouped with the next label
+                    case 2:
+                        return 3;
+                    default:
+                        return 0;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value in (1, 2):" in python_source
+    assert "TODO(j2py): unsupported switch group line_comment" not in python_source
+    assert "return 3" in python_source
+    assert "else:" in python_source
+    assert "return 0" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_switch_statement_merges_grouped_default_label() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                        return 1;
+                    case 2:
+                    default:
+                        throw new IllegalArgumentException();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if value == 1:" in python_source
+    assert "else:" in python_source
+    assert "raise ValueError()" in python_source
+    assert "TODO(j2py): switch fall-through requires manual translation" not in python_source
+    _assert_valid_python(python_source)
+
+
 def test_switch_statement_with_fallthrough_drops_coverage() -> None:
     result = _translate_source_with_diagnostics(
         """

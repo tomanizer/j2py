@@ -389,17 +389,27 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
         return [f"{indent}# TODO(j2py): malformed switch statement", f"{indent}pass"]
 
     subject = translate_expression(condition, ctx)
-    groups = list(body.named_children)
+    groups = [group for group in body.named_children if not is_comment(group)]
     if not groups:
         return [f"{indent}pass"]
 
     lines: list[str] = []
     saw_default = False
-    for index, group in enumerate(groups):
+    index = 0
+    while index < len(groups):
+        group = groups[index]
         if group.type == "switch_block_statement_group":
-            translated = _switch_statement_group(group, ctx, indent=indent)
+            translated, index = _switch_statement_group(
+                groups,
+                start_index=index,
+                ctx=ctx,
+                indent=indent,
+            )
+            group_end_index = index - 1
         elif group.type == "switch_rule":
             translated = _switch_rule_group(group, ctx, indent=indent)
+            index += 1
+            group_end_index = index - 1
         else:
             ctx.diagnostics.record(
                 group,
@@ -431,7 +441,7 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
             lines.append(f"{indent}else:")
         lines.extend(body_lines or [f"{indent}    pass"])
 
-        if not labels and index != len(groups) - 1:
+        if not labels and group_end_index != len(groups) - 1:
             ctx.diagnostics.record(
                 group,
                 supported=False,
@@ -452,27 +462,51 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
 
 
 def _switch_statement_group(
-    group: JavaNode,
-    ctx: TranslationContext,
+    groups: list[JavaNode],
     *,
+    start_index: int,
+    ctx: TranslationContext,
     indent: str,
-) -> tuple[list[str], list[str]] | None:
-    label = first_child_by_type(group, "switch_label")
-    if label is None:
-        return None
-    statements = [child for child in group.named_children if child != label]
-    if statements and statements[-1].type == "break_statement":
-        statements = statements[:-1]
-    elif statements and statements[-1].type not in {
+) -> tuple[tuple[list[str], list[str]] | None, int]:
+    labels: list[str] = []
+    statements: list[JavaNode] = []
+    saw_default_label = False
+    index = start_index
+    while index < len(groups):
+        group = groups[index]
+        if group.type != "switch_block_statement_group":
+            break
+        label = first_child_by_type(group, "switch_label")
+        if label is None:
+            return None, index + 1
+        group_statements = [child for child in group.named_children if child != label]
+        meaningful_statements = [
+            statement for statement in group_statements if not is_comment(statement)
+        ]
+        label_values = _switch_label_values(label, ctx)
+        if label_values and not saw_default_label:
+            labels.extend(label_values)
+        else:
+            saw_default_label = True
+        index += 1
+        if meaningful_statements:
+            statements = group_statements
+            break
+
+    terminal_statements = [statement for statement in statements if not is_comment(statement)]
+    if terminal_statements and terminal_statements[-1].type == "break_statement":
+        break_statement = terminal_statements[-1]
+        statements = [statement for statement in statements if statement != break_statement]
+    elif terminal_statements and terminal_statements[-1].type not in {
         "return_statement",
         "throw_statement",
         "continue_statement",
     }:
-        return None
+        return None, index
     return (
-        _switch_label_values(label, ctx),
+        [] if saw_default_label else labels,
         _translate_switch_body(statements, ctx, indent=indent),
-    )
+    ), index
 
 
 def _switch_rule_group(
