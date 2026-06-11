@@ -534,6 +534,41 @@ def test_graduated_issue_44_overload_chains_target_fixture_translates() -> None:
     _assert_valid_python(result.source)
 
 
+def test_overload_default_expression_diagnostics_are_preserved() -> None:
+    result = _translate_source_with_diagnostics(
+        """
+        public class CastDefaults {
+            private String name;
+
+            public CastDefaults() {
+                this((String) "default");
+            }
+
+            public CastDefaults(String name) {
+                this.name = name;
+            }
+
+            public String label() {
+                return label((String) "default");
+            }
+
+            public String label(String value) {
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'name: str | None = None' in result.source
+    assert 'separator: str = "-"' not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings].count(
+        "dropped Java cast; verify runtime type",
+    ) == 2
+    _assert_valid_python(result.source)
+
+
 def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "OverloadDispatch.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -558,6 +593,23 @@ def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> Non
     # Redefinitions carry the systematic suppressions for mypy and ruff.
     assert result.source.count("# type: ignore[no-redef]  # noqa: F811") == 3
     _assert_valid_python(result.source)
+
+
+def test_varargs_parameter_with_inline_comment_keeps_element_type() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class VarargsComments {
+            public void names(/* caller labels */ String... labels) {
+                System.out.println(labels.length);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def names(self, *labels: str) -> None:" in python_source
+    assert "block_comment" not in python_source
+    _assert_valid_python(python_source)
 
 
 def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:

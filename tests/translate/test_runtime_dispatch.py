@@ -135,6 +135,32 @@ def test_union_annotations_match_any_member() -> None:
     assert Add().add("a", "b") == "ab"
 
 
+def test_int_arguments_match_float_annotations_as_numeric_promotion() -> None:
+    class Numeric:
+        @overloaded
+        def accept(self, value: float) -> str:
+            return "float"
+
+        @overloaded  # noqa: F811
+        def accept(self, value: str) -> str:  # noqa: F811
+            return "str"
+
+    assert Numeric().accept(1) == "float"
+
+
+def test_callable_union_keeps_callable_check() -> None:
+    class MaybeCallback:
+        @overloaded
+        def accept(self, value: Callable[[str], None] | None) -> str:
+            return "callback"
+
+    maybe = MaybeCallback()
+    assert maybe.accept(lambda value: None) == "callback"
+    assert maybe.accept(None) == "callback"
+    with pytest.raises(TypeError, match="no overload"):
+        maybe.accept(object())
+
+
 def test_indistinguishable_runtime_types_raise_instead_of_misdispatching() -> None:
     class Tie:
         @overloaded

@@ -49,7 +49,7 @@ def _resolve_annotation(annotation: object, globalns: dict[str, Any]) -> Any:
     parts = _split_union(text)
     if len(parts) > 1:
         resolved = tuple(_resolve_annotation(part, globalns) for part in parts)
-        if any(item in (_WILDCARD, _CALLABLE) for item in resolved):
+        if any(item is _WILDCARD for item in resolved):
             return _WILDCARD
         return resolved
     base = text.split("[", 1)[0].strip()
@@ -98,6 +98,8 @@ def _score_argument(argument: object, check: Any) -> int | None:
     if type(argument) is check:
         return 2
     if isinstance(argument, check):
+        return 1
+    if check is float and isinstance(argument, int):
         return 1
     return None
 
