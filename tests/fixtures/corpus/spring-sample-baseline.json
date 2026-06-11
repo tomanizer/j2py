@@ -1119,17 +1119,17 @@
       "warning_count": 83
     },
     {
-      "coverage": 0.9880952380952381,
+      "coverage": 0.9897292250233427,
       "error": "",
-      "handled_count": 996,
+      "handled_count": 1060,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/asm/ClassReader.java",
       "syntax_ok": false,
-      "unhandled_count": 12,
-      "unhandled_node_types": "constructor_declaration:5;line_comment:1;method_declaration:4;switch_block_statement_group:1;unary_expression:1",
-      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;overloaded method accept requires manual dispatch:2;overloaded method read_utf requires manual dispatch:2;switch fall-through requires manual translation:1;unsupported switch group line_comment:1;unsupported unary operator ~:1",
-      "warning_count": 407
+      "unhandled_count": 11,
+      "unhandled_node_types": "constructor_declaration:5;method_declaration:4;switch_block_statement_group:1;unary_expression:1",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;overloaded method accept requires manual dispatch:2;overloaded method read_utf requires manual dispatch:2;switch fall-through requires manual translation:1;unsupported unary operator ~:1",
+      "warning_count": 422
     },
     {
       "coverage": 1.0,
@@ -1313,7 +1313,7 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.8959102844596466,
+    "average_coverage": 0.895928045187126,
     "coverage_file_count": 92,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 12,
@@ -1353,10 +1353,6 @@
       ],
       [
         "lambda_expression",
-        1
-      ],
-      [
-        "line_comment",
         1
       ],
       [
