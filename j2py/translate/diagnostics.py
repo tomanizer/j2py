@@ -100,6 +100,7 @@ class TranslationContext:
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
     allow_local_helpers: bool = False
+    class_state: ClassTranslationState | None = None
 
     # Java method names that must dispatch through self when called without a
     # receiver (used for @overloaded groups so sibling overload calls re-enter
@@ -110,6 +111,13 @@ class TranslationContext:
     # translation and flushed near the top of the enclosing method body so the
     # generated names are in scope and the structure remains reviewable.
     pending_local_helpers: list[list[str]] = field(default_factory=list)
+
+
+@dataclass
+class ClassTranslationState:
+    """Mutable per-class flags collected while translating a Java type."""
+
+    needs_instance_lock: bool = False
 
 
 def _compact_text(text: str, *, limit: int = 160) -> str:

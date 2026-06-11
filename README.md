@@ -34,17 +34,18 @@ Current deterministic rule support includes:
 
 Known gaps include:
 
-- some advanced stream collectors, long/complex chains, and certain method-reference
-  contexts (many common cases like toSet/joining, distinct/sorted, basic groupingBy
-  now supported via comprehensions or small helpers; block lambdas in streams handled)
-- switch fall-through and complex switch rule blocks
+- four corpus constructs still tracked as strict xfail targets: advanced stream collectors
+  and long chains (`AdvancedStreams`), anonymous/local/inner classes with non-method
+  members (`AnonymousAndInner`), switch fall-through (`SwitchFallthrough`), and local
+  `var` inference (`VarKeyword`)
 - overload groups whose erased Python signatures collide (e.g. `int` vs `long`)
   and static-method overload groups still fall back to manual-dispatch TODOs
-- advanced inner-class captures, outer-`this` qualification, and anonymous classes with
-  non-method members
 - enum constant class bodies, complex enum static initialization, and annotation semantics
 - behavioral equivalence testing between Java and Python
 - framework semantics such as Spring dependency injection or Hibernate mappings
+
+Graduated in `make check` (no longer listed as gaps): common switch forms, interface
+defaults/statics, text blocks, sealed classes, records, and instance `synchronized(this)`.
 
 ## Quick Start
 

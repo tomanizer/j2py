@@ -19,14 +19,20 @@ Run future roadmap xfail targets:
 make test-targets
 ```
 
-The suite has two lanes:
+The suite has three lanes:
 
 - **Graduated targets**: Java fixtures under `tests/fixtures/java/targets/` that now
   translate deterministically. These run in `make check`, must parse, produce valid
   Python, reach `coverage == 1.0`, and report no unhandled diagnostics.
+- **Graduated corpus constructs**: Java fixtures under
+  `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
+  (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`,
+  `TextBlocks`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
-  behavior that should become supported next. These are marked `target_translation`
-  and run via `make test-targets`.
+  behavior that should become supported next. Corpus constructs still below full rule
+  coverage (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword`)
+  are included here. These are marked `target_translation` and run via
+  `make test-targets`.
 
 Each future target case has:
 

@@ -8,20 +8,33 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- GitHub Actions corpus workflow (`.github/workflows/corpus.yml`) comparing the pinned
+  Spring sample against the committed baseline on translation/corpus path changes.
+- `j2py analyze` dependency graph and translation-order output for file and directory modes.
+- Skeleton translator tests split under `tests/translate/skeleton/` by concern (#69).
+- ADR 0010: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
+  initialization in constructors or synthetic `__init__`.
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.
 - Strict xfail `FUTURE_TARGETS` for four corpus constructs still below full rule coverage
   (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `VarKeyword`).
+- Graduated corpus construct regression tests in `make check` for five constructs that
+  reach full skeleton coverage (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`,
+  `SealedClasses`, `TextBlocks`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- README known gaps refreshed to match graduated targets/corpus constructs and remaining
+  `FUTURE_TARGETS` xfail items (#69).
+- Non-`this` synchronized blocks keep `with <expr>:` but warn that lock semantics need review.
+- LLM system prompt aligned with the `_j2py_lock` instance-monitor pattern.
 - Dependency graph resolves simple type names only when unambiguous; ambiguous `User`-style
   collisions no longer pick an arbitrary file.
-- `j2py analyze` docstring no longer claims dependency-graph output.
+- `j2py analyze` prints class inventory plus dependency graph and translation order (#69).
 - `TranslationResult.confidence` documented as rule-layer coverage (unchanged after LLM).
 - Agent docs (`AGENTS.md`, `CLAUDE.md`) updated for graduated vs xfail test tiers.
 - Graduated target fixtures (`tests/fixtures/java/targets/`) now run in `make check` and
