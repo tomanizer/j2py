@@ -24,3 +24,18 @@ def test_build_translation_prompt_includes_context_source_and_partial() -> None:
     assert "public class A {}" in content
     assert "<partial_translation>" in content
     assert "class A:" in content
+    assert "reviewable, fully working Python" in content
+    assert "preserves the Java structure" in content
+
+
+def test_system_prompt_frames_llm_as_structural_transposer() -> None:
+    system, _ = build_translation_prompt(
+        java_source="public class A {}",
+        partial_python="class A:\n    pass\n",
+    )
+
+    assert "conservative code transposer" in system
+    assert "Preserve class, method, field, and statement ordering" in system
+    assert "Preserve the Java control-flow shape" in system
+    assert "not a Python refactoring assistant" in system
+    assert "do not rewrite algorithms" in system
