@@ -38,6 +38,8 @@ No changes yet.
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Java `@interface` declarations translate to inert `@dataclass(frozen=True)` metadata
+  classes with element fields, tuple array types, and preserved meta-annotation warnings (#83).
 - Java `super` used as a method/field receiver translates to `super()` in expressions (#82).
 - Traditional `for` loops without an update clause lower to initializer plus
   `while condition` instead of `malformed for statement` (#81).

@@ -15,6 +15,7 @@ from j2py.translate.diagnostics import (
 )
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import class_body_needs_pass, first_child_by_type
+from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import (
     translate_class_name,
     translate_field_name,
@@ -87,7 +88,7 @@ def translate_class(
     if node.type == "record_declaration":
         return _translate_record(node, cfg, diagnostics)
     if node.type == "annotation_type_declaration":
-        return _translate_annotation_placeholder(node, diagnostics)
+        return _translate_annotation_declaration(node, cfg, diagnostics)
 
     is_supported_class = node.type == "class_declaration"
     diagnostics.record(
@@ -429,22 +430,216 @@ def _translate_record(
     return lines
 
 
-def _translate_annotation_placeholder(
+_ANNOTATION_META_NAMES = frozenset(
+    {"Target", "Retention", "Documented", "Inherited", "Repeatable", "Native"}
+)
+_ANNOTATION_ELEMENT_TYPE_NODES = frozenset(
+    {
+        "type_identifier",
+        "scoped_type_identifier",
+        "generic_type",
+        "array_type",
+        "integral_type",
+        "floating_point_type",
+        "boolean_type",
+        "void_type",
+    }
+)
+
+
+def _translate_annotation_declaration(
     node: JavaNode,
+    cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
 ) -> list[str]:
-    diagnostics.record(
-        node,
-        supported=False,
-        reason="annotation type declaration requires manual translation",
-    )
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
-    return [
-        f"class {class_name}:",
-        "    # TODO(j2py): unsupported annotation type declaration",
-        "    pass",
-    ]
+    lines: list[str] = []
+
+    for modifiers in node.children_by_type("modifiers"):
+        for annotation in modifiers.named_children:
+            if annotation.type not in {"annotation", "marker_annotation"}:
+                continue
+            name = _annotation_node_name(annotation)
+            if name is None:
+                continue
+            if name in _ANNOTATION_META_NAMES:
+                diagnostics.warn(
+                    annotation,
+                    reason=f"preserved meta-annotation @{name}",
+                )
+                if cfg.emit_line_comments:
+                    lines.append(f"# {annotation.text.strip()}")
+                continue
+            diagnostics.warn(annotation, reason=f"preserved annotation @{name}")
+            if cfg.emit_line_comments:
+                lines.append(f"# {annotation.text.strip()}")
+
+    lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
+
+    body = node.child_by_field("body")
+    member_lines: list[str] = []
+    if body is not None:
+        for member in body.named_children:
+            if member.type == "annotation_type_element_declaration":
+                member_lines.append(_translate_annotation_element(member, cfg, diagnostics))
+                continue
+            if is_comment(member):
+                diagnostics.warn(member, reason="preserved comment")
+                if cfg.emit_line_comments:
+                    member_lines.extend(translate_comment(member, indent="    "))
+                continue
+            diagnostics.record(
+                member,
+                supported=False,
+                reason=f"unsupported annotation member {member.type}",
+            )
+            member_lines.append(f"    # TODO(j2py): unsupported annotation member {member.type}")
+
+    if not member_lines:
+        lines.append("    pass")
+    else:
+        lines.extend(member_lines)
+
+    diagnostics.record(node, supported=True, reason="translated annotation type declaration")
+    return lines
+
+
+def _annotation_node_name(annotation: JavaNode) -> str | None:
+    name_node = annotation.child_by_field("name")
+    if name_node is None:
+        name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
+    return name_node.text if name_node is not None else None
+
+
+def _translate_annotation_element(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> str:
+    type_node = _annotation_element_type_node(node)
+    name_node = _annotation_element_name_node(node)
+    if type_node is None or name_node is None:
+        diagnostics.record(node, supported=False, reason="malformed annotation element")
+        return "    # TODO(j2py): malformed annotation element"
+
+    py_name = translate_field_name(name_node.text, snake_case=cfg.snake_case_fields)
+    py_type = _annotation_element_py_type(type_node, cfg)
+    default_node = _annotation_element_default_node(node)
+    if default_node is None:
+        diagnostics.record(node, supported=True, reason="translated annotation element")
+        if cfg.emit_type_hints:
+            return f"    {py_name}: {py_type}"
+        return f"    {py_name}"
+
+    default_value = _annotation_element_default(default_node, cfg, diagnostics)
+    if default_value is None:
+        diagnostics.record(
+            node,
+            supported=False,
+            reason="unsupported annotation element default",
+        )
+        if cfg.emit_type_hints:
+            return (
+                f"    {py_name}: {py_type} | None = None"
+                f"  # TODO(j2py): unsupported default"
+            )
+        return f"    {py_name} = None  # TODO(j2py): unsupported default"
+
+    diagnostics.record(node, supported=True, reason="translated annotation element")
+    if cfg.emit_type_hints:
+        return f"    {py_name}: {py_type} = {default_value}"
+    return f"    {py_name} = {default_value}"
+
+
+def _annotation_element_type_node(node: JavaNode) -> JavaNode | None:
+    for child in node.named_children:
+        if child.type in _ANNOTATION_ELEMENT_TYPE_NODES:
+            return child
+    return None
+
+
+def _annotation_element_name_node(node: JavaNode) -> JavaNode | None:
+    name_node = node.child_by_field("name")
+    if name_node is not None:
+        return name_node
+    for child in node.named_children:
+        if child.type == "identifier":
+            return child
+    return None
+
+
+def _annotation_element_default_node(node: JavaNode) -> JavaNode | None:
+    for child in node.named_children:
+        if child.type in _ANNOTATION_ELEMENT_TYPE_NODES:
+            continue
+        if child.type == "identifier":
+            continue
+        return child
+    return None
+
+
+def _annotation_element_py_type(type_node: JavaNode, cfg: TranslationConfig) -> str:
+    if type_node.type == "array_type":
+        element_type = next(
+            (child for child in type_node.named_children if child.type != "dimensions"),
+            None,
+        )
+        inner_py = translate_type(element_type.text if element_type is not None else "Object", cfg)
+        return f"tuple[{inner_py}, ...]"
+    java_type = type_node.text
+    if java_type.endswith("[]"):
+        inner_py = translate_type(java_type[:-2], cfg)
+        return f"tuple[{inner_py}, ...]"
+    return translate_type(java_type, cfg)
+
+
+def _annotation_element_default(
+    default_node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> str | None:
+    if default_node.type == "element_value_array_initializer":
+        values: list[str] = []
+        for child in default_node.named_children:
+            scalar = _annotation_scalar_default(child, cfg, diagnostics)
+            if scalar is None:
+                return None
+            values.append(scalar)
+        if not values:
+            return "()"
+        if len(values) == 1:
+            return f"({values[0]},)"
+        return f"({', '.join(values)})"
+
+    return _annotation_scalar_default(default_node, cfg, diagnostics)
+
+
+def _annotation_scalar_default(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> str | None:
+    if node.type in _IMMUTABLE_LITERAL_NODES:
+        if node.type == "string_literal":
+            return translate_string_literal(node.text)
+        return translate_literal(node.text, cfg)
+
+    if node.type == "class_literal":
+        type_node = node.named_children[0] if node.named_children else None
+        if type_node is None:
+            return None
+        diagnostics.warn(node, reason="annotation class literal default requires manual review")
+        mapped = translate_class_name(type_node.text)
+        if mapped == "Object":
+            return "object"
+        return mapped
+
+    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    translated = translate_expression(node, ctx)
+    if translated.startswith("__j2py_todo__"):
+        return None
+    return translated
 
 
 def _nested_type_lines(
