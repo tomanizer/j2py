@@ -3,10 +3,11 @@
 
 
 from j2py.analyze.symbols import extract_symbols
-from j2py.parse.java_ast import parse_source
+from j2py.parse.java_ast import parse_file, parse_source
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
+    FIXTURES,
     assert_valid_python,
     translate_source,
     translate_source_with_diagnostics,
@@ -240,7 +241,7 @@ def test_switch_statement_merges_grouped_default_label() -> None:
 
 
 
-def test_switch_statement_with_fallthrough_drops_coverage() -> None:
+def test_switch_statement_with_fallthrough_to_default_translates() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Switches {
@@ -257,11 +258,21 @@ def test_switch_statement_with_fallthrough_drops_coverage() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "TODO(j2py): switch fall-through requires manual translation" in result.source
-    assert result.diagnostics.unhandled[-1].reason == (
-        "switch fall-through requires manual translation"
-    )
+    assert result.coverage == 1.0
+    assert "TODO(j2py): switch fall-through requires manual translation" not in result.source
+    assert "if value == 1:" in result.source
+    assert "elif value not in (1):" in result.source
+    assert_valid_python(result.source)
+
+
+def test_switch_fallthrough_corpus_construct_reaches_full_coverage() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "SwitchFallthrough.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "elif value == 3:" in result.source
+    assert "if value in (3, 4, 5):" in result.source
     assert_valid_python(result.source)
 
 
