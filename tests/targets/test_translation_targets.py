@@ -48,7 +48,6 @@ def test_target_java_fixtures_parse_without_errors() -> None:
         assert not parsed.has_errors, path
 
 
-@pytest.mark.target_translation
 @pytest.mark.parametrize(
     "fixture_name",
     GRADUATED_TARGET_FIXTURES,

@@ -38,6 +38,7 @@ class ClassSymbol:
     is_interface: bool = False
     is_abstract: bool = False
     is_enum: bool = False
+    is_record: bool = False
     fields: list[FieldSymbol] = field(default_factory=list)
     methods: list[MethodSymbol] = field(default_factory=list)
     inner_classes: list[ClassSymbol] = field(default_factory=list)
@@ -85,6 +86,7 @@ def _extract_classes(root: JavaNode, package: str) -> list[ClassSymbol]:
         "class_declaration",
         "interface_declaration",
         "enum_declaration",
+        "record_declaration",
         "annotation_type_declaration",
     }
     for node in root.named_children:
@@ -104,6 +106,7 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
     modifiers = {c.text for c in node.children_by_type("modifiers")}
     is_interface = node.type == "interface_declaration"
     is_enum = node.type == "enum_declaration"
+    is_record = node.type == "record_declaration"
     is_abstract = "abstract" in modifiers
 
     superclass: str | None = None
@@ -121,9 +124,29 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
     fields: list[FieldSymbol] = []
     methods: list[MethodSymbol] = []
     inner_classes: list[ClassSymbol] = []
-
     body = node.child_by_field("body")
-    if body:
+
+    if is_record:
+        params_node = node.child_by_field("parameters")
+        if params_node is not None:
+            fields.extend(_parse_record_components(params_node))
+        if body is not None:
+            for child in body.named_children:
+                if child.type == "field_declaration":
+                    fields.extend(_parse_fields(child))
+                elif child.type in (
+                    "method_declaration",
+                    "constructor_declaration",
+                    "compact_constructor_declaration",
+                ):
+                    m = _parse_method(child)
+                    if m:
+                        methods.append(m)
+                elif child.type in _NESTED_DECLARATION_TYPES:
+                    inner = _parse_class(child, package)
+                    if inner is not None:
+                        inner_classes.append(inner)
+    elif body is not None:
         for child in body.named_children:
             if child.type == "field_declaration":
                 fields.extend(_parse_fields(child))
@@ -131,12 +154,7 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
                 m = _parse_method(child)
                 if m:
                     methods.append(m)
-            elif child.type in {
-                "class_declaration",
-                "interface_declaration",
-                "enum_declaration",
-                "annotation_type_declaration",
-            }:
+            elif child.type in _NESTED_DECLARATION_TYPES:
                 inner = _parse_class(child, package)
                 if inner is not None:
                     inner_classes.append(inner)
@@ -149,11 +167,37 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
         is_interface=is_interface,
         is_abstract=is_abstract,
         is_enum=is_enum,
+        is_record=is_record,
         fields=fields,
         methods=methods,
         inner_classes=inner_classes,
         line=node.location.line,
     )
+
+
+_NESTED_DECLARATION_TYPES = frozenset({
+    "class_declaration",
+    "interface_declaration",
+    "enum_declaration",
+    "record_declaration",
+    "annotation_type_declaration",
+})
+
+
+def _parse_record_components(params_node: JavaNode) -> list[FieldSymbol]:
+    result: list[FieldSymbol] = []
+    for param in params_node.find_all("formal_parameter", "spread_parameter"):
+        type_node = param.child_by_field("type")
+        name_node = param.child_by_field("name")
+        if name_node is None:
+            continue
+        result.append(FieldSymbol(
+            name=name_node.text,
+            java_type=type_node.text if type_node else "Object",
+            is_final=True,
+            line=param.location.line,
+        ))
+    return result
 
 
 def _first_type_name(node: JavaNode) -> JavaNode | None:
