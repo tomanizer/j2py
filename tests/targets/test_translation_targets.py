@@ -42,12 +42,6 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
         reason="Advanced stream collectors and long chains are not fully supported",
     ),
     TranslationTarget(
-        fixture="AnonymousAndInner.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
-        tracking="anonymous-inner",
-        reason="Anonymous classes with non-method members are not fully supported",
-    ),
-    TranslationTarget(
         fixture="SuperMethodCalls.java",
         fixture_root=CORPUS_CONSTRUCT_FIXTURES,
         tracking="super-method-calls",
