@@ -121,3 +121,74 @@ def test_compare_baseline_reports_per_file_regressions(tmp_path: Path) -> None:
 
     payload = json.loads(baseline_path.read_text())
     assert payload["files"][0]["path"] == "A.java"
+
+
+def test_measure_file_falls_back_for_paths_outside_spring_repo() -> None:
+    """Ensure curated construct files (outside the Spring checkout) do not crash measure_file.
+
+    This covers the P1 fix: paths from tests/fixtures/corpus/constructs are reported
+    with a project-relative path instead of raising ValueError on .relative_to().
+    """
+    # Use a real construct file that exists in the source tree
+    construct = corpus.CONSTRUCTS_DIR / "VarKeyword.java"
+    assert construct.exists(), "Expected curated construct file for test"
+
+    fake_spring_repo = Path("/tmp/fake-spring-repo")  # guaranteed not to contain the construct
+
+    cfg = corpus.ConfigLoader().add_defaults().build()
+    metric = corpus.measure_file(construct, repo=fake_spring_repo, cfg=cfg)
+
+    # Should succeed and produce a sensible relative path under the j2py project
+    assert "constructs/VarKeyword.java" in metric.path
+    assert not metric.path.startswith("/tmp")
+    assert metric.parse_ok is True
+    assert metric.handled_count + metric.unhandled_count > 0
+
+
+def test_compare_baseline_suppresses_deltas_on_metadata_mismatch(tmp_path: Path) -> None:
+    """Metadata mismatches (different strategy, include_constructs, etc.) must suppress deltas.
+
+    This covers the P2 fix: when baseline and current have different sampling parameters,
+    compare_baseline returns empty deltas/improvements/regressions and populates
+    metadata_mismatches. The existing test only covered the comparable (matching metadata) case.
+    """
+    baseline_metrics = [
+        _metric("A.java", coverage=1.0),
+    ]
+    baseline_path = tmp_path / "baseline.json"
+    corpus.write_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "lexical",
+            "include_constructs": False,
+        },
+        summary=corpus.summarize(baseline_metrics),
+        metrics=baseline_metrics,
+    )
+
+    current_metrics = [
+        _metric("A.java", coverage=0.5),
+    ]
+    comparison = corpus.compare_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "density",  # deliberate mismatch
+            "include_constructs": True,
+        },
+        summary=corpus.summarize(current_metrics),
+        metrics=current_metrics,
+    )
+
+    assert comparison["metadata_mismatches"]  # should be non-empty
+    assert comparison["deltas"] == {}
+    assert comparison["improvements"] == []
+    assert comparison["regressions"] == []
+    # file_regressions may be present but the key point is that summary deltas are suppressed
