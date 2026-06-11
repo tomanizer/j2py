@@ -42,9 +42,9 @@ Current preferred dense baseline:
 - parse success rate: 100.00%
 - generated Python syntax success rate: 98.00%
 - files included in coverage metrics: 43 of 100
-- average skeleton coverage: 98.26%
-- full-coverage files: 36 of 43 coverage-bearing files
-- files with unhandled constructs: 7 of 100
+- average skeleton coverage: 98.49%
+- full-coverage files: 37 of 43 coverage-bearing files
+- files with unhandled constructs: 6 of 100
 - files below 80% coverage: 0 of 43 coverage-bearing files
 - all curated non-Spring construct fixtures are included in the selected sample
 
