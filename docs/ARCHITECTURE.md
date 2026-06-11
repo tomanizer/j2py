@@ -104,9 +104,11 @@ Java source file(s)
 - Directory mode builds the dependency graph and translates files in dependency order
 
 ### `cli/` — User interface
-- `typer`-based CLI; `j2py translate` and `j2py analyze`
+- `typer`-based CLI; `j2py translate`, `j2py analyze`, and `j2py compare`
 - All output via `rich`; directory translation reports order, per-file confidence,
   diagnostics counts, validation status, and cycle warnings
+- `compare` is a single-file review shortcut that reuses an existing Python file or
+  generates one through the normal file pipeline, then opens an editor diff command
 
 ## Key design decisions
 

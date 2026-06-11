@@ -145,3 +145,243 @@ def test_cli_translate_skips_runtime_module_when_dispatch_unused(tmp_path: Path)
 
     assert result.exit_code == 0
     assert not (tmp_path / "j2py_runtime.py").exists()
+
+
+def test_cli_compare_existing_python_skips_translation_and_opens_diff(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java)])
+
+    assert result.exit_code == 0
+    assert "Skipping translation" in result.output
+    assert calls == [["code", "--diff", str(java), str(python)]]
+
+
+def test_cli_compare_missing_python_translates_without_llm_and_opens_diff(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text(
+        """
+        public class Sample {
+            public String greet() {
+                return "hello";
+            }
+        }
+        """,
+    )
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java)])
+
+    assert result.exit_code == 0
+    assert python.exists()
+    assert "Translating" in result.output
+    assert calls == [["code", "--diff", str(java), str(python)]]
+
+
+def test_cli_compare_no_open_prints_paths_without_opening_editor(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--no-open"])
+
+    assert result.exit_code == 0
+    assert f"Java:   {java}" in result.output
+    assert f"Python: {python}" in result.output
+    assert calls == []
+
+
+def test_cli_compare_editor_not_found_prints_manual_diff_command(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+
+    def fake_popen(args: list[str]) -> None:
+        raise FileNotFoundError
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--editor", "missing-code"])
+
+    assert result.exit_code == 0
+    assert "not found" in result.output
+    assert "--diff" in result.output
+
+
+def test_cli_compare_missing_source_exits_without_traceback(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(tmp_path / "Missing.java"), "--no-open"])
+
+    assert result.exit_code == 1
+    assert "source file not found" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_compare_rejects_output_directory(tmp_path: Path) -> None:
+    java = tmp_path / "Sample.java"
+    java.write_text("public class Sample {}")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--output", str(tmp_path), "--no-open"])
+
+    assert result.exit_code == 1
+    assert "Python output path is a directory" in result.output
+
+
+def test_cli_compare_editor_launch_os_error_prints_manual_diff_command(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+
+    def fake_popen(args: list[str]) -> None:
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--editor", "blocked-code"])
+
+    assert result.exit_code == 0
+    assert "could not be launched" in result.output
+    assert "permission denied" in result.output
+    assert "--diff" in result.output
+
+
+def test_cli_compare_generic_editor_omits_vscode_diff_flag(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--editor", "vimdiff"])
+
+    assert result.exit_code == 0
+    assert calls == [["vimdiff", str(java), str(python)]]
+
+
+def test_cli_compare_uses_config_when_translating_missing_python(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    config = tmp_path / "j2py_config.py"
+    java.write_text("public class Sample {}")
+    config.write_text("type_map = {'String': 'Text'}\n")
+    observed_string_types: list[str] = []
+    observed_validate: list[bool] = []
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed_string_types.append(cfg.type_map["String"])
+        observed_validate.append(validate)
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["compare", str(java), "--config", str(config), "--validate", "--no-open"],
+    )
+
+    assert result.exit_code == 0
+    assert python.exists()
+    assert observed_string_types == ["Text"]
+    assert observed_validate == [True]
+
+
+def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="from j2py_runtime import overloaded\n\nclass Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--no-open"])
+
+    assert result.exit_code == 0
+    assert "from j2py_runtime import overloaded" in python.read_text()
+    runtime = tmp_path / "j2py_runtime.py"
+    assert runtime.exists()
+    assert "class overloaded" in runtime.read_text()
