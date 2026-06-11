@@ -82,6 +82,30 @@ def test_cli_analyze_prints_class_inventory() -> None:
     assert "HelloWorld" in result.output
     assert "5 methods" in result.output
     assert "2 fields" in result.output
+    assert "Translation order:" in result.output
+
+
+def test_cli_analyze_prints_dependency_graph_for_directory(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Child.java").write_text(
+        """
+        package com.example;
+        import com.example.Base;
+        public class Child extends Base {}
+        """,
+    )
+    (source / "Base.java").write_text("package com.example; public class Base {}")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["analyze", str(source)])
+
+    assert result.exit_code == 0
+    assert "Dependency graph" in result.output
+    assert "Child.java → Base.java" in result.output
+    assert "Translation order:" in result.output
+    assert "1. Base.java" in result.output
+    assert "2. Child.java" in result.output
 
 
 def test_cli_translate_directory_reports_dependency_order(tmp_path: Path) -> None:
