@@ -34,9 +34,9 @@ Current deterministic rule support includes:
 
 Known gaps include:
 
-- four corpus constructs still tracked as strict xfail targets: advanced stream collectors
-  and long chains (`AdvancedStreams`), anonymous/local/inner classes with non-method
-  members (`AnonymousAndInner`), and `super.method(...)` receiver calls (`SuperMethodCalls`)
+- two corpus constructs still tracked as strict xfail targets: advanced stream collectors
+  and long chains (`AdvancedStreams`), and `super.method(...)` receiver calls
+  (`SuperMethodCalls`)
 - overload groups whose erased Python signatures collide (e.g. `int` vs `long`)
   and static-method overload groups still fall back to manual-dispatch TODOs
 - enum constant class bodies, complex enum static initialization, and annotation semantics
@@ -45,7 +45,7 @@ Known gaps include:
 
 Graduated in `make check` (no longer listed as gaps): common switch forms, interface
 defaults/statics, text blocks, sealed classes, records, instance `synchronized(this)`,
-local `var` inference, and switch fall-through.
+local `var` inference, switch fall-through, and anonymous class instance fields.
 
 ## Quick Start
 

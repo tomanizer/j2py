@@ -509,6 +509,36 @@ def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInf
     return fields
 
 
+def field_infos_from_declaration(node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]:
+    """Extract field metadata from a single ``field_declaration`` node."""
+    if node.type != "field_declaration":
+        return []
+
+    type_node = node.child_by_field("type")
+    java_type = type_node.text if type_node is not None else "Object"
+    modifiers = _modifiers(node)
+    fields: list[FieldInfo] = []
+    for declarator in node.find_all("variable_declarator"):
+        name_node = declarator.child_by_field("name")
+        if name_node is None:
+            continue
+        fields.append(
+            FieldInfo(
+                node=node,
+                name=name_node.text,
+                py_name=translate_field_name(
+                    name_node.text,
+                    snake_case=cfg.snake_case_fields,
+                ),
+                java_type=java_type,
+                py_type=translate_type(java_type, cfg),
+                is_static="static" in modifiers,
+                initializer=declarator.child_by_field("value"),
+            ),
+        )
+    return fields
+
+
 def _constructor_assigned_fields(class_node: JavaNode) -> set[str]:
     body = class_node.child_by_field("body")
     if body is None:

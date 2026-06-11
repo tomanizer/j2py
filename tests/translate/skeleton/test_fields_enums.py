@@ -2,7 +2,12 @@
 
 
 
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
+    CFG,
+    FIXTURES,
     assert_valid_python,
     translate_source,
     translate_source_with_diagnostics,
@@ -107,7 +112,42 @@ def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_instance_field_translates_to_helper_init() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.concurrent.Callable;
 
+        public class TaskFactory {
+            public Callable<String> makeTask(final String prefix) {
+                return new Callable<String>() {
+                    private int counter = 0;
+
+                    @Override
+                    public String call() {
+                        counter++;
+                        return prefix + "-" + counter;
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def __init__(self):" in result.source
+    assert "self.counter: int = 0" in result.source
+    assert "self.counter += 1" in result.source
+    assert_valid_python(result.source)
+
+
+def test_anonymous_and_inner_corpus_construct_reaches_full_coverage() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "AnonymousAndInner.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
 
 
 def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
