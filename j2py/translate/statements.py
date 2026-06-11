@@ -154,12 +154,30 @@ def _translate_if(
     consequence = node.child_by_field("consequence")
     alternative = node.child_by_field("alternative")
 
-    lines = [f"{indent}{keyword} {translate_expression(condition, ctx)}:"]
+    previous_bindings = ctx.pattern_bindings
+    ctx.pattern_bindings = []
+    try:
+        condition_text = translate_expression(condition, ctx)
+        pattern_bindings = ctx.pattern_bindings
+    finally:
+        ctx.pattern_bindings = previous_bindings
+
+    lines = [f"{indent}{keyword} {condition_text}:"]
     if consequence is None:
         ctx.diagnostics.record(node, supported=False, reason="if statement without a body")
         lines.append(f"{indent}    pass")
     else:
-        lines.extend(translate_body(consequence, ctx, indent=f"{indent}    "))
+        previous_locals = set(ctx.local_names)
+        previous_types = dict(ctx.variable_types)
+        for binding in pattern_bindings:
+            ctx.local_names.add(binding.raw_name)
+            ctx.variable_types[binding.raw_name] = binding.py_type
+            lines.append(f"{indent}    {binding.py_name} = {binding.source}")
+        try:
+            lines.extend(translate_body(consequence, ctx, indent=f"{indent}    "))
+        finally:
+            ctx.local_names = previous_locals
+            ctx.variable_types = previous_types
 
     if alternative is None:
         return lines

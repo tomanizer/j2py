@@ -35,30 +35,6 @@ class TranslationTarget:
 
 TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
-        fixture="CastExpression.java",
-        tracking="corpus-cast",
-        reason="corpus backlog: translate cast expressions without TODOs",
-        expected_fragments=("return value.get_canonical_name()",),
-    ),
-    TranslationTarget(
-        fixture="InstanceofExpression.java",
-        tracking="corpus-instanceof",
-        reason="corpus backlog: translate instanceof pattern variables",
-        expected_fragments=("isinstance(value, str)", "text = value", "return text.strip()"),
-    ),
-    TranslationTarget(
-        fixture="BitwiseOperators.java",
-        tracking="corpus-bitwise",
-        reason="corpus backlog: translate bitwise and shift operators",
-        expected_fragments=("left & right", "left ^ right", "value << 2", "value >> 1"),
-    ),
-    TranslationTarget(
-        fixture="CompoundAssignment.java",
-        tracking="corpus-compound-assignment",
-        reason="corpus backlog: translate bitwise compound assignments",
-        expected_fragments=("value &= mask", "value |= flag"),
-    ),
-    TranslationTarget(
         fixture="ArrayCreation.java",
         tracking="corpus-array-creation",
         reason="corpus backlog: translate sized array creation",

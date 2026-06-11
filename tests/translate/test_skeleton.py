@@ -603,11 +603,11 @@ def test_if_statement_translates_nested_branch() -> None:
     _assert_valid_python(python_source)
 
 
-def test_if_statement_localizes_unsupported_condition_expression() -> None:
+def test_if_statement_translates_instanceof_condition() -> None:
     python_source, coverage = _translate_source(
         """
         public class Branch {
-            public int unsupported(Object value) {
+            public int supported(Object value) {
                 if (value instanceof String) {
                     return 1;
                 }
@@ -617,10 +617,65 @@ def test_if_statement_localizes_unsupported_condition_expression() -> None:
         """,
     )
 
-    assert coverage < 1.0
-    assert "if __j2py_todo__('value instanceof String'):" in python_source
+    assert coverage == 1.0
+    assert "if isinstance(value, str):" in python_source
     assert "unsupported if_statement" not in python_source
     _assert_valid_python(python_source)
+
+
+def test_instanceof_pattern_variable_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "InstanceofExpression.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "if isinstance(value, str):" in result.source
+    assert "text = value" in result.source
+    assert "return text.strip()" in result.source
+    _assert_valid_python(result.source)
+
+
+def test_cast_expression_target_fixture_translates_with_warning() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "CastExpression.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return value.get_canonical_name()" in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "dropped Java cast; verify runtime type",
+    ]
+    _assert_valid_python(result.source)
+
+
+def test_bitwise_operator_target_fixtures_translate() -> None:
+    bitwise = parse_file(FIXTURES / "java" / "targets" / "BitwiseOperators.java")
+    bitwise_result = translate_skeleton_with_diagnostics(
+        bitwise, extract_symbols(bitwise), CFG
+    )
+
+    assert bitwise_result.coverage == 1.0
+    assert not bitwise_result.diagnostics.unhandled
+    assert "return left & right | left ^ right" in bitwise_result.source
+    assert "return value << 2 >> 1" in bitwise_result.source
+    assert "return value >> 1" in bitwise_result.source
+    assert [warning.reason for warning in bitwise_result.diagnostics.warnings] == [
+        "unsigned right shift translated as >>; verify negative values",
+    ]
+    assert "__j2py_todo__" not in bitwise_result.source
+    _assert_valid_python(bitwise_result.source)
+
+    compound = parse_file(FIXTURES / "java" / "targets" / "CompoundAssignment.java")
+    compound_result = translate_skeleton_with_diagnostics(
+        compound, extract_symbols(compound), CFG
+    )
+
+    assert compound_result.coverage == 1.0
+    assert not compound_result.diagnostics.unhandled
+    assert "value &= mask" in compound_result.source
+    assert "value |= flag" in compound_result.source
+    assert "__j2py_todo__" not in compound_result.source
+    _assert_valid_python(compound_result.source)
 
 
 def test_common_spring_expression_shapes_translate() -> None:

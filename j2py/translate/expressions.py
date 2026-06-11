@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import translate_literal
 from j2py.translate.rules.naming import (
@@ -57,19 +57,48 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node.type == "class_literal":
         return _translate_class_literal(node, ctx)
 
+    if node.type == "cast_expression":
+        return _translate_cast_expression(node, ctx)
+
+    if node.type == "instanceof_expression":
+        return _translate_instanceof_expression(node, ctx)
+
     if node.type == "assignment_expression":
         children = node.children
         if len(children) >= 3:
             left_node = children[0]
             operator = children[1].text
             right_node = children[-1]
-            if operator not in {"=", "+=", "-=", "*=", "/=", "%="}:
+            supported_operators = {
+                "=",
+                "+=",
+                "-=",
+                "*=",
+                "/=",
+                "%=",
+                "&=",
+                "|=",
+                "^=",
+                "<<=",
+                ">>=",
+                ">>>=",
+            }
+            if operator not in supported_operators:
                 ctx.diagnostics.record(
                     node,
                     supported=False,
                     reason=f"unsupported assignment operator {operator}",
                 )
                 return f"__j2py_todo__({node.text!r})"
+            if operator == ">>>=":
+                ctx.diagnostics.warn(
+                    node,
+                    reason=(
+                        "unsigned right shift assignment translated as >>=; "
+                        "verify negative values"
+                    ),
+                )
+                operator = ">>="
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
             return f"{left} {operator} {right}"
@@ -115,7 +144,15 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
             operator_text = children[1].text
             if operator_text == "/":
                 return _translate_division(node, children[0], children[2], ctx)
-            binary_operator = _translate_binary_operator(operator_text)
+            binary_operator: str | None
+            if operator_text == ">>>":
+                ctx.diagnostics.warn(
+                    node,
+                    reason="unsigned right shift translated as >>; verify negative values",
+                )
+                binary_operator = ">>"
+            else:
+                binary_operator = _translate_binary_operator(operator_text)
             if binary_operator is None:
                 ctx.diagnostics.record(
                     node,
@@ -201,6 +238,70 @@ def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
         ctx.diagnostics.record(node, supported=False, reason="malformed class literal")
         return f"__j2py_todo__({node.text!r})"
     return translate_expression(children[0], ctx)
+
+
+def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.named_children
+    if len(children) < 2:
+        ctx.diagnostics.record(node, supported=False, reason="malformed cast expression")
+        return f"__j2py_todo__({node.text!r})"
+    ctx.diagnostics.record(node, supported=True, reason="translated cast expression")
+    ctx.diagnostics.warn(node, reason="dropped Java cast; verify runtime type")
+    return translate_expression(children[-1], ctx)
+
+
+def _translate_instanceof_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.named_children
+    if len(children) < 2:
+        ctx.diagnostics.record(node, supported=False, reason="malformed instanceof expression")
+        return f"__j2py_todo__({node.text!r})"
+
+    expression_node = children[0]
+    type_node = children[1]
+    expression = translate_expression(expression_node, ctx)
+    runtime_type = _runtime_type_expression(type_node, ctx)
+    if runtime_type is None:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason=f"unsupported instanceof type {type_node.text}",
+        )
+        return f"__j2py_todo__({node.text!r})"
+
+    if len(children) >= 3 and children[2].type == "identifier":
+        raw_name = children[2].text
+        py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
+        ctx.pattern_bindings.append(
+            PatternBinding(
+                raw_name=raw_name,
+                py_name=py_name,
+                py_type=translate_type(type_node.text, ctx.cfg),
+                source=expression,
+            ),
+        )
+
+    ctx.diagnostics.record(node, supported=True, reason="translated instanceof expression")
+    return f"isinstance({expression}, {runtime_type})"
+
+
+def _runtime_type_expression(type_node: JavaNode, ctx: TranslationContext) -> str | None:
+    raw_type = type_node.text.strip()
+    raw_type = raw_type.split("<", 1)[0]
+    while raw_type.endswith("[]"):
+        raw_type = raw_type[:-2]
+
+    mapped = ctx.cfg.collection_map.get(raw_type) or ctx.cfg.type_map.get(raw_type)
+    if mapped is not None:
+        return mapped.split("[", 1)[0]
+    if raw_type in {"byte", "short", "int", "long"}:
+        return "int"
+    if raw_type in {"float", "double"}:
+        return "float"
+    if raw_type == "boolean":
+        return "bool"
+    if not raw_type:
+        return None
+    return translate_class_name(raw_type)
 
 
 def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str:
@@ -1115,6 +1216,11 @@ def _translate_binary_operator(operator: str) -> str | None:
         "-": "-",
         "*": "*",
         "%": "%",
+        "&": "&",
+        "|": "|",
+        "^": "^",
+        "<<": "<<",
+        ">>": ">>",
     }
     return operators.get(operator)
 

@@ -18,6 +18,16 @@ class TranslationDiagnostic:
     reason: str
 
 
+@dataclass(frozen=True)
+class PatternBinding:
+    """Python binding introduced by a Java pattern expression."""
+
+    raw_name: str
+    py_name: str
+    py_type: str
+    source: str
+
+
 @dataclass
 class TranslationDiagnostics:
     """Tracks rule-layer coverage with source-level reasons."""
@@ -75,6 +85,7 @@ class TranslationContext:
     param_names: set[str] = field(default_factory=set)
     variable_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)
+    pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
     allow_local_helpers: bool = False
 
