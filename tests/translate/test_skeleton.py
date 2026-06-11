@@ -1153,6 +1153,51 @@ def test_stream_pipeline_joining_basic() -> None:
     _assert_valid_python(python_source)
 
 
+def test_stream_source_call_uses_valid_loop_target_for_collection_values() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.Set;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Set<ExecutableHint> constructors(Builder builder) {
+                return builder.constructors.values().stream()
+                        .map(ExecutableHint.Builder::build)
+                        .collect(Collectors.toSet());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "for values() in" not in python_source
+    assert "for value in builder.constructors.values()" in python_source
+    assert "value.build()" in python_source
+    _assert_valid_python(python_source)
+
+
+def test_stream_source_getter_call_uses_valid_loop_target_for_joining() -> None:
+    python_source, coverage = _translate_source(
+        """
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public String signature(JdkProxyHint left) {
+                return left.getProxiedInterfaces().stream()
+                        .map(TypeReference::getCanonicalName)
+                        .collect(Collectors.joining(","));
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "for get_proxied_interfaces() in" not in python_source
+    assert "for interface in left.get_proxied_interfaces()" in python_source
+    assert "interface.get_canonical_name()" in python_source
+    _assert_valid_python(python_source)
+
+
 def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
     """Phase 1: block lambda in stream (non-rewritten case) uses helper name."""
     # Integration test for block lambda support inside stream chains that don't

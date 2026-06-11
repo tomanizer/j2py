@@ -20,7 +20,7 @@ CFG = ConfigLoader().add_defaults().build()
 @dataclass(frozen=True)
 class TranslationTarget:
     fixture: str
-    issue: int
+    tracking: str
     reason: str
     expected_fragments: tuple[str, ...]
     forbidden_fragments: tuple[str, ...] = (
@@ -33,7 +33,50 @@ class TranslationTarget:
         return TARGET_FIXTURES / self.fixture
 
 
-TARGETS: tuple[TranslationTarget, ...] = ()
+TARGETS: tuple[TranslationTarget, ...] = (
+    TranslationTarget(
+        fixture="CastExpression.java",
+        tracking="corpus-cast",
+        reason="corpus backlog: translate cast expressions without TODOs",
+        expected_fragments=("return value.get_canonical_name()",),
+    ),
+    TranslationTarget(
+        fixture="InstanceofExpression.java",
+        tracking="corpus-instanceof",
+        reason="corpus backlog: translate instanceof pattern variables",
+        expected_fragments=("isinstance(value, str)", "text = value", "return text.strip()"),
+    ),
+    TranslationTarget(
+        fixture="BitwiseOperators.java",
+        tracking="corpus-bitwise",
+        reason="corpus backlog: translate bitwise and shift operators",
+        expected_fragments=("left & right", "left ^ right", "value << 2", "value >> 1"),
+    ),
+    TranslationTarget(
+        fixture="CompoundAssignment.java",
+        tracking="corpus-compound-assignment",
+        reason="corpus backlog: translate bitwise compound assignments",
+        expected_fragments=("value &= mask", "value |= flag"),
+    ),
+    TranslationTarget(
+        fixture="ArrayCreation.java",
+        tracking="corpus-array-creation",
+        reason="corpus backlog: translate sized array creation",
+        expected_fragments=("return [0] * size",),
+    ),
+    TranslationTarget(
+        fixture="TryWithResources.java",
+        tracking="corpus-try-with-resources",
+        reason="corpus backlog: translate try-with-resources",
+        expected_fragments=("with factory.open() as resource:", "return resource.read()"),
+    ),
+    TranslationTarget(
+        fixture="StaticAndSynchronized.java",
+        tracking="corpus-static-synchronized",
+        reason="corpus backlog: translate static initializers and synchronized blocks",
+        expected_fragments=("initialize()", "with", "run()"),
+    ),
+)
 
 
 def test_target_java_fixtures_parse_without_errors() -> None:
@@ -49,7 +92,7 @@ def test_target_java_fixtures_parse_without_errors() -> None:
     [
         pytest.param(
             target,
-            id=f"{target.path.stem}-issue-{target.issue}",
+            id=f"{target.path.stem}-{target.tracking}",
             marks=pytest.mark.xfail(reason=target.reason, strict=True),
         )
         for target in TARGETS
