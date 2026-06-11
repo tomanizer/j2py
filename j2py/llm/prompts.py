@@ -23,7 +23,10 @@ Rules:
     * System.out.println → print
     * Math.abs/max/min → abs/max/min (built-in)
 - For method overloads: use @typing.overload stubs + a unified implementation
-- For synchronized: use threading.Lock()
+- For synchronized(this): initialize self._j2py_lock = threading.Lock() in __init__ \
+and use with self._j2py_lock
+- For other synchronized locks: use with <expr> and verify the monitor supports \
+context management
 - Mark anything you are uncertain about with: # TODO(j2py): <reason>
 - Do NOT add docstrings unless the Java had Javadoc
 - Keep comments that were in the Java source

@@ -1289,13 +1289,54 @@ def test_static_initializer_and_synchronized_target_fixture_translates() -> None
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "initialize()" in result.source
-    assert "with self:" in result.source
+    assert "import threading" in result.source
+    assert "self._j2py_lock = threading.Lock()" in result.source
+    assert "with self._j2py_lock:" in result.source
+    assert "with self:" not in result.source
     assert "run()" in result.source
     assert "__j2py_todo__" not in result.source
-    assert [warning.reason for warning in result.diagnostics.warnings] == [
-        "synchronized block translated as context manager; verify lock semantics",
-    ]
+    assert not result.diagnostics.warnings
     _assert_valid_python(result.source)
+
+
+def test_synchronized_this_in_static_method_emits_todo() -> None:
+    python_source, coverage = _translate_source(
+        """
+        public class SyncStatic {
+            public static void guarded() {
+                synchronized (this) {
+                    run();
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage < 1.0
+    assert "TODO(j2py): synchronized(this) in static context" in python_source
+
+
+def test_synchronized_non_this_lock_keeps_review_warning() -> None:
+    parsed = parse_source(
+        """
+        public class SyncLock {
+            private final Object monitor = new Object();
+
+            public void guarded() {
+                synchronized (monitor) {
+                    run();
+                }
+            }
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "with self.monitor:" in result.source
+    assert any(
+        "non-this synchronized lock" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
 
 
 def test_common_spring_expression_shapes_translate() -> None:

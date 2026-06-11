@@ -8,12 +8,16 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- ADR 0010: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
+  initialization in constructors or synthetic `__init__`.
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Non-`this` synchronized blocks keep `with <expr>:` but warn that lock semantics need review.
+- LLM system prompt aligned with the `_j2py_lock` instance-monitor pattern.
 - Graduated target fixtures (`tests/fixtures/java/targets/`) now run in `make check` and
   CI; `make test-targets` is reserved for strict `xfail` entries in `FUTURE_TARGETS`.
 - CLI `analyze` reports record types, nested declarations, and parse-error status.
