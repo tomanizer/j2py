@@ -14,6 +14,8 @@ from j2py.parse.java_ast import ParsedFile, parse_file
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.validate.checks import ValidationResult, validate_source
 
+PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
+
 
 @dataclass
 class TranslationResult:
@@ -21,6 +23,7 @@ class TranslationResult:
     python_source: str
     used_llm: bool = False
     confidence: float = 1.0   # 0.0–1.0; <0.8 means LLM was needed for significant portions
+    parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
     validation: ValidationResult | None = None
@@ -70,6 +73,9 @@ def _translate_parsed_file(
     validation_path: Path,
 ) -> TranslationResult:
     """Translate a file using already-parsed AST and symbols."""
+    parse_ok = not parsed.has_errors
+    if not parse_ok:
+        warnings.warn(f"{path}: {PARSE_ERROR_LLM_SKIP_MSG}", stacklevel=2)
 
     # Layer 1: rule-based skeleton translation
     from j2py.translate.skeleton import translate_skeleton_with_diagnostics
@@ -85,7 +91,7 @@ def _translate_parsed_file(
     # Ruff lint failures alone do not trigger the LLM — only syntax and type errors do.
     validation_feedback = ""
     should_use_llm = False
-    if use_llm:
+    if use_llm and parse_ok:
         if coverage < 1.0:
             should_use_llm = True
         else:
@@ -131,11 +137,14 @@ def _translate_parsed_file(
         used_llm = False
         validation = validate_source(python_source, validation_path) if validate else None
 
+    confidence = 0.0 if not parse_ok else coverage
+
     return TranslationResult(
         source_path=path,
         python_source=python_source,
         used_llm=used_llm,
-        confidence=coverage,
+        confidence=confidence,
+        parse_ok=parse_ok,
         diagnostics=skeleton_result.diagnostics,
         validation=validation,
     )
@@ -195,12 +204,19 @@ def translate_directory(
         result.output_path = output_path
         results.append(result)
 
+    graph_warnings = [str(warning.message) for warning in caught]
+    parse_warnings = [
+        f"{result.source_path}: {PARSE_ERROR_LLM_SKIP_MSG}"
+        for result in results
+        if not result.parse_ok
+    ]
+
     return DirectoryTranslationResult(
         source_root=source_root,
         output_root=output_root,
         files=results,
         order=ordered,
-        warnings=[str(warning.message) for warning in caught],
+        warnings=graph_warnings + parse_warnings,
     )
 
 

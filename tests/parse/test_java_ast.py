@@ -27,3 +27,10 @@ def test_location_is_one_based():
     result = parse_source(source)
     classes = list(result.root.find_all("class_declaration"))
     assert classes[0].location.line == 1
+
+
+def test_malformed_source_sets_has_errors() -> None:
+    result = parse_source(b"public class Broken { void foo( { }")
+
+    assert result.has_errors
+    assert result.errors

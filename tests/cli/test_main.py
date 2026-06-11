@@ -41,6 +41,17 @@ def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
     assert "Claude model" not in result.output
 
 
+def test_cli_analyze_prints_record_and_nested_inventory() -> None:
+    runner = CliRunner()
+    target = FIXTURES / "java" / "targets" / "NestedTypes.java"
+
+    result = runner.invoke(app, ["analyze", str(target)])
+
+    assert result.exit_code == 0
+    assert "Entry (record)" in result.output
+    assert "2 fields" in result.output
+
+
 def test_cli_analyze_prints_class_inventory() -> None:
     runner = CliRunner()
 
@@ -130,6 +141,21 @@ def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
     runtime = tmp_path / "j2py_runtime.py"
     assert runtime.exists()
     assert "class overloaded" in runtime.read_text()
+
+
+def test_cli_translate_reports_parse_errors(tmp_path: Path) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("public class Broken { void foo( { }")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert "parse_ok=False" in result.output
+    assert "Java parse errors detected" in result.output
 
 
 def test_cli_translate_skips_runtime_module_when_dispatch_unused(tmp_path: Path) -> None:

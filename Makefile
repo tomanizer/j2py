@@ -14,12 +14,12 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run mypy j2py/
 
 test:  ## Run test suite
-	uv run pytest -m "not behavior and not target_translation and not live_llm"
+	uv run pytest -m "not behavior and not live_llm"
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run pytest tests/behavior -m behavior
 
-test-targets:  ## Run graduated and future Java-to-Python roadmap target tests
+test-targets:  ## Run future Java-to-Python roadmap xfail targets only
 	uv run pytest tests/targets -m target_translation -rxXs
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)

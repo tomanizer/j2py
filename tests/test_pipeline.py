@@ -1,12 +1,17 @@
 """Tests for the top-level translation pipeline."""
 
 import ast
+import warnings
 from pathlib import Path
 
 import j2py.llm.client as llm_client
 import j2py.pipeline as pipeline
 from j2py.config.loader import ConfigLoader
-from j2py.pipeline import translate_directory, translate_file
+from j2py.pipeline import (
+    PARSE_ERROR_LLM_SKIP_MSG,
+    translate_directory,
+    translate_file,
+)
 from j2py.validate.checks import ValidationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -70,6 +75,42 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     assert result.confidence < 1.0
     assert result.diagnostics is not None
     assert result.python_source == "class PartialUnsupported:\n    pass\n"
+
+
+def test_translate_file_skips_llm_when_java_parse_has_errors(monkeypatch, tmp_path) -> None:
+    broken = tmp_path / "Broken.java"
+    broken.write_text("public class Broken { void foo( { }")
+
+    def fail_if_called(**kwargs) -> str:
+        raise AssertionError("translate_with_llm should not run on parse errors")
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fail_if_called)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = translate_file(broken, cfg=CFG, use_llm=True)
+
+    assert not result.used_llm
+    assert not result.parse_ok
+    assert result.confidence == 0.0
+    assert any(PARSE_ERROR_LLM_SKIP_MSG in str(warning.message) for warning in caught)
+
+
+def test_translate_directory_reports_parse_error_warnings(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Good.java").write_text("package com.example; public class Good {}")
+    (source / "Broken.java").write_text("public class Broken { void foo( { }")
+
+    result = translate_directory(source, tmp_path / "out", cfg=CFG, use_llm=False)
+
+    broken = next(file for file in result.files if file.source_path.name == "Broken.java")
+    assert not broken.parse_ok
+    assert broken.confidence == 0.0
+    assert any(
+        "Broken.java" in warning and PARSE_ERROR_LLM_SKIP_MSG in warning
+        for warning in result.warnings
+    )
 
 
 def test_translate_file_can_validate_generated_source(monkeypatch) -> None:

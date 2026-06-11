@@ -10,6 +10,9 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from j2py.analyze.symbols import ClassSymbol
+from j2py.pipeline import PARSE_ERROR_LLM_SKIP_MSG
+
 if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
     from j2py.pipeline import TranslationResult
@@ -177,11 +180,31 @@ def analyze(
         parsed = parse_file(jf)
         symbols = extract_symbols(parsed)
         console.print(f"\n[bold]{jf}[/bold] — package: {symbols.package}")
+        if parsed.has_errors:
+            console.print("  [yellow]Parse errors detected in source[/yellow]")
         for cls in symbols.classes:
-            kind = "interface" if cls.is_interface else ("enum" if cls.is_enum else "class")
-            console.print(
-                f"  [{kind}] {cls.name} — {len(cls.methods)} methods, {len(cls.fields)} fields"
-            )
+            console.print(_format_class_inventory_line(cls, indent=2))
+            for inner in cls.inner_classes:
+                console.print(_format_class_inventory_line(inner, indent=4))
+
+
+def _format_class_inventory_line(cls: ClassSymbol, *, indent: int) -> str:
+    kind = _class_kind(cls)
+    padding = " " * indent
+    return (
+        f"{padding}{cls.name} ({kind}) — "
+        f"{len(cls.methods)} methods, {len(cls.fields)} fields"
+    )
+
+
+def _class_kind(cls: ClassSymbol) -> str:
+    if cls.is_interface:
+        return "interface"
+    if cls.is_enum:
+        return "enum"
+    if cls.is_record:
+        return "record"
+    return "class"
 
 
 @app.command()
@@ -308,10 +331,13 @@ def _print_result_summary(result: TranslationResult) -> None:
     diagnostics = result.diagnostics
     handled = len(diagnostics.handled) if diagnostics is not None else 0
     unhandled = len(diagnostics.unhandled) if diagnostics is not None else 0
+    parse_note = "" if result.parse_ok else ", parse_ok=False"
     console.print(
         f"[dim]{result.source_path.name}: confidence={result.confidence:.2f}, "
-        f"handled={handled}, unhandled={unhandled}, llm={result.used_llm}[/dim]",
+        f"handled={handled}, unhandled={unhandled}, llm={result.used_llm}{parse_note}[/dim]",
     )
+    if not result.parse_ok:
+        console.print(f"[yellow]Warning:[/yellow] {PARSE_ERROR_LLM_SKIP_MSG}")
     if result.validation is not None:
         _print_validation(result.validation)
 

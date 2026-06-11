@@ -8,6 +8,19 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Record declarations (`record_declaration`) in the symbol table: component fields,
+  body methods, inner records, and `is_record` on `ClassSymbol`.
+- `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
+  tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
+
+### Changed
+- Graduated target fixtures (`tests/fixtures/java/targets/`) now run in `make check` and
+  CI; `make test-targets` is reserved for strict `xfail` entries in `FUTURE_TARGETS`.
+- CLI `analyze` reports record types, nested declarations, and parse-error status.
+- CLI translate summaries surface `parse_ok=False` and parse-error warnings.
+- Directory translation aggregates per-file parse-error warnings in `batch.warnings`.
+
+### Added
 - Two-tier overload translation (ADR 0009, issue #44): chained `this(...)`
   constructor delegation and builder-style forwarding method overloads now merge
   into default parameters (immutable literals inline; constructed values become

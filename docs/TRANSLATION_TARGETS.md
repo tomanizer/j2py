@@ -4,9 +4,8 @@ The normal fixture suite records behavior that j2py already supports as exact Ja
 Python fixture pairs. The target suite records roadmap examples and graduated roadmap
 fixtures that should keep translating cleanly.
 
-Target tests are marked with `target_translation` and excluded from `make check`.
-This keeps the normal gate focused on the supported fixture contract while letting
-roadmap examples run on demand.
+Graduated target fixtures run in `make check`. Only future `xfail` contracts use the
+`target_translation` marker and run via `make test-targets`.
 
 Run the normal gate:
 
@@ -14,7 +13,7 @@ Run the normal gate:
 make check
 ```
 
-Run the roadmap target scoreboard:
+Run future roadmap xfail targets:
 
 ```bash
 make test-targets
@@ -23,10 +22,11 @@ make test-targets
 The suite has two lanes:
 
 - **Graduated targets**: Java fixtures under `tests/fixtures/java/targets/` that now
-  translate deterministically. These must parse, produce valid Python, reach
-  `coverage == 1.0`, and report no unhandled diagnostics.
+  translate deterministically. These run in `make check`, must parse, produce valid
+  Python, reach `coverage == 1.0`, and report no unhandled diagnostics.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
-  behavior that should become supported next.
+  behavior that should become supported next. These are marked `target_translation`
+  and run via `make test-targets`.
 
 Each future target case has:
 
@@ -48,6 +48,6 @@ When implementing a translation rule:
 
 This gives us two signals:
 
-- `make check`: supported behavior must stay green.
-- `make test-targets`: graduated roadmap behavior must stay green, and future xfail
-  targets alert us when missing behavior unexpectedly starts passing.
+- `make check`: supported behavior and graduated roadmap fixtures must stay green.
+- `make test-targets`: future xfail targets alert us when missing behavior unexpectedly
+  starts passing.
