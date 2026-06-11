@@ -22,17 +22,19 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.
-- Strict xfail `FUTURE_TARGETS` for four corpus constructs still below full rule coverage
-  (`AdvancedStreams`, `AnonymousAndInner`, `SwitchFallthrough`, `SuperMethodCalls`).
-- Graduated corpus construct regression tests in `make check` for six constructs that
+- Strict xfail `FUTURE_TARGETS` for three corpus constructs still below full rule coverage
+  (`AdvancedStreams`, `AnonymousAndInner`, `SuperMethodCalls`).
+- Graduated corpus construct regression tests in `make check` for seven constructs that
   reach full skeleton coverage (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`,
-  `SealedClasses`, `TextBlocks`, `VarKeyword`).
+  `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Switch fall-through translates to reviewable prefix `elif`/`if` chains with explicit
+  default guards (`elif subject not in (...)` after fall-through blocks) (#73).
 - Local `var` declarations infer Python types from initializers; enhanced-for `var` binds
   element types from iterable annotations (#72).
 - Non-`this` synchronized blocks keep `with <expr>:` but warn that lock semantics need review.
