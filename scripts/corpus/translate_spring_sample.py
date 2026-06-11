@@ -350,7 +350,15 @@ def collect_java_files(
 
 
 def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
-    relative = path.relative_to(repo).as_posix()
+    try:
+        relative = path.relative_to(repo).as_posix()
+    except ValueError:
+        # Path is not under the Spring checkout (e.g. curated construct files from the j2py project).
+        # Fall back to a path relative to the j2py root for reporting.
+        if path.is_relative_to(REPO_ROOT):
+            relative = path.relative_to(REPO_ROOT).as_posix()
+        else:
+            relative = path.as_posix()
     try:
         parsed = parse_file(path)
         symbols = extract_symbols(parsed)
@@ -511,32 +519,6 @@ def compare_baseline(
     baseline_summary = baseline["summary"]
     baseline_metadata = baseline.get("metadata", {})
 
-    metric_specs = {
-        "parse_success_rate": "higher",
-        "syntax_success_rate": "higher",
-        "average_coverage": "higher",
-        "full_coverage_files": "higher",
-        "files_with_unhandled": "lower",
-        "files_below_coverage_threshold": "lower",
-    }
-    deltas: dict[str, dict[str, Any]] = {}
-    regressions: list[str] = []
-    improvements: list[str] = []
-    for metric, direction in metric_specs.items():
-        baseline_value = baseline_summary[metric]
-        current_value = summary[metric]
-        delta = current_value - baseline_value
-        deltas[metric] = {
-            "baseline": baseline_value,
-            "current": current_value,
-            "delta": delta,
-            "direction": direction,
-        }
-        if _is_regression(delta, direction):
-            regressions.append(metric)
-        elif _is_improvement(delta, direction):
-            improvements.append(metric)
-
     metadata_mismatches = [
         key
         for key in (
@@ -551,6 +533,35 @@ def compare_baseline(
         )
         if baseline_metadata.get(key) != metadata.get(key)
     ]
+
+    deltas: dict[str, dict[str, Any]] = {}
+    regressions: list[str] = []
+    improvements: list[str] = []
+
+    if not metadata_mismatches:
+        # Only compute deltas when samples are comparable
+        metric_specs = {
+            "parse_success_rate": "higher",
+            "syntax_success_rate": "higher",
+            "average_coverage": "higher",
+            "full_coverage_files": "higher",
+            "files_with_unhandled": "lower",
+            "files_below_coverage_threshold": "lower",
+        }
+        for metric, direction in metric_specs.items():
+            baseline_value = baseline_summary[metric]
+            current_value = summary[metric]
+            delta = current_value - baseline_value
+            deltas[metric] = {
+                "baseline": baseline_value,
+                "current": current_value,
+                "delta": delta,
+                "direction": direction,
+            }
+            if _is_regression(delta, direction):
+                regressions.append(metric)
+            elif _is_improvement(delta, direction):
+                improvements.append(metric)
 
     return {
         "baseline_path": str(path),
@@ -571,19 +582,23 @@ def compare_baseline(
 
 def print_comparison(comparison: dict[str, Any]) -> None:
     print(f"Baseline comparison: {comparison['baseline_path']}")
-    for metric, values in comparison["deltas"].items():
-        print(
-            f"  {metric}: {_format_metric(values['baseline'])} -> "
-            f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
-        )
     if comparison["metadata_mismatches"]:
-        print(f"Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
-    if comparison["improvements"]:
-        print(f"Improvements: {', '.join(comparison['improvements'])}")
-    if comparison["regressions"]:
-        print(f"Regressions: {', '.join(comparison['regressions'])}")
+        print(f"  Metadata mismatch: {', '.join(comparison['metadata_mismatches'])}")
+        print("  WARNING: Samples are not directly comparable (different strategy, modules, limits, or construct inclusion).")
+        print("  Deltas and improvement/regression counts below are suppressed.")
     else:
-        print("Regressions: none")
+        for metric, values in comparison["deltas"].items():
+            print(
+                f"  {metric}: {_format_metric(values['baseline'])} -> "
+                f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
+            )
+    if not comparison["metadata_mismatches"]:
+        if comparison["improvements"]:
+            print(f"Improvements: {', '.join(comparison['improvements'])}")
+        if comparison["regressions"]:
+            print(f"Regressions: {', '.join(comparison['regressions'])}")
+        else:
+            print("Regressions: none")
     print("Top unhandled node types:")
     print(f"  baseline: {_top_list(comparison['baseline_top_unhandled_node_types'])}")
     print(f"  current:  {_top_list(comparison['current_top_unhandled_node_types'])}")
