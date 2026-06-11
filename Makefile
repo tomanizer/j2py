@@ -76,6 +76,6 @@ build:  ## Build wheel and sdist
 	uv build
 
 dist-check: build  ## Validate built distributions with twine
-	uv run --extra dev twine check dist/*
+	uv run --extra dev twine check dist/*.whl dist/*.tar.gz
 
 release-check: check test-targets test-behavior dist-check  ## Run alpha release readiness checks

@@ -9,6 +9,27 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 No changes yet.
 
+## 0.2.0a1 - 2026-06-11
+
+### Added
+- Java `@interface` declarations translate to inert `@dataclass(frozen=True)` metadata
+  classes with element fields, tuple array types, and preserved meta-annotation warnings (#83).
+- `SuperMethodCalls` graduated from future xfail target to the deterministic corpus
+  construct regression suite.
+
+### Changed
+- Java `super` used as a method/field receiver translates to `super()` in expressions (#82).
+
+### Fixed
+- Traditional `for` loops without an update clause lower to initializer plus
+  `while condition` instead of `malformed for statement` (#81).
+- Annotation element defaults are selected after the Java `default` token so element
+  modifiers such as `@AliasFor` no longer produce `unsupported expression modifiers` (#89).
+- Unary annotation element defaults such as `default -1` translate as valid Python
+  defaults instead of unresolved annotation members (#89).
+- Release distribution checks validate only wheel and sdist artifacts, so auxiliary
+  files under `dist/` do not fail `make release-check`.
+
 ## 0.1.0a1 - 2026-06-11
 
 ### Added
@@ -26,23 +47,17 @@ No changes yet.
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.
-- Strict xfail `FUTURE_TARGETS` for one corpus construct still below full rule coverage
-  (`AdvancedStreams`).
-- Graduated corpus construct regression tests in `make check` for nine constructs that
+- Strict xfail `FUTURE_TARGETS` for two corpus constructs still below full rule coverage
+  (`AdvancedStreams`, `SuperMethodCalls`).
+- Graduated corpus construct regression tests in `make check` for eight constructs that
   reach full skeleton coverage (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`,
-  `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`,
-  `SuperMethodCalls`).
+  `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`).
 - Record declarations (`record_declaration`) in the symbol table: component fields,
   body methods, inner records, and `is_record` on `ClassSymbol`.
 - `TranslationResult.parse_ok` and `PARSE_ERROR_LLM_SKIP_MSG`: malformed Java with
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
-- Java `@interface` declarations translate to inert `@dataclass(frozen=True)` metadata
-  classes with element fields, tuple array types, and preserved meta-annotation warnings (#83).
-- Java `super` used as a method/field receiver translates to `super()` in expressions (#82).
-- Traditional `for` loops without an update clause lower to initializer plus
-  `while condition` instead of `malformed for statement` (#81).
 - Anonymous class instance fields translate to helper-class `__init__` assignments with
   `self.` field access in methods (#74).
 - Switch fall-through translates to reviewable prefix `elif`/`if` chains with explicit

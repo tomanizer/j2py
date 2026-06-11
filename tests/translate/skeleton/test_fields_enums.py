@@ -406,3 +406,70 @@ def test_annotation_element_default_failure_is_member_level_only() -> None:
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
+
+
+def test_annotation_element_with_alias_for_modifiers_translates_default() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Component {
+            String value() default "";
+        }
+
+        public @interface Controller {
+            @AliasFor(annotation = Component.class)
+            String value() default "";
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'value: str = ""' in result.source
+    assert not any(
+        "unsupported expression modifiers" in item.reason for item in result.diagnostics.unhandled
+    )
+    assert any(
+        "preserved annotation element @AliasFor" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_spring_stereotype_annotations_reach_full_coverage() -> None:
+    corpus_root = FIXTURES.parent.parent / ".corpus" / "spring-framework"
+    if not corpus_root.is_dir():
+        import pytest
+
+        pytest.skip("Spring corpus clone not available")
+
+    for relative in (
+        "spring-context/src/main/java/org/springframework/stereotype/Controller.java",
+        "spring-context/src/main/java/org/springframework/stereotype/Service.java",
+    ):
+        parsed = parse_file(corpus_root / relative)
+        result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+        assert result.coverage == 1.0, relative
+        assert not result.diagnostics.unhandled, relative
+        assert_valid_python(result.source)
+
+
+def test_spring_managed_resource_alias_for_elements_translate() -> None:
+    corpus_root = FIXTURES.parent.parent / ".corpus" / "spring-framework"
+    if not corpus_root.is_dir():
+        import pytest
+
+        pytest.skip("Spring corpus clone not available")
+
+    path = corpus_root / (
+        "spring-context/src/main/java/org/springframework/jmx/export/annotation/"
+        "ManagedResource.java"
+    )
+    parsed = parse_file(path)
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'value: str = ""' in result.source
+    assert 'object_name: str = ""' in result.source
+    assert "currency_time_limit: int = -1" in result.source
+    assert_valid_python(result.source)
