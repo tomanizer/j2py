@@ -27,16 +27,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.96,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 24,
+      "handled_count": 25,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "tests/fixtures/corpus/constructs/AnonymousAndInner.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "field_declaration:1",
-      "unhandled_reasons": "unsupported anonymous class member field_declaration:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 10
     },
     {
@@ -1317,13 +1317,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9875098599211206,
+    "average_coverage": 0.9884400924792601,
     "coverage_file_count": 43,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 5,
-    "full_coverage_files": 38,
+    "files_with_unhandled": 4,
+    "full_coverage_files": 39,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.98,
     "top_unhandled_node_types": [
@@ -1334,10 +1334,6 @@
       [
         "method_invocation",
         2
-      ],
-      [
-        "field_declaration",
-        1
       ]
     ],
     "top_unhandled_reasons": [
@@ -1351,10 +1347,6 @@
       ],
       [
         "unsupported stream intermediate: flatMap",
-        1
-      ],
-      [
-        "unsupported anonymous class member field_declaration",
         1
       ]
     ]
