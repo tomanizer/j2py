@@ -5,10 +5,12 @@ from __future__ import annotations
 import ast
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import translate_literal
 from j2py.translate.rules.naming import (
+    translate_attribute_method_name,
     translate_class_name,
     translate_field_name,
     translate_method_name,
@@ -22,6 +24,9 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
 
     if node.type in {
         "decimal_integer_literal",
+        "hex_integer_literal",
+        "binary_integer_literal",
+        "octal_integer_literal",
         "decimal_floating_point_literal",
         "true",
         "false",
@@ -38,6 +43,9 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
 
     if node.type in {"type_identifier", "scoped_type_identifier"}:
         return translate_class_name(node.text)
+
+    if node.type in {"boolean_type", "integral_type", "floating_point_type", "void_type"}:
+        return translate_type(node.text, ctx.cfg)
 
     if node.type == "this":
         return "self"
@@ -116,7 +124,11 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
         return _translate_method_reference(node, ctx)
 
     if node.type == "argument_list":
-        return ", ".join(translate_expression(child, ctx) for child in node.named_children)
+        return ", ".join(
+            translate_expression(child, ctx)
+            for child in node.named_children
+            if not is_comment(child)
+        )
 
     if node.type == "object_creation_expression":
         return _translate_object_creation(node, ctx)
@@ -224,12 +236,41 @@ def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
     initializer = first_child_by_type(node, "array_initializer")
     if initializer is not None:
         return translate_expression(initializer, ctx)
+    dimensions = [child for child in node.named_children if child.type == "dimensions_expr"]
+    if len(dimensions) == 1 and dimensions[0].named_children:
+        type_node = next(
+            (child for child in node.named_children if child.type != "dimensions_expr"),
+            None,
+        )
+        default = _array_default_value(type_node.text if type_node is not None else "Object")
+        size = translate_expression(dimensions[0].named_children[0], ctx)
+        return f"[{default}] * {size}"
+    if len(dimensions) > 1:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="multidimensional array creation requires nested allocation handling",
+        )
+        return f"__j2py_todo__({node.text!r})"
     ctx.diagnostics.record(
         node,
         supported=False,
         reason="array creation without initializer requires size handling",
     )
     return f"__j2py_todo__({node.text!r})"
+
+
+def _array_default_value(java_type: str) -> str:
+    base_type = java_type.split("<", 1)[0].strip()
+    if base_type in {"byte", "short", "int", "long"}:
+        return "0"
+    if base_type in {"float", "double"}:
+        return "0.0"
+    if base_type == "boolean":
+        return "False"
+    if base_type == "char":
+        return r'"\0"'
+    return "None"
 
 
 def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
@@ -339,6 +380,9 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "contains" and receiver and args:
         return f"{args} in {receiver}"
 
+    if method_name == "toArray" and receiver:
+        return f"list({receiver})"
+
     if method_name == "get" and receiver and args:
         receiver_type = _expression_py_type(receiver_nodes[0], ctx) if receiver_nodes else None
         if receiver_type is not None and _is_list_type(receiver_type):
@@ -394,7 +438,13 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "compareTo" and receiver and args:
         return f"({receiver} > {args}) - ({receiver} < {args})"
 
-    py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+    if receiver == "self":
+        py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+    else:
+        py_method = translate_attribute_method_name(
+            method_name,
+            snake_case=ctx.cfg.snake_case_methods,
+        )
     if receiver:
         return f"{receiver}.{py_method}({args})"
     return f"{py_method}({args})"
@@ -1027,12 +1077,11 @@ def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:
     target = _method_reference_target(named[0], ctx)
     if children[-1].text == "new":
         if named[0].type == "array_type":
-            ctx.diagnostics.record(
+            ctx.diagnostics.warn(
                 node,
-                supported=False,
-                reason="array constructor method reference requires collection conversion",
+                reason="array constructor method reference translated as list factory",
             )
-            return f"__j2py_todo__({node.text!r})"
+            return "list"
         return target
 
     method_node = named[-1]
@@ -1068,9 +1117,27 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         "LinkedHashSet": "set()",
         "TreeSet": "set()",
     }
+    collection_copy_constructors = {
+        "ArrayList": "list",
+        "LinkedList": "list",
+        "Vector": "list",
+        "HashMap": "dict",
+        "LinkedHashMap": "dict",
+        "TreeMap": "dict",
+        "Hashtable": "dict",
+        "HashSet": "set",
+        "LinkedHashSet": "set",
+        "TreeSet": "set",
+    }
     if base_type in collection_literals:
         if not args:
             return collection_literals[base_type]
+        arg_nodes = [
+            child for child in args_node.named_children if not is_comment(child)
+        ] if args_node is not None else []
+        if len(arg_nodes) == 1:
+            copied = translate_expression(arg_nodes[0], ctx)
+            return f"{collection_copy_constructors[base_type]}({copied})"
         ctx.diagnostics.record(
             node,
             supported=False,
@@ -1108,7 +1175,7 @@ def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str
         ctx.diagnostics.record(node, supported=False, reason="malformed update expression")
         return f"__j2py_todo__({node.text!r})"
 
-    operator = children[-1].text
+    operator = children[0].text if children[0].text in {"++", "--"} else children[-1].text
     target = translate_expression(named_children[0], ctx)
     if operator == "++":
         return f"{target} += 1"

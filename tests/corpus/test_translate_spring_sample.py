@@ -27,6 +27,7 @@ def _metric(
     path: str,
     *,
     coverage: float = 1.0,
+    handled_count: int = 1,
     parse_ok: bool = True,
     syntax_ok: bool = True,
     unhandled_count: int = 0,
@@ -38,7 +39,7 @@ def _metric(
         parse_error_count=0,
         syntax_ok=syntax_ok,
         coverage=coverage,
-        handled_count=1,
+        handled_count=handled_count,
         unhandled_count=unhandled_count,
         warning_count=0,
         unhandled_node_types="",
@@ -51,10 +52,13 @@ def test_summarize_tracks_coverage_threshold() -> None:
         [
             _metric("A.java", coverage=1.0),
             _metric("B.java", coverage=0.75, unhandled_count=1),
+            _metric("package-info.java", coverage=0.0, handled_count=0),
         ],
     )
 
-    assert summary["files_scanned"] == 2
+    assert summary["files_scanned"] == 3
+    assert summary["coverage_file_count"] == 2
+    assert summary["average_coverage"] == 0.875
     assert summary["coverage_threshold"] == 0.8
     assert summary["files_below_coverage_threshold"] == 1
     assert summary["files_with_unhandled"] == 1

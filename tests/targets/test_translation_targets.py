@@ -33,26 +33,7 @@ class TranslationTarget:
         return TARGET_FIXTURES / self.fixture
 
 
-TARGETS: tuple[TranslationTarget, ...] = (
-    TranslationTarget(
-        fixture="ArrayCreation.java",
-        tracking="corpus-array-creation",
-        reason="corpus backlog: translate sized array creation",
-        expected_fragments=("return [0] * size",),
-    ),
-    TranslationTarget(
-        fixture="TryWithResources.java",
-        tracking="corpus-try-with-resources",
-        reason="corpus backlog: translate try-with-resources",
-        expected_fragments=("with factory.open() as resource:", "return resource.read()"),
-    ),
-    TranslationTarget(
-        fixture="StaticAndSynchronized.java",
-        tracking="corpus-static-synchronized",
-        reason="corpus backlog: translate static initializers and synchronized blocks",
-        expected_fragments=("initialize()", "with", "run()"),
-    ),
-)
+TARGETS: tuple[TranslationTarget, ...] = ()
 
 
 def test_target_java_fixtures_parse_without_errors() -> None:

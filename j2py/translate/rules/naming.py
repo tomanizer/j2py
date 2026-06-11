@@ -43,8 +43,19 @@ def safe_identifier(name: str) -> str:
     return name
 
 
+def safe_attribute_name(name: str) -> str:
+    """Append trailing underscore only when attribute syntax would be invalid."""
+    if keyword.iskeyword(name):
+        return f"{name}_"
+    return name
+
+
 def translate_method_name(name: str, *, snake_case: bool = True) -> str:
     return safe_identifier(camel_to_snake(name) if snake_case else name)
+
+
+def translate_attribute_method_name(name: str, *, snake_case: bool = True) -> str:
+    return safe_attribute_name(camel_to_snake(name) if snake_case else name)
 
 
 def translate_field_name(name: str, *, snake_case: bool = True) -> str:

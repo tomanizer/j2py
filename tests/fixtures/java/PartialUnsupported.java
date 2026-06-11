@@ -1,0 +1,8 @@
+package com.example;
+
+public class PartialUnsupported {
+
+    public int[][] matrix(int rows, int cols) {
+        return new int[rows][cols];
+    }
+}

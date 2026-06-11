@@ -293,16 +293,23 @@ def summarize(metrics: list[FileMetric]) -> dict[str, Any]:
         unhandled_types.update(_parse_counter_summary(metric.unhandled_node_types))
         unhandled_reasons.update(_parse_counter_summary(metric.unhandled_reasons))
 
+    coverage_metrics = [
+        metric for metric in metrics if metric.handled_count + metric.unhandled_count > 0
+    ]
+
     return {
         "files_scanned": len(metrics),
         "parse_success_rate": _rate(sum(m.parse_ok for m in metrics), len(metrics)),
         "syntax_success_rate": _rate(sum(m.syntax_ok for m in metrics), len(metrics)),
-        "average_coverage": mean(m.coverage for m in metrics) if metrics else 0.0,
-        "full_coverage_files": sum(m.coverage == 1.0 for m in metrics),
+        "coverage_file_count": len(coverage_metrics),
+        "average_coverage": (
+            mean(m.coverage for m in coverage_metrics) if coverage_metrics else 0.0
+        ),
+        "full_coverage_files": sum(m.coverage == 1.0 for m in coverage_metrics),
         "files_with_unhandled": sum(m.unhandled_count > 0 for m in metrics),
         "coverage_threshold": COVERAGE_THRESHOLD,
         "files_below_coverage_threshold": sum(
-            m.coverage < COVERAGE_THRESHOLD for m in metrics
+            m.coverage < COVERAGE_THRESHOLD for m in coverage_metrics
         ),
         "top_unhandled_node_types": unhandled_types.most_common(20),
         "top_unhandled_reasons": unhandled_reasons.most_common(20),
@@ -370,6 +377,7 @@ def write_csv(path: Path, metrics: list[FileMetric]) -> None:
 
 def print_human_summary(summary: dict[str, Any], json_out: Path, csv_out: Path) -> None:
     print(f"Files scanned: {summary['files_scanned']}")
+    print(f"Files included in coverage metrics: {summary['coverage_file_count']}")
     print(f"Parse success rate: {summary['parse_success_rate']:.2%}")
     print(f"Generated Python syntax success rate: {summary['syntax_success_rate']:.2%}")
     print(f"Average skeleton coverage: {summary['average_coverage']:.2%}")

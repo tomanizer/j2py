@@ -6,8 +6,7 @@ class Fields:
 
     def __init__(self, count: int) -> None:
         self.name: str = "anonymous"
-        # TODO(j2py): verify default value for field enabled
-        self.enabled: bool | None = None
+        self.enabled: bool = False
         self.count = count
 
     def get_name(self) -> str:

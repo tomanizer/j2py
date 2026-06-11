@@ -22,10 +22,11 @@ Current committed baseline:
 
 - parse success rate: 100.00%
 - generated Python syntax success rate: 91.00%
-- average skeleton coverage: 78.35%
-- full-coverage files: 32 of 100
-- files with unhandled constructs: 60 of 100
-- files below 80% coverage: 28 of 100
+- files included in coverage metrics: 92 of 100
+- average skeleton coverage: 89.56%
+- full-coverage files: 43 of 92 coverage-bearing files
+- files with unhandled constructs: 49 of 100
+- files below 80% coverage: 12 of 92 coverage-bearing files
 - per-file metrics committed for parse failures, syntax failures, coverage,
   unhandled node types, and unhandled reasons
 
@@ -61,6 +62,7 @@ Scoreboard metrics:
 
 - parse success rate
 - generated Python syntax success rate
+- files included in coverage metrics
 - average skeleton coverage
 - full-coverage files
 - files with unhandled constructs
@@ -72,3 +74,8 @@ Scoreboard metrics:
 
 Use the comparison output to decide whether a translation rule improved or regressed the
 real corpus before updating the baseline.
+
+Coverage aggregates only include files where the translator recorded at least one
+handled or unhandled construct. Files with no measured constructs, such as
+`package-info.java`, still count in parse/syntax rates and per-file reports but do not
+pull the average coverage or below-threshold count toward zero.
