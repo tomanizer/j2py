@@ -13,10 +13,12 @@ Current deterministic rule support includes:
 
 - tree-sitter Java parsing and symbol extraction
 - class, nested class, basic local/anonymous class helpers, interface,
-  basic and constructor-backed enum, and record
-  skeletons
+  basic and constructor-backed enum, and record skeletons
 - interface abstract methods, default methods, and static methods
-- fields, constructors, methods, overload stubs, and simple overload merges
+- fields, constructors, methods, and overloads: chained constructor delegation and
+  builder-style forwarding merge into default parameters; type-dispatch overload
+  groups emit same-named defs behind a vendored `@overloaded` runtime dispatcher
+  (ADR 0009)
 - common expressions: literals, identifiers, field access, arrays, class literals,
   assignments, updates, ternaries, null checks, common collection calls, and string concat
 - common stream pipelines: `map`, `filter`, `distinct`, `sorted`, simple collectors
@@ -35,7 +37,8 @@ Known gaps include:
   contexts (many common cases like toSet/joining, distinct/sorted, basic groupingBy
   now supported via comprehensions or small helpers; block lambdas in streams handled)
 - switch fall-through and complex switch rule blocks
-- complex constructor dispatch and non-trivial overload bodies
+- overload groups whose erased Python signatures collide (e.g. `int` vs `long`)
+  and static-method overload groups still fall back to manual-dispatch TODOs
 - advanced inner-class captures, outer-`this` qualification, and anonymous classes with
   non-method members
 - enum constant class bodies, complex enum static initialization, and annotation semantics
@@ -86,11 +89,11 @@ make test-llm-e2e  # exploratory live-LLM test of current skeleton quality
 The current pinned Spring sample baseline is:
 
 - parse success: 100.00%
-- generated Python syntax success: 91.00%
-- average skeleton coverage: 89.59% across 92 coverage-bearing files
-- full-coverage files: 43 of 92 coverage-bearing files
-- files with unhandled constructs: 49 of 100
-- files below 80% coverage: 12 of 92 coverage-bearing files
+- generated Python syntax success: 93.00%
+- average skeleton coverage: 94.71% across 92 coverage-bearing files
+- full-coverage files: 65 of 92 coverage-bearing files
+- files with unhandled constructs: 27 of 100
+- files below 80% coverage: 4 of 92 coverage-bearing files
 - sample size: 100 files with committed per-file failure metrics
 
 See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and

@@ -104,3 +104,44 @@ def test_cli_translate_exits_nonzero_on_validation_failure(
     assert result.exit_code == 1
     assert "Validation issues:" in result.output
     assert "ruff failed" in result.output
+
+
+def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
+    """Files using @overloaded dispatch get j2py_runtime.py written next to them."""
+    source = tmp_path / "Over.java"
+    source.write_text(
+        """
+        public class Over {
+            public int get(int value) { return value; }
+            public int get(String value) { return 1; }
+        }
+        """,
+    )
+    output = tmp_path / "Over.py"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert "from j2py_runtime import overloaded" in output.read_text()
+    runtime = tmp_path / "j2py_runtime.py"
+    assert runtime.exists()
+    assert "class overloaded" in runtime.read_text()
+
+
+def test_cli_translate_skips_runtime_module_when_dispatch_unused(tmp_path: Path) -> None:
+    source = tmp_path / "Plain.java"
+    source.write_text("public class Plain {}")
+    output = tmp_path / "Plain.py"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert not (tmp_path / "j2py_runtime.py").exists()

@@ -431,6 +431,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
     if receiver in {"self", ""}:
         py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+        if not receiver and method_name in ctx.self_dispatch_methods and ctx.in_instance_method:
+            return f"self.{py_method}({args})"
     else:
         py_method = translate_attribute_method_name(
             method_name,
