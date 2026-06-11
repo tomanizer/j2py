@@ -191,4 +191,10 @@ def test_compare_baseline_suppresses_deltas_on_metadata_mismatch(tmp_path: Path)
     assert comparison["deltas"] == {}
     assert comparison["improvements"] == []
     assert comparison["regressions"] == []
-    # file_regressions may be present but the key point is that summary deltas are suppressed
+    assert comparison["file_regressions"] == {
+        "parse_failures": [],
+        "syntax_failures": [],
+        "coverage_drops": [],
+        "unhandled_increases": [],
+        "new_unhandled_reasons": [],
+    }
