@@ -8,4 +8,4 @@ CFG = ConfigLoader().add_defaults().build()
 
 def test_java_octal_with_leading_separator_translates_to_python_octal() -> None:
     assert translate_literal("0_777", CFG) == "0o777"
-
+    assert translate_literal("0_", CFG) == "0o0"

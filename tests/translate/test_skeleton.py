@@ -184,6 +184,12 @@ def test_overloaded_methods_do_not_emit_duplicate_python_defs() -> None:
 def test_receiverless_method_call_escapes_python_builtin_name() -> None:
     python_source, coverage = _translate_source(
         """
+        public class BuiltinHelper {
+            public String list() {
+                return "external";
+            }
+        }
+
         public class BuiltinName {
             public String list() {
                 return "value";
@@ -191,6 +197,10 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
 
             public String call() {
                 return list();
+            }
+
+            public String callExternal(BuiltinHelper helper) {
+                return helper.list();
             }
         }
         """,
@@ -200,6 +210,8 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
     assert "def list_(self) -> str:" in python_source
     assert "return list_()" in python_source
     assert "return list()" not in python_source
+    assert "return helper.list()" in python_source
+    assert "return helper.list_()" not in python_source
     _assert_valid_python(python_source)
 
 
@@ -805,6 +817,10 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
                 return 0777;
             }
 
+            public int underscoredOctal() {
+                return 077_7;
+            }
+
             public LowRisk() {
                 super(/* latest api = */ 0x09);
             }
@@ -817,6 +833,7 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     assert "return 0xFF" in python_source
     assert "return 0xFFFF" in python_source
     assert "return 0o777" in python_source
+    assert "return 0o77_7" in python_source
     assert "super().__init__(0x09)" in python_source
     assert "__j2py_todo__" not in python_source
     assert "unsupported expression block_comment" not in python_source
