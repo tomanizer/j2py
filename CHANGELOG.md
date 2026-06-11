@@ -37,6 +37,8 @@ No changes yet.
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Traditional `for` loops without an update clause lower to initializer plus
+  `while condition` instead of `malformed for statement` (#81).
 - Anonymous class instance fields translate to helper-class `__init__` assignments with
   `self.` field access in methods (#74).
 - Switch fall-through translates to reviewable prefix `elif`/`if` chains with explicit

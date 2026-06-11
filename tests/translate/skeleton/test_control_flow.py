@@ -14,6 +14,14 @@ from tests.translate.skeleton.helpers import (
 )
 
 
+def _malformed_for_diagnostics(result) -> list:
+    return [
+        item
+        for item in result.diagnostics.unhandled
+        if "malformed for statement" in item.reason
+    ]
+
+
 def test_classic_for_statement_translates_to_range_loop() -> None:
     python_source, coverage = translate_source(
         """
@@ -39,7 +47,98 @@ def test_classic_for_statement_translates_to_range_loop() -> None:
     assert_valid_python(python_source)
 
 
+def test_for_statement_without_update_translates_to_while_loop() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Enumeration;
+        import java.util.List;
+        import java.util.Map;
 
+        public class Loops {
+            public List<Object> names(Map<Object, Object> mappings) {
+                List<Object> names = new ArrayList<>();
+                for (Enumeration<?> en = mappings.keys(); en.hasMoreElements();) {
+                    names.add(en.nextElement());
+                }
+                return names;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "while en.has_more_elements():" in result.source
+    assert "names.append(en.next_element())" in result.source
+    assert_valid_python(result.source)
+
+
+def test_for_statement_with_iterator_and_no_update_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Iterator;
+        import java.util.List;
+        import java.util.Set;
+
+        public class Loops {
+            public void consume(Set<Object> result) {
+                for (Iterator<Object> it = result.iterator(); it.hasNext();) {
+                    it.next();
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "while it.has_next():" in result.source
+    assert "it.next()" in result.source
+    assert_valid_python(result.source)
+
+
+def test_for_statement_without_initializer_or_update_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int countDown(int limit) {
+                int seen = 0;
+                for (; limit > 0;) {
+                    seen += 1;
+                    limit -= 1;
+                }
+                return seen;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "while limit > 0:" in result.source
+    assert "limit -= 1" in result.source
+    assert_valid_python(result.source)
+
+
+def test_for_statement_without_condition_warns_and_uses_while_true() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public void spin() {
+                for (;;) {
+                    break;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "while True:" in result.source
+    assert any(
+        "for loop without condition lowered to while True" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
 
 
 def test_while_statement_translates_break_and_update() -> None:

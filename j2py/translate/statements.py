@@ -311,27 +311,109 @@ def _translate_if(
 
 def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     ctx.diagnostics.record(node, supported=True, reason="translated for statement")
-    children = node.named_children
-    if len(children) < 4:
+    parts = _traditional_for_parts(node)
+    if parts is None:
         ctx.diagnostics.record(node, supported=False, reason="malformed for statement")
         return [f"{indent}# TODO(j2py): malformed for statement", f"{indent}pass"]
 
-    initializer, condition, update, body = children[0], children[1], children[2], children[3]
-    range_loop = _range_loop_parts(initializer, condition, update, ctx)
-    if range_loop is not None:
-        raw_name, py_name, start, stop = range_loop
-        previous_locals = set(ctx.local_names)
-        ctx.local_names.add(raw_name)
-        lines = [f"{indent}for {py_name} in range({start}, {stop}):"]
-        lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
-        ctx.local_names = previous_locals
-        return lines
+    initializer, condition, update, body = parts
+    if initializer is not None and condition is not None and update is not None:
+        range_loop = _range_loop_parts(initializer, condition, update, ctx)
+        if range_loop is not None:
+            raw_name, py_name, start, stop = range_loop
+            previous_locals = set(ctx.local_names)
+            ctx.local_names.add(raw_name)
+            lines = [f"{indent}for {py_name} in range({start}, {stop}):"]
+            lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
+            ctx.local_names = previous_locals
+            return lines
 
-    lines = translate_statement(initializer, ctx, indent=indent)
-    lines.append(f"{indent}while {translate_expression(condition, ctx)}:")
-    lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
-    lines.append(f"{indent}    {translate_expression(update, ctx)}")
-    return lines
+    out: list[str] = []
+    if initializer is not None:
+        out.extend(_translate_for_initializer(initializer, ctx, indent=indent))
+
+    if condition is not None:
+        while_expr = translate_expression(condition, ctx)
+    else:
+        ctx.diagnostics.warn(
+            node,
+            reason="for loop without condition lowered to while True; verify loop exit path",
+        )
+        while_expr = "True"
+
+    out.append(f"{indent}while {while_expr}:")
+    out.extend(translate_body(body, ctx, indent=f"{indent}    "))
+    if update is not None:
+        out.append(f"{indent}    {translate_expression(update, ctx)}")
+    return out
+
+
+_FOR_INITIALIZER_TYPES = frozenset({"local_variable_declaration", "assignment_expression"})
+_FOR_UPDATE_TYPES = frozenset({"update_expression", "assignment_expression"})
+
+
+def _is_for_initializer(node: JavaNode) -> bool:
+    return node.type in _FOR_INITIALIZER_TYPES
+
+
+def _is_for_update_clause(node: JavaNode) -> bool:
+    return node.type in _FOR_UPDATE_TYPES
+
+
+def _traditional_for_parts(
+    node: JavaNode,
+) -> tuple[JavaNode | None, JavaNode | None, JavaNode | None, JavaNode] | None:
+    """Parse a traditional for_statement by clause role, not fixed child count."""
+    children = node.named_children
+    if not children:
+        return None
+
+    body = children[-1]
+    if body.type != "block":
+        return None
+
+    rest = children[:-1]
+    if not rest:
+        return None, None, None, body
+
+    if len(rest) == 1:
+        clause = rest[0]
+        if _is_for_update_clause(clause):
+            return None
+        return None, clause, None, body
+
+    if len(rest) == 2:
+        first, second = rest
+        if _is_for_update_clause(second):
+            if _is_for_initializer(first):
+                return first, None, second, body
+            return None, first, second, body
+        if _is_for_initializer(first):
+            return first, second, None, body
+        return None, first, None, body
+
+    if len(rest) == 3:
+        initializer, condition, update = rest
+        if not _is_for_update_clause(update):
+            return None
+        if not _is_for_initializer(initializer):
+            return None
+        return initializer, condition, update, body
+
+    return None
+
+
+def _translate_for_initializer(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    if node.type == "local_variable_declaration":
+        return _translate_local_variable_declaration(node, ctx, indent=indent)
+    if node.type == "assignment_expression":
+        return [f"{indent}{translate_expression(node, ctx)}"]
+    return [f"{indent}{translate_expression(node, ctx)}"]
 
 
 def _range_loop_parts(
