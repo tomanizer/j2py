@@ -92,16 +92,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.8888888888888888,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 8,
+      "handled_count": 14,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "tests/fixtures/corpus/constructs/SwitchFallthrough.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "switch_block_statement_group:1",
-      "unhandled_reasons": "switch fall-through requires manual translation:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 1
     },
     {
@@ -1317,13 +1317,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9849258805929553,
+    "average_coverage": 0.9875098599211206,
     "coverage_file_count": 43,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 6,
-    "full_coverage_files": 37,
+    "files_with_unhandled": 5,
+    "full_coverage_files": 38,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.98,
     "top_unhandled_node_types": [
@@ -1337,10 +1337,6 @@
       ],
       [
         "field_declaration",
-        1
-      ],
-      [
-        "switch_block_statement_group",
         1
       ]
     ],
@@ -1359,10 +1355,6 @@
       ],
       [
         "unsupported anonymous class member field_declaration",
-        1
-      ],
-      [
-        "switch fall-through requires manual translation",
         1
       ]
     ]
