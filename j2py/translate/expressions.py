@@ -376,6 +376,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
             return f"{receiver}[{args}]"
         if receiver_type is not None and _is_dict_type(receiver_type):
             return f"{receiver}.get({args})"
+        if raw_receiver.split(".")[-1][:1].isupper():
+            return f"{receiver}.get({args})"
         ctx.diagnostics.record(
             node,
             supported=False,
@@ -434,6 +436,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         )
     if receiver:
         return f"{receiver}.{py_method}({args})"
+    if ctx.in_instance_method and py_method in ctx.class_methods:
+        return f"self.{py_method}({args})"
     return f"{py_method}({args})"
 
 

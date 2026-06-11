@@ -40,16 +40,16 @@
       "warning_count": 2
     },
     {
-      "coverage": 0.8974358974358975,
+      "coverage": 0.9210526315789473,
       "error": "",
       "handled_count": 35,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/ClassNameGenerator.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "constructor_declaration:3;method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;overloaded method __init__ requires manual dispatch:3",
+      "unhandled_count": 3,
+      "unhandled_node_types": "constructor_declaration:3",
+      "unhandled_reasons": "overloaded method __init__ requires manual dispatch:3",
       "warning_count": 4
     },
     {
@@ -133,7 +133,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 21,
+      "handled_count": 77,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/GeneratedFiles.java",
@@ -141,7 +141,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "coverage": 1.0,
@@ -224,7 +224,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 10,
+      "handled_count": 25,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/MethodReference.java",
@@ -274,16 +274,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.9743589743589743,
+      "coverage": 0.9806451612903225,
       "error": "",
       "handled_count": 152,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/generate/ValueCodeGeneratorDelegates.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:2;method_invocation:1;super:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;overloaded method generate_code requires manual dispatch:2;unsupported expression super:1",
+      "unhandled_count": 3,
+      "unhandled_node_types": "method_declaration:2;super:1",
+      "unhandled_reasons": "overloaded method generate_code requires manual dispatch:2;unsupported expression super:1",
       "warning_count": 38
     },
     {
@@ -328,7 +328,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 3,
+      "handled_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/ConditionalHint.java",
@@ -601,7 +601,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 9,
+      "handled_count": 15,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/aot/hint/TypeReference.java",
@@ -1129,7 +1129,7 @@
       "unhandled_count": 11,
       "unhandled_node_types": "constructor_declaration:5;method_declaration:4;switch_block_statement_group:1;unary_expression:1",
       "unhandled_reasons": "overloaded method __init__ requires manual dispatch:5;overloaded method accept requires manual dispatch:2;overloaded method read_utf requires manual dispatch:2;switch fall-through requires manual translation:1;unsupported unary operator ~:1",
-      "warning_count": 419
+      "warning_count": 422
     },
     {
       "coverage": 1.0,
@@ -1313,7 +1313,7 @@
     "spring_remote": "https://github.com/spring-projects/spring-framework.git"
   },
   "summary": {
-    "average_coverage": 0.8956030134363173,
+    "average_coverage": 0.895928045187126,
     "coverage_file_count": 92,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 12,
@@ -1333,7 +1333,7 @@
       ],
       [
         "method_invocation",
-        11
+        9
       ],
       [
         "annotation_type_declaration",
@@ -1380,10 +1380,6 @@
       [
         "overloaded method register_reflection_hints requires manual dispatch",
         5
-      ],
-      [
-        "ambiguous get invocation requires receiver collection type",
-        4
       ],
       [
         "annotation type declaration requires manual translation",
@@ -1440,6 +1436,10 @@
       [
         "overloaded method pop requires manual dispatch",
         3
+      ],
+      [
+        "overloaded method copy requires manual dispatch",
+        2
       ]
     ]
   }

@@ -389,7 +389,7 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
         return [f"{indent}# TODO(j2py): malformed switch statement", f"{indent}pass"]
 
     subject = translate_expression(condition, ctx)
-    groups = [group for group in body.named_children if not is_comment(group)]
+    groups = list(body.named_children)
     if not groups:
         return [f"{indent}pass"]
 
@@ -398,6 +398,10 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
     index = 0
     while index < len(groups):
         group = groups[index]
+        if is_comment(group):
+            ctx.diagnostics.warn(group, reason="preserved comment")
+            index += 1
+            continue
         if group.type == "switch_block_statement_group":
             translated, index = _switch_statement_group(
                 groups,
@@ -474,6 +478,10 @@ def _switch_statement_group(
     index = start_index
     while index < len(groups):
         group = groups[index]
+        if is_comment(group):
+            statements.append(group)
+            index += 1
+            continue
         if group.type != "switch_block_statement_group":
             break
         label = first_child_by_type(group, "switch_label")
@@ -488,9 +496,9 @@ def _switch_statement_group(
             labels.extend(label_values)
         else:
             saw_default_label = True
+        statements.extend(group_statements)
         index += 1
         if meaningful_statements:
-            statements = group_statements
             break
 
     terminal_statements = [statement for statement in statements if not is_comment(statement)]
