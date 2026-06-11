@@ -96,6 +96,29 @@ def test_dependency_graph_skips_ambiguous_simple_name_superclasses() -> None:
     assert list(graph.edges()) == []
 
 
+def test_dependency_graph_prefers_same_package_before_ambiguous_simple_name() -> None:
+    user_a = FileSymbols(
+        path=Path("com/a/User.java"),
+        package="com.a",
+        classes=[ClassSymbol(name="User", package="com.a")],
+    )
+    user_b = FileSymbols(
+        path=Path("com/b/User.java"),
+        package="com.b",
+        classes=[ClassSymbol(name="User", package="com.b")],
+    )
+    child = FileSymbols(
+        path=Path("com/a/Child.java"),
+        package="com.a",
+        classes=[ClassSymbol(name="Child", package="com.a", superclass="User")],
+    )
+
+    graph = build_dependency_graph([user_a, user_b, child])
+
+    assert ("com/a/Child.java", "com/a/User.java") in graph.edges()
+    assert ("com/a/Child.java", "com/b/User.java") not in graph.edges()
+
+
 def test_dependency_graph_resolves_unambiguous_simple_names() -> None:
     base = _symbols("Base.java", "Base")
     child = _symbols("Child.java", "Child", superclass="Base")

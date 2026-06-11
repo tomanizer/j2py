@@ -39,6 +39,7 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
             if cls.superclass:
                 dep = _resolve_type_to_file(
                     cls.superclass,
+                    fs,
                     fqn_to_file=fqn_to_file,
                     unambiguous_short_names=unambiguous_short_names,
                 )
@@ -47,6 +48,7 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
             for iface in cls.interfaces:
                 dep = _resolve_type_to_file(
                     iface,
+                    fs,
                     fqn_to_file=fqn_to_file,
                     unambiguous_short_names=unambiguous_short_names,
                 )
@@ -55,6 +57,7 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
         for imp in fs.imports:
             dep = _resolve_type_to_file(
                 imp,
+                fs,
                 fqn_to_file=fqn_to_file,
                 unambiguous_short_names=unambiguous_short_names,
             )
@@ -70,12 +73,22 @@ def _class_fqn(package: str, class_name: str) -> str:
 
 def _resolve_type_to_file(
     type_name: str,
+    fs: FileSymbols,
     *,
     fqn_to_file: dict[str, Path],
     unambiguous_short_names: dict[str, str],
 ) -> Path | None:
     if type_name in fqn_to_file:
         return fqn_to_file[type_name]
+
+    for imp in fs.imports:
+        if imp.endswith(f".{type_name}") and imp in fqn_to_file:
+            return fqn_to_file[imp]
+
+    same_package_fqn = _class_fqn(fs.package, type_name)
+    if same_package_fqn in fqn_to_file:
+        return fqn_to_file[same_package_fqn]
+
     fqn = unambiguous_short_names.get(type_name)
     if fqn is None:
         return None
