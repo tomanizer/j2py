@@ -7,6 +7,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+No changes yet.
+
+## 0.1.0a1 - 2026-06-11
+
 ### Added
 - GitHub Actions corpus workflow (`.github/workflows/corpus.yml`) comparing the pinned
   Spring sample against the committed baseline on translation/corpus path changes.
@@ -39,6 +43,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   default guards (`elif subject not in (...)` after fall-through blocks) (#73).
 - Local `var` declarations infer Python types from initializers; enhanced-for `var` binds
   element types from iterable annotations (#72).
+- Prepared the first MIT-licensed PyPI alpha release as distribution `j2py-converter`
+  with import package and CLI name `j2py`.
+- README known gaps refreshed to match graduated targets/corpus constructs and remaining
+  `FUTURE_TARGETS` xfail items (#69).
 - Non-`this` synchronized blocks keep `with <expr>:` but warn that lock semantics need review.
 - LLM system prompt aligned with the `_j2py_lock` instance-monitor pattern.
 - Dependency graph resolves simple type names only when unambiguous; ambiguous `User`-style
