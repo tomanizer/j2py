@@ -23,7 +23,7 @@ Current committed baseline:
 - parse success rate: 100.00%
 - generated Python syntax success rate: 91.00%
 - files included in coverage metrics: 92 of 100
-- average skeleton coverage: 89.56%
+- average skeleton coverage: 89.59%
 - full-coverage files: 43 of 92 coverage-bearing files
 - files with unhandled constructs: 49 of 100
 - files below 80% coverage: 12 of 92 coverage-bearing files

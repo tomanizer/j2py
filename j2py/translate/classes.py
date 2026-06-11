@@ -182,15 +182,31 @@ def _translate_interface(
     wrote_member = False
     for method in methods:
         _record_annotation_diagnostics(method, cfg, diagnostics)
-        diagnostics.record(method, supported=True, reason="translated interface method")
-        name = _member_python_name(method)
-        params = _parameter_infos(method, cfg)
-        return_type = _return_type(method, cfg)
+        method_body = _method_body(method)
+        if method_body is not None:
+            reason = (
+                "translated interface static method"
+                if "static" in _modifiers(method)
+                else "translated interface default method"
+            )
+            diagnostics.record(method, supported=True, reason=reason)
+            ctx = TranslationContext(
+                cfg=cfg,
+                diagnostics=diagnostics,
+                class_fields=set(),
+                class_field_types={},
+                allow_local_helpers=True,
+            )
+            lines.extend(_translate_method(method, ctx, supported_reason=reason))
+            wrote_member = True
+            continue
+
+        diagnostics.record(method, supported=True, reason="translated abstract interface method")
         signature = _signature(
-            name,
-            params,
-            return_type=return_type,
-            include_self=True,
+            _member_python_name(method),
+            _parameter_infos(method, cfg),
+            return_type=_return_type(method, cfg),
+            include_self="static" not in _modifiers(method),
             emit_type_hints=cfg.emit_type_hints,
         )
         lines.append(f"    {signature}: ...")
@@ -510,6 +526,7 @@ def _translate_method(
     ctx: TranslationContext,
     *,
     unsupported_reason: str | None = None,
+    supported_reason: str = "translated method declaration",
     pre_body_lines: list[str] | None = None,
 ) -> list[str]:
     _record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
@@ -517,7 +534,7 @@ def _translate_method(
     ctx.diagnostics.record(
         node,
         supported=supported and unsupported_reason is None,
-        reason=unsupported_reason or "translated method declaration",
+        reason=unsupported_reason or supported_reason,
     )
 
     is_constructor = node.type == "constructor_declaration"

@@ -16,7 +16,9 @@ j2py translates type declarations as follows:
 
 1. Java classes translate to Python classes. Nested Java classes remain nested Python
    classes.
-2. Java interfaces translate to `typing.Protocol` classes with method stubs.
+2. Java interfaces translate to `typing.Protocol` classes. Abstract methods remain
+   stubs, while Java default and static interface methods translate to concrete Python
+   methods on the Protocol class.
 3. Java enums translate to Python `Enum` classes with string-valued constants.
 4. Java records translate to frozen dataclasses with fields from the record header.
 5. Java annotation type declarations translate to valid Python placeholder classes with
@@ -30,7 +32,7 @@ the generated output uses those symbols.
 + Nested and top-level type declarations now produce syntactically valid Python.
 + Reviewers can see the Java declaration shape directly in the Python skeleton.
 + Record value semantics are represented with frozen dataclasses.
-− Interface default methods and enum constructors remain future work.
+− Enum constructors remain future work.
 − Annotation types are intentionally placeholders because Python has no direct
   declaration equivalent.
 
