@@ -117,7 +117,8 @@ make corpus-spring-update-baseline
 
 Generated detailed reports are written under `corpus-reports/`, which is ignored by git.
 The default `make check` gate does not clone Spring or run the corpus harness; this keeps
-CI fast and deterministic.
+CI fast and deterministic. A separate GitHub Actions workflow (`.github/workflows/corpus.yml`)
+runs the pinned baseline comparison when translation or corpus files change.
 
 Scoreboard metrics:
 
