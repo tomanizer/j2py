@@ -2,8 +2,12 @@
 
 
 
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
+    FIXTURES,
     assert_valid_python,
     translate_source,
     translate_source_with_diagnostics,
@@ -839,5 +843,62 @@ def test_interface_default_and_static_methods_translate_to_protocol_bodies() -> 
     )
     assert_valid_python(result.source)
 
+
+def test_super_method_receiver_translates_to_super_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Base {
+            void endClass() {}
+            Object getGenerator(Object resource) { return resource; }
+            void setTarget(Object target) {}
+            boolean cancel(boolean mayInterrupt) { return mayInterrupt; }
+        }
+
+        public class Child extends Base {
+            void finish() {
+                super.endClass();
+            }
+
+            Object generator(Object resource) {
+                return super.getGenerator(resource);
+            }
+
+            void configure(Object target) {
+                super.setTarget(target);
+            }
+
+            boolean cancel(boolean mayInterrupt) {
+                return super.cancel(mayInterrupt);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert not any(
+        "unsupported expression super" in diagnostic.reason
+        for diagnostic in result.diagnostics.unhandled
+    )
+    assert "super().end_class()" in result.source
+    assert "return super().get_generator(resource)" in result.source
+    assert "super().set_target(target)" in result.source
+    assert "return super().cancel(may_interrupt)" in result.source
+    assert any(
+        diagnostic.reason == "translated super expression"
+        for diagnostic in result.diagnostics.handled
+    )
+    assert_valid_python(result.source)
+
+
+def test_super_method_calls_corpus_construct_reaches_full_coverage() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "SuperMethodCalls.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "super().end_class()" in result.source
+    assert "return super().get_generator(resource)" in result.source
+    assert_valid_python(result.source)
 
 
