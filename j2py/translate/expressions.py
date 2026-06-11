@@ -17,7 +17,11 @@ from j2py.translate.rules.naming import (
     translate_field_name,
     translate_method_name,
 )
-from j2py.translate.rules.types import java_default_value, translate_type
+from j2py.translate.rules.types import (
+    element_type_from_container,
+    java_default_value,
+    translate_type,
+)
 
 
 def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
@@ -1544,10 +1548,25 @@ def _string_literal_value(node: JavaNode) -> str:
 
 
 def _expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    return infer_expression_py_type(node, ctx)
+
+
+def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    """Best-effort static type for a Java expression node."""
     if node.type == "decimal_integer_literal":
         return "int"
-    if node.type == "decimal_floating_point_literal":
+    if node.type in {"decimal_floating_point_literal", "floating_point_type"}:
         return "float"
+    if node.type == "integer_type" and node.text in {"int", "long", "byte", "short"}:
+        return "int"
+    if node.type == "string_literal":
+        return "str"
+    if node.type == "character_literal":
+        return "str"
+    if node.type == "true" or node.type == "false":
+        return "bool"
+    if node.type == "null_literal":
+        return "None"
     if node.type == "identifier":
         return ctx.variable_types.get(node.text) or ctx.class_field_types.get(node.text)
     if node.type == "field_access":
@@ -1555,7 +1574,77 @@ def _expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
         if len(children) == 2 and children[0].type == "this":
             return ctx.class_field_types.get(children[1].text)
     if node.type == "parenthesized_expression" and len(node.named_children) == 1:
-        return _expression_py_type(node.named_children[0], ctx)
+        return infer_expression_py_type(node.named_children[0], ctx)
+    if node.type == "cast_expression":
+        cast_type_node = node.named_children[0] if node.named_children else None
+        if cast_type_node is not None:
+            return translate_type(cast_type_node.text, ctx.cfg)
+    if node.type == "object_creation_expression":
+        type_node = node.child_by_field("type")
+        if type_node is not None:
+            return translate_type(type_node.text, ctx.cfg)
+    if node.type == "method_invocation":
+        return _infer_method_invocation_py_type(node, ctx)
+    if node.type == "ternary_expression":
+        children = node.named_children
+        if len(children) >= 3:
+            consequent_type = infer_expression_py_type(children[1], ctx)
+            alternate_type = infer_expression_py_type(children[2], ctx)
+            if consequent_type == "float" or alternate_type == "float":
+                return "float"
+            return consequent_type or alternate_type
+    if node.type == "binary_expression" and len(node.children) == 3:
+        operator = node.children[1].text
+        if operator == "+":
+            left_type = infer_expression_py_type(node.children[0], ctx)
+            right_type = infer_expression_py_type(node.children[2], ctx)
+            if left_type == "str" or right_type == "str":
+                return "str"
+    return None
+
+
+def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    named = [child for child in node.named_children if not is_comment(child)]
+    args_node = first_child_by_type(node, "argument_list")
+    if args_node is None or args_node not in named:
+        return None
+    args_index = named.index(args_node)
+    if args_index == 0:
+        return None
+    method_name = named[args_index - 1].text
+    receiver_nodes = named[: args_index - 1]
+
+    int_return_methods = {
+        "size",
+        "length",
+        "sum",
+        "intValue",
+        "longValue",
+        "hashCode",
+        "compare",
+        "compareTo",
+        "indexOf",
+        "lastIndexOf",
+    }
+    str_return_methods = {
+        "trim",
+        "strip",
+        "toLowerCase",
+        "toUpperCase",
+        "toString",
+        "substring",
+        "formatted",
+    }
+    if method_name in int_return_methods:
+        return "int"
+    if method_name in str_return_methods:
+        return "str"
+    if method_name == "isEmpty":
+        return "bool"
+    if method_name in {"get", "getOrDefault"} and receiver_nodes:
+        receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
+        if receiver_type is not None and _is_dict_type(receiver_type):
+            return element_type_from_container(receiver_type) or "object"
     return None
 
 

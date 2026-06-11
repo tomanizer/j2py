@@ -3,7 +3,7 @@
 import pytest
 
 from j2py.config.loader import ConfigLoader
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import element_type_from_container, is_var_type, translate_type
 
 cfg = ConfigLoader().add_defaults().build()
 
@@ -27,3 +27,28 @@ cfg = ConfigLoader().add_defaults().build()
 ])
 def test_translate_type(java: str, expected: str):
     assert translate_type(java, cfg) == expected
+
+
+@pytest.mark.parametrize(
+    ("java_type", "expected"),
+    [
+        ("var", True),
+        ("  var  ", True),
+        ("List<String>", False),
+    ],
+)
+def test_is_var_type(java_type: str, expected: bool) -> None:
+    assert is_var_type(java_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("container", "expected"),
+    [
+        ("list[str]", "str"),
+        ("list[dict[str, object]]", "dict[str, object]"),
+        ("dict[str, int]", "str"),
+        ("str", None),
+    ],
+)
+def test_element_type_from_container(container: str, expected: str | None) -> None:
+    assert element_type_from_container(container) == expected
