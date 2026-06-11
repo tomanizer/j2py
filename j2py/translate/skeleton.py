@@ -101,6 +101,8 @@ def _import_lines(
         typing_names.add("overload")
     if typing_names:
         imports.add(f"from typing import {', '.join(sorted(typing_names))}")
+    if "_j2py_lock" in flattened or "threading.Lock" in flattened:
+        imports.add("import threading")
 
     return sorted(imports)
 

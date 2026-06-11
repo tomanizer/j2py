@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment, translate_comment
-from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.diagnostics import (
+    ClassTranslationState,
+    TranslationContext,
+    TranslationDiagnostics,
+)
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import class_body_needs_pass, first_child_by_type
 from j2py.translate.rules.naming import (
@@ -17,7 +21,11 @@ from j2py.translate.rules.naming import (
     translate_method_name,
 )
 from j2py.translate.rules.types import java_default_value, translate_type
-from j2py.translate.statements import translate_body
+from j2py.translate.statements import (
+    class_uses_synchronized_this,
+    instance_lock_init_line,
+    translate_body,
+)
 
 TYPE_DECLARATION_NODES = {
     "class_declaration",
@@ -120,6 +128,8 @@ def translate_class(
         ]
     )
     class_method_names = _member_method_names(members, cfg)
+    class_state = ClassTranslationState(needs_instance_lock=class_uses_synchronized_this(node))
+    lock_init_lines = [instance_lock_init_line()] if class_state.needs_instance_lock else []
 
     lines = [f"class {class_name}{_base_suffix(node)}:"]
     static_field_lines, instance_init_lines = _translate_fields(
@@ -132,7 +142,9 @@ def translate_class(
     )
     nested_type_lines = _nested_type_lines(body, cfg, diagnostics)
     has_constructor = any(member.type == "constructor_declaration" for member in members)
-    needs_synthetic_init = bool(instance_init_lines) and not has_constructor
+    needs_synthetic_init = (
+        (bool(instance_init_lines) or class_state.needs_instance_lock) and not has_constructor
+    )
 
     if not members and not static_field_lines and not instance_init_lines and not nested_type_lines:
         lines.append("    pass")
@@ -144,6 +156,7 @@ def translate_class(
         if static_field_lines:
             lines.append("")
         lines.append("    def __init__(self) -> None:")
+        lines.extend(lock_init_lines)
         lines.extend(instance_init_lines)
 
     if nested_type_lines:
@@ -163,8 +176,11 @@ def translate_class(
                     class_field_types=instance_field_types,
                     class_methods=class_method_names,
                     pre_body_lines=(
-                        instance_init_lines if group[0].type == "constructor_declaration" else []
+                        lock_init_lines + instance_init_lines
+                        if group[0].type == "constructor_declaration"
+                        else []
                     ),
+                    class_state=class_state,
                 ),
             )
             continue
@@ -177,8 +193,13 @@ def translate_class(
             class_field_types=instance_field_types,
             class_methods=class_method_names,
             allow_local_helpers=True,
+            class_state=class_state,
         )
-        pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
+        pre_body_lines = (
+            lock_init_lines + instance_init_lines
+            if member.type == "constructor_declaration"
+            else []
+        )
         lines.extend(_translate_method(member, ctx, pre_body_lines=pre_body_lines))
 
     if class_body_needs_pass(lines):
@@ -759,6 +780,7 @@ def _translate_overloaded_members(
     class_field_types: dict[str, str] | None = None,
     class_methods: set[str] | None = None,
     pre_body_lines: list[str],
+    class_state: ClassTranslationState | None = None,
 ) -> list[str]:
     name = _member_python_name(members[0])
     for member in members:
@@ -775,6 +797,7 @@ def _translate_overloaded_members(
             class_field_types=field_types,
             class_methods=class_methods or set(),
             pre_body_lines=pre_body_lines,
+            class_state=class_state,
         )
         if merged_constructor is not None:
             return merged_constructor
@@ -786,6 +809,7 @@ def _translate_overloaded_members(
             class_fields=class_fields,
             class_field_types=field_types,
             class_methods=class_methods or set(),
+            class_state=class_state,
         )
         if merged_method is not None:
             return merged_method
@@ -807,6 +831,7 @@ def _translate_overloaded_members(
         class_fields=class_fields,
         class_field_types=field_types,
         pre_body_lines=pre_body_lines,
+        class_state=class_state,
     )
     if dispatched is not None:
         return dispatched
@@ -857,6 +882,7 @@ def _merged_constructor_overload(
     class_field_types: dict[str, str],
     class_methods: set[str],
     pre_body_lines: list[str],
+    class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
     forwards = [
         _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
@@ -889,6 +915,7 @@ def _merged_constructor_overload(
         class_fields=class_fields,
         class_methods=class_methods,
         allow_local_helpers=True,
+        class_state=class_state,
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = True
@@ -1174,6 +1201,7 @@ def _merged_method_overload(
     class_fields: set[str],
     class_field_types: dict[str, str],
     class_methods: set[str],
+    class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -1219,6 +1247,7 @@ def _merged_method_overload(
         class_fields=class_fields,
         class_methods=class_methods,
         allow_local_helpers=True,
+        class_state=class_state,
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = not is_static
@@ -1304,6 +1333,7 @@ def _dispatch_overload_members(
     class_fields: set[str],
     class_field_types: dict[str, str],
     pre_body_lines: list[str],
+    class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
     """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
 
@@ -1344,6 +1374,7 @@ def _dispatch_overload_members(
             class_field_types=dict(class_field_types),
             allow_local_helpers=True,
             self_dispatch_methods={java_name} if java_name else set(),
+            class_state=class_state,
         )
         member_pre_body = (
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []

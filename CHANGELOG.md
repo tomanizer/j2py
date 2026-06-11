@@ -8,6 +8,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- ADR 0010: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
+  initialization in constructors or synthetic `__init__`.
 - Shared `tests/conftest.py` with session `cfg` fixture and fixture path constants.
 - `TranslationDiagnostics.semantic_warning_count` and `rule_coverage` alias documenting
   that warnings do not reduce node coverage.
@@ -22,6 +24,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   tree-sitter `ERROR`/`MISSING` nodes skips LLM completion and reports `confidence=0.0`.
 
 ### Changed
+- Non-`this` synchronized blocks keep `with <expr>:` but warn that lock semantics need review.
+- LLM system prompt aligned with the `_j2py_lock` instance-monitor pattern.
 - Dependency graph resolves simple type names only when unambiguous; ambiguous `User`-style
   collisions no longer pick an arbitrary file.
 - `j2py analyze` docstring no longer claims dependency-graph output.

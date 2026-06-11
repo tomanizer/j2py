@@ -18,6 +18,64 @@ TYPE_DECLARATION_NODES = {
     "annotation_type_declaration",
 }
 
+INSTANCE_LOCK_ATTR = "_j2py_lock"
+
+
+def lock_expression_is_this(lock_node: JavaNode) -> bool:
+    """Return True when a synchronized lock expression is Java ``this``."""
+    if lock_node.type == "this":
+        return True
+    if lock_node.type == "parenthesized_expression":
+        inner = first_child_by_type(lock_node, "this")
+        return inner is not None
+    return lock_node.text.strip() in {"this", "(this)"}
+
+
+def class_uses_synchronized_this(class_node: JavaNode) -> bool:
+    """Return True when current-class instance members use ``synchronized (this)``."""
+    body = class_node.child_by_field("body")
+    if body is None:
+        return False
+    for member in body.named_children:
+        if member.type == "constructor_declaration":
+            if _member_uses_synchronized_this(member):
+                return True
+            continue
+        if (
+            member.type == "method_declaration"
+            and not _has_static_modifier(member)
+            and _member_uses_synchronized_this(member)
+        ):
+            return True
+    return False
+
+
+def instance_lock_init_line(*, indent: str = "        ") -> str:
+    return f"{indent}self.{INSTANCE_LOCK_ATTR} = threading.Lock()"
+
+
+def _has_static_modifier(node: JavaNode) -> bool:
+    for modifiers in node.children_by_type("modifiers"):
+        if "static" in modifiers.text.split():
+            return True
+    return False
+
+
+def _member_uses_synchronized_this(member: JavaNode) -> bool:
+    body = member.child_by_field("body")
+    if body is None:
+        body = first_child_by_type(member, "block", "constructor_body")
+    return body is not None and _node_uses_synchronized_this(body)
+
+
+def _node_uses_synchronized_this(node: JavaNode) -> bool:
+    if node.type in TYPE_DECLARATION_NODES or node.type == "class_body":
+        return False
+    if node.type == "synchronized_statement":
+        lock = first_child_by_type(node, "parenthesized_expression")
+        return lock is not None and lock_expression_is_this(lock)
+    return any(_node_uses_synchronized_this(child) for child in node.named_children)
+
 
 def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     lines: list[str] = []
@@ -386,12 +444,37 @@ def _translate_synchronized(
         ctx.diagnostics.record(node, supported=False, reason="malformed synchronized statement")
         return [f"{indent}# TODO(j2py): malformed synchronized statement", f"{indent}pass"]
 
-    ctx.diagnostics.record(node, supported=True, reason="translated synchronized statement")
-    ctx.diagnostics.warn(
-        node,
-        reason="synchronized block translated as context manager; verify lock semantics",
-    )
-    lines = [f"{indent}with {translate_expression(lock, ctx)}:"]
+    if lock_expression_is_this(lock):
+        if not ctx.in_instance_method:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="synchronized(this) is invalid in static context",
+            )
+            return [
+                f"{indent}# TODO(j2py): synchronized(this) in static context",
+                f"{indent}pass",
+            ]
+        if ctx.class_state is not None:
+            ctx.class_state.needs_instance_lock = True
+        ctx.diagnostics.record(
+            node,
+            supported=True,
+            reason="translated synchronized(this) to instance lock context manager",
+        )
+        lock_expr = f"self.{INSTANCE_LOCK_ATTR}"
+    else:
+        ctx.diagnostics.record(node, supported=True, reason="translated synchronized statement")
+        ctx.diagnostics.warn(
+            node,
+            reason=(
+                "non-this synchronized lock translated as context manager; "
+                "verify lock semantics"
+            ),
+        )
+        lock_expr = translate_expression(lock, ctx)
+
+    lines = [f"{indent}with {lock_expr}:"]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     return lines
 
