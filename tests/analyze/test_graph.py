@@ -72,3 +72,34 @@ def test_dependency_graph_uses_nested_dependencies_without_extra_nodes() -> None
 
     assert sorted(graph.nodes) == ["Base.java", "Outer.java"]
     assert translation_order(graph) == ["Base.java", "Outer.java"]
+
+
+def test_dependency_graph_skips_ambiguous_simple_name_superclasses() -> None:
+    user_a = FileSymbols(
+        path=Path("com/a/User.java"),
+        package="com.a",
+        classes=[ClassSymbol(name="User", package="com.a")],
+    )
+    user_b = FileSymbols(
+        path=Path("com/b/User.java"),
+        package="com.b",
+        classes=[ClassSymbol(name="User", package="com.b")],
+    )
+    child = FileSymbols(
+        path=Path("com/c/Child.java"),
+        package="com.c",
+        classes=[ClassSymbol(name="Child", package="com.c", superclass="User")],
+    )
+
+    graph = build_dependency_graph([user_a, user_b, child])
+
+    assert list(graph.edges()) == []
+
+
+def test_dependency_graph_resolves_unambiguous_simple_names() -> None:
+    base = _symbols("Base.java", "Base")
+    child = _symbols("Child.java", "Child", superclass="Base")
+
+    graph = build_dependency_graph([child, base])
+
+    assert translation_order(graph) == ["Base.java", "Child.java"]

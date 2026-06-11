@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -12,8 +12,8 @@ from j2py.analyze.symbols import extract_symbols
 from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from tests.conftest import CORPUS_CONSTRUCT_FIXTURES, TARGET_FIXTURES
 
-TARGET_FIXTURES = Path(__file__).parent.parent / "fixtures" / "java" / "targets"
 CFG = ConfigLoader().add_defaults().build()
 
 
@@ -22,18 +22,44 @@ class TranslationTarget:
     fixture: str
     tracking: str
     reason: str
-    expected_fragments: tuple[str, ...]
+    expected_fragments: tuple[str, ...] = ()
     forbidden_fragments: tuple[str, ...] = (
         "TODO(j2py): unsupported",
         "__j2py_todo__",
     )
+    fixture_root: Path = field(default=TARGET_FIXTURES)
 
     @property
     def path(self) -> Path:
-        return TARGET_FIXTURES / self.fixture
+        return self.fixture_root / self.fixture
 
 
-FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
+FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
+    TranslationTarget(
+        fixture="AdvancedStreams.java",
+        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        tracking="advanced-streams",
+        reason="Advanced stream collectors and long chains are not fully supported",
+    ),
+    TranslationTarget(
+        fixture="AnonymousAndInner.java",
+        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        tracking="anonymous-inner",
+        reason="Anonymous classes with non-method members are not fully supported",
+    ),
+    TranslationTarget(
+        fixture="SwitchFallthrough.java",
+        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        tracking="switch-fallthrough",
+        reason="Switch fall-through is not fully supported",
+    ),
+    TranslationTarget(
+        fixture="VarKeyword.java",
+        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        tracking="var-keyword",
+        reason="Local var inference is not fully supported",
+    ),
+)
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
     for path in sorted(TARGET_FIXTURES.glob("*.java"))

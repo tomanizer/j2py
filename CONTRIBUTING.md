@@ -43,7 +43,7 @@ Every new Java construct translation needs:
 3. **Test** — parametrised entry in `tests/translate/` (or a new test file)
 4. **Implementation** — rule in `j2py/translate/rules/` or `skeleton.py`
 
-The fixture pair is the contract. CI snapshot-tests it.
+The fixture pair is the contract. CI runs exact fixture equality tests in `make check`.
 
 For unsupported but planned Java constructs, add or update a roadmap target test first.
 Graduated target tests live under `tests/targets/` and run in `make check`. Future
