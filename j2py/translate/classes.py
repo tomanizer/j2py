@@ -141,10 +141,9 @@ def translate_class(
                     cfg=cfg,
                     diagnostics=diagnostics,
                     class_fields=instance_field_names,
+                    class_field_types=instance_field_types,
                     pre_body_lines=(
-                        instance_init_lines
-                        if group[0].type == "constructor_declaration"
-                        else []
+                        instance_init_lines if group[0].type == "constructor_declaration" else []
                     ),
                 ),
             )
@@ -156,6 +155,7 @@ def translate_class(
             diagnostics=diagnostics,
             class_fields=instance_field_names,
             class_field_types=instance_field_types,
+            allow_local_helpers=True,
         )
         pre_body_lines = instance_init_lines if member.type == "constructor_declaration" else []
         lines.extend(_translate_method(member, ctx, pre_body_lines=pre_body_lines))
@@ -533,8 +533,19 @@ def _translate_method(
     if body is None:
         body = first_child_by_type(node, "block", "constructor_body")
 
+    ctx.allow_local_helpers = True
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     lines.extend(pre_body_lines or [])
+
+    # Flush any helpers generated for block lambdas encountered while walking
+    # the body (including deep inside expressions). They are placed after any
+    # pre-body initialization but before the original statements so the names
+    # are defined for the whole method and grouped for review.
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
     lines.extend(body_lines)
     return lines
 
@@ -545,11 +556,14 @@ def _translate_overloaded_members(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
+    class_field_types: dict[str, str] | None = None,
     pre_body_lines: list[str],
 ) -> list[str]:
     name = _member_python_name(members[0])
     for member in members:
         _record_annotation_diagnostics(member, cfg, diagnostics)
+
+    field_types = class_field_types or {f: "object" for f in class_fields}
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -557,6 +571,7 @@ def _translate_overloaded_members(
             cfg=cfg,
             diagnostics=diagnostics,
             class_fields=class_fields,
+            class_field_types=field_types,
             pre_body_lines=pre_body_lines,
         )
         if merged_constructor is not None:
@@ -567,6 +582,7 @@ def _translate_overloaded_members(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=class_fields,
+        class_field_types=field_types,
     )
     if merged_method is not None:
         return merged_method
@@ -599,6 +615,7 @@ def _merged_constructor_overload(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
+    class_field_types: dict[str, str],
     pre_body_lines: list[str],
 ) -> list[str] | None:
     implementation = _constructor_implementation_candidate(members, cfg)
@@ -625,8 +642,13 @@ def _merged_constructor_overload(
         if member != implementation:
             diagnostics.record(member, supported=True, reason="translated constructor delegation")
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
-    ctx.class_field_types = {field: "object" for field in class_fields}
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        allow_local_helpers=True,
+    )
+    ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = True
     for param in params:
         ctx.param_names.add(param.raw_name)
@@ -642,9 +664,18 @@ def _merged_constructor_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    lines.extend(pre_body_lines)
     body = _method_body(implementation)
-    lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    lines.extend(pre_body_lines)
+
+    # Flush block-lambda helpers for the merged constructor implementation
+    # (same pattern as the normal method path).
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
+    lines.extend(body_lines)
     return lines
 
 
@@ -654,6 +685,7 @@ def _merged_method_overload(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
+    class_field_types: dict[str, str],
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -692,8 +724,13 @@ def _merged_method_overload(
     for member in members:
         diagnostics.record(member, supported=True, reason="translated overloaded method")
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, class_fields=class_fields)
-    ctx.class_field_types = {field: "object" for field in class_fields}
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        allow_local_helpers=True,
+    )
+    ctx.class_field_types = dict(class_field_types)
     ctx.in_instance_method = not is_static
     for param in merged_params:
         ctx.param_names.add(param.raw_name)
@@ -711,7 +748,15 @@ def _merged_method_overload(
     )
     lines.append(f"    {signature}:")
     body = _method_body(members[0])
-    lines.extend(translate_body(body, ctx, indent="        ") if body else ["        pass"])
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+
+    # Flush block-lambda helpers for this merged method implementation.
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
+    lines.extend(body_lines)
     return lines
 
 
