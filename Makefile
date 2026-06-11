@@ -16,7 +16,7 @@ typecheck:  ## Type-check with mypy (strict)
 test:  ## Run test suite
 	uv run pytest -m "not target_translation and not live_llm"
 
-test-targets:  ## Run xfail Java-to-Python roadmap target tests
+test-targets:  ## Run graduated and future Java-to-Python roadmap target tests
 	uv run pytest tests/targets -m target_translation -rxXs
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
@@ -58,7 +58,7 @@ ci-local-governance: check  ## For CI/tooling/dependency PRs — same gates, exp
 # ── Utility ──────────────────────────────────────────────────────────────────
 
 clean:  ## Remove build artifacts and caches
-	rm -rf dist/ .mypy_cache/ .ruff_cache/ .pytest_cache/ htmlcov/ coverage.xml
+	rm -rf dist/ .mypy_cache/ .ruff_cache/ .pytest_cache/ htmlcov/ .coverage coverage.xml corpus-reports/
 	find . -type d -name __pycache__ -not -path './.venv/*' -exec rm -rf {} +
 
 build:  ## Build wheel and sdist
