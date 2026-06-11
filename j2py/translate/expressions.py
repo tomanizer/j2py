@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import ast
-
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.node_utils import first_child_by_type
-from j2py.translate.rules.literals import translate_literal
+from j2py.translate.rules.literals import (
+    java_string_literal_value,
+    translate_literal,
+    translate_string_literal,
+)
 from j2py.translate.rules.naming import (
     translate_attribute_method_name,
     translate_class_name,
@@ -36,7 +38,7 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
         return translate_literal(node.text, ctx.cfg)
 
     if node.type == "string_literal":
-        return node.text
+        return translate_string_literal(node.text)
 
     if node.type == "identifier":
         return _translate_identifier(node.text, ctx)
@@ -1336,6 +1338,8 @@ def _translate_string_concat(node: JavaNode, ctx: TranslationContext) -> str | N
     terms = _flatten_plus(node)
     if terms is None or not any(term.type == "string_literal" for term in terms):
         return None
+    if any(term.type == "string_literal" and "\n" in _string_literal_value(term) for term in terms):
+        return _translate_string_concat_as_addition(terms, ctx)
 
     first_string_index = next(
         index for index, term in enumerate(terms) if term.type == "string_literal"
@@ -1402,8 +1406,7 @@ def _flatten_plus(node: JavaNode) -> list[JavaNode] | None:
 
 
 def _string_literal_value(node: JavaNode) -> str:
-    value = ast.literal_eval(node.text)
-    return str(value)
+    return java_string_literal_value(node.text)
 
 
 def _expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
