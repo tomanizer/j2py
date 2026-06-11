@@ -484,8 +484,20 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "from enum import Enum" in result.source
     assert "from typing import Protocol" in result.source
     assert "class Writer(Protocol):" in result.source
+    assert "class Labelled(Protocol):" in result.source
     assert "class Mode(Enum):" in result.source
-    assert "FAST =" in result.source
+    assert "# implements Labelled" in result.source
+    assert 'FAST = ("fast", 1)' in result.source
+    assert 'SAFE = ("safe", 2)' in result.source
+    assert "display_name: str" in result.source
+    assert "sort_order: int" in result.source
+    assert "def __init__(self, display_name: str, sort_order: int) -> None:" in result.source
+    assert "self.display_name = display_name" in result.source
+    assert "self.sort_order = sort_order" in result.source
+    assert "def label(self) -> str:" in result.source
+    assert "return self.display_name" in result.source
+    assert "def order(self) -> int:" in result.source
+    assert "return self.sort_order" in result.source
     assert "@dataclass(frozen=True)" in result.source
     assert "class Entry:" in result.source
     assert "name: str" in result.source
@@ -494,6 +506,11 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "def build(self, name: str) -> Entry:" in result.source
     assert "return Entry(name, 1)" in result.source
     _assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    mode = namespace["NestedTypes"].Mode
+    assert mode.FAST.label() == "fast"
+    assert mode.SAFE.order() == 2
 
 
 def test_graduated_issue_20_functional_stream_target_translates() -> None:

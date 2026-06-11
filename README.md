@@ -12,7 +12,7 @@ not yet a production Spring porting tool.
 Current deterministic rule support includes:
 
 - tree-sitter Java parsing and symbol extraction
-- class, nested class, interface, enum, and record skeletons
+- class, nested class, interface, basic and constructor-backed enum, and record skeletons
 - fields, constructors, methods, overload stubs, and simple overload merges
 - common expressions: literals, identifiers, field access, arrays, class literals,
   assignments, updates, ternaries, null checks, common collection calls, and string concat
@@ -33,7 +33,8 @@ Known gaps include:
   now supported via comprehensions or small helpers; block lambdas in streams handled)
 - switch fall-through and complex switch rule blocks
 - complex constructor dispatch and non-trivial overload bodies
-- enum constructors/default interface methods/annotation semantics
+- enum constant class bodies, complex enum static initialization, default interface methods,
+  and annotation semantics
 - behavioral equivalence testing between Java and Python
 - framework semantics such as Spring dependency injection or Hibernate mappings
 

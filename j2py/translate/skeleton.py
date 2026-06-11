@@ -85,7 +85,7 @@ def _import_lines(
     flattened = "\n".join(line for block in class_blocks for line in block)
     if "@dataclass(frozen=True)" in flattened:
         imports.add("from dataclasses import dataclass")
-    if "(Enum):" in flattened:
+    if "Enum):" in flattened:
         imports.add("from enum import Enum")
 
     typing_names: set[str] = set()
