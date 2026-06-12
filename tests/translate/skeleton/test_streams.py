@@ -444,6 +444,35 @@ def test_stream_flatmap_with_map_rewrite() -> None:
     assert_valid_python(python_source)
 
 
+def test_stream_flatmap_after_map_uses_mapped_iterable() -> None:
+    """flatMap after map must flatten the mapped collection, not the outer item."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            static class Item {
+                List<String> getTags() { return null; }
+            }
+
+            public List<String> tagNames(List<Item> items) {
+                return items.stream()
+                        .map(Item::getTags)
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "for item in items" in python_source
+    assert "for item_item in item.get_tags()" in python_source
+    assert "for item_item in item]" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
     """Non-method-reference flatMap mappers still record an explicit diagnostic."""
     result = translate_source_with_diagnostics(

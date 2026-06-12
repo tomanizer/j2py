@@ -577,6 +577,8 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
                 )
                 return None
             inner_name, inner_iterable = binding
+            if current_expr != item_name:
+                inner_iterable = current_expr
             loop_clauses.append((inner_name, inner_iterable))
             item_name = inner_name
             current_expr = inner_name
