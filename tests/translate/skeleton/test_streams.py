@@ -473,6 +473,28 @@ def test_stream_flatmap_after_map_uses_mapped_iterable() -> None:
     assert_valid_python(python_source)
 
 
+def test_stream_flatmap_bound_instance_ref_falls_back() -> None:
+    """Bound instance refs like myList::stream are not rewritten as Type::stream."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> flat(List<List<String>> nested, List<String> myList) {
+                return nested.stream()
+                        .flatMap(myList::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    reasons = [u.reason for u in result.diagnostics.unhandled]
+    assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
+    assert_valid_python(result.source)
+
+
 def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
     """Non-method-reference flatMap mappers still record an explicit diagnostic."""
     result = translate_source_with_diagnostics(

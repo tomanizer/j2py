@@ -568,7 +568,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
                     ),
                 )
                 return None
-            binding = _stream_flatmap_binding(arg, item_name, ctx)
+            binding = _stream_flatmap_binding(arg, item_name, current_expr, ctx)
             if binding is None:
                 ctx.diagnostics.record(
                     node,
@@ -577,8 +577,6 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
                 )
                 return None
             inner_name, inner_iterable = binding
-            if current_expr != item_name:
-                inner_iterable = current_expr
             loop_clauses.append((inner_name, inner_iterable))
             item_name = inner_name
             current_expr = inner_name
@@ -754,15 +752,26 @@ def _stream_flatmap_inner_item_name(outer_item_name: str, ctx: TranslationContex
 def _stream_flatmap_binding(
     arg: JavaNode,
     outer_item_name: str,
+    current_expr: str,
     ctx: TranslationContext,
 ) -> tuple[str, str] | None:
-    """Return (inner_loop_var, inner_iterable) for a supported flatMap mapper."""
+    """Return (inner_loop_var, inner_iterable) for a supported flatMap mapper.
+
+    Supports ``Type::stream`` instance-method references on stream elements
+    (e.g. ``List::stream``). Bound references such as ``myList::stream`` are
+    rejected so we fall back to the general translated chain.
+    """
     if arg.type != "method_reference":
         return None
     named = arg.named_children
-    if len(named) >= 2 and named[-1].text == "stream":
+    if (
+        len(named) >= 2
+        and named[-1].text == "stream"
+        and named[0].text[:1].isupper()
+    ):
         inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
-        return inner_name, outer_item_name
+        inner_iterable = current_expr if current_expr != outer_item_name else outer_item_name
+        return inner_name, inner_iterable
     return None
 
 
