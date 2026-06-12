@@ -394,9 +394,9 @@ def test_to_map_with_merge_function_falls_back() -> None:
 
 
 
-def test_stream_flatmap_falls_back_with_explicit_diagnostic() -> None:
-    """Targeted polish: unsupported stream intermediate (flatMap) now records clear reason."""
-    result = translate_source_with_diagnostics(
+def test_stream_flatmap_list_stream_to_list_rewrite() -> None:
+    """flatMap(List::stream) rewrites to nested comprehension instead of flat_map chain."""
+    python_source, coverage = translate_source(
         """
         import java.util.List;
         import java.util.stream.Collectors;
@@ -411,10 +411,109 @@ def test_stream_flatmap_falls_back_with_explicit_diagnostic() -> None:
         """,
     )
 
+    assert coverage == 1.0
+    assert "flat_map" not in python_source
+    assert ".stream()" not in python_source
+    assert "for nested in nested" in python_source
+    assert "for nested_item in nested" in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_flatmap_with_map_rewrite() -> None:
+    """AdvancedStreams flatMapExample pattern: flatMap then map to upper case."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> nestedUpper(List<List<String>> nested) {
+                return nested.stream()
+                        .flatMap(List::stream)
+                        .map(String::toUpperCase)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "to_upper_case()" in python_source
+    assert ".flat_map(" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_flatmap_after_map_uses_mapped_iterable() -> None:
+    """flatMap after map must flatten the mapped collection, not the outer item."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            static class Item {
+                List<String> getTags() { return null; }
+            }
+
+            public List<String> tagNames(List<Item> items) {
+                return items.stream()
+                        .map(Item::getTags)
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "for item in items" in python_source
+    assert "for item_item in item.get_tags()" in python_source
+    assert "for item_item in item]" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_flatmap_bound_instance_ref_falls_back() -> None:
+    """Bound instance refs like myList::stream are not rewritten as Type::stream."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> flat(List<List<String>> nested, List<String> myList) {
+                return nested.stream()
+                        .flatMap(myList::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
     reasons = [u.reason for u in result.diagnostics.unhandled]
     assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
-    # still produces something (general path)
-    assert "stream" in result.source.lower() or "flat_map" in result.source
+    assert_valid_python(result.source)
+
+
+def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
+    """Non-method-reference flatMap mappers still record an explicit diagnostic."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> flat(List<List<String>> nested) {
+                return nested.stream()
+                        .flatMap(list -> list.stream())
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    reasons = [u.reason for u in result.diagnostics.unhandled]
+    assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
     assert_valid_python(result.source)
 
 
