@@ -85,6 +85,43 @@ public class Greeter {
     assert "greet" in result
 
 
+@NEEDS_API_KEY
+@LIVE_LLM
+def test_prompt_cache_reports_second_call_cache_hit() -> None:
+    """Two identical direct SDK calls should create then read the system prompt cache."""
+    from j2py.llm.client import get_client
+    from j2py.llm.prompts import build_translation_prompt
+
+    java = "public class CacheProbe { public int value() { return 1; } }"
+    system, messages = build_translation_prompt(
+        java_source=java,
+        partial_python="class CacheProbe:\n    def value(self) -> int:\n        pass\n",
+    )
+    model = os.environ.get("J2PY_LIVE_LLM_MODEL", "claude-sonnet-4-6")
+
+    first = get_client().messages.create(
+        model=model,
+        max_tokens=64,
+        system=system,
+        messages=messages,  # type: ignore[arg-type]
+    )
+    second = get_client().messages.create(
+        model=model,
+        max_tokens=64,
+        system=system,
+        messages=messages,  # type: ignore[arg-type]
+    )
+
+    print("\n=== PROMPT CACHE USAGE ===")
+    print("first cache_creation_input_tokens:", first.usage.cache_creation_input_tokens)
+    print("first cache_read_input_tokens:", first.usage.cache_read_input_tokens)
+    print("second cache_creation_input_tokens:", second.usage.cache_creation_input_tokens)
+    print("second cache_read_input_tokens:", second.usage.cache_read_input_tokens)
+
+    assert system[0]["cache_control"] == {"type": "ephemeral"}
+    assert (second.usage.cache_read_input_tokens or 0) > 0
+
+
 def _format_diagnostics(diagnostics: TranslationDiagnostics) -> str:
     if not diagnostics.unhandled:
         return "No unresolved constructs from the rule layer."
