@@ -1,5 +1,5 @@
 .PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov \
-	corpus-list-presets corpus-clone-all \
+	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
 	corpus-guava-dense corpus-guava-dense-check corpus-guava-dense-update-baseline \
@@ -45,6 +45,9 @@ test-cov:  ## Run tests with coverage report
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
+
+corpus-hotspots:  ## Rank cross-corpus unhandled/syntax gaps from committed baselines
+	uv run python scripts/corpus/aggregate_hotspots.py
 
 corpus-clone-all:  ## Clone or refresh all pinned corpus preset checkouts under .corpus/
 	@for preset in $$(PYTHONPATH=scripts/corpus uv run python -c "from corpus_presets import CLONE_PRESET_NAMES; print(' '.join(CLONE_PRESET_NAMES))"); do \

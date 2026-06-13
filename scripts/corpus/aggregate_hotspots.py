@@ -4,6 +4,13 @@
 Reads ``tests/fixtures/corpus/*-baseline.json`` (or a custom directory), clusters
 per-file ``unhandled_reasons``, ranks cross-corpus gaps, and prints a triage report.
 
+Track A (output quality): files with ``syntax_ok=false`` or ``parse_ok=false`` become
+ranked clusters even when ``unhandled_reasons`` is empty — coverage alone can mislead.
+
+Priority score: ``hits × corpora × severity``, where severity is 4 (parse failure),
+3 (syntax failure), 2 (structural gap), or 1 (expression/import noise). Severity
+file counts are deduplicated per cluster/file, not per unhandled reason.
+
 Example::
 
     uv run python scripts/corpus/aggregate_hotspots.py
@@ -24,6 +31,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BASELINE_DIR = REPO_ROOT / "tests" / "fixtures" / "corpus"
 
+SYNTAX_OUTPUT_CLUSTER = "invalid python output"
+PARSE_FAILURE_CLUSTER = "parse failure"
+
 CLUSTER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("unknown static import", re.compile(r"^unknown static import ")),
     ("overloaded method dispatch", re.compile(r"^overloaded method .+ requires manual dispatch$")),
@@ -36,6 +46,8 @@ CLUSTER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 ISSUE_TITLES: dict[str, str] = {
+    SYNTAX_OUTPUT_CLUSTER: "P0: Fix invalid Python output (comment-only blocks, wildcard types, …)",
+    PARSE_FAILURE_CLUSTER: "Investigate corpus parse failures",
     "unknown static import": "Rule layer: resolve common static imports (Preconditions, Objects.requireNonNull, …)",
     "overloaded method dispatch": "Rule layer: broaden deterministic overload dispatch (ADR 0009 tier-1 patterns)",
     "ambiguous get invocation": "Expressions: disambiguate `.get()` by receiver collection type",
@@ -121,6 +133,71 @@ class HotspotReport:
     clusters: list[ClusterStats]
 
 
+def syntax_failure_bucket(*, unhandled_count: int) -> str:
+    if unhandled_count == 0:
+        return "syntax failure with no unhandled constructs"
+    return "syntax failure with unhandled constructs"
+
+
+def _file_exemplar(preset: str, file_metric: dict[str, Any]) -> Exemplar:
+    return Exemplar(
+        preset=preset,
+        path=file_metric["path"],
+        coverage=float(file_metric.get("coverage", 0)),
+        unhandled_count=int(file_metric.get("unhandled_count", 0)),
+        syntax_ok=bool(file_metric.get("syntax_ok")),
+        parse_ok=bool(file_metric.get("parse_ok")),
+        construct_size=int(file_metric.get("handled_count", 0))
+        + int(file_metric.get("unhandled_count", 0)),
+    )
+
+
+def _dedupe_exemplars(exemplars: list[Exemplar], *, limit: int = 3) -> list[Exemplar]:
+    exemplars.sort(
+        key=lambda item: (item.construct_size, item.unhandled_count, -item.coverage, item.path),
+    )
+    seen_paths: set[str] = set()
+    unique: list[Exemplar] = []
+    for exemplar in exemplars:
+        key = f"{exemplar.preset}:{exemplar.path}"
+        if key in seen_paths:
+            continue
+        seen_paths.add(key)
+        unique.append(exemplar)
+        if len(unique) >= limit:
+            break
+    return unique
+
+
+def _add_output_quality_clusters(
+    clusters: dict[str, ClusterStats],
+    *,
+    preset: str,
+    file_metric: dict[str, Any],
+) -> None:
+    if not file_metric.get("parse_ok"):
+        stats = clusters.setdefault(PARSE_FAILURE_CLUSTER, ClusterStats(cluster=PARSE_FAILURE_CLUSTER))
+        stats.total_count += 1
+        stats.corpora.add(preset)
+        stats.file_hits += 1
+        stats.parse_fail_files += 1
+        stats.raw_reasons["parse_ok=false"] += 1
+        stats.exemplars.append(_file_exemplar(preset, file_metric))
+        return
+
+    if file_metric.get("syntax_ok"):
+        return
+
+    stats = clusters.setdefault(SYNTAX_OUTPUT_CLUSTER, ClusterStats(cluster=SYNTAX_OUTPUT_CLUSTER))
+    unhandled_count = int(file_metric.get("unhandled_count", 0))
+    stats.total_count += 1
+    stats.corpora.add(preset)
+    stats.file_hits += 1
+    stats.syntax_fail_files += 1
+    stats.raw_reasons[syntax_failure_bucket(unhandled_count=unhandled_count)] += 1
+    stats.exemplars.append(_file_exemplar(preset, file_metric))
+
+
 def load_baselines(baseline_dir: Path) -> list[tuple[str, dict[str, Any]]]:
     baselines: list[tuple[str, dict[str, Any]]] = []
     for path in sorted(baseline_dir.glob("*-baseline.json")):
@@ -153,6 +230,8 @@ def build_report(baseline_dir: Path) -> HotspotReport:
 
         for file_metric in data.get("files", []):
             reasons = parse_counter_summary(file_metric.get("unhandled_reasons", ""))
+            _add_output_quality_clusters(clusters, preset=preset, file_metric=file_metric)
+
             if not file_metric.get("parse_ok"):
                 parse_failures.append(
                     {
@@ -170,6 +249,7 @@ def build_report(baseline_dir: Path) -> HotspotReport:
                         "error": file_metric.get("error", ""),
                         "coverage": file_metric.get("coverage", 0),
                         "unhandled_count": file_metric.get("unhandled_count", 0),
+                        "handled_count": file_metric.get("handled_count", 0),
                         "reasons": dict(reasons),
                     },
                 )
@@ -178,6 +258,7 @@ def build_report(baseline_dir: Path) -> HotspotReport:
                 continue
 
             seen_clusters_in_file: set[str] = set()
+            exemplar = _file_exemplar(preset, file_metric)
             for reason, count in reasons.items():
                 cluster = cluster_reason(reason)
                 stats = clusters.setdefault(cluster, ClusterStats(cluster=cluster))
@@ -187,39 +268,14 @@ def build_report(baseline_dir: Path) -> HotspotReport:
                 if cluster not in seen_clusters_in_file:
                     stats.file_hits += 1
                     seen_clusters_in_file.add(cluster)
-                if not file_metric.get("syntax_ok"):
-                    stats.syntax_fail_files += 1
-                if not file_metric.get("parse_ok"):
-                    stats.parse_fail_files += 1
-
-                stats.exemplars.append(
-                    Exemplar(
-                        preset=preset,
-                        path=file_metric["path"],
-                        coverage=float(file_metric.get("coverage", 0)),
-                        unhandled_count=int(file_metric.get("unhandled_count", 0)),
-                        syntax_ok=bool(file_metric.get("syntax_ok")),
-                        parse_ok=bool(file_metric.get("parse_ok")),
-                        construct_size=int(file_metric.get("handled_count", 0))
-                        + int(file_metric.get("unhandled_count", 0)),
-                    ),
-                )
+                    if not file_metric.get("syntax_ok"):
+                        stats.syntax_fail_files += 1
+                    if not file_metric.get("parse_ok"):
+                        stats.parse_fail_files += 1
+                    stats.exemplars.append(exemplar)
 
     for stats in clusters.values():
-        stats.exemplars.sort(
-            key=lambda item: (item.construct_size, item.unhandled_count, -item.coverage, item.path),
-        )
-        seen_paths: set[str] = set()
-        unique: list[Exemplar] = []
-        for exemplar in stats.exemplars:
-            key = f"{exemplar.preset}:{exemplar.path}"
-            if key in seen_paths:
-                continue
-            seen_paths.add(key)
-            unique.append(exemplar)
-            if len(unique) >= 3:
-                break
-        stats.exemplars = unique
+        stats.exemplars = _dedupe_exemplars(stats.exemplars)
 
     ranked_clusters = sorted(
         clusters.values(),
@@ -273,7 +329,7 @@ def print_report(report: HotspotReport, *, top: int) -> None:
             print(f"  [{item['preset']}] {item['path']}: {error}")
 
     print("\n" + "=" * 72)
-    print("RANKED HOTSPOT BACKLOG (clustered reasons)")
+    print("RANKED HOTSPOT BACKLOG (unhandled clusters + output quality)")
     print("=" * 72)
     print(f"{'#':<3} {'score':>7} {'sev':>3} {'cnt':>5} {'corp':>4} {'files':>5}  cluster")
     print("-" * 72)
