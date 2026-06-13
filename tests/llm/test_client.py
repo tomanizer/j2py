@@ -124,6 +124,36 @@ def test_translate_with_llm_cache_key_includes_validation_feedback(monkeypatch) 
     assert len(cache.written) == 2
 
 
+def test_translate_with_llm_cache_key_includes_previous_python(monkeypatch) -> None:
+    cache = FakeCache()
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(
+                content=[anthropic.types.TextBlock(type="text", text="translated python")],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        validation_feedback="SyntaxError: repair",
+        previous_python="def broken_one(:\n",
+        model="claude-test",
+    )
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        validation_feedback="SyntaxError: repair",
+        previous_python="def broken_two(:\n",
+        model="claude-test",
+    )
+
+    assert len(cache.written) == 2
+
+
 def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> None:
     cache = FakeCache()
     calls = {"count": 0}
