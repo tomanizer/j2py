@@ -131,14 +131,34 @@ def _collect_declared_type_fields(
     class_node: JavaNode,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
-    by_type: dict[str, dict[str, str]] = {}
+    return {
+        type_name: {name: field.py_type for name, field in fields.items()}
+        for type_name, fields in _collect_declared_type_field_maps(class_node, cfg).items()
+    }
+
+
+def _collect_declared_type_java_fields(
+    class_node: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    return {
+        type_name: {name: field.java_type for name, field in fields.items()}
+        for type_name, fields in _collect_declared_type_field_maps(class_node, cfg).items()
+    }
+
+
+def _collect_declared_type_field_maps(
+    class_node: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, FieldInfo]]:
+    by_type: dict[str, dict[str, FieldInfo]] = {}
 
     def add_type(type_node: JavaNode) -> None:
         name_node = type_node.child_by_field("name")
         if name_node is None:
             return
         by_type[name_node.text] = {
-            field.name: field.py_type for field in _class_fields(type_node, cfg)
+            field.name: field for field in _class_fields(type_node, cfg)
         }
         body = type_node.child_by_field("body")
         if body is None:
@@ -160,6 +180,7 @@ def _translate_fields(
     diagnostics: TranslationDiagnostics,
     *,
     declared_type_fields: dict[str, dict[str, str]] | None = None,
+    declared_type_java_fields: dict[str, dict[str, str]] | None = None,
 ) -> tuple[list[str], list[str]]:
     body = class_node.child_by_field("body")
     if body is None:
@@ -168,6 +189,7 @@ def _translate_fields(
     static_lines: list[str] = []
     instance_init_lines: list[str] = []
     type_fields = declared_type_fields or {}
+    type_java_fields = declared_type_java_fields or {}
     static_ctx = TranslationContext(
         cfg=cfg,
         diagnostics=diagnostics,
@@ -175,6 +197,7 @@ def _translate_fields(
         class_field_types=_class_field_types(fields),
         class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
+        declared_type_java_fields=type_java_fields,
     )
     instance_ctx = TranslationContext(
         cfg=cfg,
@@ -183,6 +206,7 @@ def _translate_fields(
         class_field_types=_class_field_types(fields),
         class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
+        declared_type_java_fields=type_java_fields,
         in_instance_method=True,
     )
 

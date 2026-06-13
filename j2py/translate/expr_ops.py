@@ -178,6 +178,57 @@ def _translate_unsigned_right_shift(
     return f"({left} & {mask}) >> {right}"
 
 
+def _is_simple_lvalue(node: JavaNode) -> bool:
+    return node.type == "identifier"
+
+
+def _translate_unsigned_right_shift_assign(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    ctx: TranslationContext,
+) -> str:
+    width = _java_integral_width(left_node, ctx)
+    if width is None:
+        width = 32
+        ctx.diagnostics.warn(
+            node,
+            reason="unsigned right shift assumed 32-bit int width; verify operand type",
+        )
+    mask = "0xFFFFFFFFFFFFFFFF" if width == 64 else "0xFFFFFFFF"
+    right = translate_expression(right_node, ctx)
+
+    if _is_simple_lvalue(left_node):
+        left = translate_expression(left_node, ctx)
+        return f"{left} = ({left} & {mask}) >> {right}"
+
+    if left_node.type == "array_access" and len(left_node.named_children) >= 2:
+        array_node, index_node = left_node.named_children[0], left_node.named_children[1]
+        array = translate_expression(array_node, ctx)
+        index = translate_expression(index_node, ctx)
+        return (
+            f"_j2py_idx = {index}; "
+            f"{array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {right}"
+        )
+
+    if left_node.type == "field_access" and len(left_node.named_children) == 2:
+        from j2py.translate.rules.naming import translate_field_name
+
+        target = translate_expression(left_node.named_children[0], ctx)
+        field = translate_field_name(left_node.named_children[1].text)
+        return (
+            f"_j2py_val = {target}.{field}; "
+            f"{target}.{field} = (_j2py_val & {mask}) >> {right}"
+        )
+
+    left = translate_expression(left_node, ctx)
+    ctx.diagnostics.warn(
+        node,
+        reason="unsigned right shift assignment on complex left-hand side may evaluate twice",
+    )
+    return f"{left} = ({left} & {mask}) >> {right}"
+
+
 def _java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
     java_type = _java_expression_type(node, ctx)
     if java_type is None:
@@ -205,7 +256,30 @@ def _field_access_java_type(node: JavaNode, ctx: TranslationContext) -> str | No
     field_name = field_name_node.text
     if target_node.type == "this":
         return ctx.class_field_java_types.get(field_name)
-    return None
+
+    object_java_type = _java_expression_type(target_node, ctx)
+    if object_java_type is None:
+        return None
+
+    simple = _java_type_simple_name(object_java_type)
+    type_fields = ctx.declared_type_java_fields.get(simple)
+    if type_fields is None:
+        for type_name, fields in ctx.declared_type_java_fields.items():
+            if simple == type_name or object_java_type.endswith(f".{type_name}"):
+                type_fields = fields
+                break
+    if type_fields is None:
+        return None
+    return type_fields.get(field_name)
+
+
+def _java_type_simple_name(java_type: str) -> str:
+    simple = java_type.strip()
+    if "<" in simple:
+        simple = simple.split("<", 1)[0]
+    if "." in simple:
+        simple = simple.rsplit(".", 1)[-1]
+    return simple.rstrip("[]")
 
 
 def _java_type_width(java_type: str) -> int | None:

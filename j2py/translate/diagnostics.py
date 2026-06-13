@@ -94,6 +94,7 @@ class TranslationContext:
     class_field_types: dict[str, str] = field(default_factory=dict)
     class_field_java_types: dict[str, str] = field(default_factory=dict)
     declared_type_fields: dict[str, dict[str, str]] = field(default_factory=dict)
+    declared_type_java_fields: dict[str, dict[str, str]] = field(default_factory=dict)
     class_methods: set[str] = field(default_factory=set)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
