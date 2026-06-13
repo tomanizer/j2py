@@ -56,6 +56,8 @@ COLLECTION_MAP: dict[str, str] = {
     "LinkedHashMap": "dict",
     "TreeMap": "dict",
     "Hashtable": "dict",
+    "MultiValueMap": "dict",
+    "Properties": "dict",
     "Queue": "collections.deque",
     "Deque": "collections.deque",
     "ArrayDeque": "collections.deque",

@@ -136,3 +136,56 @@ def element_type_from_container(py_type: str) -> str | None:
         elif char == "," and depth == 0:
             return inner[:index].strip()
     return inner.strip() or None
+
+
+MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "AnnotationAttributes",
+        "MergedAnnotation",
+        "Properties",
+    },
+)
+
+# Receivers whose `.get(...)` is an API call (reflection, futures), not indexing.
+API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "CompletableFuture",
+        "Field",
+        "ForkJoinTask",
+        "Future",
+        "ScheduledFuture",
+    },
+)
+
+
+def type_simple_name(py_type: str) -> str:
+    """Return the unqualified base name from a translated type hint."""
+    base = py_type.split("[", 1)[0].strip()
+    return base.rsplit(".", 1)[-1]
+
+
+def is_map_like_type(py_type: str) -> bool:
+    """True when a translated type behaves like a Java Map for `.get(key)` lowering."""
+    if " | " in py_type:
+        return any(
+            is_map_like_type(part.strip())
+            for part in py_type.split("|")
+            if part.strip() != "None"
+        )
+    if py_type == "dict" or py_type.startswith("dict["):
+        return True
+    simple = type_simple_name(py_type)
+    if simple in MAP_LIKE_SIMPLE_NAMES:
+        return True
+    return simple.endswith("Map")
+
+
+def is_api_get_receiver_type(py_type: str) -> bool:
+    """True when `.get(...)` on this receiver is a Java API call, not collection access."""
+    if " | " in py_type:
+        return any(
+            is_api_get_receiver_type(part.strip())
+            for part in py_type.split("|")
+            if part.strip() != "None"
+        )
+    return type_simple_name(py_type) in API_GET_RECEIVER_SIMPLE_NAMES
