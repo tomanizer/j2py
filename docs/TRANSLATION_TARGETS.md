@@ -26,21 +26,19 @@ The suite has three lanes:
   Python, reach `coverage == 1.0`, and report no unhandled diagnostics.
 - **Graduated corpus constructs**: Java fixtures under
   `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
-  (`AdvancedEnum`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`,
-  `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`, `SuperMethodCalls`).
-  These also run in
-  `make check`.
+  (`AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`,
+  `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`,
+  `TextBlocks`, `VarKeyword`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
-  behavior that should become supported next. Corpus constructs still below full rule
-  coverage (`AdvancedStreams`) are included here. These are marked
-  `target_translation` and run via `make test-targets`.
+  behavior that should become supported next. **Currently empty** — all curated
+  constructs are graduated as of 2026-06-13 (see `docs/decisions/AUDIT-2026-06-13.md`).
+
+When a new construct gap is identified, add a fixture here and register it in
+`FUTURE_TARGETS` before implementing the rule.
 
 Current future corpus-construct backlog:
 
-- Advanced stream collectors and long chains
-- Anonymous classes with non-method members and richer inner-class capture
-- Switch fall-through and complex switch rule blocks
-- Local `var` inference
+- _(none — add the next xfail target when scoping a new construct gap)_
 
 Each future target case has:
 
