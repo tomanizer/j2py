@@ -53,7 +53,12 @@ public class Probe {
 """
     path = _write_java(tmp_path, java)
 
-    cassette = "class Probe:\n    def run(self) -> None:\n        assert 1 == 1\n        print('done')\n"
+    cassette = (
+        "class Probe:\n"
+        "    def run(self) -> None:\n"
+        "        assert 1 == 1\n"
+        "        print('done')\n"
+    )
 
     with patch("j2py.llm.client.translate_with_llm", return_value=cassette) as mock_llm:
         result = translate_file(path, cfg=CFG, use_llm=True, validate=False)

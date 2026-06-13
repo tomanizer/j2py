@@ -1009,7 +1009,7 @@ def main() -> None:
         if d.exists():
             shutil.rmtree(d)
         d.mkdir(parents=True)
-        (d / "Main.java").write_text(src)
+        (d / "Main.java").write_text(src, encoding="utf-8")
     print(f"generated {len(CASES)} cases into {out}")
 
 

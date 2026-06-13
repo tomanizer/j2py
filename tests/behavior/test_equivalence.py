@@ -58,12 +58,14 @@ def _discover_cases() -> tuple[BehaviorCase, ...]:
         if not entry.is_dir() or not (entry / "Main.java").exists():
             continue
         override = entry / "main_class.txt"
-        main_class = override.read_text().strip() if override.exists() else "Main"
+        main_class = override.read_text(encoding="utf-8").strip() if override.exists() else "Main"
         xfail_file = entry / "xfail.txt"
-        xfail_reason = xfail_file.read_text().strip() if xfail_file.exists() else None
+        xfail_reason = (
+            xfail_file.read_text(encoding="utf-8").strip() if xfail_file.exists() else None
+        )
         timeout_file = entry / "timeout_seconds.txt"
         timeout = (
-            int(timeout_file.read_text().strip())
+            int(timeout_file.read_text(encoding="utf-8").strip())
             if timeout_file.exists()
             else PROCESS_TIMEOUT_SECONDS
         )
