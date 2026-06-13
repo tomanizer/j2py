@@ -81,9 +81,15 @@ def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> l
     lines: list[str] = []
     for statement in body.named_children:
         lines.extend(translate_statement(statement, ctx, indent=indent))
-    if not lines:
+    if _body_needs_pass(lines):
         lines.append(f"{indent}pass")
     return lines
+
+
+def _body_needs_pass(lines: list[str]) -> bool:
+    if not lines:
+        return True
+    return all(not line.strip() or line.lstrip().startswith("#") for line in lines)
 
 
 def _with_expression_comments(line: str, ctx: TranslationContext) -> str:
@@ -205,9 +211,7 @@ def _translate_local_variable_declaration(
         ctx.local_names.add(raw_name)
         value_node = declarator.child_by_field("value")
         if is_var_type(java_type):
-            inferred = (
-                infer_expression_py_type(value_node, ctx) if value_node is not None else None
-            )
+            inferred = infer_expression_py_type(value_node, ctx) if value_node is not None else None
             py_type = inferred or "object"
         else:
             py_type = translate_type(java_type, ctx.cfg)
@@ -223,7 +227,6 @@ def _translate_local_variable_declaration(
         else:
             lines.append(_with_expression_comments(f"{indent}{py_name} = {value}", ctx))
     return lines
-
 
 
 def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
@@ -295,6 +298,7 @@ def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -
 
     return impl(node, ctx, indent=indent)
 
+
 def _translate_explicit_constructor_invocation(
     node: JavaNode,
     ctx: TranslationContext,
@@ -313,7 +317,6 @@ def _translate_explicit_constructor_invocation(
     # mergeable delegations were already rewritten into default parameters.
     ctx.diagnostics.record(node, supported=True, reason="translated constructor delegation call")
     return [f"{indent}self.__init__({args})"]
-
 
 
 def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:

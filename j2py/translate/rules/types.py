@@ -21,7 +21,7 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
         "int[]"            → "list[int]"
         "Optional<String>" → "str | None"
     """
-    java_type = _strip_type_annotations(java_type.strip())
+    java_type = _normalize_type_text(_strip_type_annotations(java_type.strip()))
 
     # Arrays
     if java_type.endswith("[]"):
@@ -34,7 +34,7 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
         return f"*{inner}"
 
     # Generic: RawType<...>
-    generic_match = re.match(r"^(\w+)\s*<(.+)>$", java_type)
+    generic_match = re.match(r"^([\w.]+)\s*<(.+)>$", java_type)
     if generic_match:
         raw = generic_match.group(1)
         params_str = generic_match.group(2)
@@ -57,10 +57,10 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
         return "Any"
 
     if java_type.startswith("? extends "):
-        return translate_type(java_type[len("? extends "):], cfg)
+        return translate_type(java_type[len("? extends ") :], cfg)
 
     if java_type.startswith("? super "):
-        return translate_type(java_type[len("? super "):], cfg)
+        return translate_type(java_type[len("? super ") :], cfg)
 
     # Collection raw types
     if java_type in cfg.collection_map:
@@ -116,6 +116,11 @@ def _strip_type_annotations(java_type: str) -> str:
     return re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
 
 
+def _normalize_type_text(java_type: str) -> str:
+    """Collapse Java formatter whitespace that can appear inside generic signatures."""
+    return re.sub(r"\s+", " ", java_type).strip()
+
+
 def is_var_type(java_type: str) -> bool:
     """Return True when a Java declaration uses local type inference (`var`)."""
     return _strip_type_annotations(java_type.strip()) == "var"
@@ -168,9 +173,7 @@ def is_map_like_type(py_type: str) -> bool:
     """True when a translated type behaves like a Java Map for `.get(key)` lowering."""
     if " | " in py_type:
         return any(
-            is_map_like_type(part.strip())
-            for part in py_type.split("|")
-            if part.strip() != "None"
+            is_map_like_type(part.strip()) for part in py_type.split("|") if part.strip() != "None"
         )
     if py_type == "dict" or py_type.startswith("dict["):
         return True
