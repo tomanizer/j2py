@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import gc
 import re
+import threading
+import time
 from collections.abc import Callable
 
 import pytest
 
-from j2py.translate.runtime import __j2py_todo__, overloaded
+from j2py.translate.runtime import __j2py_todo__, _j2py_monitor, overloaded
+from j2py.translate.runtime.j2py_runtime import _j2py_monitor_registry
 
 
 class TypeReference:
@@ -185,3 +189,127 @@ def test_j2py_todo_includes_java_source_in_message() -> None:
     snippet = "someComplexExpression()"
     with pytest.raises(NotImplementedError, match=re.escape(snippet)):
         __j2py_todo__(snippet)
+
+
+class _JavaObj:
+    """Stand-in for a translated Java object: user-defined, so weakly referenceable."""
+
+
+def test_j2py_monitor_is_a_context_manager() -> None:
+    with _j2py_monitor(_JavaObj()):
+        pass  # must not raise
+
+
+def test_j2py_monitor_same_object_same_lock() -> None:
+    obj = _JavaObj()
+    m1 = _j2py_monitor(obj)
+    m2 = _j2py_monitor(obj)
+    assert m1._lock is m2._lock
+
+
+def test_j2py_monitor_different_objects_different_locks() -> None:
+    a, b = _JavaObj(), _JavaObj()
+    assert _j2py_monitor(a)._lock is not _j2py_monitor(b)._lock
+
+
+def test_j2py_monitor_is_reentrant() -> None:
+    obj = _JavaObj()
+    with _j2py_monitor(obj), _j2py_monitor(obj):  # must not deadlock — uses RLock
+        pass
+
+
+def test_j2py_monitor_blocks_concurrent_access() -> None:
+    obj = _JavaObj()
+    results: list[str] = []
+
+    def writer(tag: str) -> None:
+        with _j2py_monitor(obj):
+            results.append(f"{tag}:enter")
+            results.append(f"{tag}:exit")
+
+    t1 = threading.Thread(target=writer, args=("A",))
+    t2 = threading.Thread(target=writer, args=("B",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    # Lock must prevent interleaving: each thread's enter/exit must be adjacent
+    assert results.index("A:enter") + 1 == results.index("A:exit")
+    assert results.index("B:enter") + 1 == results.index("B:exit")
+
+
+class _ValueObj:
+    """Distinct instances that compare equal — mirrors a translated Java value object."""
+
+    def __init__(self, v: int) -> None:
+        self.v = v
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _ValueObj) and self.v == other.v
+
+    def __hash__(self) -> int:
+        return hash(self.v)
+
+
+def test_j2py_monitor_non_weak_referenceable_object_shares_lock() -> None:
+    # object()/list/dict cannot be weakly referenced. The monitor must still bind
+    # ONE lock per object (by identity) — a fresh lock per call would silently
+    # provide no mutual exclusion at all (the bug this guards against).
+    for obj in (object(), [1, 2, 3], {"k": "v"}):
+        assert _j2py_monitor(obj)._lock is _j2py_monitor(obj)._lock
+
+
+def test_j2py_monitor_distinct_non_weak_referenceable_objects_differ() -> None:
+    assert _j2py_monitor(object())._lock is not _j2py_monitor(object())._lock
+
+
+def test_j2py_monitor_uses_identity_not_equality() -> None:
+    # Java monitors are per-object-identity; two equal-but-distinct objects must
+    # NOT share a monitor (a hash/eq-keyed registry would wrongly merge them).
+    a, b = _ValueObj(1), _ValueObj(1)
+    assert a == b and hash(a) == hash(b)
+    assert a is not b
+    assert _j2py_monitor(a)._lock is not _j2py_monitor(b)._lock
+
+
+def test_j2py_monitor_evicts_lock_when_object_collected() -> None:
+    # A weakly-referenceable object's entry must be dropped on GC so its id()
+    # cannot later be recycled onto an unrelated object that would inherit its lock.
+    obj = _JavaObj()
+    key = id(obj)
+    _j2py_monitor(obj)
+    assert key in _j2py_monitor_registry
+    del obj
+    gc.collect()
+    assert key not in _j2py_monitor_registry
+
+
+def test_j2py_monitor_serializes_non_weak_referenceable_object() -> None:
+    # Behavioural proof of mutual exclusion on a non-weak-referenceable lock: a
+    # no-op (fresh-lock-per-call) implementation would let B enter during A's hold.
+    lock_obj: list[int] = []
+    order: list[str] = []
+    a_inside = threading.Event()
+
+    def first() -> None:
+        with _j2py_monitor(lock_obj):
+            order.append("a-enter")
+            a_inside.set()
+            time.sleep(0.05)
+            order.append("a-exit")
+
+    def second() -> None:
+        a_inside.wait()
+        with _j2py_monitor(lock_obj):
+            order.append("b-enter")
+
+    t1 = threading.Thread(target=first)
+    t2 = threading.Thread(target=second)
+    t1.start()
+    a_inside.wait()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert order == ["a-enter", "a-exit", "b-enter"]

@@ -27,10 +27,73 @@ from __future__ import annotations
 
 import builtins
 import inspect
+import threading
+import weakref
 from collections.abc import Callable
 from typing import Any, ClassVar, NoReturn
 
-__all__ = ["__j2py_todo__", "overloaded"]
+__all__ = ["__j2py_todo__", "_j2py_monitor", "overloaded"]
+
+# Java intrinsic monitors are keyed by *object identity*, never by ``equals``/
+# ``hashCode``. We therefore key the lock registry on ``id(obj)`` rather than on
+# the object itself (a ``WeakKeyDictionary`` would route through ``__eq__``/
+# ``__hash__`` and merge or drop locks for value-like objects). The reused-id
+# hazard is handled two ways: weakly-referenceable objects get a finalizer that
+# evicts their entry the moment they are collected (so the id cannot be recycled
+# while a lock is registered for it), and objects that cannot be weakly
+# referenced (``object()``, ``list``, ``dict``, ``str``, ``int``, ...) are pinned
+# alive in ``_j2py_monitor_keepalive`` for the life of the process.
+_j2py_monitor_registry: dict[int, threading.RLock] = {}
+_j2py_monitor_keepalive: dict[int, Any] = {}
+# Reentrant so a finalizer evicting a collected object (which may fire mid-insert
+# on the same thread via cyclic GC) cannot deadlock against the registering call.
+_j2py_monitor_registry_lock: threading.RLock = threading.RLock()
+
+
+def _j2py_monitor_evict(key: int) -> None:
+    """Drop the lock registered for the (now-dead) object whose id was ``key``."""
+    with _j2py_monitor_registry_lock:
+        _j2py_monitor_registry.pop(key, None)
+        _j2py_monitor_keepalive.pop(key, None)
+
+
+def _j2py_monitor_lock_for(obj: object) -> threading.RLock:
+    """Return the unique ``RLock`` bound to ``obj`` by identity, creating it once."""
+    key = id(obj)
+    with _j2py_monitor_registry_lock:
+        existing = _j2py_monitor_registry.get(key)
+        if existing is not None:
+            return existing
+        lock = threading.RLock()
+        _j2py_monitor_registry[key] = lock
+        try:
+            weakref.finalize(obj, _j2py_monitor_evict, key)
+        except TypeError:
+            # Not weakly referenceable — pin it so its id() cannot be recycled.
+            _j2py_monitor_keepalive[key] = obj
+        return lock
+
+
+class _j2py_monitor:
+    """Context manager providing Java object monitor semantics for ``synchronized(expr)``.
+
+    Associates a single reentrant ``threading.RLock`` with each monitored object by
+    identity, so concurrent threads synchronizing on the same Python object acquire
+    the same lock — matching Java's per-object intrinsic monitor behaviour. ``RLock``
+    mirrors the reentrancy of Java's intrinsic monitors.
+    """
+
+    __slots__ = ("_lock",)
+
+    def __init__(self, obj: object) -> None:
+        self._lock = _j2py_monitor_lock_for(obj)
+
+    def __enter__(self) -> _j2py_monitor:
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self._lock.release()
 
 
 def __j2py_todo__(java_source: str) -> NoReturn:
