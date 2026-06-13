@@ -275,8 +275,17 @@ def main() -> int:
         ensure_repo_checkout(repo, remote=args.remote, ref=args.ref)
 
     if not repo.exists():
+        from corpus_presets import corpus_checkout_root
+
+        root = corpus_checkout_root()
         print(
-            f"Corpus checkout not found at {repo}. Re-run with --clone or pass --repo.",
+            f"Corpus checkout not found at {repo}.",
+            file=sys.stderr,
+        )
+        print(
+            "Run `make corpus-clone-all`, re-run with --clone, pass --repo, or set "
+            f"J2PY_CORPUS_ROOT to a checkout whose `.corpus/` contains the clone "
+            f"(current corpus root: {root}).",
             file=sys.stderr,
         )
         return 2

@@ -75,6 +75,25 @@ make ci-local-pr            # full local PR check — must pass before pushing
 All `make` targets must pass locally before pushing. CI gates are identical to local
 presets; a red CI means `make check` was not run.
 
+## Benchmark corpus checkouts
+
+Corpus harness presets live in `scripts/corpus/corpus_presets.py`. External Java repos are
+**not** in git — they live under `.corpus/<name>/` (gitignored).
+
+**Before running corpus scoreboards** (`make corpus-*-dense-check`):
+
+1. On the **main** j2py checkout, run once: `make corpus-clone-all`
+2. In a **git worktree**, set `J2PY_CORPUS_ROOT` to the main checkout path so all agents
+   reuse the same clones:
+
+```bash
+export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py
+make corpus-guava-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/guava
+```
+
+Do not re-clone in every worktree unless you intend to. See
+[docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md).
+
 ## Code review focus areas
 
 Before approving or merging a PR, verify:

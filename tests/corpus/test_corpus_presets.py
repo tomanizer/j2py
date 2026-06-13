@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 
 def _load_presets() -> ModuleType:
     path = Path(__file__).parents[2] / "scripts" / "corpus" / "corpus_presets.py"
@@ -82,3 +84,39 @@ def test_apply_preset_allows_explicit_limit_override() -> None:
     assert resolved["limit"] == 25
     assert resolved["strategy"] == "density"
     assert "guava/src/com/google/common/collect" in resolved["modules"]
+
+
+def test_corpus_checkout_root_defaults_to_repo_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("J2PY_CORPUS_ROOT", raising=False)
+    assert presets.corpus_checkout_root() == presets.REPO_ROOT / ".corpus"
+
+
+def test_corpus_checkout_root_honors_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("J2PY_CORPUS_ROOT", str(tmp_path))
+    assert presets.corpus_checkout_root() == tmp_path / ".corpus"
+
+
+def test_corpus_checkout_root_honors_env_relative(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("J2PY_CORPUS_ROOT", "relative_path")
+    expected = (presets.REPO_ROOT / "relative_path").resolve() / ".corpus"
+    assert presets.corpus_checkout_root() == expected
+
+
+def test_repo_path_uses_corpus_checkout_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("J2PY_CORPUS_ROOT", str(tmp_path))
+    preset = presets.get_preset("guava-dense")
+    assert preset.repo_path == tmp_path / ".corpus" / "guava"
+
+
+def test_clone_preset_names_are_unique_checkouts() -> None:
+    checkout_dirs = {presets.get_preset(name).checkout_dir for name in presets.CLONE_PRESET_NAMES}
+    assert checkout_dirs == {
+        "spring-framework",
+        "guava",
+        "commons-lang",
+        "jackson-databind",
+        "caffeine",
+    }
