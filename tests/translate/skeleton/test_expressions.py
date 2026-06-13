@@ -1226,6 +1226,38 @@ def test_emit_line_comments_flag_suppresses_preserved_comments() -> None:
     assert_valid_python(result.source)
 
 
+def test_emit_docstrings_flag_keeps_javadocs_as_comments() -> None:
+    cfg = CFG.model_copy(update={"emit_docstrings": False})
+    result = translate_source_with_diagnostics(
+        """
+        /**
+         * Class docs.
+         */
+        public class Comments {
+            /**
+             * Method docs.
+             *
+             * @param value input value
+             * @return output value
+             */
+            public String value(String value) {
+                return value;
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert '"""Class docs.' not in result.source
+    assert '"""Method docs.' not in result.source
+    assert "# Class docs." in result.source
+    assert "# Method docs." in result.source
+    assert "# @param value input value" in result.source
+    assert "# @return output value" in result.source
+    assert result.coverage == 1.0
+    assert_valid_python(result.source)
+
+
 
 
 

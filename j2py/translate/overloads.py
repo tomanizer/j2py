@@ -47,6 +47,8 @@ def translate_overloaded_members(
     static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str]:
     name = _member_python_name(members[0])
     for member in members:
@@ -58,6 +60,7 @@ def translate_overloaded_members(
     nested_type_java_fields = declared_type_java_fields or {}
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
+    inner_capture_names = inner_class_names_requiring_outer or set()
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -74,6 +77,8 @@ def translate_overloaded_members(
             static_method_imports=static_methods,
             pre_body_lines=pre_body_lines,
             class_state=class_state,
+            docstring_lines=docstring_lines,
+            inner_class_names_requiring_outer=inner_capture_names,
         )
         if merged_constructor is not None:
             return merged_constructor
@@ -91,6 +96,8 @@ def translate_overloaded_members(
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
             class_state=class_state,
+            docstring_lines=docstring_lines,
+            inner_class_names_requiring_outer=inner_capture_names,
         )
         if merged_method is not None:
             return merged_method
@@ -106,6 +113,8 @@ def translate_overloaded_members(
             declared_type_java_fields=nested_type_java_fields,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            docstring_lines=docstring_lines,
+            inner_class_names_requiring_outer=inner_capture_names,
         )
         if forwarded_method is not None:
             return forwarded_method
@@ -123,6 +132,8 @@ def translate_overloaded_members(
         static_method_imports=static_methods,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_capture_names,
     )
     if dispatched is not None:
         return dispatched
@@ -140,6 +151,9 @@ def translate_overloaded_members(
         lines.append("    @staticmethod")
     fallback_params = "*args: object" if is_static else "self, *args: object"
     lines.append(f"    def {name}({fallback_params}) -> {fallback_return}:")
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        lines.append("")
     signatures = "; ".join(_readable_signature(member, cfg) for member in members)
     lines.append(
         f"        # TODO(j2py): overloaded method {name} requires manual dispatch "
@@ -179,6 +193,8 @@ def _merged_constructor_overload(
     static_method_imports: dict[str, str],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str] | None:
     forwards = [
         _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
@@ -219,6 +235,7 @@ def _merged_constructor_overload(
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
         class_state=class_state,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -247,6 +264,10 @@ def _merged_constructor_overload(
     lines.append(f"    {signature}:")
     body = _method_body(impl.member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if sentinel_lines or pre_body_lines or body_lines != ["        pass"]:
+            lines.append("")
     lines.extend(sentinel_lines)
     lines.extend(pre_body_lines)
 
@@ -273,6 +294,8 @@ def _merged_forwarding_method_overload(
     declared_type_java_fields: dict[str, dict[str, str]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -320,6 +343,7 @@ def _merged_forwarding_method_overload(
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -351,6 +375,10 @@ def _merged_forwarding_method_overload(
     lines.append(f"    {signature}:")
     body = _method_body(impl.member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if sentinel_lines or body_lines != ["        pass"]:
+            lines.append("")
     lines.extend(sentinel_lines)
 
     # Flush block-lambda helpers for the merged method implementation.
@@ -545,6 +573,8 @@ def _merged_method_overload(
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -594,6 +624,7 @@ def _merged_method_overload(
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
         class_state=class_state,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -616,6 +647,10 @@ def _merged_method_overload(
     lines.append(f"    {signature}:")
     body = _method_body(members[0])
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if body_lines != ["        pass"]:
+            lines.append("")
 
     # Flush block-lambda helpers for this merged method implementation.
     if ctx.pending_local_helpers:
@@ -688,6 +723,8 @@ def _dispatch_overload_members(
     static_method_imports: dict[str, str],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str] | None:
     """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
 
@@ -735,6 +772,7 @@ def _dispatch_overload_members(
             allow_local_helpers=True,
             self_dispatch_methods={java_name} if java_name else set(),
             class_state=class_state,
+            inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         )
         member_pre_body = (
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []
@@ -747,6 +785,7 @@ def _dispatch_overload_members(
                 decorator_lines=["    @overloaded"],
                 def_line_suffix=("" if index == 0 else "  # type: ignore[no-redef]  # noqa: F811"),
                 supported_reason=reason,
+                docstring_lines=docstring_lines if index == len(members) - 1 else None,
             ),
         )
     return lines

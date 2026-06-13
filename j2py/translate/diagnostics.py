@@ -163,6 +163,8 @@ class TranslationContext:
     in_instance_method: bool = False
     allow_local_helpers: bool = False
     class_state: ClassTranslationState | None = None
+    outer_self_alias: str | None = None
+    inner_class_names_requiring_outer: set[str] = field(default_factory=set)
 
     # Java method names that must dispatch through self when called without a
     # receiver (used for @overloaded groups so sibling overload calls re-enter

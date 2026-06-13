@@ -23,6 +23,14 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
     if body_node is not None:
         return _translate_anonymous_class(node, body_node, base_type, args, ctx)
 
+    py_base_type = translate_class_name(base_type)
+    if (
+        ctx.in_instance_method
+        and py_base_type in ctx.inner_class_names_requiring_outer
+        and not args
+    ):
+        return f"self.{py_base_type}(self)"
+
     # Bare java.lang.Object → Python object(). This is the canonical dedicated-lock
     # idiom (`private final Object lock = new Object();`); `Object` has no Python
     # name, so the fallback would emit an undefined `Object()` and raise NameError.
@@ -69,7 +77,7 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         )
         return f"__j2py_todo__({node.text!r})"
 
-    return f"{translate_class_name(base_type)}({args})"
+    return f"{py_base_type}({args})"
 
 
 def _translate_anonymous_class(
@@ -96,7 +104,20 @@ def _translate_anonymous_class(
     helper_id = len(ctx.pending_local_helpers) + 1
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
-    helper_lines = [f"        class {helper_name}({base_name}):"]
+    needs_outer_self = _uses_qualified_this(body_node)
+    outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
+    if needs_outer_self and outer_self_alias is None:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="qualified outer this in static context requires manual capture",
+        )
+        return f"__j2py_todo__({node.text!r})"
+
+    helper_lines: list[str] = []
+    if outer_self_alias is not None:
+        helper_lines.extend([f"        {outer_self_alias} = self", ""])
+    helper_lines.append(f"        class {helper_name}({base_name}):")
 
     instance_fields: list[FieldInfo] = []
     methods: list[JavaNode] = []
@@ -157,6 +178,7 @@ def _translate_anonymous_class(
                 instance_field_names=instance_field_names,
                 instance_field_types=instance_field_types,
                 instance_field_java_types=instance_field_java_types,
+                outer_self_alias=outer_self_alias,
             ),
         )
         wrote_member = True
@@ -170,11 +192,20 @@ def _translate_anonymous_class(
         supported=True,
         reason="translated anonymous class as local helper class",
     )
-    ctx.diagnostics.warn(
-        node,
-        reason="anonymous class translated as local helper; verify captured outer this references",
-    )
     return f"{helper_name}({args})"
+
+
+def _uses_qualified_this(node: JavaNode) -> bool:
+    if node.type == "field_access":
+        children = node.named_children
+        if (
+            len(children) == 2
+            and children[0].type
+            in {"identifier", "type_identifier", "scoped_identifier", "scoped_type_identifier"}
+            and children[1].type == "this"
+        ):
+            return True
+    return any(_uses_qualified_this(child) for child in node.named_children)
 
 
 def _anonymous_helper_init_lines(
@@ -222,6 +253,7 @@ def _anonymous_method_lines(
     instance_field_names: set[str],
     instance_field_types: dict[str, str],
     instance_field_java_types: dict[str, str],
+    outer_self_alias: str | None,
 ) -> list[str]:
     from j2py.translate.class_model import _modifiers
     from j2py.translate.classes import (
@@ -264,6 +296,7 @@ def _anonymous_method_lines(
     previous_class_field_java_types = dict(ctx.class_field_java_types)
     previous_in_instance_method = ctx.in_instance_method
     previous_allow_helpers = ctx.allow_local_helpers
+    previous_outer_self_alias = ctx.outer_self_alias
     for param in params:
         ctx.param_names.add(param.raw_name)
         ctx.variable_types[param.raw_name] = param.py_type
@@ -273,6 +306,7 @@ def _anonymous_method_lines(
     ctx.class_field_java_types = instance_field_java_types
     ctx.in_instance_method = not is_static
     ctx.allow_local_helpers = True
+    ctx.outer_self_alias = outer_self_alias
     start_index = len(ctx.pending_local_helpers)
     try:
         body = _method_body(method)
@@ -296,5 +330,6 @@ def _anonymous_method_lines(
         ctx.class_field_java_types = previous_class_field_java_types
         ctx.in_instance_method = previous_in_instance_method
         ctx.allow_local_helpers = previous_allow_helpers
+        ctx.outer_self_alias = previous_outer_self_alias
 
     return lines
