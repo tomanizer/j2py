@@ -276,9 +276,32 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     if len(children) < 2:
         ctx.diagnostics.record(node, supported=False, reason="malformed cast expression")
         return f"__j2py_todo__({node.text!r})"
-    ctx.diagnostics.record(node, supported=True, reason="translated cast expression")
-    ctx.diagnostics.warn(node, reason="dropped Java cast; verify runtime type")
-    return translate_expression(children[-1], ctx)
+
+    type_node = children[0]
+    value_expr = translate_expression(children[-1], ctx)
+
+    if type_node.type == "floating_point_type":
+        ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
+        return f"float({value_expr})"
+
+    if type_node.type == "integral_type":
+        ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
+        type_text = type_node.text
+        if type_text == "char":
+            return f"chr(int({value_expr}) & 0xFFFF)"
+        if type_text == "byte":
+            return f"int({value_expr}) & 0xFF"
+        if type_text == "short":
+            return f"int({value_expr}) & 0xFFFF"
+        return f"int({value_expr})"
+
+    py_type = translate_type(type_node.text, ctx.cfg)
+    ctx.diagnostics.record(node, supported=True, reason="translated reference cast to typing.cast")
+    ctx.diagnostics.warn(
+        node,
+        reason="Java reference cast translated to typing.cast; verify runtime type",
+    )
+    return f"cast({py_type}, {value_expr})"
 
 
 def _translate_instanceof_expression(node: JavaNode, ctx: TranslationContext) -> str:

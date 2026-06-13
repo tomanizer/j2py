@@ -97,6 +97,8 @@ def _import_lines(
     typing_names: set[str] = set()
     if "Any" in flattened:
         typing_names.add("Any")
+    if "cast(" in flattened:
+        typing_names.add("cast")
     if "(Protocol):" in flattened:
         typing_names.add("Protocol")
     if "@overload" in stripped_lines:

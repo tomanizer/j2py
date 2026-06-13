@@ -652,7 +652,8 @@ def test_var_local_and_enhanced_for_infer_types() -> None:
     assert coverage == 1.0
     assert ": var" not in python_source
     assert "results: list[str] = []" in python_source
-    assert "name = item.get(\"name\")" in python_source
+    assert "name = cast(str, item.get(\"name\"))" in python_source
+    assert "from typing import cast" in python_source
     assert_valid_python(python_source)
 
 
