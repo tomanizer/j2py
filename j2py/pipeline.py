@@ -12,7 +12,7 @@ from j2py.analyze.symbols import FileSymbols, extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import ParsedFile, parse_file
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.validate.checks import ValidationResult, validate_source
+from j2py.validate.checks import ValidationResult, validate_directory, validate_source
 from j2py.verify.structure import StructuralVerificationResult, verify_structure
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
@@ -257,11 +257,23 @@ def translate_directory(
             cfg=cfg,
             use_llm=use_llm,
             model=model,
-            validate=validate,
+            validate=False,
             validation_path=output_path,
         )
         result.output_path = output_path
         results.append(result)
+
+    if validate:
+        validation_results = validate_directory(
+            {
+                result.output_path: result.python_source
+                for result in results
+                if result.output_path is not None
+            }
+        )
+        for result in results:
+            if result.output_path is not None:
+                result.validation = validation_results[result.output_path]
 
     graph_warnings = [str(warning.message) for warning in caught]
     parse_warnings = [

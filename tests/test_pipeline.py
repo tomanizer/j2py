@@ -472,22 +472,26 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
     output = tmp_path / "out"
     source.mkdir()
     (source / "A.java").write_text("package com.example; public class A {}")
-    calls: list[Path | None] = []
+    calls: list[dict[Path, str]] = []
 
-    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
-        calls.append(path)
-        return ValidationResult(
-            path=path or Path("<string>"),
-            syntax_ok=True,
-            mypy_ok=True,
-            ruff_ok=True,
-        )
+    def fake_validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
+        calls.append(files)
+        return {
+            path: ValidationResult(
+                path=path,
+                syntax_ok=True,
+                mypy_ok=True,
+                ruff_ok=True,
+            )
+            for path in files
+        }
 
-    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+    monkeypatch.setattr(pipeline, "validate_directory", fake_validate_directory)
 
     result = translate_directory(source, output, cfg=CFG, use_llm=False, validate=True)
 
-    assert calls == [output / "com" / "example" / "A.py"]
+    assert len(calls) == 1
+    assert list(calls[0]) == [output / "com" / "example" / "A.py"]
     assert result.files[0].validation is not None
     assert result.files[0].validation.ok
 
