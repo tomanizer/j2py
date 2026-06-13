@@ -40,6 +40,25 @@ def test_translate_fixture_with_rule_layer(
     assert_valid_python(python_source)
 
 
+def test_concrete_class_extending_myabc_does_not_import_abc() -> None:
+    parsed = parse_source(
+        """
+        class MyABC {
+        }
+
+        class Widget extends MyABC {
+            void run() {
+            }
+        }
+        """
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "from abc import ABC, abstractmethod" not in result.source
+    assert "class Widget(MyABC):" in result.source
+    assert_valid_python(result.source)
+
+
 def test_abstract_class_with_superclass_keeps_superclass_and_abc() -> None:
     parsed = parse_source(
         """
