@@ -4,14 +4,21 @@ from __future__ import annotations
 
 import ast
 import json
+import os
+import threading
 import warnings
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+
+import networkx as nx
 
 from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import FileSymbols, extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import ParsedFile, parse_file
+from j2py.state import StateEntry
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.validate.checks import ValidationResult, validate_directory, validate_source
 from j2py.verify.structure import StructuralVerificationResult, verify_structure
@@ -25,12 +32,13 @@ class TranslationResult:
     source_path: Path
     python_source: str
     used_llm: bool = False
-    confidence: float = 1.0   # rule-layer coverage (0.0–1.0); not updated after LLM completion
+    confidence: float = 1.0  # rule-layer coverage (0.0–1.0); not updated after LLM completion
     parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
     validation: ValidationResult | None = None
     structural_verification: StructuralVerificationResult | None = None
+    skipped: bool = False
 
 
 @dataclass
@@ -40,6 +48,8 @@ class DirectoryTranslationResult:
     files: list[TranslationResult]
     order: list[Path]
     warnings: list[str]
+    skipped_count: int = 0
+    translated_count: int = 0
 
 
 def translate_file(
@@ -76,12 +86,14 @@ def _translate_parsed_file(
     validate: bool,
     validation_path: Path,
     sibling_signatures: dict[str, str] | None = None,
+    llm_semaphore: threading.Semaphore | None = None,
 ) -> TranslationResult:
     """Translate a file using already-parsed AST and symbols."""
     parse_ok = not parsed.has_errors
 
     # Layer 1: rule-based skeleton translation
     from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+
     skeleton_result = translate_skeleton_with_diagnostics(parsed, symbols, cfg)
     skeleton = skeleton_result.source
     coverage = skeleton_result.coverage
@@ -111,7 +123,9 @@ def _translate_parsed_file(
         diagnostics_context = _diagnostics_context(skeleton_result.diagnostics)
         config_fingerprint = _config_fingerprint(cfg)
 
-        python_source = translate_with_llm(
+        python_source = _call_llm(
+            translate_with_llm,
+            llm_semaphore=llm_semaphore,
             java_source=java_source,
             partial_python=skeleton,
             context=context,
@@ -129,7 +143,9 @@ def _translate_parsed_file(
             if not feedback:
                 break
             previous_python = python_source
-            python_source = translate_with_llm(
+            python_source = _call_llm(
+                translate_with_llm,
+                llm_semaphore=llm_semaphore,
                 java_source=java_source,
                 partial_python=skeleton,
                 context=context,
@@ -159,6 +175,18 @@ def _translate_parsed_file(
         validation=validation,
         structural_verification=structural_verification,
     )
+
+
+def _call_llm(
+    translate_with_llm: Callable[..., str],
+    *,
+    llm_semaphore: threading.Semaphore | None,
+    **kwargs: object,
+) -> str:
+    if llm_semaphore is None:
+        return translate_with_llm(**kwargs)
+    with llm_semaphore:
+        return translate_with_llm(**kwargs)
 
 
 def _post_llm_feedback(
@@ -228,10 +256,14 @@ def translate_directory(
     use_llm: bool = True,
     model: str = "claude-sonnet-4-6",
     validate: bool = True,
+    workers: int | None = None,
+    llm_concurrency: int | None = None,
+    incremental: bool = False,
 ) -> DirectoryTranslationResult:
     """Translate a directory using dependency order and package-relative outputs."""
     java_files = sorted(source_root.rglob("*.java"))
     parsed_files = [parse_file(path) for path in java_files]
+    parsed_by_path = dict(zip(java_files, parsed_files, strict=True))
     all_symbols = [extract_symbols(parsed) for parsed in parsed_files]
     symbols_by_path = {symbols.path: symbols for symbols in all_symbols}
     graph = build_dependency_graph(all_symbols)
@@ -243,44 +275,73 @@ def translate_directory(
     if not ordered:
         ordered = java_files
 
+    effective_workers = workers if workers is not None else min(8, os.cpu_count() or 1)
+    effective_workers = max(1, effective_workers)
+    effective_llm_concurrency = (
+        llm_concurrency if llm_concurrency is not None else min(4, effective_workers)
+    )
+    llm_semaphore = threading.Semaphore(max(1, effective_llm_concurrency))
+    previous_state: dict[str, StateEntry] = {}
+    if incremental:
+        from j2py.state import load_state
+
+        previous_state = load_state(output_root)
+    skip_paths = (
+        _incremental_skip_paths(
+            java_files,
+            source_root=source_root,
+            output_root=output_root,
+            symbols_by_path=symbols_by_path,
+            graph=graph,
+            previous=previous_state,
+        )
+        if incremental
+        else set()
+    )
+
     results: list[TranslationResult] = []
     sibling_signatures: dict[str, dict[str, str]] = {}
-    for path in ordered:
-        symbols = symbols_by_path[path]
-        parsed = parsed_files[java_files.index(path)]
-        output_path = output_root / _output_relative_path(
-            path,
-            symbols.package,
-            source_root,
-        )
-        direct_sibling_signatures = _direct_import_signatures(symbols, sibling_signatures)
-        result = _translate_parsed_file(
-            path,
-            parsed=parsed,
-            symbols=symbols,
+    completed: set[Path] = set()
+    remaining = list(ordered)
+    while remaining:
+        ready = [path for path in remaining if _dependencies_for(path, graph).issubset(completed)]
+        if not ready:
+            ready = [remaining[0]]
+
+        translated = _translate_ready_paths(
+            ready,
+            skip_paths=skip_paths,
+            source_root=source_root,
+            output_root=output_root,
+            symbols_by_path=symbols_by_path,
+            parsed_by_path=parsed_by_path,
             cfg=cfg,
             use_llm=use_llm,
             model=model,
-            validate=False,
-            validation_path=output_path,
-            sibling_signatures=direct_sibling_signatures,
+            sibling_signatures=sibling_signatures,
+            workers=effective_workers,
+            llm_semaphore=llm_semaphore,
+            previous_state=previous_state,
         )
-        result.output_path = output_path
-        results.append(result)
-        sibling_signatures.setdefault(symbols.package, {}).update(
-            _extract_python_signatures(result.python_source)
-        )
+        for result in translated:
+            results.append(result)
+            symbols = symbols_by_path[result.source_path]
+            sibling_signatures.setdefault(symbols.package, {}).update(
+                _extract_python_signatures(result.python_source)
+            )
+            completed.add(result.source_path)
+        remaining = [path for path in remaining if path not in set(ready)]
 
     if validate:
         validation_results = validate_directory(
             {
                 result.output_path: result.python_source
                 for result in results
-                if result.output_path is not None
+                if result.output_path is not None and not result.skipped
             }
         )
         for result in results:
-            if result.output_path is not None:
+            if result.output_path is not None and result.output_path in validation_results:
                 result.validation = validation_results[result.output_path]
 
     graph_warnings = [str(warning.message) for warning in caught]
@@ -296,7 +357,110 @@ def translate_directory(
         files=results,
         order=ordered,
         warnings=graph_warnings + parse_warnings,
+        skipped_count=sum(1 for result in results if result.skipped),
+        translated_count=sum(1 for result in results if not result.skipped),
     )
+
+
+def _translate_ready_paths(
+    paths: list[Path],
+    *,
+    skip_paths: set[Path],
+    source_root: Path,
+    output_root: Path,
+    symbols_by_path: dict[Path, FileSymbols],
+    parsed_by_path: dict[Path, ParsedFile],
+    cfg: TranslationConfig,
+    use_llm: bool,
+    model: str,
+    sibling_signatures: dict[str, dict[str, str]],
+    workers: int,
+    llm_semaphore: threading.Semaphore,
+    previous_state: dict[str, StateEntry],
+) -> list[TranslationResult]:
+    from j2py.state import source_key
+
+    ordered_results: dict[Path, TranslationResult] = {}
+    to_translate: list[Path] = []
+    for path in paths:
+        symbols = symbols_by_path[path]
+        output_path = output_root / _output_relative_path(path, symbols.package, source_root)
+        if path in skip_paths:
+            entry = previous_state.get(source_key(path, source_root))
+            ordered_results[path] = TranslationResult(
+                source_path=path,
+                python_source=output_path.read_text(),
+                used_llm=entry.used_llm if entry is not None else False,
+                confidence=entry.confidence if entry is not None else 1.0,
+                output_path=output_path,
+                skipped=True,
+            )
+        else:
+            to_translate.append(path)
+
+    def translate_one(path: Path) -> TranslationResult:
+        symbols = symbols_by_path[path]
+        output_path = output_root / _output_relative_path(path, symbols.package, source_root)
+        direct_sibling_signatures = _direct_import_signatures(symbols, sibling_signatures)
+        result = _translate_parsed_file(
+            path,
+            parsed=parsed_by_path[path],
+            symbols=symbols,
+            cfg=cfg,
+            use_llm=use_llm,
+            model=model,
+            validate=False,
+            validation_path=output_path,
+            sibling_signatures=direct_sibling_signatures,
+            llm_semaphore=llm_semaphore,
+        )
+        result.output_path = output_path
+        return result
+
+    if workers == 1 or len(to_translate) < 2:
+        for path in to_translate:
+            ordered_results[path] = translate_one(path)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(translate_one, path): path for path in to_translate}
+            for future, path in futures.items():
+                ordered_results[path] = future.result()
+
+    return [ordered_results[path] for path in paths]
+
+
+def _dependencies_for(path: Path, graph: nx.DiGraph) -> set[Path]:
+    if str(path) not in graph:
+        return set()
+    return {Path(item) for item in graph.successors(str(path))}
+
+
+def _incremental_skip_paths(
+    java_files: list[Path],
+    *,
+    source_root: Path,
+    output_root: Path,
+    symbols_by_path: dict[Path, FileSymbols],
+    graph: nx.DiGraph,
+    previous: dict[str, StateEntry],
+) -> set[Path]:
+    from j2py.state import sha256_file, source_key
+
+    unchanged: set[Path] = set()
+    for path in java_files:
+        symbols = symbols_by_path[path]
+        output_path = output_root / _output_relative_path(path, symbols.package, source_root)
+        entry = previous.get(source_key(path, source_root))
+        if entry is None or not output_path.exists():
+            continue
+        if entry.sha256 == sha256_file(path):
+            unchanged.add(path)
+    changed = set(java_files) - unchanged
+    invalidated = set(changed)
+    for path in changed:
+        if str(path) in graph:
+            invalidated.update(Path(item) for item in nx.ancestors(graph, str(path)))
+    return set(java_files) - invalidated
 
 
 def _output_relative_path(path: Path, package: str, source_root: Path) -> Path:
@@ -319,8 +483,7 @@ def _project_context(
     ]
     if sibling_signatures:
         sibling_context = "\n".join(
-            f"- {name}: {signature}"
-            for name, signature in sorted(sibling_signatures.items())
+            f"- {name}: {signature}" for name, signature in sorted(sibling_signatures.items())
         )
         parts.append(f"Already-translated sibling classes:\n{sibling_context}")
     return "\n".join(parts)
@@ -347,9 +510,7 @@ def _extract_python_signatures(python_source: str) -> dict[str, str]:
     except SyntaxError:
         return {}
     return {
-        node.name: _class_signature(node)
-        for node in tree.body
-        if isinstance(node, ast.ClassDef)
+        node.name: _class_signature(node) for node in tree.body if isinstance(node, ast.ClassDef)
     }
 
 
