@@ -7,6 +7,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
+  emitted as `@abstractmethod` ellipsis stubs (#115).
+
 ### Fixed
 - Java cast expressions now add reviewer-visible trailing `# cast: (...)` comments when
   line comments are enabled, with numeric narrowing casts marked explicitly (#112).

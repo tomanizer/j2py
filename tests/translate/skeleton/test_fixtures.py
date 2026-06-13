@@ -20,6 +20,7 @@ from tests.translate.skeleton.helpers import (
     [
         ("HelloWorld", 1.0),
         ("Fields", 1.0),
+        ("AbstractClass", 1.0),
     ],
 )
 def test_translate_fixture_with_rule_layer(
@@ -37,6 +38,24 @@ def test_translate_fixture_with_rule_layer(
     else:
         assert coverage == expected_coverage
     assert_valid_python(python_source)
+
+
+def test_abstract_class_with_superclass_keeps_superclass_and_abc() -> None:
+    parsed = parse_source(
+        """
+        class Base {
+        }
+
+        abstract class Specialized extends Base {
+        }
+        """
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "from abc import ABC, abstractmethod" in result.source
+    assert "class Base:" in result.source
+    assert "class Specialized(Base, ABC):" in result.source
+    assert_valid_python(result.source)
 
 
 
@@ -416,4 +435,3 @@ def test_static_initializer_and_synchronized_target_fixture_translates() -> None
     assert "__j2py_todo__" not in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
-
