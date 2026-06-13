@@ -10,7 +10,11 @@ from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
 from j2py.translate.classes import top_level_classes, translate_class
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.translate.runtime import RUNTIME_IMPORT_LINE, RUNTIME_TODO_IMPORT_LINE
+from j2py.translate.runtime import (
+    RUNTIME_IMPORT_LINE,
+    RUNTIME_MONITOR_IMPORT_LINE,
+    RUNTIME_TODO_IMPORT_LINE,
+)
 
 
 @dataclass
@@ -106,6 +110,8 @@ def _import_lines(
         typing_names.add("overload")
     if typing_names:
         imports.add(f"from typing import {', '.join(sorted(typing_names))}")
+    if "_j2py_monitor(" in flattened:
+        imports.add(RUNTIME_MONITOR_IMPORT_LINE)
     if "_j2py_lock" in flattened or "threading.Lock" in flattened:
         imports.add("import threading")
 

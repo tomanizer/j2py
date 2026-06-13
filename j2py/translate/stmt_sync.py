@@ -45,11 +45,11 @@ def _translate_synchronized(
         ctx.diagnostics.warn(
             node,
             reason=(
-                "non-this synchronized lock translated as context manager; "
-                "verify lock semantics"
+                "non-this synchronized lock wrapped with _j2py_monitor(); "
+                "verify object identity matches the Java monitor"
             ),
         )
-        lock_expr = translate_expression(lock, ctx)
+        lock_expr = f"_j2py_monitor({translate_expression(lock, ctx)})"
 
     lines = [f"{indent}with {lock_expr}:"]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Callable
 
 import pytest
 
-from j2py.translate.runtime import __j2py_todo__, overloaded
+from j2py.translate.runtime import __j2py_todo__, _j2py_monitor, overloaded
 
 
 class TypeReference:
@@ -185,3 +186,51 @@ def test_j2py_todo_includes_java_source_in_message() -> None:
     snippet = "someComplexExpression()"
     with pytest.raises(NotImplementedError, match=re.escape(snippet)):
         __j2py_todo__(snippet)
+
+
+class _JavaObj:
+    """Stand-in for a translated Java object: user-defined, so weakly referenceable."""
+
+
+def test_j2py_monitor_is_a_context_manager() -> None:
+    with _j2py_monitor(_JavaObj()):
+        pass  # must not raise
+
+
+def test_j2py_monitor_same_object_same_lock() -> None:
+    obj = _JavaObj()
+    m1 = _j2py_monitor(obj)
+    m2 = _j2py_monitor(obj)
+    assert m1._lock is m2._lock
+
+
+def test_j2py_monitor_different_objects_different_locks() -> None:
+    a, b = _JavaObj(), _JavaObj()
+    assert _j2py_monitor(a)._lock is not _j2py_monitor(b)._lock
+
+
+def test_j2py_monitor_is_reentrant() -> None:
+    obj = _JavaObj()
+    with _j2py_monitor(obj), _j2py_monitor(obj):  # must not deadlock — uses RLock
+        pass
+
+
+def test_j2py_monitor_blocks_concurrent_access() -> None:
+    obj = _JavaObj()
+    results: list[str] = []
+
+    def writer(tag: str) -> None:
+        with _j2py_monitor(obj):
+            results.append(f"{tag}:enter")
+            results.append(f"{tag}:exit")
+
+    t1 = threading.Thread(target=writer, args=("A",))
+    t2 = threading.Thread(target=writer, args=("B",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    # Lock must prevent interleaving: each thread's enter/exit must be adjacent
+    assert results.index("A:enter") + 1 == results.index("A:exit")
+    assert results.index("B:enter") + 1 == results.index("B:exit")

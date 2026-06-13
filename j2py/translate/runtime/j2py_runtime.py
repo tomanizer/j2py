@@ -26,11 +26,48 @@ is rarely observable in practice.
 from __future__ import annotations
 
 import builtins
+import contextlib
 import inspect
+import threading
+import weakref
 from collections.abc import Callable
 from typing import Any, ClassVar, NoReturn
 
-__all__ = ["__j2py_todo__", "overloaded"]
+__all__ = ["__j2py_todo__", "_j2py_monitor", "overloaded"]
+
+_j2py_monitor_registry: weakref.WeakKeyDictionary[Any, threading.RLock] = (
+    weakref.WeakKeyDictionary()
+)
+_j2py_monitor_registry_lock: threading.Lock = threading.Lock()
+
+
+class _j2py_monitor:
+    """Context manager providing Java object monitor semantics for ``synchronized(expr)``.
+
+    Associates a ``threading.RLock`` with each monitored object via weak reference so
+    that concurrent threads synchronizing on the same Python object acquire the same
+    reentrant lock — matching Java's per-object intrinsic monitor behaviour.
+    """
+
+    __slots__ = ("_lock",)
+
+    def __init__(self, obj: object) -> None:
+        with _j2py_monitor_registry_lock:
+            lock: threading.RLock | None = None
+            with contextlib.suppress(TypeError):
+                lock = _j2py_monitor_registry.get(obj)
+            if lock is None:
+                lock = threading.RLock()
+                with contextlib.suppress(TypeError):
+                    _j2py_monitor_registry[obj] = lock
+        self._lock = lock
+
+    def __enter__(self) -> _j2py_monitor:
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self._lock.release()
 
 
 def __j2py_todo__(java_source: str) -> NoReturn:

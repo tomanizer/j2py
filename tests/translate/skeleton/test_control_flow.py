@@ -606,7 +606,7 @@ def test_nested_synchronized_this_does_not_initialize_outer_lock() -> None:
 
 
 
-def test_synchronized_non_this_lock_keeps_review_warning() -> None:
+def test_synchronized_non_this_lock_uses_j2py_monitor() -> None:
     parsed = parse_source(
         """
         public class SyncLock {
@@ -622,11 +622,69 @@ def test_synchronized_non_this_lock_keeps_review_warning() -> None:
     )
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
-    assert "with self.monitor:" in result.source
+    assert "with _j2py_monitor(self.monitor):" in result.source
+    assert "from j2py_runtime import _j2py_monitor" in result.source
     assert any(
-        "non-this synchronized lock" in warning.reason
+        "_j2py_monitor" in warning.reason
         for warning in result.diagnostics.warnings
     )
+    assert_valid_python(result.source)
+
+
+def test_synchronized_class_literal_uses_j2py_monitor() -> None:
+    python_source, _ = translate_source(
+        """
+        public class Registry {
+            public static void register() {
+                synchronized (Registry.class) {
+                    doRegister();
+                }
+            }
+        }
+        """,
+    )
+
+    assert "with _j2py_monitor(Registry):" in python_source
+    assert "from j2py_runtime import _j2py_monitor" in python_source
+    assert_valid_python(python_source)
+
+
+def test_class_with_both_synchronized_this_and_object_emits_both_imports() -> None:
+    python_source, _ = translate_source(
+        """
+        public class Dual {
+            private final Object writeLock = new Object();
+
+            public void onThis() {
+                synchronized (this) { doA(); }
+            }
+
+            public void onObj() {
+                synchronized (writeLock) { doB(); }
+            }
+        }
+        """,
+    )
+
+    assert "with self._j2py_lock:" in python_source
+    assert "with _j2py_monitor(self.write_lock):" in python_source
+    assert "import threading" in python_source
+    assert "from j2py_runtime import _j2py_monitor" in python_source
+    assert_valid_python(python_source)
+
+
+def test_synchronized_import_not_emitted_for_field_named_j2py_monitor() -> None:
+    python_source, _ = translate_source(
+        """
+        public class Bad {
+            private Object _j2py_monitor;
+            public void set(Object o) { this._j2py_monitor = o; }
+        }
+        """,
+    )
+
+    assert "from j2py_runtime import _j2py_monitor" not in python_source
+    assert_valid_python(python_source)
 
 
 def test_var_local_and_enhanced_for_infer_types() -> None:
