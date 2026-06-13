@@ -114,6 +114,8 @@ def _import_lines(
         imports.add(RUNTIME_MONITOR_IMPORT_LINE)
     if "_j2py_lock" in flattened or "threading.Lock" in flattened:
         imports.add("import threading")
+    if re.search(r"(?<!\w)math\.", flattened):
+        imports.add("import math")
 
     return sorted(imports)
 

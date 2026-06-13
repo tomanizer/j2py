@@ -1,6 +1,6 @@
 """Skeleton translator tests — expressions, literals, and calls."""
 
-
+import pytest
 
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file
@@ -139,6 +139,216 @@ def test_char_arithmetic_runs_without_type_error() -> None:
     assert chars.next_char("a") == "b"
     assert chars.char_code("a") == 97
     assert chars.to_upper("a") == "A"
+
+
+def test_static_standard_library_methods_translate_to_python_equivalents() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        public class StaticStdlib {
+            public int absValue(int value) {
+                return Math.abs(value);
+            }
+
+            public int maxValue(int left, int right) {
+                return Math.max(left, right);
+            }
+
+            public int minValue(int left, int right) {
+                return Math.min(left, right);
+            }
+
+            public double power(double base, double exponent) {
+                return Math.pow(base, exponent);
+            }
+
+            public double rounded(double value) {
+                return Math.round(value);
+            }
+
+            public double roots(double value) {
+                return Math.sqrt(value) + Math.floor(value) + Math.ceil(value) + Math.log(value);
+            }
+
+            public double constants() {
+                return Math.PI + Math.E;
+            }
+
+            public int parse(String value) {
+                return Integer.parseInt(value);
+            }
+
+            public int parseRadix(String value) {
+                return Integer.parseInt(value, 16);
+            }
+
+            public int integerValue(Object value) {
+                return Integer.valueOf(value);
+            }
+
+            public String integerStrings(int value) {
+                return Integer.toString(value)
+                        + Integer.toBinaryString(value)
+                        + Integer.toHexString(value);
+            }
+
+            public int maxInteger() {
+                return Integer.MAX_VALUE;
+            }
+
+            public long longValue(String value) {
+                return Long.parseLong(value);
+            }
+
+            public double doubleValue(String value) {
+                return Double.parseDouble(value);
+            }
+
+            public String stringValue(Object value) {
+                return String.valueOf(value);
+            }
+
+            public String formatted(String name, int count) {
+                return String.format("%s:%d", name, count);
+            }
+
+            public List<String> asList(String first, String second) {
+                return Arrays.asList(first, second);
+            }
+
+            public Object stream(List<String> values) {
+                return Arrays.stream(values);
+            }
+
+            public List<String> immutable(List<String> values) {
+                return Collections.unmodifiableList(values);
+            }
+
+            public boolean missing(Object value) {
+                return Objects.isNull(value);
+            }
+
+            public boolean present(Object value) {
+                return Objects.nonNull(value);
+            }
+
+            public Object required(Object value) {
+                return Objects.requireNonNull(value);
+            }
+
+            public void sortValues(List<Integer> values) {
+                Collections.sort(values);
+                Collections.reverse(values);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "import math" in result.source
+    expected_fragments = (
+        "return abs(value)",
+        "return max(left, right)",
+        "return min(left, right)",
+        "return base ** exponent",
+        "return round(value)",
+        "return math.sqrt(value) + math.floor(value) + math.ceil(value) + math.log(value)",
+        "return math.pi + math.e",
+        "return int(value)",
+        "return int(value, 16)",
+        "return str(value) + bin(value) + hex(value)",
+        "return 2**31 - 1",
+        "return float(value)",
+        'return "%s:%d" % (name, count)',
+        "return [first, second]",
+        "return iter(values)",
+        "return values",
+        "return value is None",
+        "return value is not None",
+        "values.sort()",
+        "values.reverse()",
+    )
+    for fragment in expected_fragments:
+        assert fragment in result.source
+    for unresolved in (
+        "Math.",
+        "Integer.",
+        "Long.",
+        "Double.",
+        "String.",
+        "Collections.",
+        "Arrays.",
+        "Objects.",
+    ):
+        assert unresolved not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "Collections.unmodifiableList translated as original list; verify mutability",
+    ]
+    assert_valid_python(result.source)
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("return Math.abs(left);", "return abs(left)"),
+        ("return Math.max(left, right);", "return max(left, right)"),
+        ("return Math.min(left, right);", "return min(left, right)"),
+        ("return Math.pow(base, exponent);", "return base ** exponent"),
+        ("return Math.sqrt(base);", "return math.sqrt(base)"),
+        ("return Math.floor(base);", "return math.floor(base)"),
+        ("return Math.ceil(base);", "return math.ceil(base)"),
+        ("return Math.round(base);", "return round(base)"),
+        ("return Math.log(base);", "return math.log(base)"),
+        ("return Math.PI;", "return math.pi"),
+        ("return Math.E;", "return math.e"),
+        ("return Integer.parseInt(text);", "return int(text)"),
+        ("return Integer.parseInt(text, 16);", "return int(text, 16)"),
+        ("return Integer.valueOf(value);", "return int(value)"),
+        ("return Integer.toString(left);", "return str(left)"),
+        ("return Integer.toBinaryString(left);", "return bin(left)"),
+        ("return Integer.toHexString(left);", "return hex(left)"),
+        ("return Integer.MAX_VALUE;", "return 2**31 - 1"),
+        ("return Long.parseLong(text);", "return int(text)"),
+        ("return Double.parseDouble(text);", "return float(text)"),
+        ("return String.valueOf(value);", "return str(value)"),
+        ('return String.format("%s:%d", name, left);', 'return "%s:%d" % (name, left)'),
+        ("Collections.sort(values); return null;", "values.sort()"),
+        ("Collections.reverse(values); return null;", "values.reverse()"),
+        ("return Collections.unmodifiableList(values);", "return values"),
+        ("return Arrays.asList(left, right);", "return [left, right]"),
+        ("return Arrays.stream(values);", "return iter(values)"),
+        ("return Objects.requireNonNull(value);", "return value"),
+        ("return Objects.isNull(value);", "return value is None"),
+        ("return Objects.nonNull(value);", "return value is not None"),
+    ],
+)
+def test_static_standard_library_mapping_cases(body: str, expected: str) -> None:
+    result = translate_source_with_diagnostics(
+        f"""
+        import java.util.List;
+
+        public class StaticStdlibCase {{
+            public Object value(
+                    Object value,
+                    int left,
+                    int right,
+                    double base,
+                    double exponent,
+                    String text,
+                    String name,
+                    List<Integer> values) {{
+                {body}
+            }}
+        }}
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert expected in result.source
+    assert_valid_python(result.source)
 
 
 def test_char_comparison_is_not_rewritten() -> None:
