@@ -461,6 +461,115 @@ def test_ambiguous_get_invocation_drops_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_static_map_field_get_is_map_like() -> None:
+    """Static cache fields like BeanAnnotationHelper.beanNameCache use map .get()."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.Map;
+        import java.lang.reflect.Method;
+
+        public class BeanAnnotationHelper {
+            private static final Map<Method, String> beanNameCache = null;
+
+            public static String resolve(Method beanMethod) {
+                return beanNameCache.get(beanMethod);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "bean_name_cache.get(bean_method)" in python_source
+    assert_valid_python(python_source)
+
+
+def test_nested_holder_map_field_get_is_map_like() -> None:
+    """Nested holder fields like holder.methodInterceptors.get(...) stay map-like."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.Map;
+        import java.lang.reflect.Method;
+
+        public class ConcurrencyLimitBeanPostProcessor {
+            private class ConcurrencyLimitInterceptor {
+                public Object lookup(ConcurrencyThrottleHolder holder, Method method) {
+                    return holder.methodInterceptors.get(method);
+                }
+            }
+
+            private static class ConcurrencyThrottleHolder {
+                public Map methodInterceptors;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "holder.method_interceptors.get(method)" in python_source
+    assert_valid_python(python_source)
+
+
+def test_inner_class_can_use_outer_map_field_get() -> None:
+    """Inner classes can resolve enclosing map fields such as bytesCache.get(name)."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.Map;
+
+        public class ContextTypeMatchClassLoader {
+            private final Map<String, byte[]> bytesCache = null;
+
+            private class ContextOverridingClassLoader {
+                public byte[] load(String name) {
+                    return bytesCache.get(name);
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "bytes_cache.get(name)" in python_source
+    assert_valid_python(python_source)
+
+
+def test_reflect_field_get_is_api_call() -> None:
+    """Field.get(instance) is a reflection API call, not list/map indexing."""
+    python_source, coverage = translate_source(
+        """
+        import java.lang.reflect.Field;
+
+        public class JBossLoadTimeWeaver {
+            public Object read(Field transformer, ClassLoader classLoader) throws Exception {
+                return transformer.get(classLoader);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "transformer.get(class_loader)" in python_source
+    assert_valid_python(python_source)
+
+
+def test_scheduled_future_get_is_api_call() -> None:
+    """ScheduledFuture.get() is a blocking future API call."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.concurrent.ScheduledFuture;
+        import java.util.concurrent.TimeUnit;
+
+        public class ReschedulingRunnable {
+            public Object await(ScheduledFuture<?> future, long timeout,
+                    TimeUnit unit) throws Exception {
+                return future.get(timeout, unit);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "future.get(timeout, unit)" in python_source
+    assert_valid_python(python_source)
 
 
 
@@ -985,5 +1094,3 @@ def test_super_method_calls_corpus_construct_reaches_full_coverage() -> None:
     assert "super().end_class()" in result.source
     assert "return super().get_generator(resource)" in result.source
     assert_valid_python(result.source)
-
-

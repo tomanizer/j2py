@@ -21,9 +21,11 @@ from j2py.translate.rules.naming import (
 )
 from j2py.translate.rules.types import (
     element_type_from_container,
+    is_api_get_receiver_type,
     is_map_like_type,
     java_default_value,
     translate_type,
+    type_simple_name,
 )
 
 if TYPE_CHECKING:
@@ -391,6 +393,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         if receiver_type is not None and _is_list_type(receiver_type):
             return f"{receiver}[{args}]"
         if receiver_type is not None and is_map_like_type(receiver_type):
+            return f"{receiver}.get({args})"
+        if receiver_type is not None and is_api_get_receiver_type(receiver_type):
             return f"{receiver}.get({args})"
         if raw_receiver.split(".")[-1][:1].isupper():
             return f"{receiver}.get({args})"
@@ -1426,9 +1430,9 @@ def _anonymous_helper_init_lines(
     ctx: TranslationContext,
 ) -> list[str]:
     from j2py.translate.classes import (
+        _class_field_types,
         _field_assignment,
         _instance_field_names,
-        _instance_field_types,
     )
 
     lines = ["            def __init__(self):"]
@@ -1436,7 +1440,8 @@ def _anonymous_helper_init_lines(
         cfg=ctx.cfg,
         diagnostics=ctx.diagnostics,
         class_fields=_instance_field_names(fields),
-        class_field_types=_instance_field_types(fields),
+        class_field_types=_class_field_types(fields),
+        declared_type_fields=dict(ctx.declared_type_fields),
         in_instance_method=True,
     )
     for field in fields:
@@ -1829,9 +1834,7 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
     if node.type == "identifier":
         return ctx.variable_types.get(node.text) or ctx.class_field_types.get(node.text)
     if node.type == "field_access":
-        children = node.named_children
-        if len(children) == 2 and children[0].type == "this":
-            return ctx.class_field_types.get(children[1].text)
+        return _field_access_py_type(node, ctx)
     if node.type == "parenthesized_expression" and len(node.named_children) == 1:
         return infer_expression_py_type(node.named_children[0], ctx)
     if node.type == "cast_expression":
@@ -1860,6 +1863,32 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
             if left_type == "str" or right_type == "str":
                 return "str"
     return None
+
+
+def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    children = node.named_children
+    if len(children) != 2:
+        return None
+    object_node, field_name_node = children[0], children[1]
+    field_name = field_name_node.text
+
+    if object_node.type == "this":
+        return ctx.class_field_types.get(field_name)
+
+    object_type = infer_expression_py_type(object_node, ctx)
+    if object_type is None:
+        return None
+
+    simple = type_simple_name(object_type)
+    type_fields = ctx.declared_type_fields.get(simple)
+    if type_fields is None:
+        for type_name, fields in ctx.declared_type_fields.items():
+            if simple == type_name or object_type.endswith(f".{type_name}"):
+                type_fields = fields
+                break
+    if type_fields is None:
+        return None
+    return type_fields.get(field_name)
 
 
 def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:

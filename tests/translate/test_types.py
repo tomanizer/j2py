@@ -5,6 +5,7 @@ import pytest
 from j2py.config.loader import ConfigLoader
 from j2py.translate.rules.types import (
     element_type_from_container,
+    is_api_get_receiver_type,
     is_map_like_type,
     is_var_type,
     translate_type,
@@ -73,3 +74,18 @@ def test_element_type_from_container(container: str, expected: str | None) -> No
 )
 def test_is_map_like_type(py_type: str, expected: bool) -> None:
     assert is_map_like_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("py_type", "expected"),
+    [
+        ("Field", True),
+        ("java.lang.reflect.Field", True),
+        ("ScheduledFuture", True),
+        ("Future", True),
+        ("dict[str, int]", False),
+        ("HashMap", False),
+    ],
+)
+def test_is_api_get_receiver_type(py_type: str, expected: bool) -> None:
+    assert is_api_get_receiver_type(py_type) is expected

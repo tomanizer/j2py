@@ -146,6 +146,17 @@ MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
     },
 )
 
+# Receivers whose `.get(...)` is an API call (reflection, futures), not indexing.
+API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "CompletableFuture",
+        "Field",
+        "ForkJoinTask",
+        "Future",
+        "ScheduledFuture",
+    },
+)
+
 
 def type_simple_name(py_type: str) -> str:
     """Return the unqualified base name from a translated type hint."""
@@ -161,3 +172,8 @@ def is_map_like_type(py_type: str) -> bool:
     if simple in MAP_LIKE_SIMPLE_NAMES:
         return True
     return simple.endswith("Map")
+
+
+def is_api_get_receiver_type(py_type: str) -> bool:
+    """True when `.get(...)` on this receiver is a Java API call, not collection access."""
+    return type_simple_name(py_type) in API_GET_RECEIVER_SIMPLE_NAMES
