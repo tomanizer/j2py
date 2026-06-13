@@ -30,7 +30,11 @@ CLONE_PRESET_NAMES: tuple[str, ...] = (
 def corpus_checkout_root() -> Path:
     """Return the ``.corpus/`` directory that holds external Java checkouts."""
     override = os.environ.get("J2PY_CORPUS_ROOT", "").strip()
-    root = Path(override).expanduser().resolve() if override else REPO_ROOT
+    if override:
+        path = Path(override).expanduser()
+        root = path if path.is_absolute() else (REPO_ROOT / path).resolve()
+    else:
+        root = REPO_ROOT
     return root / ".corpus"
 
 

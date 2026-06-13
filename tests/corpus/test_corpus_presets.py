@@ -96,6 +96,12 @@ def test_corpus_checkout_root_honors_env(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert presets.corpus_checkout_root() == tmp_path / ".corpus"
 
 
+def test_corpus_checkout_root_honors_env_relative(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("J2PY_CORPUS_ROOT", "relative_path")
+    expected = (presets.REPO_ROOT / "relative_path").resolve() / ".corpus"
+    assert presets.corpus_checkout_root() == expected
+
+
 def test_repo_path_uses_corpus_checkout_root(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

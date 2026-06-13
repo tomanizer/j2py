@@ -9,7 +9,6 @@
 	clean ci-local-pr ci-local-governance build dist-check release-check
 
 CORPUS := uv run python scripts/corpus/translate_spring_sample.py
-CORPUS_CLONE_PRESETS := spring-dense guava-dense commons-lang-dense jackson-dense caffeine-dense
 
 # Legacy alias kept for docs/CI that still reference explicit args.
 SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
@@ -48,7 +47,7 @@ corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
 
 corpus-clone-all:  ## Clone or refresh all pinned corpus preset checkouts under .corpus/
-	@for preset in $(CORPUS_CLONE_PRESETS); do \
+	@for preset in $$(PYTHONPATH=scripts/corpus uv run python -c "from corpus_presets import CLONE_PRESET_NAMES; print(' '.join(CLONE_PRESET_NAMES))"); do \
 		echo "=== $$preset ==="; \
 		$(CORPUS) --preset $$preset --clone --limit 1 || exit $$?; \
 	done
