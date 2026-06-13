@@ -48,14 +48,26 @@ def translate_skeleton_with_diagnostics(
 ) -> SkeletonTranslation:
     """Produce a partial Python translation with structured coverage diagnostics."""
     diagnostics = TranslationDiagnostics()
+    static_field_aliases, static_method_imports, static_import_todos = _static_import_info(
+        parsed,
+        diagnostics,
+    )
     class_nodes = top_level_classes(parsed.root)
 
     class_blocks: list[list[str]] = []
     for class_node in class_nodes:
-        class_blocks.append(translate_class(class_node, cfg, diagnostics))
+        class_blocks.append(
+            translate_class(
+                class_node,
+                cfg,
+                diagnostics,
+                static_field_aliases=static_field_aliases,
+                static_method_imports=static_method_imports,
+            )
+        )
 
     lines = ["from __future__ import annotations"]
-    import_lines = _import_lines(parsed, cfg, class_blocks)
+    import_lines = _import_lines(parsed, cfg, class_blocks, static_import_todos)
     if import_lines:
         lines.append("")
         lines.extend(import_lines)
@@ -78,9 +90,12 @@ def _import_lines(
     parsed: ParsedFile,
     cfg: TranslationConfig,
     class_blocks: list[list[str]],
+    static_import_todos: list[str] | None = None,
 ) -> list[str]:
     imports: set[str] = set()
     for java_import in parsed.root.find_all("import_declaration"):
+        if _is_static_import(java_import):
+            continue
         imported_name = _java_import_name(java_import)
         if not imported_name or imported_name in cfg.drop_imports:
             continue
@@ -118,6 +133,7 @@ def _import_lines(
         imports.add("import threading")
     if re.search(r"(?<!\w)math\.", flattened):
         imports.add("import math")
+    imports.update(static_import_todos or [])
 
     return sorted(imports)
 
@@ -127,3 +143,76 @@ def _java_import_name(node: JavaNode) -> str:
         if child.type in {"scoped_identifier", "identifier"}:
             return child.text
     return ""
+
+
+def _is_static_import(node: JavaNode) -> bool:
+    return any(child.type == "static" for child in node.children)
+
+
+def _static_import_info(
+    parsed: ParsedFile,
+    diagnostics: TranslationDiagnostics,
+) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    field_aliases: dict[str, str] = {}
+    method_imports: dict[str, str] = {}
+    todos: list[str] = []
+    for java_import in parsed.root.find_all("import_declaration"):
+        if not _is_static_import(java_import):
+            continue
+        imported_name = _java_import_name(java_import)
+        if not imported_name:
+            diagnostics.record(
+                java_import,
+                supported=False,
+                reason="malformed static import declaration",
+            )
+            todos.append("# TODO(j2py): malformed static import declaration")
+            continue
+        member = imported_name.rsplit(".", 1)[-1]
+        field_alias = _known_static_field_alias(imported_name)
+        if field_alias is not None:
+            field_aliases[member] = field_alias
+            diagnostics.record(
+                java_import,
+                supported=True,
+                reason="translated known static field import",
+            )
+            continue
+        if _is_known_static_method_import(imported_name):
+            method_imports[member] = imported_name
+            diagnostics.record(
+                java_import,
+                supported=True,
+                reason="translated known static method import",
+            )
+            continue
+        diagnostics.record(
+            java_import,
+            supported=False,
+            reason=f"unknown static import {imported_name}",
+        )
+        todos.append(f"# TODO(j2py): static import {imported_name} - resolve manually")
+    return field_aliases, method_imports, todos
+
+
+def _known_static_field_alias(imported_name: str) -> str | None:
+    return {
+        "java.lang.Math.PI": "math.pi",
+        "java.lang.Math.E": "math.e",
+        "java.lang.Integer.MAX_VALUE": "2**31 - 1",
+    }.get(imported_name)
+
+
+def _is_known_static_method_import(imported_name: str) -> bool:
+    return imported_name in {
+        "java.lang.Math.abs",
+        "java.lang.Math.max",
+        "java.lang.Math.min",
+        "java.lang.Math.pow",
+        "java.lang.Math.sqrt",
+        "java.lang.Math.floor",
+        "java.lang.Math.ceil",
+        "java.lang.Math.round",
+        "java.lang.Math.log",
+        "java.util.Collections.unmodifiableList",
+    }

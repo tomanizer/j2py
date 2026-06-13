@@ -43,6 +43,8 @@ def translate_overloaded_members(
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
+    static_field_aliases: dict[str, str] | None = None,
+    static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str]:
@@ -54,6 +56,8 @@ def translate_overloaded_members(
     field_java_types = class_field_java_types or {}
     nested_type_fields = declared_type_fields or {}
     nested_type_java_fields = declared_type_java_fields or {}
+    static_fields = static_field_aliases or {}
+    static_methods = static_method_imports or {}
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -66,6 +70,8 @@ def translate_overloaded_members(
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
+            static_field_aliases=static_fields,
+            static_method_imports=static_methods,
             pre_body_lines=pre_body_lines,
             class_state=class_state,
         )
@@ -82,6 +88,8 @@ def translate_overloaded_members(
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
+            static_field_aliases=static_fields,
+            static_method_imports=static_methods,
             class_state=class_state,
         )
         if merged_method is not None:
@@ -96,6 +104,8 @@ def translate_overloaded_members(
             class_field_java_types=field_java_types,
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
+            static_field_aliases=static_fields,
+            static_method_imports=static_methods,
         )
         if forwarded_method is not None:
             return forwarded_method
@@ -109,6 +119,8 @@ def translate_overloaded_members(
         class_field_java_types=field_java_types,
         declared_type_fields=nested_type_fields,
         declared_type_java_fields=nested_type_java_fields,
+        static_field_aliases=static_fields,
+        static_method_imports=static_methods,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
     )
@@ -163,6 +175,8 @@ def _merged_constructor_overload(
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
@@ -170,7 +184,12 @@ def _merged_constructor_overload(
         _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
         for member in members
     ]
-    merged = _resolve_overload_defaults(forwards, cfg)
+    merged = _resolve_overload_defaults(
+        forwards,
+        cfg,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
     if merged is None:
         return None
     impl, defaults_by_position, throwaway_diagnostics = merged
@@ -196,6 +215,8 @@ def _merged_constructor_overload(
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_methods=class_methods,
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
         class_state=class_state,
     )
@@ -248,6 +269,8 @@ def _merged_forwarding_method_overload(
     class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -260,7 +283,12 @@ def _merged_forwarding_method_overload(
         _OverloadForward(member, _parameter_infos(member, cfg), _method_forward_args(member))
         for member in members
     ]
-    merged = _resolve_overload_defaults(forwards, cfg)
+    merged = _resolve_overload_defaults(
+        forwards,
+        cfg,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
     if merged is None:
         return None
     impl, defaults_by_position, throwaway_diagnostics = merged
@@ -287,6 +315,8 @@ def _merged_forwarding_method_overload(
         cfg=cfg,
         diagnostics=diagnostics,
         class_fields=class_fields,
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
     )
     ctx.class_field_types = dict(class_field_types)
@@ -332,6 +362,9 @@ def _merged_forwarding_method_overload(
 def _resolve_overload_defaults(
     forwards: list[_OverloadForward],
     cfg: TranslationConfig,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> tuple[_OverloadForward, dict[int, _MergedDefault], TranslationDiagnostics] | None:
     """Resolve forwarding chains into per-position defaults on the implementation.
 
@@ -353,7 +386,12 @@ def _resolve_overload_defaults(
 
     defaults_by_position: dict[int, _MergedDefault] = {}
     throwaway_diagnostics = TranslationDiagnostics()
-    throwaway = TranslationContext(cfg=cfg, diagnostics=throwaway_diagnostics)
+    throwaway = TranslationContext(
+        cfg=cfg,
+        diagnostics=throwaway_diagnostics,
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
+    )
     for forward in forwards:
         if forward is impl:
             continue
@@ -500,6 +538,8 @@ def _merged_method_overload(
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
@@ -546,6 +586,8 @@ def _merged_method_overload(
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_methods=class_methods,
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
         class_state=class_state,
     )
@@ -638,6 +680,8 @@ def _dispatch_overload_members(
     class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
@@ -681,6 +725,8 @@ def _dispatch_overload_members(
             class_field_java_types=dict(class_field_java_types),
             declared_type_fields=dict(declared_type_fields),
             declared_type_java_fields=dict(declared_type_java_fields),
+            static_field_aliases=dict(static_field_aliases),
+            static_method_imports=dict(static_method_imports),
             allow_local_helpers=True,
             self_dispatch_methods={java_name} if java_name else set(),
             class_state=class_state,

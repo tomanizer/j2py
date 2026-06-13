@@ -17,6 +17,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Fixed
 - LLM calls now send the system prompt as an Anthropic prompt-cache block, enabling
   warm calls to reuse the cached prompt instead of resending the fixed instructions (#116).
+- Static imports for known Java members now resolve at use sites, including
+  `Math` constants/functions and `Collections.unmodifiableList`; unknown static imports
+  emit an explicit `TODO(j2py)` diagnostic instead of silently producing an undefined
+  name (#114).
 - Java cast expressions now add reviewer-visible trailing `# cast: (...)` comments when
   line comments are enabled, with numeric narrowing casts marked explicitly (#112).
 - Java unsigned right shift (`>>>` and `>>>=`) lowers to masked Python shifts for

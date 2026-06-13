@@ -435,7 +435,24 @@ def test_try_with_resources_target_fixture_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_static_import_target_fixture_translates() -> None:
+    parsed = parse_file(FIXTURES / "java" / "targets" / "StaticImport.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "import math" in result.source
+    assert "return abs(left - right)" in result.source
+    assert "return max(left, right)" in result.source
+    assert "return math.sqrt(value)" in result.source
+    assert "return 2 * math.pi * radius" in result.source
+    assert "return values" in result.source
+    assert "return PI" not in result.source
+    assert "return unmodifiable_list" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "Collections.unmodifiableList translated as original list; verify mutability",
+    ]
+    assert_valid_python(result.source)
 
 
 def test_static_initializer_and_synchronized_target_fixture_translates() -> None:

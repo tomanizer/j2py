@@ -86,15 +86,41 @@ def translate_class(
     inherited_class_field_java_types: dict[str, str] | None = None,
     inherited_declared_type_fields: dict[str, dict[str, str]] | None = None,
     inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
+    static_field_aliases: dict[str, str] | None = None,
+    static_method_imports: dict[str, str] | None = None,
 ) -> list[str]:
     if node.type == "interface_declaration":
-        return _translate_interface(node, cfg, diagnostics)
+        return _translate_interface(
+            node,
+            cfg,
+            diagnostics,
+            static_field_aliases=static_field_aliases or {},
+            static_method_imports=static_method_imports or {},
+        )
     if node.type == "enum_declaration":
-        return _translate_enum(node, cfg, diagnostics)
+        return _translate_enum(
+            node,
+            cfg,
+            diagnostics,
+            static_field_aliases=static_field_aliases or {},
+            static_method_imports=static_method_imports or {},
+        )
     if node.type == "record_declaration":
-        return _translate_record(node, cfg, diagnostics)
+        return _translate_record(
+            node,
+            cfg,
+            diagnostics,
+            static_field_aliases=static_field_aliases or {},
+            static_method_imports=static_method_imports or {},
+        )
     if node.type == "annotation_type_declaration":
-        return _translate_annotation_declaration(node, cfg, diagnostics)
+        return _translate_annotation_declaration(
+            node,
+            cfg,
+            diagnostics,
+            static_field_aliases=static_field_aliases or {},
+            static_method_imports=static_method_imports or {},
+        )
 
     is_supported_class = node.type == "class_declaration"
     diagnostics.record(
@@ -172,6 +198,8 @@ def translate_class(
         inherited_class_field_java_types=class_field_java_types,
         inherited_declared_type_fields=declared_type_fields,
         inherited_declared_type_java_fields=declared_type_java_fields,
+        static_field_aliases=static_field_aliases or {},
+        static_method_imports=static_method_imports or {},
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
@@ -210,6 +238,8 @@ def translate_class(
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
                     class_methods=class_method_names,
+                    static_field_aliases=static_field_aliases or {},
+                    static_method_imports=static_method_imports or {},
                     pre_body_lines=(
                         lock_init_lines + instance_init_lines
                         if group[0].type == "constructor_declaration"
@@ -230,6 +260,8 @@ def translate_class(
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
             class_methods=class_method_names,
+            static_field_aliases=static_field_aliases or {},
+            static_method_imports=static_method_imports or {},
             allow_local_helpers=True,
             class_state=class_state,
         )
@@ -250,6 +282,9 @@ def _translate_interface(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated interface declaration")
     name_node = node.child_by_field("name")
@@ -277,6 +312,8 @@ def _translate_interface(
                 class_field_types={},
                 class_field_java_types={},
                 class_methods=class_method_names,
+                static_field_aliases=static_field_aliases,
+                static_method_imports=static_method_imports,
                 allow_local_helpers=True,
             )
             lines.extend(_translate_method(method, ctx, supported_reason=reason))
@@ -303,6 +340,9 @@ def _translate_enum(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated enum declaration")
     name_node = node.child_by_field("name")
@@ -339,7 +379,15 @@ def _translate_enum(
         lines.append("    pass")
         return lines
     for constant in constants:
-        lines.extend(_translate_enum_constant(constant, cfg, diagnostics))
+        lines.extend(
+            _translate_enum_constant(
+                constant,
+                cfg,
+                diagnostics,
+                static_field_aliases=static_field_aliases,
+                static_method_imports=static_method_imports,
+            )
+        )
 
     for field in fields:
         diagnostics.record(field.node, supported=True, reason="translated enum field declaration")
@@ -358,6 +406,8 @@ def _translate_enum(
                     class_field_java_types=class_field_java_types,
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
+                    static_field_aliases=static_field_aliases,
+                    static_method_imports=static_method_imports,
                     pre_body_lines=[],
                 ),
             )
@@ -370,6 +420,8 @@ def _translate_enum(
             class_field_java_types=class_field_java_types,
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
+            static_field_aliases=static_field_aliases,
+            static_method_imports=static_method_imports,
             allow_local_helpers=True,
         )
         lines.extend(_translate_method(group[0], ctx))
@@ -403,6 +455,9 @@ def _translate_enum_constant(
     constant: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(constant, supported=True, reason="translated enum constant")
     name_node = constant.child_by_field("name") or first_child_by_type(constant, "identifier")
@@ -419,6 +474,8 @@ def _translate_enum_constant(
         return [f"    {constant_name} = {constant_name!r}"]
 
     arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    arg_ctx.static_field_aliases = dict(static_field_aliases)
+    arg_ctx.static_method_imports = dict(static_method_imports)
     args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]
     value = f"({', '.join(args)})" if len(args) > 1 else args[0]
     return [f"    {constant_name} = {value}"]
@@ -462,6 +519,9 @@ def _translate_record(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated record declaration")
     name_node = node.child_by_field("name")
@@ -498,6 +558,9 @@ def _translate_annotation_declaration(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
@@ -529,7 +592,15 @@ def _translate_annotation_declaration(
     if body is not None:
         for member in body.named_children:
             if member.type == "annotation_type_element_declaration":
-                member_lines.append(_translate_annotation_element(member, cfg, diagnostics))
+                member_lines.append(
+                    _translate_annotation_element(
+                        member,
+                        cfg,
+                        diagnostics,
+                        static_field_aliases=static_field_aliases,
+                        static_method_imports=static_method_imports,
+                    )
+                )
                 continue
             if is_comment(member):
                 diagnostics.warn(member, reason="preserved comment")
@@ -563,6 +634,9 @@ def _translate_annotation_element(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> str:
     type_node = _annotation_element_type_node(node)
     name_node = _annotation_element_name_node(node)
@@ -581,7 +655,13 @@ def _translate_annotation_element(
             return f"    {py_name}: {py_type}"
         return f"    {py_name}"
 
-    default_value = _annotation_element_default(default_node, cfg, diagnostics)
+    default_value = _annotation_element_default(
+        default_node,
+        cfg,
+        diagnostics,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
     if default_value is None:
         diagnostics.record(
             node,
@@ -671,11 +751,20 @@ def _annotation_element_default(
     default_node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> str | None:
     if default_node.type == "element_value_array_initializer":
         values: list[str] = []
         for child in default_node.named_children:
-            scalar = _annotation_scalar_default(child, cfg, diagnostics)
+            scalar = _annotation_scalar_default(
+                child,
+                cfg,
+                diagnostics,
+                static_field_aliases=static_field_aliases,
+                static_method_imports=static_method_imports,
+            )
             if scalar is None:
                 return None
             values.append(scalar)
@@ -685,13 +774,22 @@ def _annotation_element_default(
             return f"({values[0]},)"
         return f"({', '.join(values)})"
 
-    return _annotation_scalar_default(default_node, cfg, diagnostics)
+    return _annotation_scalar_default(
+        default_node,
+        cfg,
+        diagnostics,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
 
 
 def _annotation_scalar_default(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> str | None:
     if node.type in _IMMUTABLE_LITERAL_NODES:
         if node.type == "string_literal":
@@ -710,12 +808,16 @@ def _annotation_scalar_default(
 
     if node.type == "unary_expression":
         ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        ctx.static_field_aliases = dict(static_field_aliases)
+        ctx.static_method_imports = dict(static_method_imports)
         translated = translate_expression(node, ctx)
         if translated.startswith("__j2py_todo__"):
             return None
         return translated
 
     ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    ctx.static_field_aliases = dict(static_field_aliases)
+    ctx.static_method_imports = dict(static_method_imports)
     translated = translate_expression(node, ctx)
     if translated.startswith("__j2py_todo__"):
         return None
@@ -731,6 +833,8 @@ def _nested_type_lines(
     inherited_class_field_java_types: dict[str, str],
     inherited_declared_type_fields: dict[str, dict[str, str]],
     inherited_declared_type_java_fields: dict[str, dict[str, str]],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
 ) -> list[str]:
     if body is None:
         return []
@@ -749,6 +853,8 @@ def _nested_type_lines(
             inherited_class_field_java_types=inherited_class_field_java_types,
             inherited_declared_type_fields=inherited_declared_type_fields,
             inherited_declared_type_java_fields=inherited_declared_type_java_fields,
+            static_field_aliases=static_field_aliases,
+            static_method_imports=static_method_imports,
         )
         lines.extend(f"    {line}" if line else line for line in child_lines)
     return lines
@@ -885,6 +991,8 @@ def _translate_overloaded_members(
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
+    static_field_aliases: dict[str, str] | None = None,
+    static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str]:
@@ -900,6 +1008,8 @@ def _translate_overloaded_members(
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
         class_methods=class_methods,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
     )

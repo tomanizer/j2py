@@ -252,7 +252,7 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         "return abs(value)",
         "return max(left, right)",
         "return min(left, right)",
-        "return base ** exponent",
+        "return pow(base, exponent)",
         "return math.floor(value + 0.5)",
         "return math.sqrt(value) + math.floor(value) + math.ceil(value) + math.log(value)",
         "return math.pi + math.e",
@@ -295,7 +295,7 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         ("return Math.abs(left);", "return abs(left)"),
         ("return Math.max(left, right);", "return max(left, right)"),
         ("return Math.min(left, right);", "return min(left, right)"),
-        ("return Math.pow(base, exponent);", "return base ** exponent"),
+        ("return Math.pow(base, exponent);", "return pow(base, exponent)"),
         ("return Math.sqrt(base);", "return math.sqrt(base)"),
         ("return Math.floor(base);", "return math.floor(base)"),
         ("return Math.ceil(base);", "return math.ceil(base)"),
@@ -353,6 +353,88 @@ def test_static_standard_library_mapping_cases(body: str, expected: str) -> None
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert expected in result.source
+    assert_valid_python(result.source)
+
+
+def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static com.example.Helpers.magic;
+
+        public class StaticImports {
+            public int apply(int value) {
+                return magic(value);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "# TODO(j2py): static import com.example.Helpers.magic - resolve manually" in (
+        result.source
+    )
+    assert result.diagnostics.unhandled[0].reason == (
+        "unknown static import com.example.Helpers.magic"
+    )
+    assert "return magic(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_static_imports_resolve_inside_non_class_type_contexts_and_overloads() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static java.lang.Integer.MAX_VALUE;
+        import static java.lang.Math.PI;
+        import static java.lang.Math.sqrt;
+
+        interface StaticImportInterface {
+            default double circumference(double radius) {
+                return 2 * PI * radius;
+            }
+
+            static double root(double value) {
+                return sqrt(value);
+            }
+        }
+
+        enum StaticImportEnum {
+            ONE(PI);
+
+            private final double value;
+
+            StaticImportEnum(double value) {
+                this.value = value;
+            }
+
+            public double limit() {
+                return PI;
+            }
+        }
+
+        @interface StaticImportAnnotation {
+            int value() default MAX_VALUE;
+        }
+
+        class StaticImportOverload {
+            public double value() {
+                return PI;
+            }
+
+            public double value(int ignored) {
+                return PI;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return 2 * math.pi * radius" in result.source
+    assert "return math.sqrt(value)" in result.source
+    assert "ONE = math.pi" in result.source
+    assert "return math.pi" in result.source
+    assert "value: int = 2**31 - 1" in result.source
+    assert "return pi" not in result.source
     assert_valid_python(result.source)
 
 
