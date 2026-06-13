@@ -13,6 +13,13 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Incremental directory translation state, `j2py watch`, dashboard generation,
   machine-readable `--json` output, and parallel directory translation worker controls
   for developer-experience workflows (#126, #127, #128, #129).
+- Behavior-equivalence corpus: ~60 curated Java programs under `tests/fixtures/behavior/`
+  that compile + run with Java, translate rule-layer-only (no LLM), then run as Python and
+  assert byte-identical stdout/stderr/return-code. The corpus is auto-discovered (drop a
+  `<case>/Main.java` directory to add one), guarded by a minimum-size check in the normal
+  suite, and runs as a JDK-backed CI gate (`.github/workflows/behavior.yml`) and a release
+  gate (`make release-check`). Documents the deterministic rule layer's runtime-correct
+  envelope (#120).
 - Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
   emitted as `@abstractmethod` ellipsis stubs (#115).
 - Common Java standard-library static calls and constants now translate to Python

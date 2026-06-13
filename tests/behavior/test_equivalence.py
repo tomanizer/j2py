@@ -35,13 +35,41 @@ class ProcessResult:
     stderr: str
 
 
-CASES = (
-    BehaviorCase("hello_print"),
-    BehaviorCase("fields_methods"),
-    BehaviorCase("if_else_arithmetic"),
-    BehaviorCase("loops_sum"),
-    BehaviorCase("enhanced_for_list"),
-)
+def _discover_cases() -> tuple[BehaviorCase, ...]:
+    """Every fixtures/behavior/<name>/ directory that holds a Main.java is a case.
+
+    A case may override the entry-point class by committing a one-line
+    ``main_class.txt`` (defaults to ``Main``). New corpus cases are added by
+    dropping a directory here — no edit to this file is required.
+    """
+    cases: list[BehaviorCase] = []
+    for entry in sorted(FIXTURES.iterdir()):
+        if not entry.is_dir() or not (entry / "Main.java").exists():
+            continue
+        override = entry / "main_class.txt"
+        main_class = override.read_text().strip() if override.exists() else "Main"
+        cases.append(BehaviorCase(entry.name, main_class))
+    return tuple(cases)
+
+
+CASES = _discover_cases()
+
+
+#: Floor for the curated behavior corpus. The corpus is the release gate for
+#: rule-layer runtime equivalence; if it silently shrinks the gate is worthless.
+MINIMUM_CORPUS_SIZE = 50
+
+
+def test_behavior_corpus_meets_minimum_size() -> None:
+    """Cheap guard (no JDK): the corpus must not silently lose cases.
+
+    Runs in the normal suite so a deleted/renamed fixture fails fast even where
+    the JDK-backed equivalence tests are skipped.
+    """
+    assert len(CASES) >= MINIMUM_CORPUS_SIZE, (
+        f"behavior corpus shrank to {len(CASES)} cases (floor {MINIMUM_CORPUS_SIZE}); "
+        "did a fixtures/behavior/<case>/Main.java go missing?"
+    )
 
 
 @pytest.mark.behavior
@@ -135,15 +163,29 @@ def _require_java_toolchain() -> None:
         )
 
 
+#: Per-process wall-clock cap. A corpus case that loops forever (in Java or in the
+#: translated Python) must fail loudly instead of hanging the CI job indefinitely.
+PROCESS_TIMEOUT_SECONDS = 30
+
+
 def _run(command: list[str], *, cwd: Path) -> ProcessResult:
-    proc = subprocess.run(
-        command,
-        cwd=cwd,
-        capture_output=True,
-        encoding="utf-8",
-        text=True,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            encoding="utf-8",
+            text=True,
+            check=False,
+            timeout=PROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return ProcessResult(
+            command=tuple(command),
+            returncode=124,
+            stdout=exc.stdout or "",
+            stderr=(exc.stderr or "") + f"\nTIMEOUT after {PROCESS_TIMEOUT_SECONDS}s",
+        )
     return ProcessResult(
         command=tuple(command),
         returncode=proc.returncode,
