@@ -69,6 +69,7 @@ def _translate_block_lambda(node: JavaNode, ctx: TranslationContext) -> str:
     # (including self via in_instance_method + class_fields) remain visible.
     previous_locals = set(ctx.local_names)
     previous_types = dict(ctx.variable_types)
+    previous_java_types = dict(ctx.variable_java_types)
     previous_aliases = dict(ctx.expression_aliases)
 
     for raw_name, _py_name, py_type in params:
@@ -87,6 +88,7 @@ def _translate_block_lambda(node: JavaNode, ctx: TranslationContext) -> str:
     finally:
         ctx.local_names = previous_locals
         ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
         ctx.expression_aliases = previous_aliases
 
     # Build signature. Follow the style of expression lambdas (types only when known).
@@ -128,6 +130,7 @@ def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str
     params = _lambda_parameters(params_node, ctx)
     previous_locals = set(ctx.local_names)
     previous_types = dict(ctx.variable_types)
+    previous_java_types = dict(ctx.variable_java_types)
     previous_aliases = dict(ctx.expression_aliases)
     for raw_name, _py_name, py_type in params:
         ctx.local_names.add(raw_name)
@@ -138,6 +141,7 @@ def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str
     finally:
         ctx.local_names = previous_locals
         ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
         ctx.expression_aliases = previous_aliases
 
     rendered_params = ", ".join(py_name for _raw_name, py_name, _py_type in params)

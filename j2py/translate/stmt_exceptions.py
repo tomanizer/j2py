@@ -50,7 +50,7 @@ def _translate_try_with_resources(
         return [f"{indent}# TODO(j2py): malformed try-with-resources", f"{indent}pass"]
 
     resource_parts: list[str] = []
-    resource_bindings: list[tuple[str, str]] = []
+    resource_bindings: list[tuple[str, str, str]] = []
     for resource in direct_children_by_type(resources, "resource"):
         named = resource.named_children
         if len(named) == 1:
@@ -69,9 +69,10 @@ def _translate_try_with_resources(
         type_node, name_node, value_node = named[0], named[1], named[-1]
         raw_name = name_node.text
         py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
-        py_type = translate_type(type_node.text, ctx.cfg)
+        java_type = type_node.text
+        py_type = translate_type(java_type, ctx.cfg)
         resource_parts.append(f"{translate_expression(value_node, ctx)} as {py_name}")
-        resource_bindings.append((raw_name, py_type))
+        resource_bindings.append((raw_name, py_type, java_type))
 
     if not resource_parts:
         ctx.diagnostics.record(node, supported=False, reason="try-with-resources without resources")
@@ -80,15 +81,18 @@ def _translate_try_with_resources(
     ctx.diagnostics.record(node, supported=True, reason="translated try-with-resources statement")
     previous_locals = set(ctx.local_names)
     previous_types = dict(ctx.variable_types)
-    for raw_name, py_type in resource_bindings:
+    previous_java_types = dict(ctx.variable_java_types)
+    for raw_name, py_type, java_type in resource_bindings:
         ctx.local_names.add(raw_name)
         ctx.variable_types[raw_name] = py_type
+        ctx.variable_java_types[raw_name] = java_type
     try:
         lines = [f"{indent}with {', '.join(resource_parts)}:"]
         lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     finally:
         ctx.local_names = previous_locals
         ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
     return lines
 
 

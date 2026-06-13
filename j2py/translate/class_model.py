@@ -31,6 +31,7 @@ class ParameterInfo:
     raw_name: str
     py_name: str
     py_type: str
+    java_type: str = "Object"
     is_spread: bool = False
 
 

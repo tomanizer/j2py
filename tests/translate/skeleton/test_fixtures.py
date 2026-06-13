@@ -1,10 +1,12 @@
 """Skeleton translator tests — graduated target fixtures."""
 
 
+from pathlib import Path
+
 import pytest
 
 from j2py.analyze.symbols import extract_symbols
-from j2py.parse.java_ast import parse_file
+from j2py.parse.java_ast import parse_file, parse_source
 from j2py.translate.skeleton import translate_skeleton, translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
@@ -268,9 +270,13 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert not bitwise_result.diagnostics.unhandled
     assert "return left & right | left ^ right" in bitwise_result.source
     assert "return value << 2 >> 1" in bitwise_result.source
-    assert "return value >> 1" in bitwise_result.source
+    assert "return (value & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
+    assert "value = -1" in bitwise_result.source
+    assert "return (value & 0xFFFFFFFFFFFFFFFF) >> (2 & 0x3F)" in bitwise_result.source
+    assert "value = (value & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
+    assert "return (source.value() & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
     assert [warning.reason for warning in bitwise_result.diagnostics.warnings] == [
-        "unsigned right shift translated as >>; verify negative values",
+        "unsigned right shift assumed 32-bit int width; verify operand type",
     ]
     assert "__j2py_todo__" not in bitwise_result.source
     assert_valid_python(bitwise_result.source)
@@ -286,6 +292,77 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert "value |= flag" in compound_result.source
     assert "__j2py_todo__" not in compound_result.source
     assert_valid_python(compound_result.source)
+
+
+def test_unsigned_right_shift_resolves_nested_field_java_type() -> None:
+    parsed = parse_source(
+        """
+        class Outer {
+            static class Holder { long bits; }
+            long nested(Holder holder) { return holder.bits >>> 1; }
+        }
+        """,
+        path=Path("Outer.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return (holder.bits & 0xFFFFFFFFFFFFFFFF) >> (1 & 0x3F)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_assign_evaluates_array_index_once() -> None:
+    parsed = parse_source(
+        """
+        class Demo {
+            int[] values;
+            int index() { return 0; }
+            void update() { values[index()] >>>= 1; }
+        }
+        """,
+        path=Path("Demo.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "_j2py_idx = self.index();" in result.source
+    assert (
+        "self.values[_j2py_idx] = (self.values[_j2py_idx] & 0xFFFFFFFF) >> (1 & 0x1F)"
+        in result.source
+    )
+    assert "self.values[self.index()] = (self.values[self.index()]" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_masks_shift_distance_for_int() -> None:
+    parsed = parse_source(
+        """
+        class Demo {
+            int shift(int value) { return value >>> 32; }
+        }
+        """,
+        path=Path("Demo.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return (value & 0xFFFFFFFF) >> (32 & 0x1F)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_resolves_array_element_java_type() -> None:
+    parsed = parse_source(
+        """
+        class Demo {
+            long pick(long[] values, int i) { return values[i] >>> 1; }
+        }
+        """,
+        path=Path("Demo.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return (values[i] & 0xFFFFFFFFFFFFFFFF) >> (1 & 0x3F)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
 
 
 
@@ -335,6 +412,5 @@ def test_static_initializer_and_synchronized_target_fixture_translates() -> None
     assert "__j2py_todo__" not in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
-
 
 

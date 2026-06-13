@@ -39,7 +39,9 @@ def translate_overloaded_members(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str] | None = None,
+    class_field_java_types: dict[str, str] | None = None,
     declared_type_fields: dict[str, dict[str, str]] | None = None,
+    declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
@@ -49,7 +51,9 @@ def translate_overloaded_members(
         _record_annotation_diagnostics(member, cfg, diagnostics)
 
     field_types = class_field_types or {f: "object" for f in class_fields}
+    field_java_types = class_field_java_types or {}
     nested_type_fields = declared_type_fields or {}
+    nested_type_java_fields = declared_type_java_fields or {}
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -58,7 +62,9 @@ def translate_overloaded_members(
             diagnostics=diagnostics,
             class_fields=class_fields,
             class_field_types=field_types,
+            class_field_java_types=field_java_types,
             declared_type_fields=nested_type_fields,
+            declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
             pre_body_lines=pre_body_lines,
             class_state=class_state,
@@ -72,7 +78,9 @@ def translate_overloaded_members(
             diagnostics=diagnostics,
             class_fields=class_fields,
             class_field_types=field_types,
+            class_field_java_types=field_java_types,
             declared_type_fields=nested_type_fields,
+            declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
             class_state=class_state,
         )
@@ -85,7 +93,9 @@ def translate_overloaded_members(
             diagnostics=diagnostics,
             class_fields=class_fields,
             class_field_types=field_types,
+            class_field_java_types=field_java_types,
             declared_type_fields=nested_type_fields,
+            declared_type_java_fields=nested_type_java_fields,
         )
         if forwarded_method is not None:
             return forwarded_method
@@ -96,7 +106,9 @@ def translate_overloaded_members(
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_field_types=field_types,
+        class_field_java_types=field_java_types,
         declared_type_fields=nested_type_fields,
+        declared_type_java_fields=nested_type_java_fields,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
     )
@@ -147,7 +159,9 @@ def _merged_constructor_overload(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
@@ -186,7 +200,9 @@ def _merged_constructor_overload(
         class_state=class_state,
     )
     ctx.class_field_types = dict(class_field_types)
+    ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
+    ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.in_instance_method = True
     for param in impl.params:
         _register_param(ctx, param)
@@ -229,7 +245,9 @@ def _merged_forwarding_method_overload(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -272,7 +290,9 @@ def _merged_forwarding_method_overload(
         allow_local_helpers=True,
     )
     ctx.class_field_types = dict(class_field_types)
+    ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
+    ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.in_instance_method = not is_static
     for param in impl.params:
         _register_param(ctx, param)
@@ -456,7 +476,12 @@ def _defaulted_parameters(
             param.py_type if param.py_type.endswith("| None") else f"{param.py_type} | None"
         )
         signature_params.append(
-            ParameterInfo(raw_name=param.raw_name, py_name=param.py_name, py_type=annotation),
+            ParameterInfo(
+                raw_name=param.raw_name,
+                py_name=param.py_name,
+                py_type=annotation,
+                java_type=param.java_type,
+            ),
         )
         defaults[param.py_name] = "None"
         sentinel_lines.append(f"        if {param.py_name} is None:")
@@ -471,7 +496,9 @@ def _merged_method_overload(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
@@ -504,6 +531,7 @@ def _merged_method_overload(
             raw_name=param_sets[0][index].raw_name,
             py_name=param_sets[0][index].py_name,
             py_type=_union_types(params[index].py_type for params in param_sets),
+            java_type=param_sets[0][index].java_type,
             is_spread=param_sets[0][index].is_spread,
         )
         for index in range(len(param_sets[0]))
@@ -522,7 +550,9 @@ def _merged_method_overload(
         class_state=class_state,
     )
     ctx.class_field_types = dict(class_field_types)
+    ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
+    ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.in_instance_method = not is_static
     for param in merged_params:
         _register_param(ctx, param)
@@ -605,7 +635,9 @@ def _dispatch_overload_members(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
 ) -> list[str] | None:
@@ -646,7 +678,9 @@ def _dispatch_overload_members(
             diagnostics=diagnostics,
             class_fields=class_fields,
             class_field_types=dict(class_field_types),
+            class_field_java_types=dict(class_field_java_types),
             declared_type_fields=dict(declared_type_fields),
+            declared_type_java_fields=dict(declared_type_java_fields),
             allow_local_helpers=True,
             self_dispatch_methods={java_name} if java_name else set(),
             class_state=class_state,

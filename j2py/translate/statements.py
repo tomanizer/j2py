@@ -199,6 +199,7 @@ def _translate_local_variable_declaration(
         else:
             py_type = translate_type(java_type, ctx.cfg)
         ctx.variable_types[raw_name] = py_type
+        ctx.variable_java_types[raw_name] = java_type
         value = translate_expression(value_node, ctx) if value_node else "None"
         if not ctx.cfg.emit_type_hints:
             lines.append(f"{indent}{py_name} = {value}")

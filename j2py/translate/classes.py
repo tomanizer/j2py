@@ -7,9 +7,11 @@ from collections.abc import Iterable
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_fields import (
+    _class_field_java_types,
     _class_field_types,
     _class_fields,
     _collect_declared_type_fields,
+    _collect_declared_type_java_fields,
     _constructor_assigned_fields,
     _field_assignment,
     _instance_field_names,
@@ -81,7 +83,9 @@ def translate_class(
     diagnostics: TranslationDiagnostics,
     *,
     inherited_class_field_types: dict[str, str] | None = None,
+    inherited_class_field_java_types: dict[str, str] | None = None,
     inherited_declared_type_fields: dict[str, dict[str, str]] | None = None,
+    inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
     if node.type == "interface_declaration":
         return _translate_interface(node, cfg, diagnostics)
@@ -122,9 +126,17 @@ def translate_class(
         **(inherited_class_field_types or {}),
         **_class_field_types(fields),
     }
+    class_field_java_types = {
+        **(inherited_class_field_java_types or {}),
+        **_class_field_java_types(fields),
+    }
     declared_type_fields = {
         **(inherited_declared_type_fields or {}),
         **_collect_declared_type_fields(node, cfg),
+    }
+    declared_type_java_fields = {
+        **(inherited_declared_type_java_fields or {}),
+        **_collect_declared_type_java_fields(node, cfg),
     }
     assigned_fields = _constructor_assigned_fields(node)
     body = node.child_by_field("body")
@@ -150,13 +162,16 @@ def translate_class(
         cfg,
         diagnostics,
         declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
     )
     nested_type_lines = _nested_type_lines(
         body,
         cfg,
         diagnostics,
         inherited_class_field_types=class_field_types,
+        inherited_class_field_java_types=class_field_java_types,
         inherited_declared_type_fields=declared_type_fields,
+        inherited_declared_type_java_fields=declared_type_java_fields,
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
@@ -191,7 +206,9 @@ def translate_class(
                     diagnostics=diagnostics,
                     class_fields=instance_field_names,
                     class_field_types=class_field_types,
+                    class_field_java_types=class_field_java_types,
                     declared_type_fields=declared_type_fields,
+                    declared_type_java_fields=declared_type_java_fields,
                     class_methods=class_method_names,
                     pre_body_lines=(
                         lock_init_lines + instance_init_lines
@@ -209,7 +226,9 @@ def translate_class(
             diagnostics=diagnostics,
             class_fields=instance_field_names,
             class_field_types=class_field_types,
+            class_field_java_types=class_field_java_types,
             declared_type_fields=declared_type_fields,
+            declared_type_java_fields=declared_type_java_fields,
             class_methods=class_method_names,
             allow_local_helpers=True,
             class_state=class_state,
@@ -256,6 +275,7 @@ def _translate_interface(
                 diagnostics=diagnostics,
                 class_fields=set(),
                 class_field_types={},
+                class_field_java_types={},
                 class_methods=class_method_names,
                 allow_local_helpers=True,
             )
@@ -296,7 +316,9 @@ def _translate_enum(
     fields = _enum_fields(node, cfg)
     instance_field_names = _instance_field_names(fields)
     class_field_types = _class_field_types(fields)
+    class_field_java_types = _class_field_java_types(fields)
     declared_type_fields = _collect_declared_type_fields(node, cfg)
+    declared_type_java_fields = _collect_declared_type_java_fields(node, cfg)
     declarations = [] if body is None else body.children_by_type("enum_body_declarations")
     members = [
         child
@@ -333,7 +355,9 @@ def _translate_enum(
                     diagnostics=diagnostics,
                     class_fields=instance_field_names,
                     class_field_types=class_field_types,
+                    class_field_java_types=class_field_java_types,
                     declared_type_fields=declared_type_fields,
+                    declared_type_java_fields=declared_type_java_fields,
                     pre_body_lines=[],
                 ),
             )
@@ -343,7 +367,9 @@ def _translate_enum(
             diagnostics=diagnostics,
             class_fields=instance_field_names,
             class_field_types=class_field_types,
+            class_field_java_types=class_field_java_types,
             declared_type_fields=declared_type_fields,
+            declared_type_java_fields=declared_type_java_fields,
             allow_local_helpers=True,
         )
         lines.extend(_translate_method(group[0], ctx))
@@ -702,7 +728,9 @@ def _nested_type_lines(
     diagnostics: TranslationDiagnostics,
     *,
     inherited_class_field_types: dict[str, str],
+    inherited_class_field_java_types: dict[str, str],
     inherited_declared_type_fields: dict[str, dict[str, str]],
+    inherited_declared_type_java_fields: dict[str, dict[str, str]],
 ) -> list[str]:
     if body is None:
         return []
@@ -718,7 +746,9 @@ def _nested_type_lines(
             cfg,
             diagnostics,
             inherited_class_field_types=inherited_class_field_types,
+            inherited_class_field_java_types=inherited_class_field_java_types,
             inherited_declared_type_fields=inherited_declared_type_fields,
+            inherited_declared_type_java_fields=inherited_declared_type_java_fields,
         )
         lines.extend(f"    {line}" if line else line for line in child_lines)
     return lines
@@ -839,7 +869,9 @@ def _translate_overloaded_members(
     diagnostics: TranslationDiagnostics,
     class_fields: set[str],
     class_field_types: dict[str, str] | None = None,
+    class_field_java_types: dict[str, str] | None = None,
     declared_type_fields: dict[str, dict[str, str]] | None = None,
+    declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
@@ -852,7 +884,9 @@ def _translate_overloaded_members(
         diagnostics=diagnostics,
         class_fields=class_fields,
         class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
         declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
         class_methods=class_methods,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
@@ -949,12 +983,14 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
                     None,
                 )
         raw_name = name_node.text if name_node is not None else "_"
-        py_type = translate_type(type_node.text if type_node is not None else "Object", cfg)
+        java_type = type_node.text if type_node is not None else "Object"
+        py_type = translate_type(java_type, cfg)
         infos.append(
             ParameterInfo(
                 raw_name=raw_name,
                 py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
                 py_type=py_type.removeprefix("*"),
+                java_type=java_type,
                 is_spread=is_spread,
             ),
         )
@@ -980,3 +1016,4 @@ def _register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
     ctx.variable_types[param.raw_name] = (
         f"list[{param.py_type}]" if param.is_spread else param.py_type
     )
+    ctx.variable_java_types[param.raw_name] = param.java_type
