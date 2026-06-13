@@ -68,7 +68,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonBooleanFormatVisitor.java",
@@ -81,7 +81,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonNullFormatVisitor.java",
@@ -92,16 +92,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.8666666666666667,
+      "coverage": 0.9285714285714286,
       "error": "",
       "handled_count": 13,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/util/ByteBufferBackedInputStream.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_invocation:1;unary_expression:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unsupported statement unary_expression:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "unary_expression:1",
+      "unhandled_reasons": "unsupported statement unary_expression:1",
       "warning_count": 5
     },
     {
@@ -120,7 +120,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonStringFormatVisitor.java",
@@ -146,7 +146,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonAnyFormatVisitor.java",
@@ -479,7 +479,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 1
     },
     {
       "coverage": 1.0,
@@ -492,7 +492,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 1
     },
     {
       "coverage": 1.0,
@@ -718,7 +718,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 7,
+      "handled_count": 6,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonValueFormatVisitor.java",
@@ -726,7 +726,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 2
     },
     {
       "coverage": 1.0,
@@ -761,7 +761,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/ext/Java7Support.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -1093,16 +1093,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.967741935483871,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 30,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/ser/impl/PropertyBasedObjectIdGenerator.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 10
     },
     {
@@ -1212,7 +1212,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 13,
+      "handled_count": 14,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsonFormatVisitors/JsonMapFormatVisitor.java",
@@ -1220,7 +1220,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 4
     },
     {
       "coverage": 1.0,
@@ -1317,22 +1317,22 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9916957631830788,
+    "average_coverage": 0.9927537724687068,
     "coverage_file_count": 89,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 8,
-    "full_coverage_files": 81,
+    "files_with_unhandled": 7,
+    "full_coverage_files": 82,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.98,
+    "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
       [
-        "method_invocation",
-        4
+        "false",
+        2
       ],
       [
-        "false",
+        "method_invocation",
         2
       ],
       [
@@ -1361,10 +1361,6 @@
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "ambiguous get invocation requires receiver collection type",
-        2
-      ],
       [
         "unsupported statement false",
         2

@@ -161,6 +161,10 @@ def _translate_anonymous_class(
     instance_field_names = _instance_field_names(instance_fields)
     instance_field_types = _instance_field_types(instance_fields)
     instance_field_java_types = {field.name: field.java_type for field in instance_fields}
+    from j2py.translate.classes import _class_method_return_types
+
+    previous_return_types = dict(ctx.class_method_return_types)
+    ctx.class_method_return_types = _class_method_return_types(methods, ctx.cfg)
     wrote_member = False
     if instance_fields:
         helper_lines.extend(
@@ -182,6 +186,8 @@ def _translate_anonymous_class(
             ),
         )
         wrote_member = True
+
+    ctx.class_method_return_types = previous_return_types
 
     if not wrote_member:
         helper_lines.append("            pass")

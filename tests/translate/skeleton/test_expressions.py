@@ -958,6 +958,112 @@ def test_ambiguous_get_invocation_drops_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_immutable_list_field_get_uses_indexing() -> None:
+    python_source, coverage = translate_source(
+        """
+        import com.google.common.collect.ImmutableList;
+
+        public class Holder {
+            private final ImmutableList<String> delegateList;
+
+            public String at(int index) {
+                return delegateList.get(index);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return self.delegate_list[index]" in python_source
+    assert_valid_python(python_source)
+
+
+def test_delegate_multimap_get_is_map_like() -> None:
+    python_source, coverage = translate_source(
+        """
+        import com.google.common.collect.ListMultimap;
+
+        public abstract class Forwarding {
+            protected abstract ListMultimap<String, String> delegate();
+
+            public java.util.List<String> lookup(String key) {
+                return delegate().get(key);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return self.delegate().get(key)' in python_source
+    assert_valid_python(python_source)
+
+
+def test_require_non_null_field_get_is_api_call() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.lang.reflect.Field;
+        import java.util.Objects;
+
+        public class Reflection {
+            public static Object read(Field field, Object obj) {
+                return Objects.requireNonNull(field, "field").get(obj);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert '.get(obj)' in python_source
+    assert_valid_python(python_source)
+
+
+def test_super_future_get_is_not_ambiguous() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.concurrent.Future;
+
+        public class Proxy extends AbstractFutureProxy {
+            public Object load(long timeout, java.util.concurrent.TimeUnit unit) {
+                return super.get(timeout, unit);
+            }
+        }
+
+        class AbstractFutureProxy implements Future<Object> {
+            public Object get(long timeout, java.util.concurrent.TimeUnit unit) {
+                return null;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return super().get(timeout, unit)" in python_source
+    assert_valid_python(python_source)
+
+
+def test_multi_arg_get_skips_collection_disambiguation() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.nio.ByteBuffer;
+
+        public class Reader {
+            private final ByteBuffer buffer;
+
+            public void read(byte[] bytes, int off, int len) {
+                buffer.get(bytes, off, len);
+            }
+        }
+        """,
+    )
+
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert "self.buffer.get(bytes_, off, len_)" in result.source
+    assert_valid_python(result.source)
+
+
 def test_static_map_field_get_is_map_like() -> None:
     """Static cache fields like BeanAnnotationHelper.beanNameCache use map .get()."""
     python_source, coverage = translate_source(

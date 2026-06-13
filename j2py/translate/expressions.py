@@ -501,6 +501,22 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return f"list({receiver})"
 
     if method_name == "get" and receiver and args:
+        if len(arg_expressions) != 1:
+            return f"{receiver}.get({args})"
+
+        if receiver_nodes and receiver_nodes[0].type == "super":
+            return f"{receiver}.get({args})"
+
+        if (
+            receiver_nodes
+            and receiver_nodes[0].type in {"this", "field_access"}
+            and "get" in ctx.class_method_return_types
+        ):
+            from j2py.translate.expr_types import _is_this_receiver
+
+            if _is_this_receiver(receiver_nodes[0]):
+                return f"{receiver}.get({args})"
+
         receiver_type = _expression_py_type(receiver_nodes[0], ctx) if receiver_nodes else None
         if receiver_type is not None and _is_list_type(receiver_type):
             return f"{receiver}[{args}]"
