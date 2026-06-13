@@ -156,7 +156,7 @@ def get_preset(name: str) -> CorpusPreset:
         return PRESETS[name]
     except KeyError as exc:
         known = ", ".join(sorted(PRESETS))
-        raise SystemExit(f"Unknown corpus preset {name!r}. Known presets: {known}") from exc
+        raise ValueError(f"Unknown corpus preset {name!r}. Known presets: {known}") from exc
 
 
 def list_preset_names() -> list[str]:
@@ -177,6 +177,11 @@ def apply_preset(
         "baseline",
         "json_out",
         "csv_out",
+        "strategy",
+        "max_loc",
+        "min_constructs",
+        "include_constructs",
+        "include_tests",
     )
     resolved: dict[str, object] = {
         "repo": preset.repo_path,
