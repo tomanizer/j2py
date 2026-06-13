@@ -38,10 +38,6 @@ jobs:
         run: >
           uv run python scripts/corpus/translate_spring_sample.py
           --clone
-          --strategy density
-          --max-loc 250
-          --min-constructs 5
-          --include-constructs
-          --baseline tests/fixtures/corpus/spring-dense-baseline.json
+          --preset spring-dense
           --compare-baseline
           --fail-on-regression

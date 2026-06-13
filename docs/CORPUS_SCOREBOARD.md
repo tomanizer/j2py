@@ -146,6 +146,31 @@ Use `make corpus-spring-dense-check` to decide whether a translation rule improv
 regressed the preferred corpus before updating the dense baseline. Use the historical
 lexical baseline only when continuity with older reports matters.
 
+## Additional corpora (library presets)
+
+Pinned presets for non-Spring Java live in `scripts/corpus/corpus_presets.py`. Each preset
+defines remote/ref, modules, sampling parameters, and a committed baseline under
+`tests/fixtures/corpus/`.
+
+| Preset | Project | What it stress-tests |
+|--------|---------|----------------------|
+| `guava-dense` | Google Guava | Generics-heavy collections/utilities |
+| `commons-lang-dense` | Apache Commons Lang | Classic utility Java without framework magic |
+| `jackson-dense` | Jackson databind | Annotation/bean introspection patterns |
+| `caffeine-dense` | Caffeine | Concurrent cache code, lambdas |
+
+Commands mirror the Spring targets:
+
+```bash
+make corpus-list-presets
+make corpus-guava-dense-check
+make corpus-guava-dense-update-baseline   # intentional baseline refresh
+uv run python scripts/corpus/translate_spring_sample.py --preset guava-dense --clone
+```
+
+Checkouts default to `.corpus/<name>/` under the j2py root. Share an existing clone with
+`--repo /path/to/checkout` when working in a git worktree.
+
 Coverage aggregates only include files where the translator recorded at least one
 handled or unhandled construct. Files with no measured constructs, such as
 `package-info.java`, still count in parse/syntax rates and per-file reports but do not
