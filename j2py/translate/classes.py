@@ -755,13 +755,17 @@ def _nested_type_lines(
 
 
 def _base_suffix(node: JavaNode) -> str:
+    bases: list[str] = []
     superclass = node.child_by_field("superclass")
-    if superclass is None:
+    if superclass is not None:
+        type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
+        if type_node is not None:
+            bases.append(translate_class_name(type_node.text))
+    if "abstract" in _modifiers(node):
+        bases.append("ABC")
+    if not bases:
         return ""
-    type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
-    if type_node is None:
-        return ""
-    return f"({translate_class_name(type_node.text)})"
+    return f"({', '.join(bases)})"
 
 
 def _member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
@@ -817,7 +821,9 @@ def _translate_method(
     )
 
     is_constructor = node.type == "constructor_declaration"
-    is_static = "static" in _modifiers(node)
+    modifiers = _modifiers(node)
+    is_static = "static" in modifiers
+    is_abstract = "abstract" in modifiers
     ctx.in_instance_method = not is_static
 
     name_node = node.child_by_field("name")
@@ -838,8 +844,14 @@ def _translate_method(
     lines: list[str] = list(decorator_lines or [])
     if is_static:
         lines.append("    @staticmethod")
+    if is_abstract:
+        lines.append("    @abstractmethod")
     returns = f" -> {return_type}" if ctx.cfg.emit_type_hints else ""
     lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
+
+    if is_abstract:
+        lines.append("        ...")
+        return lines
 
     body = node.child_by_field("body")
     if body is None:

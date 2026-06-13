@@ -7,6 +7,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
+  emitted as `@abstractmethod` ellipsis stubs (#115).
+
 ### Fixed
 - LLM calls now send the system prompt as an Anthropic prompt-cache block, enabling
   warm calls to reuse the cached prompt instead of resending the fixed instructions (#116).
