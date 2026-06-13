@@ -1,5 +1,9 @@
 # Contributing to j2py
 
+j2py is a general Java-to-Python source translator. **Spring Framework** appears in this
+repo only as an external open-source benchmark corpus for measuring rule-layer progress —
+not as a product scope or target runtime.
+
 ## Setup
 
 ```bash
@@ -58,14 +62,14 @@ target check, or move the behavior into the normal fixture suite. See
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
 
-For real-corpus progress checks, run the preferred dense Spring + curated-construct
-scoreboard:
+For real-corpus progress checks, run the preferred dense benchmark (Spring Framework
+checkout plus curated construct fixtures under `tests/fixtures/corpus/constructs/`):
 
 ```bash
 make corpus-spring-dense-check
 ```
 
-See [Spring Corpus Scoreboard](docs/CORPUS_SCOREBOARD.md) for the preferred dense
+See [Corpus scoreboard](docs/CORPUS_SCOREBOARD.md) for the preferred dense
 baseline, historical lexical baseline, comparison mode, and intentional baseline refresh
 workflow.
 

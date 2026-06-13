@@ -23,7 +23,7 @@ test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local 
 	uv run --extra dev pytest tests/behavior -m behavior
 
 test-targets:  ## Run future Java-to-Python roadmap xfail targets only
-	uv run --extra dev pytest tests/targets -m target_translation -rxXs
+	uv run --extra dev pytest tests/targets -m target_translation -rxXs; status=$$?; if [ $$status -eq 5 ]; then exit 0; fi; exit $$status
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
 	@echo "Running live LLM exploratory test. This is excluded from normal make check."

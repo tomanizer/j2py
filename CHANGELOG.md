@@ -7,6 +7,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.3.0a1 - 2026-06-13
+
 ### Added
 - Stream pipelines with `flatMap(List::stream)` rewrite to nested comprehensions
   instead of falling back to a translated `flat_map` chain (#92).
@@ -15,13 +17,20 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - `AdvancedStreams` graduated from future xfail target to the deterministic corpus
   construct regression suite after flatMap and groupingBy downstream support (#75).
 
+### Changed
+- README, PyPI package description, and contributor/corpus docs describe j2py as a
+  general Java-to-Python library; Spring Framework is documented as an external
+  benchmark corpus only.
+
 ### Fixed
-- `List.get(index)` and map-like Spring receivers (`MultiValueMap`,
-  `AnnotationAttributes`, `*Map` types) resolve without ambiguous-get diagnostics
-  when receiver types are known from declarations or parameters (#87).
-- Static class fields, nested holder field access (`holder.field.get`), and API
-  receivers (`Field.get`, `Future.get`, `ScheduledFuture.get`) are inferred so
-  remaining Spring corpus `get(...)` diagnostics drop to zero (#87).
+- `List.get(index)` and map-like map receivers (`MultiValueMap`, `AnnotationAttributes`,
+  `*Map` types) resolve without ambiguous-get diagnostics when receiver types are
+  known from declarations or parameters (#87).
+- Static class fields, nested holder field access (`holder.field.get`), union-typed
+  receivers, and API calls (`Field.get`, `Future.get`, `ScheduledFuture.get`) are
+  inferred so benchmark-corpus `get(...)` diagnostics drop to zero (#87).
+- LLM structural repair retries hardened for transient API failures (#96).
+- `make test-targets` succeeds when no future xfail roadmap contracts remain.
 
 ## 0.2.0a1 - 2026-06-11
 
