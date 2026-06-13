@@ -159,6 +159,58 @@ def test_char_comparison_is_not_rewritten() -> None:
     assert 'c <= "Z"' in source
 
 
+def test_char_comparison_with_numeric_wraps_in_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Chars {
+            public boolean isControl(char c) {
+                return c < 32;
+            }
+
+            public boolean isZero(Character c) {
+                return c == 0;
+            }
+
+            public boolean isNull(Character c) {
+                return c == null;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return ord(c) < 32" in result.source
+    assert "return ord(c) == 0" in result.source
+    assert "return c is None" in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_char_numeric_comparison_runs_without_type_error() -> None:
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public boolean isControl(char c) {
+                return c < 32;
+            }
+
+            public boolean isZero(Character c) {
+                return c == 0;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<chars>", "exec"), namespace)
+    chars = namespace["Chars"]()  # type: ignore[operator]
+    assert chars.is_control("\n") is True
+    assert chars.is_control("A") is False
+    assert chars.is_zero("\x00") is True
+    assert chars.is_zero("A") is False
+
+
 def test_compound_assignment_translates() -> None:
     python_source, coverage = translate_source(
         """
