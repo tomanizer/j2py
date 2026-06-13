@@ -408,6 +408,11 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
             "checkArgument(size >= 0);",
             "assert size >= 0",
         ),
+        (
+            "import static com.google.common.base.Preconditions.checkState;",
+            'checkState(index >= 0, "index %s out of range", index);',
+            'assert index >= 0, "index %s out of range" % index',
+        ),
     ],
 )
 def test_known_static_import_allowlist_cases(
