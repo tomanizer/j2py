@@ -10,6 +10,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Added
 - Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
   emitted as `@abstractmethod` ellipsis stubs (#115).
+- Common Java standard-library static calls and constants now translate to Python
+  equivalents, including `Math.*`, numeric parse/string helpers, collection helpers,
+  array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
 - LLM calls now send the system prompt as an Anthropic prompt-cache block, enabling

@@ -218,6 +218,10 @@ def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
         ctx.diagnostics.record(node, supported=False, reason="malformed field access")
         return node.text
 
+    static_field = _translate_static_field_access(node, ctx)
+    if static_field is not None:
+        return static_field
+
     target = translate_expression(children[0], ctx)
     field_name = translate_field_name(
         children[-1].text,
@@ -407,12 +411,15 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return stream_pipeline
 
     args_node = first_child_by_type(node, "argument_list")
-    args = translate_expression(args_node, ctx) if args_node is not None else ""
 
     named = node.named_children
     if args_node is None or len(named) < 2:
         ctx.diagnostics.record(node, supported=False, reason="malformed method invocation")
         return f"__j2py_todo__({node.text!r})"
+
+    arg_nodes = _argument_nodes(args_node)
+    arg_expressions = [translate_expression(child, ctx) for child in arg_nodes]
+    args = ", ".join(arg_expressions)
 
     args_index = named.index(args_node)
     method_node = named[args_index - 1]
@@ -420,6 +427,17 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     receiver_nodes = named[: args_index - 1]
     raw_receiver = receiver_nodes[0].text if receiver_nodes else ""
     receiver = translate_expression(receiver_nodes[0], ctx) if receiver_nodes else ""
+
+    static_call = _translate_static_method_invocation(
+        node,
+        raw_receiver=raw_receiver,
+        method_name=method_name,
+        arg_nodes=arg_nodes,
+        args=arg_expressions,
+        ctx=ctx,
+    )
+    if static_call is not None:
+        return static_call
 
     if raw_receiver == "System.out" and method_name == "println":
         return f"print({args})"
@@ -512,6 +530,136 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if ctx.in_instance_method and py_method in ctx.class_methods:
         return f"self.{py_method}({args})"
     return f"{py_method}({args})"
+
+
+def _receiver_simple_name(raw_receiver: str) -> str:
+    return raw_receiver.rsplit(".", 1)[-1]
+
+
+def _argument_nodes(args_node: JavaNode) -> list[JavaNode]:
+    return [child for child in args_node.named_children if not is_comment(child)]
+
+
+def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> str | None:
+    children = node.named_children
+    if len(children) < 2:
+        return None
+    receiver = _receiver_simple_name(children[0].text)
+    field = children[-1].text
+    if receiver == "Math" and field == "PI":
+        return "math.pi"
+    if receiver == "Math" and field == "E":
+        return "math.e"
+    if receiver == "Integer" and field == "MAX_VALUE":
+        return "2**31 - 1"
+    return None
+
+
+def _translate_static_method_invocation(
+    node: JavaNode,
+    *,
+    raw_receiver: str,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    receiver = _receiver_simple_name(raw_receiver)
+    known_receivers = {
+        "Arrays",
+        "Collections",
+        "Double",
+        "Integer",
+        "Long",
+        "Math",
+        "Objects",
+        "String",
+    }
+    if receiver not in known_receivers:
+        return None
+
+    if receiver == "Math":
+        if method_name == "abs" and len(args) == 1:
+            return f"abs({args[0]})"
+        if method_name == "max" and len(args) == 2:
+            return f"max({args[0]}, {args[1]})"
+        if method_name == "min" and len(args) == 2:
+            return f"min({args[0]}, {args[1]})"
+        if method_name == "pow" and len(args) == 2:
+            return f"{args[0]} ** {args[1]}"
+        if method_name in {"sqrt", "floor", "ceil", "log"} and len(args) == 1:
+            return f"math.{method_name}({args[0]})"
+        if method_name == "round" and len(args) == 1:
+            return f"math.floor({args[0]} + 0.5)"
+
+    if receiver == "Integer":
+        if method_name == "parseInt" and len(args) in {1, 2}:
+            return f"int({', '.join(args)})"
+        if method_name == "valueOf" and len(args) == 1:
+            return f"int({args[0]})"
+        if method_name == "toString" and len(args) == 1:
+            return f"str({args[0]})"
+        if method_name == "toBinaryString" and len(args) == 1:
+            return f"format({args[0]}, 'b')"
+        if method_name == "toHexString" and len(args) == 1:
+            return f"format({args[0]}, 'x')"
+
+    if receiver == "Long" and method_name == "parseLong" and len(args) == 1:
+        return f"int({args[0]})"
+
+    if receiver == "Double" and method_name == "parseDouble" and len(args) == 1:
+        return f"float({args[0]})"
+
+    if receiver == "String":
+        if method_name == "valueOf" and len(args) == 1:
+            return f"str({args[0]})"
+        if method_name == "format" and args:
+            format_args = args[1:] if arg_nodes and _is_locale_argument(arg_nodes[0]) else args
+            return _translate_string_format(format_args)
+
+    if receiver == "Collections":
+        if method_name == "sort" and len(args) == 1:
+            return f"{args[0]}.sort()"
+        if method_name == "reverse" and len(args) == 1:
+            return f"{args[0]}.reverse()"
+        if method_name == "unmodifiableList" and len(args) == 1:
+            ctx.diagnostics.warn(
+                node,
+                reason=(
+                    "Collections.unmodifiableList translated as original list; "
+                    "verify mutability"
+                ),
+            )
+            return args[0]
+
+    if receiver == "Arrays":
+        if method_name == "asList":
+            return f"[{', '.join(args)}]"
+        if method_name == "stream" and len(args) == 1:
+            return f"iter({args[0]})"
+
+    if receiver == "Objects":
+        if method_name == "requireNonNull" and arg_nodes:
+            return args[0]
+        if method_name == "isNull" and len(args) == 1:
+            return f"{args[0]} is None"
+        if method_name == "nonNull" and len(args) == 1:
+            return f"{args[0]} is not None"
+
+    return None
+
+
+def _translate_string_format(args: list[str]) -> str:
+    if len(args) == 1:
+        return args[0]
+    if len(args) == 2:
+        return f"{args[0]} % {args[1]}"
+    return f"{args[0]} % ({', '.join(args[1:])})"
+
+
+def _is_locale_argument(node: JavaNode) -> bool:
+    parts = node.text.split(".")
+    return any(part == "Locale" for part in parts[:-1]) or node.text == "Locale"
 
 
 
