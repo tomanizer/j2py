@@ -221,6 +221,8 @@ def _translate_fields(
                 supported=True,
                 reason="translated instance field initializer",
             )
+            if cfg.emit_type_hints:
+                diagnostics.imports.need_type_annotation(field.py_type)
             instance_init_lines.append(
                 f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
                 f"{translate_expression(field.initializer, instance_ctx)}",
@@ -242,6 +244,8 @@ def _translate_fields(
         )
         default_value = java_default_value(field.java_type)
         annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(annotation)
         target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
         instance_init_lines.append(f"        {target} = {default_value}")
 
@@ -293,11 +297,15 @@ def _translate_static_field(
         )
         default_value = java_default_value(field.java_type)
         annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+        if ctx.cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(annotation)
         return [
             f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}",
         ]
 
     diagnostics.record(field.node, supported=True, reason="translated static field declaration")
+    if ctx.cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(field.py_type)
     return [
         f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = "
         f"{translate_expression(field.initializer, ctx)}",

@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.runtime import (
+    RUNTIME_IMPORT_LINE,
+    RUNTIME_MONITOR_IMPORT_LINE,
+    RUNTIME_TODO_IMPORT_LINE,
+)
 
 
 @dataclass(frozen=True)
@@ -29,12 +35,62 @@ class PatternBinding:
 
 
 @dataclass
+class ImportSet:
+    """Tracks imports required by emitted Python constructs."""
+
+    lines: set[str] = field(default_factory=set)
+    typing_names: set[str] = field(default_factory=set)
+
+    def need_abc(self) -> None:
+        self.lines.add("from abc import ABC, abstractmethod")
+
+    def need_dataclass(self) -> None:
+        self.lines.add("from dataclasses import dataclass")
+
+    def need_enum(self) -> None:
+        self.lines.add("from enum import Enum")
+
+    def need_overloaded(self) -> None:
+        self.lines.add(RUNTIME_IMPORT_LINE)
+
+    def need_todo_sentinel(self) -> None:
+        self.lines.add(RUNTIME_TODO_IMPORT_LINE)
+
+    def need_monitor(self) -> None:
+        self.lines.add(RUNTIME_MONITOR_IMPORT_LINE)
+
+    def need_math(self) -> None:
+        self.lines.add("import math")
+
+    def need_threading(self) -> None:
+        self.lines.add("import threading")
+
+    def need_typing(self, name: str) -> None:
+        self.typing_names.add(name)
+
+    def need_type_annotation(self, annotation: str) -> None:
+        if _uses_typing_name(annotation, "Any"):
+            self.need_typing("Any")
+
+    def update(self, other: ImportSet) -> None:
+        self.lines.update(other.lines)
+        self.typing_names.update(other.typing_names)
+
+    def render(self) -> list[str]:
+        imports = set(self.lines)
+        if self.typing_names:
+            imports.add(f"from typing import {', '.join(sorted(self.typing_names))}")
+        return sorted(imports)
+
+
+@dataclass
 class TranslationDiagnostics:
     """Tracks rule-layer coverage with source-level reasons."""
 
     handled: list[TranslationDiagnostic] = field(default_factory=list)
     unhandled: list[TranslationDiagnostic] = field(default_factory=list)
     warnings: list[TranslationDiagnostic] = field(default_factory=list)
+    imports: ImportSet = field(default_factory=ImportSet)
 
     def record(
         self,
@@ -135,3 +191,7 @@ def _compact_text(text: str, *, limit: int = 160) -> str:
     if len(compacted) <= limit:
         return compacted
     return f"{compacted[: limit - 3]}..."
+
+
+def _uses_typing_name(annotation: str, name: str) -> bool:
+    return re.search(rf"(?<![\w.]){re.escape(name)}(?![\w.])", annotation) is not None

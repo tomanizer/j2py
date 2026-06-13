@@ -25,6 +25,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   avoiding per-file subprocess fan-out while preserving per-file validation results (#117).
 - Directory translation now passes compact signatures from already-translated directly
   imported sibling classes into subsequent LLM completion context (#118).
+- Rule-layer import emission now uses tracked import requirements instead of scanning
+  rendered Python text, avoiding false-positive imports from comments and strings (#119).
 - Java cast expressions now add reviewer-visible trailing `# cast: (...)` comments when
   line comments are enabled, with numeric narrowing casts marked explicitly (#112).
 - Java unsigned right shift (`>>>` and `>>>=`) lowers to masked Python shifts for

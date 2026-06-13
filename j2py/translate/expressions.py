@@ -30,6 +30,13 @@ if TYPE_CHECKING:
 
 
 def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
+    result = _translate_expression(node, ctx)
+    if result.startswith("__j2py_todo__("):
+        ctx.diagnostics.imports.need_todo_sentinel()
+    return result
+
+
+def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if node is None:
         return "None"
 
@@ -345,6 +352,8 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
         return base  # int / long
 
     py_type = translate_type(type_node.text, ctx.cfg)
+    ctx.diagnostics.imports.need_typing("cast")
+    ctx.diagnostics.imports.need_type_annotation(py_type)
     ctx.diagnostics.record(node, supported=True, reason="translated reference cast to typing.cast")
     ctx.diagnostics.warn(
         node,
@@ -560,8 +569,10 @@ def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> s
     receiver = _receiver_simple_name(children[0].text)
     field = children[-1].text
     if receiver == "Math" and field == "PI":
+        ctx.diagnostics.imports.need_math()
         return "math.pi"
     if receiver == "Math" and field == "E":
+        ctx.diagnostics.imports.need_math()
         return "math.e"
     if receiver == "Integer" and field == "MAX_VALUE":
         return "2**31 - 1"
@@ -601,8 +612,10 @@ def _translate_static_method_invocation(
         if method_name == "pow" and len(args) == 2:
             return f"pow({args[0]}, {args[1]})"
         if method_name in {"sqrt", "floor", "ceil", "log"} and len(args) == 1:
+            ctx.diagnostics.imports.need_math()
             return f"math.{method_name}({args[0]})"
         if method_name == "round" and len(args) == 1:
+            ctx.diagnostics.imports.need_math()
             return f"math.floor({args[0]} + 0.5)"
 
     if receiver == "Integer":

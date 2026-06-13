@@ -211,6 +211,8 @@ def _translate_local_variable_declaration(
             py_type = inferred or "object"
         else:
             py_type = translate_type(java_type, ctx.cfg)
+        if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(py_type)
         ctx.variable_types[raw_name] = py_type
         ctx.variable_java_types[raw_name] = java_type
         value = translate_expression(value_node, ctx) if value_node else "None"

@@ -42,6 +42,7 @@ def _translate_synchronized(
         lock_expr = f"self.{INSTANCE_LOCK_ATTR}"
     else:
         ctx.diagnostics.record(node, supported=True, reason="translated synchronized statement")
+        ctx.diagnostics.imports.need_monitor()
         ctx.diagnostics.warn(
             node,
             reason=(
@@ -54,4 +55,3 @@ def _translate_synchronized(
     lines = [f"{indent}with {lock_expr}:"]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     return lines
-

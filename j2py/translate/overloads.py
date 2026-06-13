@@ -133,7 +133,7 @@ def translate_overloaded_members(
             supported=False,
             reason=f"overloaded method {name} requires manual dispatch",
         )
-    lines = _overload_stubs(members, cfg)
+    lines = _overload_stubs(members, cfg, diagnostics)
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"
     is_static = "static" in _modifiers(members[0])
     if is_static:
@@ -233,7 +233,9 @@ def _merged_constructor_overload(
         defaults_by_position,
     )
 
-    lines = _overload_stubs(members, cfg)
+    diagnostics.imports.update(throwaway_diagnostics.imports)
+
+    lines = _overload_stubs(members, cfg, diagnostics)
     signature = _signature(
         "__init__",
         signature_params,
@@ -333,7 +335,9 @@ def _merged_forwarding_method_overload(
     )
     return_type = _union_types(_return_type(member, cfg) for member in members)
 
-    lines = _overload_stubs(members, cfg)
+    diagnostics.imports.update(throwaway_diagnostics.imports)
+
+    lines = _overload_stubs(members, cfg, diagnostics)
     if is_static:
         lines.append("    @staticmethod")
     signature = _signature(
@@ -599,7 +603,7 @@ def _merged_method_overload(
     for param in merged_params:
         _register_param(ctx, param)
 
-    lines = _overload_stubs(members, cfg)
+    lines = _overload_stubs(members, cfg, diagnostics)
     if is_static:
         lines.append("    @staticmethod")
     signature = _signature(
@@ -714,6 +718,7 @@ def _dispatch_overload_members(
     name_node = members[0].child_by_field("name")
     java_name = name_node.text if name_node is not None and not is_constructor else ""
     lines: list[str] = []
+    diagnostics.imports.need_overloaded()
     for index, member in enumerate(members):
         if index:
             lines.append("")
@@ -814,19 +819,30 @@ def _has_this_delegation(member: JavaNode) -> bool:
     return False
 
 
-def _overload_stubs(members: list[JavaNode], cfg: TranslationConfig) -> list[str]:
+def _overload_stubs(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.imports.need_typing("overload")
     lines: list[str] = []
     for member in members:
         is_static = "static" in _modifiers(member)
         if is_static:
             lines.append("    @staticmethod")
         lines.append("    @overload")
+        params = _parameter_infos(member, cfg)
+        return_type = (
+            "None" if member.type == "constructor_declaration" else _return_type(member, cfg)
+        )
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(return_type)
+            for param in params:
+                diagnostics.imports.need_type_annotation(param.py_type)
         signature = _signature(
             _member_python_name(member),
-            _parameter_infos(member, cfg),
-            return_type=(
-                "None" if member.type == "constructor_declaration" else _return_type(member, cfg)
-            ),
+            params,
+            return_type=return_type,
             include_self=not is_static,
             emit_type_hints=cfg.emit_type_hints,
         )

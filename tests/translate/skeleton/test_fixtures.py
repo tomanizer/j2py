@@ -77,6 +77,66 @@ def test_abstract_class_with_superclass_keeps_superclass_and_abc() -> None:
     assert_valid_python(result.source)
 
 
+def test_import_tracking_ignores_coincidental_strings_and_comments() -> None:
+    parsed = parse_source(
+        b"""
+        package com.example;
+
+        public class ImportFalsePositive {
+            public String marker() {
+                // Enum): (Protocol): @overload @overloaded
+                // __j2py_todo__ _j2py_monitor(
+                // threading.Lock Any cast(
+                return "__j2py_todo__(";
+            }
+        }
+        """,
+    )
+
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "from dataclasses import dataclass" not in result.source
+    assert "from enum import Enum" not in result.source
+    assert "from typing import" not in result.source
+    assert "from j2py_runtime import" not in result.source
+    assert "import threading" not in result.source
+    assert "return " in result.source
+    assert_valid_python(result.source)
+
+
+def test_import_tracking_respects_disabled_type_hints_for_any_fields() -> None:
+    cfg = CFG.model_copy(update={"emit_type_hints": False})
+    parsed = parse_source(
+        """
+        package com.example;
+
+        public @interface AnyElement {
+            Object value();
+        }
+
+        public enum AnyEnum {
+            ONE;
+
+            Object payload;
+        }
+
+        public class AnyFields {
+            static Object shared;
+            Object value;
+        }
+        """,
+    )
+
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), cfg)
+
+    assert "from typing import Any" not in result.source
+    assert "shared = None" in result.source
+    assert "self.value = None" in result.source
+    assert "payload" in result.source
+    assert "value" in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("fixture_name", "expected_fragments"),
     [
