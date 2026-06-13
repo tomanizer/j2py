@@ -44,19 +44,31 @@ Java bitwise operators `&`, `|`, `^`, `<<`, and `>>` translate to the matching P
 operators. Compound assignment for these operators translates to the matching Python
 compound assignment form.
 
-Java unsigned right shift (`>>>`) and unsigned right shift assignment (`>>>=`) translate
-to Python signed right shift (`>>` and `>>=`) with warning diagnostics. This preserves
-valid Python output and keeps the approximation visible for review, but it does not
-preserve Java unsigned semantics for negative values.
+Java unsigned right shift (`>>>`) translates to a masked Python signed shift based on
+the known Java operand width:
+
+```python
+(value >> bits) & (0xFFFFFFFF >> bits)
+(value >> bits) & (0xFFFFFFFFFFFFFFFF >> bits)
+```
+
+The 32-bit mask is used for known `int`, `byte`, `short`, `char`, and boxed
+equivalents. The 64-bit mask is used for known `long` and `Long`. Unsigned right shift
+assignment (`>>>=`) translates to an explicit assignment to the same masked expression.
+
+When the Java operand width is unknown, the translator emits the 32-bit form and warns:
+`unsigned right shift assumed 32-bit int width; verify operand type`.
 
 ## Consequences
 
 + Common Spring corpus expression shapes now translate deterministically instead of
   becoming unresolved regions.
 + Generated code remains valid Python and side-by-side reviewable.
-+ Approximate semantics for casts and unsigned right shift are explicit in diagnostics.
++ Unsigned right shift on known integral widths preserves Java results for negative
+  operands.
++ Unknown-width unsigned right shift remains valid Python and is marked with an
+  explicit diagnostic.
 - Cast runtime checks are not preserved.
-- Java unsigned right shift semantics for negative values remain future work.
 
 ## References
 

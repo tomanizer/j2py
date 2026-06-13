@@ -133,6 +133,7 @@ def _translate_anonymous_class(
 
     instance_field_names = _instance_field_names(instance_fields)
     instance_field_types = _instance_field_types(instance_fields)
+    instance_field_java_types = {field.name: field.java_type for field in instance_fields}
     wrote_member = False
     if instance_fields:
         helper_lines.extend(
@@ -149,6 +150,7 @@ def _translate_anonymous_class(
                 ctx,
                 instance_field_names=instance_field_names,
                 instance_field_types=instance_field_types,
+                instance_field_java_types=instance_field_java_types,
             ),
         )
         wrote_member = True
@@ -185,6 +187,7 @@ def _anonymous_helper_init_lines(
         diagnostics=ctx.diagnostics,
         class_fields=_instance_field_names(fields),
         class_field_types=_class_field_types(fields),
+        class_field_java_types={field.name: field.java_type for field in fields},
         declared_type_fields=dict(ctx.declared_type_fields),
         in_instance_method=True,
     )
@@ -211,6 +214,7 @@ def _anonymous_method_lines(
     *,
     instance_field_names: set[str],
     instance_field_types: dict[str, str],
+    instance_field_java_types: dict[str, str],
 ) -> list[str]:
     from j2py.translate.class_model import _modifiers
     from j2py.translate.classes import (
@@ -247,15 +251,19 @@ def _anonymous_method_lines(
 
     previous_param_names = set(ctx.param_names)
     previous_types = dict(ctx.variable_types)
+    previous_java_types = dict(ctx.variable_java_types)
     previous_class_fields = set(ctx.class_fields)
     previous_class_field_types = dict(ctx.class_field_types)
+    previous_class_field_java_types = dict(ctx.class_field_java_types)
     previous_in_instance_method = ctx.in_instance_method
     previous_allow_helpers = ctx.allow_local_helpers
     for param in params:
         ctx.param_names.add(param.raw_name)
         ctx.variable_types[param.raw_name] = param.py_type
+        ctx.variable_java_types[param.raw_name] = param.java_type
     ctx.class_fields = instance_field_names
     ctx.class_field_types = instance_field_types
+    ctx.class_field_java_types = instance_field_java_types
     ctx.in_instance_method = not is_static
     ctx.allow_local_helpers = True
     start_index = len(ctx.pending_local_helpers)
@@ -275,8 +283,10 @@ def _anonymous_method_lines(
     finally:
         ctx.param_names = previous_param_names
         ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
         ctx.class_fields = previous_class_fields
         ctx.class_field_types = previous_class_field_types
+        ctx.class_field_java_types = previous_class_field_java_types
         ctx.in_instance_method = previous_in_instance_method
         ctx.allow_local_helpers = previous_allow_helpers
 

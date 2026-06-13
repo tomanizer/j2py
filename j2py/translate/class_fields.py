@@ -123,6 +123,10 @@ def _class_field_types(fields: list[FieldInfo]) -> dict[str, str]:
     return {field.name: field.py_type for field in fields}
 
 
+def _class_field_java_types(fields: list[FieldInfo]) -> dict[str, str]:
+    return {field.name: field.java_type for field in fields}
+
+
 def _collect_declared_type_fields(
     class_node: JavaNode,
     cfg: TranslationConfig,
@@ -169,6 +173,7 @@ def _translate_fields(
         diagnostics=diagnostics,
         class_fields=instance_field_names,
         class_field_types=_class_field_types(fields),
+        class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
     )
     instance_ctx = TranslationContext(
@@ -176,6 +181,7 @@ def _translate_fields(
         diagnostics=diagnostics,
         class_fields=instance_field_names,
         class_field_types=_class_field_types(fields),
+        class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
         in_instance_method=True,
     )

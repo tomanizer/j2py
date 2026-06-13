@@ -114,14 +114,9 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
                 )
                 return f"__j2py_todo__({node.text!r})"
             if operator == ">>>=":
-                ctx.diagnostics.warn(
-                    node,
-                    reason=(
-                        "unsigned right shift assignment translated as >>=; "
-                        "verify negative values"
-                    ),
-                )
-                operator = ">>="
+                left = translate_expression(left_node, ctx)
+                shifted = _translate_unsigned_right_shift(node, left_node, right_node, ctx)
+                return f"{left} = {shifted}"
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
             return f"{left} {operator} {right}"
@@ -171,15 +166,10 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
             operator_text = children[1].text
             if operator_text == "/":
                 return _translate_division(node, children[0], children[2], ctx)
-            binary_operator: str | None
             if operator_text == ">>>":
-                ctx.diagnostics.warn(
-                    node,
-                    reason="unsigned right shift translated as >>; verify negative values",
-                )
-                binary_operator = ">>"
-            else:
-                binary_operator = _translate_binary_operator(operator_text)
+                return _translate_unsigned_right_shift(node, children[0], children[2], ctx)
+            binary_operator: str | None
+            binary_operator = _translate_binary_operator(operator_text)
             if binary_operator is None:
                 ctx.diagnostics.record(
                     node,
@@ -528,6 +518,17 @@ def _translate_division(
     ctx: TranslationContext,
 ) -> str:
     from j2py.translate.expr_ops import _translate_division as impl
+
+    return impl(node, left_node, right_node, ctx)
+
+
+def _translate_unsigned_right_shift(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    ctx: TranslationContext,
+) -> str:
+    from j2py.translate.expr_ops import _translate_unsigned_right_shift as impl
 
     return impl(node, left_node, right_node, ctx)
 

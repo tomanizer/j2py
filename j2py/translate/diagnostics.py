@@ -92,11 +92,13 @@ class TranslationContext:
     diagnostics: TranslationDiagnostics
     class_fields: set[str] = field(default_factory=set)
     class_field_types: dict[str, str] = field(default_factory=dict)
+    class_field_java_types: dict[str, str] = field(default_factory=dict)
     declared_type_fields: dict[str, dict[str, str]] = field(default_factory=dict)
     class_methods: set[str] = field(default_factory=set)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
     variable_types: dict[str, str] = field(default_factory=dict)
+    variable_java_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False

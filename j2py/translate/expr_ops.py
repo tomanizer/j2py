@@ -157,6 +157,69 @@ def _translate_binary_operator(operator: str) -> str | None:
     return operators.get(operator)
 
 
+def _translate_unsigned_right_shift(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    ctx: TranslationContext,
+) -> str:
+    width = _java_integral_width(left_node, ctx)
+    if width is None:
+        width = 32
+        ctx.diagnostics.warn(
+            node,
+            reason="unsigned right shift assumed 32-bit int width; verify operand type",
+        )
+    mask = "0xFFFFFFFFFFFFFFFF" if width == 64 else "0xFFFFFFFF"
+    left = translate_expression(left_node, ctx)
+    right = translate_expression(right_node, ctx)
+    return f"({left} >> {right}) & ({mask} >> {right})"
+
+
+def _java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
+    java_type = _java_expression_type(node, ctx)
+    if java_type is None:
+        return None
+    return _java_type_width(java_type)
+
+
+def _java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    if node.type == "identifier":
+        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
+    if node.type == "field_access":
+        return _field_access_java_type(node, ctx)
+    if node.type == "parenthesized_expression" and len(node.named_children) == 1:
+        return _java_expression_type(node.named_children[0], ctx)
+    if node.type == "cast_expression" and node.named_children:
+        return node.named_children[0].text
+    return None
+
+
+def _field_access_java_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    children = node.named_children
+    if len(children) != 2:
+        return None
+    target_node, field_name_node = children
+    field_name = field_name_node.text
+    if target_node.type == "this":
+        return ctx.class_field_java_types.get(field_name)
+    return None
+
+
+def _java_type_width(java_type: str) -> int | None:
+    simple = java_type.strip()
+    if "<" in simple:
+        simple = simple.split("<", 1)[0]
+    if "." in simple:
+        simple = simple.rsplit(".", 1)[-1]
+    simple = simple.rstrip("[]")
+    if simple in {"long", "Long"}:
+        return 64
+    if simple in {"byte", "short", "int", "char", "Byte", "Short", "Integer", "Character"}:
+        return 32
+    return None
+
+
 def _translate_division(
     node: JavaNode,
     left_node: JavaNode,
@@ -280,4 +343,3 @@ def _flatten_plus(node: JavaNode) -> list[JavaNode] | None:
 
 def _string_literal_value(node: JavaNode) -> str:
     return java_string_literal_value(node.text)
-

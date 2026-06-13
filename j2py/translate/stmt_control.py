@@ -27,7 +27,10 @@ def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: 
 
     previous_locals = set(ctx.local_names)
     previous_types = dict(ctx.variable_types)
+    previous_java_types = dict(ctx.variable_java_types)
     ctx.local_names.add(raw_name)
+    if type_node is not None and not is_var_type(type_node.text):
+        ctx.variable_java_types[raw_name] = type_node.text
     if type_node is not None and is_var_type(type_node.text):
         container_type = infer_expression_py_type(value_node, ctx)
         element_type = (
@@ -41,6 +44,7 @@ def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: 
     finally:
         ctx.local_names = previous_locals
         ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
     return lines
 
 
@@ -71,6 +75,7 @@ def _translate_if(
     else:
         previous_locals = set(ctx.local_names)
         previous_types = dict(ctx.variable_types)
+        previous_java_types = dict(ctx.variable_java_types)
         for binding in pattern_bindings:
             ctx.local_names.add(binding.raw_name)
             ctx.variable_types[binding.raw_name] = binding.py_type
@@ -80,6 +85,7 @@ def _translate_if(
         finally:
             ctx.local_names = previous_locals
             ctx.variable_types = previous_types
+            ctx.variable_java_types = previous_java_types
 
     if alternative is None:
         return lines
@@ -253,4 +259,3 @@ def _translate_do_while(node: JavaNode, ctx: TranslationContext, *, indent: str)
     lines.append(f"{indent}    if not ({translate_expression(condition, ctx)}):")
     lines.append(f"{indent}        break")
     return lines
-

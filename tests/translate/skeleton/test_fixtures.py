@@ -268,9 +268,13 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert not bitwise_result.diagnostics.unhandled
     assert "return left & right | left ^ right" in bitwise_result.source
     assert "return value << 2 >> 1" in bitwise_result.source
-    assert "return value >> 1" in bitwise_result.source
+    assert "return (value >> 1) & (0xFFFFFFFF >> 1)" in bitwise_result.source
+    assert "value = -1" in bitwise_result.source
+    assert "return (value >> 2) & (0xFFFFFFFFFFFFFFFF >> 2)" in bitwise_result.source
+    assert "value = (value >> 1) & (0xFFFFFFFF >> 1)" in bitwise_result.source
+    assert "return (source.value() >> 1) & (0xFFFFFFFF >> 1)" in bitwise_result.source
     assert [warning.reason for warning in bitwise_result.diagnostics.warnings] == [
-        "unsigned right shift translated as >>; verify negative values",
+        "unsigned right shift assumed 32-bit int width; verify operand type",
     ]
     assert "__j2py_todo__" not in bitwise_result.source
     assert_valid_python(bitwise_result.source)
@@ -335,6 +339,5 @@ def test_static_initializer_and_synchronized_target_fixture_translates() -> None
     assert "__j2py_todo__" not in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
-
 
 
