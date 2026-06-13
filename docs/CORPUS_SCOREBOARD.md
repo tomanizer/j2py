@@ -164,6 +164,7 @@ Commands mirror the Spring targets:
 ```bash
 make corpus-list-presets
 make corpus-clone-all                      # one-time local setup (all presets)
+make corpus-hotspots                       # rank cross-corpus gaps from committed baselines
 make corpus-guava-dense-check
 make corpus-guava-dense-update-baseline   # intentional baseline refresh
 uv run python scripts/corpus/translate_spring_sample.py --preset guava-dense --clone
@@ -177,3 +178,16 @@ Coverage aggregates only include files where the translator recorded at least on
 handled or unhandled construct. Files with no measured constructs, such as
 `package-info.java`, still count in parse/syntax rates and per-file reports but do not
 pull the average coverage or below-threshold count toward zero.
+
+## Cross-corpus triage
+
+To rank rule-layer gaps across all committed baselines (unhandled reason clusters plus
+syntax/parse failures that coverage metrics can hide):
+
+```bash
+make corpus-hotspots
+uv run python scripts/corpus/aggregate_hotspots.py --top 12
+uv run python scripts/corpus/aggregate_hotspots.py --json-out corpus-reports/hotspots.json
+```
+
+See #152 for the backlog opened from the first triage pass.
