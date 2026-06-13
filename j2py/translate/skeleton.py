@@ -11,6 +11,10 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.rules.static_imports import (
+    is_known_static_method_import,
+    known_static_field_alias,
+)
 
 
 @dataclass
@@ -160,7 +164,7 @@ def _static_import_info(
             todos.append("# TODO(j2py): malformed static import declaration")
             continue
         member = imported_name.rsplit(".", 1)[-1]
-        field_alias = _known_static_field_alias(imported_name)
+        field_alias = known_static_field_alias(imported_name)
         if field_alias is not None:
             field_aliases[member] = field_alias
             diagnostics.record(
@@ -169,7 +173,7 @@ def _static_import_info(
                 reason="translated known static field import",
             )
             continue
-        if _is_known_static_method_import(imported_name):
+        if is_known_static_method_import(imported_name):
             method_imports[member] = imported_name
             diagnostics.record(
                 java_import,
@@ -184,26 +188,3 @@ def _static_import_info(
         )
         todos.append(f"# TODO(j2py): static import {imported_name} - resolve manually")
     return field_aliases, method_imports, todos
-
-
-def _known_static_field_alias(imported_name: str) -> str | None:
-    return {
-        "java.lang.Math.PI": "math.pi",
-        "java.lang.Math.E": "math.e",
-        "java.lang.Integer.MAX_VALUE": "2**31 - 1",
-    }.get(imported_name)
-
-
-def _is_known_static_method_import(imported_name: str) -> bool:
-    return imported_name in {
-        "java.lang.Math.abs",
-        "java.lang.Math.max",
-        "java.lang.Math.min",
-        "java.lang.Math.pow",
-        "java.lang.Math.sqrt",
-        "java.lang.Math.floor",
-        "java.lang.Math.ceil",
-        "java.lang.Math.round",
-        "java.lang.Math.log",
-        "java.util.Collections.unmodifiableList",
-    }

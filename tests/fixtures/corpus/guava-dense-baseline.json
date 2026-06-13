@@ -1,16 +1,16 @@
 {
   "files": [
     {
-      "coverage": 0.8888888888888888,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 8,
+      "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ConsumingQueueIterator.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -53,16 +53,16 @@
       "warning_count": 6
     },
     {
-      "coverage": 0.9523809523809523,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 20,
+      "handled_count": 21,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ComparatorOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -79,16 +79,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9565217391304348,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 22,
+      "handled_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SortedIterables.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -131,16 +131,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9565217391304348,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 22,
+      "handled_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ByFunctionOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -196,16 +196,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9714285714285714,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 34,
+      "handled_count": 35,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/Defaults.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 10
     },
     {
@@ -287,16 +287,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.96,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 24,
+      "handled_count": 25,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/FunctionalEquivalence.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 6
     },
     {
@@ -339,16 +339,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9166666666666666,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 11,
+      "handled_count": 12,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/TransformedIterator.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 5
     },
     {
@@ -417,16 +417,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.9696969696969697,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 32,
+      "handled_count": 33,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/NaturalOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 16
     },
     {
@@ -534,29 +534,29 @@
       "warning_count": 4
     },
     {
-      "coverage": 0.95,
+      "coverage": 0.975,
       "error": "",
-      "handled_count": 38,
+      "handled_count": 39,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableMultiset.java",
       "syntax_ok": false,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:1;method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
       "warning_count": 11
     },
     {
-      "coverage": 0.9459459459459459,
+      "coverage": 0.972972972972973,
       "error": "",
-      "handled_count": 35,
+      "handled_count": 36,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/AbstractIterator.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:2",
-      "unhandled_reasons": "unknown static import com.google.common.base.NullnessCasts.uncheckedCastNullableTToT:1;unknown static import com.google.common.base.Preconditions.checkState:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.base.NullnessCasts.uncheckedCastNullableTToT:1",
       "warning_count": 9
     },
     {
@@ -638,16 +638,16 @@
       "warning_count": 12
     },
     {
-      "coverage": 0.8846153846153846,
+      "coverage": 0.9230769230769231,
       "error": "",
-      "handled_count": 23,
+      "handled_count": 24,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SingletonImmutableList.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:3",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1;unknown static import com.google.common.collect.Iterators.singletonIterator:1;unknown static import java.util.Collections.singleton:1",
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.google.common.collect.Iterators.singletonIterator:1;unknown static import java.util.Collections.singleton:1",
       "warning_count": 14
     },
     {
@@ -729,17 +729,17 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.9375,
+      "coverage": 0.96875,
       "error": "",
-      "handled_count": 30,
+      "handled_count": 31,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/IndexedImmutableSet.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:1;method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import com.google.common.base.Preconditions.checkNotNull:1",
-      "warning_count": 21
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "warning_count": 20
     },
     {
       "coverage": 1.0,
@@ -820,16 +820,16 @@
       "warning_count": 7
     },
     {
-      "coverage": 0.975,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 39,
+      "handled_count": 40,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ReverseOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 25
     },
     {
@@ -846,16 +846,16 @@
       "warning_count": 22
     },
     {
-      "coverage": 0.8333333333333334,
+      "coverage": 0.8666666666666667,
       "error": "",
-      "handled_count": 25,
+      "handled_count": 26,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/FilteredMultimapValues.java",
       "syntax_ok": true,
-      "unhandled_count": 5,
-      "unhandled_node_types": "import_declaration:5",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1;unknown static import com.google.common.base.Predicates.and:1;unknown static import com.google.common.base.Predicates.in:1;unknown static import com.google.common.base.Predicates.not:1;unknown static import com.google.common.collect.Maps.valuePredicateOnEntries:1",
+      "unhandled_count": 4,
+      "unhandled_node_types": "import_declaration:4",
+      "unhandled_reasons": "unknown static import com.google.common.base.Predicates.and:1;unknown static import com.google.common.base.Predicates.in:1;unknown static import com.google.common.base.Predicates.not:1;unknown static import com.google.common.collect.Maps.valuePredicateOnEntries:1",
       "warning_count": 7
     },
     {
@@ -885,16 +885,16 @@
       "warning_count": 7
     },
     {
-      "coverage": 0.9411764705882353,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 16,
+      "handled_count": 17,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/CollectPreconditions.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkState:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -911,16 +911,16 @@
       "warning_count": 22
     },
     {
-      "coverage": 0.9722222222222222,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 35,
+      "handled_count": 36,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/Present.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 15
     },
     {
@@ -963,16 +963,16 @@
       "warning_count": 13
     },
     {
-      "coverage": 0.9696969696969697,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 32,
+      "handled_count": 33,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ReverseNaturalOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 24
     },
     {
@@ -989,16 +989,16 @@
       "warning_count": 8
     },
     {
-      "coverage": 0.9354838709677419,
+      "coverage": 0.967741935483871,
       "error": "",
-      "handled_count": 29,
+      "handled_count": 30,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ImmutableMapKeySet.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:1;method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
       "warning_count": 13
     },
     {
@@ -1015,42 +1015,42 @@
       "warning_count": 17
     },
     {
-      "coverage": 0.9705882352941176,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 33,
+      "handled_count": 34,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/Absent.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 20
     },
     {
-      "coverage": 0.9473684210526315,
+      "coverage": 0.9824561403508771,
       "error": "",
-      "handled_count": 54,
+      "handled_count": 56,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableMap.java",
       "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:3",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1;unknown static import com.google.common.collect.RegularImmutableMap.makeImmutable:1;unknown static import java.util.Objects.requireNonNull:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.collect.RegularImmutableMap.makeImmutable:1",
       "warning_count": 20
     },
     {
-      "coverage": 0.9642857142857143,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 27,
+      "handled_count": 28,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SingletonImmutableTable.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 11
     },
     {
@@ -1171,16 +1171,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.96,
+      "coverage": 0.98,
       "error": "",
-      "handled_count": 48,
+      "handled_count": 49,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ImmutableEnumMap.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:2",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkArgument:1;unknown static import com.google.common.collect.Iterables.getOnlyElement:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.collect.Iterables.getOnlyElement:1",
       "warning_count": 17
     },
     {
@@ -1223,16 +1223,16 @@
       "warning_count": 16
     },
     {
-      "coverage": 0.9302325581395349,
+      "coverage": 0.9534883720930233,
       "error": "",
-      "handled_count": 40,
+      "handled_count": 41,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SingletonImmutableBiMap.java",
       "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:3",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkNotNull:1;unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1;unknown static import com.google.common.collect.Maps.immutableEntry:1",
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1;unknown static import com.google.common.collect.Maps.immutableEntry:1",
       "warning_count": 16
     },
     {
@@ -1318,19 +1318,19 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9573146211015268,
+    "average_coverage": 0.9663206046733227,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 3,
     "files_scanned": 100,
-    "files_with_unhandled": 44,
-    "full_coverage_files": 56,
+    "files_with_unhandled": 30,
+    "full_coverage_files": 70,
     "parse_success_rate": 0.99,
     "syntax_success_rate": 0.95,
     "top_unhandled_node_types": [
       [
         "import_declaration",
-        46
+        22
       ],
       [
         "method_invocation",
@@ -1347,20 +1347,12 @@
     ],
     "top_unhandled_reasons": [
       [
-        "unknown static import com.google.common.base.Preconditions.checkNotNull",
-        20
-      ],
-      [
         "ambiguous get invocation requires receiver collection type",
         13
       ],
       [
         "overloaded method create requires manual dispatch",
         9
-      ],
-      [
-        "unknown static import com.google.common.base.Preconditions.checkState",
-        2
       ],
       [
         "unknown static import com.google.common.collect.Iterators.singletonIterator",
@@ -1419,11 +1411,19 @@
         1
       ],
       [
-        "unknown static import java.util.Objects.requireNonNull",
+        "unknown static import com.google.common.collect.Sets.unmodifiableNavigableSet",
         1
       ],
       [
-        "unknown static import com.google.common.collect.Sets.unmodifiableNavigableSet",
+        "unknown static import com.google.common.collect.Iterables.getOnlyElement",
+        1
+      ],
+      [
+        "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative",
+        1
+      ],
+      [
+        "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull",
         1
       ]
     ]

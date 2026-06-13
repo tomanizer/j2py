@@ -618,6 +618,7 @@ def _translate_static_method_invocation(
         "Long",
         "Math",
         "Objects",
+        "Preconditions",
         "String",
     }
     if receiver not in known_receivers:
@@ -692,6 +693,15 @@ def _translate_static_method_invocation(
             return f"{args[0]} is None"
         if method_name == "nonNull" and len(args) == 1:
             return f"{args[0]} is not None"
+
+    if receiver == "Preconditions":
+        if method_name == "checkNotNull" and args:
+            return args[0]
+        if method_name in {"checkState", "checkArgument"} and args:
+            if len(args) == 1:
+                return f"assert {args[0]}"
+            message = _translate_string_format(args[1:])
+            return f"assert {args[0]}, {message}"
 
     return None
 

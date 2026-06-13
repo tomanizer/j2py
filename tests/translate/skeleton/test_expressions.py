@@ -380,6 +380,62 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
     assert_valid_python(result.source)
 
 
+@pytest.mark.parametrize(
+    ("static_import", "body", "expected"),
+    [
+        (
+            "import static com.google.common.base.Preconditions.checkNotNull;",
+            "return checkNotNull(value);",
+            "return value",
+        ),
+        (
+            "import static java.util.Objects.requireNonNull;",
+            "return requireNonNull(value);",
+            "return value",
+        ),
+        (
+            "import static com.google.common.base.Preconditions.checkNotNull;",
+            "this.value = checkNotNull(value);",
+            "self.value = value",
+        ),
+        (
+            "import static com.google.common.base.Preconditions.checkState;",
+            "checkState(canRemove, \"message\");",
+            'assert can_remove, "message"',
+        ),
+        (
+            "import static com.google.common.base.Preconditions.checkArgument;",
+            "checkArgument(size >= 0);",
+            "assert size >= 0",
+        ),
+    ],
+)
+def test_known_static_import_allowlist_cases(
+    static_import: str,
+    body: str,
+    expected: str,
+) -> None:
+    result = translate_source_with_diagnostics(
+        f"""
+        {static_import}
+
+        public class StaticImportAllowlist {{
+            private Object value;
+
+            public Object apply(Object value, boolean can_remove, int size) {{
+                {body}
+            }}
+        }}
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert expected in result.source
+    assert "# TODO(j2py): static import" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_static_imports_resolve_inside_non_class_type_contexts_and_overloads() -> None:
     result = translate_source_with_diagnostics(
         """
