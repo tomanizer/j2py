@@ -73,6 +73,144 @@ def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
 
 
 
+def test_char_arithmetic_wraps_operands_in_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Chars {
+            public char nextChar(char c) {
+                return (char) (c + 1);
+            }
+
+            public int charCode(char c) {
+                return c + 0;
+            }
+
+            public char toUpper(char c) {
+                return (char) (c - 32);
+            }
+
+            public int distance(char a, char b) {
+                return b - a;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "__j2py_todo__" not in result.source
+    # char + int / char - int wrap the char operand in ord(); narrowing cast adds chr().
+    assert "chr(int(ord(c) + 1) & 0xFFFF)" in result.source
+    assert "return ord(c) + 0" in result.source
+    assert "chr(int(ord(c) - 32) & 0xFFFF)" in result.source
+    # char - char: both operands wrapped.
+    assert "return ord(b) - ord(a)" in result.source
+    assert all(
+        "char arithmetic translated with ord()" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_char_arithmetic_runs_without_type_error() -> None:
+    """Acceptance criterion: translated char arithmetic must not raise TypeError."""
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public char nextChar(char c) {
+                return (char) (c + 1);
+            }
+
+            public int charCode(char c) {
+                return c + 0;
+            }
+
+            public char toUpper(char c) {
+                return (char) (c - 32);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<chars>", "exec"), namespace)
+    chars = namespace["Chars"]()  # type: ignore[operator]
+    assert chars.next_char("a") == "b"
+    assert chars.char_code("a") == 97
+    assert chars.to_upper("a") == "A"
+
+
+def test_char_comparison_is_not_rewritten() -> None:
+    """Single-char str comparison matches Java numeric char ordering; leave it alone."""
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public boolean isUpper(char c) {
+                return c >= 'A' && c <= 'Z';
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "ord(" not in source
+    assert 'c >= "A"' in source
+    assert 'c <= "Z"' in source
+
+
+def test_char_comparison_with_numeric_wraps_in_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Chars {
+            public boolean isControl(char c) {
+                return c < 32;
+            }
+
+            public boolean isZero(Character c) {
+                return c == 0;
+            }
+
+            public boolean isNull(Character c) {
+                return c == null;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return ord(c) < 32" in result.source
+    assert "return ord(c) == 0" in result.source
+    assert "return c is None" in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_char_numeric_comparison_runs_without_type_error() -> None:
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public boolean isControl(char c) {
+                return c < 32;
+            }
+
+            public boolean isZero(Character c) {
+                return c == 0;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<chars>", "exec"), namespace)
+    chars = namespace["Chars"]()  # type: ignore[operator]
+    assert chars.is_control("\n") is True
+    assert chars.is_control("A") is False
+    assert chars.is_zero("\x00") is True
+    assert chars.is_zero("A") is False
+
+
 def test_compound_assignment_translates() -> None:
     python_source, coverage = translate_source(
         """
@@ -1107,7 +1245,7 @@ def test_primitive_int_cast_emits_int_call() -> None:
     )
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "return int(x)" in result.source
+    assert "return int(x)  # cast: (int) - numeric narrowing" in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
@@ -1207,7 +1345,7 @@ def test_reference_cast_emits_typing_cast_with_warning() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "from typing import cast" in result.source
-    assert "return cast(MyType, x)" in result.source
+    assert "return cast(MyType, x)  # cast: (MyType)" in result.source
     assert len(result.diagnostics.warnings) == 1
     assert result.diagnostics.warnings[0].reason == (
         "Java reference cast translated to typing.cast; verify runtime type"
@@ -1224,6 +1362,57 @@ def test_numeric_cast_does_not_emit_typing_cast_import() -> None:
         """,
     )
     assert "from typing import cast" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_cast_expression_comment_is_suppressed_when_line_comments_are_disabled() -> None:
+    cfg = CFG.model_copy(update={"emit_line_comments": False})
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int narrow(double x) { return (int) x; }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "return int(x)" in result.source
+    assert "# cast:" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_local_variable_cast_emits_trailing_comment() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public String name(Object x) {
+                String name = (String) x;
+                return name;
+            }
+        }
+        """,
+    )
+
+    assert "name = cast(str, x)  # cast: (String)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_condition_cast_comment_stays_on_condition_line() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int choose(Object x) {
+                if ((Integer) x > 0) {
+                    return 1;
+                }
+                return 0;
+            }
+        }
+        """,
+    )
+
+    assert "if cast(int, x) > 0:  # cast: (Integer)" in result.source
+    assert "return 1  # cast:" not in result.source
     assert_valid_python(result.source)
 
 

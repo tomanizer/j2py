@@ -8,7 +8,11 @@ from j2py.translate.expressions import infer_expression_py_type, translate_expre
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import element_type_from_container, is_var_type
-from j2py.translate.statements import _translate_local_variable_declaration, translate_body
+from j2py.translate.statements import (
+    _translate_local_variable_declaration,
+    _with_expression_comments,
+    translate_body,
+)
 
 
 def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
@@ -39,7 +43,7 @@ def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: 
         if element_type is not None:
             ctx.variable_types[raw_name] = element_type
     try:
-        lines = [f"{indent}for {py_name} in {iterable}:"]
+        lines = [_with_expression_comments(f"{indent}for {py_name} in {iterable}:", ctx)]
         lines.extend(translate_body(body_node, ctx, indent=f"{indent}    "))
     finally:
         ctx.local_names = previous_locals
@@ -68,7 +72,7 @@ def _translate_if(
     finally:
         ctx.pattern_bindings = previous_bindings
 
-    lines = [f"{indent}{keyword} {condition_text}:"]
+    lines = [_with_expression_comments(f"{indent}{keyword} {condition_text}:", ctx)]
     if consequence is None:
         ctx.diagnostics.record(node, supported=False, reason="if statement without a body")
         lines.append(f"{indent}    pass")
@@ -113,7 +117,12 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
             raw_name, py_name, start, stop = range_loop
             previous_locals = set(ctx.local_names)
             ctx.local_names.add(raw_name)
-            lines = [f"{indent}for {py_name} in range({start}, {stop}):"]
+            lines = [
+                _with_expression_comments(
+                    f"{indent}for {py_name} in range({start}, {stop}):",
+                    ctx,
+                )
+            ]
             lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
             ctx.local_names = previous_locals
             return lines
@@ -131,10 +140,15 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
         )
         while_expr = "True"
 
-    out.append(f"{indent}while {while_expr}:")
+    out.append(_with_expression_comments(f"{indent}while {while_expr}:", ctx))
     out.extend(translate_body(body, ctx, indent=f"{indent}    "))
     if update is not None:
-        out.append(f"{indent}    {translate_expression(update, ctx)}")
+        out.append(
+            _with_expression_comments(
+                f"{indent}    {translate_expression(update, ctx)}",
+                ctx,
+            )
+        )
     return out
 
 
@@ -202,8 +216,8 @@ def _translate_for_initializer(
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
     if node.type == "assignment_expression":
-        return [f"{indent}{translate_expression(node, ctx)}"]
-    return [f"{indent}{translate_expression(node, ctx)}"]
+        return [_with_expression_comments(f"{indent}{translate_expression(node, ctx)}", ctx)]
+    return [_with_expression_comments(f"{indent}{translate_expression(node, ctx)}", ctx)]
 
 
 def _range_loop_parts(
@@ -242,7 +256,12 @@ def _translate_while(node: JavaNode, ctx: TranslationContext, *, indent: str) ->
     ctx.diagnostics.record(node, supported=True, reason="translated while statement")
     condition = node.child_by_field("condition") or node.named_children[0]
     body = node.child_by_field("body") or node.named_children[-1]
-    lines = [f"{indent}while {translate_expression(condition, ctx)}:"]
+    lines = [
+        _with_expression_comments(
+            f"{indent}while {translate_expression(condition, ctx)}:",
+            ctx,
+        )
+    ]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     return lines
 
@@ -256,6 +275,11 @@ def _translate_do_while(node: JavaNode, ctx: TranslationContext, *, indent: str)
         lines.append(f"{indent}    pass")
     else:
         lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
-    lines.append(f"{indent}    if not ({translate_expression(condition, ctx)}):")
+    lines.append(
+        _with_expression_comments(
+            f"{indent}    if not ({translate_expression(condition, ctx)}):",
+            ctx,
+        )
+    )
     lines.append(f"{indent}        break")
     return lines

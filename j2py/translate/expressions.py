@@ -166,6 +166,11 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
                 return _translate_division(node, children[0], children[2], ctx)
             if operator_text == ">>>":
                 return _translate_unsigned_right_shift(node, children[0], children[2], ctx)
+            char_arithmetic = _translate_char_arithmetic(
+                node, children[0], children[2], operator_text, ctx
+            )
+            if char_arithmetic is not None:
+                return char_arithmetic
             binary_operator: str | None
             binary_operator = _translate_binary_operator(operator_text)
             if binary_operator is None:
@@ -282,6 +287,25 @@ def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
     return None
 
 
+def _remember_cast_comment(type_node: JavaNode, ctx: TranslationContext) -> None:
+    if not ctx.cfg.emit_line_comments:
+        return
+    comment = f"cast: ({type_node.text})"
+    if _is_numeric_narrowing_cast(type_node):
+        comment = f"{comment} - numeric narrowing"
+    ctx.pending_expression_comments.append(comment)
+
+
+def _is_numeric_narrowing_cast(type_node: JavaNode) -> bool:
+    return type_node.type in {"integral_type", "floating_point_type"} and type_node.text in {
+        "byte",
+        "short",
+        "int",
+        "float",
+        "char",
+    }
+
+
 def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     children = node.named_children
     if len(children) < 2:
@@ -291,6 +315,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     type_node = children[0]
     value_node = children[-1]
     value_expr = translate_expression(value_node, ctx)
+    _remember_cast_comment(type_node, ctx)
 
     if type_node.type == "floating_point_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
@@ -559,6 +584,18 @@ def _translate_division(
     from j2py.translate.expr_ops import _translate_division as impl
 
     return impl(node, left_node, right_node, ctx)
+
+
+def _translate_char_arithmetic(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    operator: str,
+    ctx: TranslationContext,
+) -> str | None:
+    from j2py.translate.expr_ops import _translate_char_arithmetic as impl
+
+    return impl(node, left_node, right_node, operator, ctx)
 
 
 def _translate_unsigned_right_shift_assign(
