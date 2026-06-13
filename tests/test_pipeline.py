@@ -5,6 +5,7 @@ from pathlib import Path
 
 import j2py.llm.client as llm_client
 import j2py.pipeline as pipeline
+from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import ConfigLoader
 from j2py.pipeline import (
     PARSE_ERROR_LLM_SKIP_MSG,
@@ -494,6 +495,122 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
     assert list(calls[0]) == [output / "com" / "example" / "A.py"]
     assert result.files[0].validation is not None
     assert result.files[0].validation.ok
+
+
+def test_translate_directory_passes_direct_sibling_signatures_to_llm(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "Person.java").write_text(
+        """
+        package com.example;
+
+        public class Person {
+            public int id() {
+                return 1;
+            }
+        }
+        """,
+    )
+    (source / "PersonService.java").write_text(
+        """
+        package com.example;
+
+        import com.example.Person;
+
+        public class PersonService {
+            public Person passthrough(Person person) {
+                return person;
+            }
+
+            public int[][] matrix(int rows, int cols) {
+                return new int[rows][cols];
+            }
+        }
+        """,
+    )
+    contexts: list[str] = []
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        contexts.append(kwargs["context"])
+        return """\
+class PersonService:
+    def passthrough(self, person: Person) -> Person:
+        return person
+
+    def matrix(self, rows: int, cols: int) -> list[list[int]]:
+        return []
+"""
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_directory(
+        source,
+        output,
+        cfg=CFG,
+        use_llm=True,
+        validate=False,
+    )
+
+    assert [path.name for path in result.order] == ["Person.java", "PersonService.java"]
+    service = next(file for file in result.files if file.source_path.name == "PersonService.java")
+    assert service.used_llm
+    assert len(contexts) == 1
+    assert "Already-translated sibling classes:" in contexts[0]
+    assert "- Person: class Person" in contexts[0]
+    assert "id_(self) -> int" in contexts[0]
+
+
+def test_direct_import_signatures_are_package_aware() -> None:
+    symbols = FileSymbols(
+        path=Path("src/com/app/UseHelpers.java"),
+        package="com.app",
+        imports=["org.shared.Helper", "com.wildcard"],
+    )
+
+    result = pipeline._direct_import_signatures(
+        symbols,
+        {
+            "com.app": {"LocalHelper": "class LocalHelper"},
+            "org.shared": {"Helper": "class SharedHelper"},
+            "com.wildcard": {"WildcardHelper": "class WildcardHelper"},
+            "com.other": {"Helper": "class WrongHelper"},
+        },
+    )
+
+    assert result == {
+        "LocalHelper": "class LocalHelper",
+        "Helper": "class SharedHelper",
+        "WildcardHelper": "class WildcardHelper",
+    }
+
+
+def test_extract_python_signatures_includes_varargs_and_keyword_args() -> None:
+    result = pipeline._extract_python_signatures(
+        """\
+class Collector:
+    def collect(
+        self,
+        first: str,
+        *items: str,
+        required: bool,
+        **extra: object,
+    ) -> list[str]:
+        return [first, *items]
+"""
+    )
+
+    assert result == {
+        "Collector": (
+            "class Collector; methods=["
+            "'collect(self, first: str, *items: str, required: bool, "
+            "**extra: object) -> list[str]'"
+            "]"
+        )
+    }
 
 
 def test_translate_directory_surfaces_cycle_warnings(tmp_path: Path) -> None:

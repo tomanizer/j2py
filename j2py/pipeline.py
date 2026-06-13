@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import warnings
 from dataclasses import dataclass
@@ -74,6 +75,7 @@ def _translate_parsed_file(
     model: str,
     validate: bool,
     validation_path: Path,
+    sibling_signatures: dict[str, str] | None = None,
 ) -> TranslationResult:
     """Translate a file using already-parsed AST and symbols."""
     parse_ok = not parsed.has_errors
@@ -105,7 +107,7 @@ def _translate_parsed_file(
         from j2py.llm.client import translate_with_llm
 
         java_source = path.read_text()
-        context = _project_context(symbols)
+        context = _project_context(symbols, sibling_signatures=sibling_signatures)
         diagnostics_context = _diagnostics_context(skeleton_result.diagnostics)
         config_fingerprint = _config_fingerprint(cfg)
 
@@ -242,6 +244,7 @@ def translate_directory(
         ordered = java_files
 
     results: list[TranslationResult] = []
+    sibling_signatures: dict[str, dict[str, str]] = {}
     for path in ordered:
         symbols = symbols_by_path[path]
         parsed = parsed_files[java_files.index(path)]
@@ -250,6 +253,7 @@ def translate_directory(
             symbols.package,
             source_root,
         )
+        direct_sibling_signatures = _direct_import_signatures(symbols, sibling_signatures)
         result = _translate_parsed_file(
             path,
             parsed=parsed,
@@ -259,9 +263,13 @@ def translate_directory(
             model=model,
             validate=False,
             validation_path=output_path,
+            sibling_signatures=direct_sibling_signatures,
         )
         result.output_path = output_path
         results.append(result)
+        sibling_signatures.setdefault(symbols.package, {}).update(
+            _extract_python_signatures(result.python_source)
+        )
 
     if validate:
         validation_results = validate_directory(
@@ -297,10 +305,95 @@ def _output_relative_path(path: Path, package: str, source_root: Path) -> Path:
     return path.relative_to(source_root).with_suffix(".py")
 
 
-def _project_context(symbols: FileSymbols) -> str:
+def _project_context(
+    symbols: FileSymbols,
+    *,
+    sibling_signatures: dict[str, str] | None = None,
+) -> str:
     imports = "\n".join(f"- {item}" for item in symbols.imports) or "- <none>"
     classes = "\n".join(f"- {item.name}" for item in symbols.classes) or "- <none>"
-    return f"package: {symbols.package or '<default>'}\nimports:\n{imports}\nclasses:\n{classes}"
+    parts = [
+        f"package: {symbols.package or '<default>'}",
+        f"imports:\n{imports}",
+        f"classes:\n{classes}",
+    ]
+    if sibling_signatures:
+        sibling_context = "\n".join(
+            f"- {name}: {signature}"
+            for name, signature in sorted(sibling_signatures.items())
+        )
+        parts.append(f"Already-translated sibling classes:\n{sibling_context}")
+    return "\n".join(parts)
+
+
+def _direct_import_signatures(
+    symbols: FileSymbols,
+    sibling_signatures: dict[str, dict[str, str]],
+) -> dict[str, str]:
+    result = dict(sibling_signatures.get(symbols.package, {}))
+    for item in symbols.imports:
+        if item in sibling_signatures:
+            result.update(sibling_signatures[item])
+            continue
+        package, _, class_name = item.rpartition(".")
+        if package and class_name in sibling_signatures.get(package, {}):
+            result[class_name] = sibling_signatures[package][class_name]
+    return result
+
+
+def _extract_python_signatures(python_source: str) -> dict[str, str]:
+    try:
+        tree = ast.parse(python_source)
+    except SyntaxError:
+        return {}
+    return {
+        node.name: _class_signature(node)
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+    }
+
+
+def _class_signature(node: ast.ClassDef) -> str:
+    fields = [
+        item.target.id
+        for item in node.body
+        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
+    ]
+    methods = [
+        _function_signature(item)
+        for item in node.body
+        if isinstance(item, (ast.AsyncFunctionDef, ast.FunctionDef))
+    ]
+    parts = [f"class {node.name}"]
+    if fields:
+        parts.append(f"fields={fields}")
+    if methods:
+        parts.append(f"methods={methods}")
+    return "; ".join(parts)
+
+
+def _function_signature(node: ast.AsyncFunctionDef | ast.FunctionDef) -> str:
+    arg_list: list[str] = []
+    arg_list.extend(_argument_signature(arg) for arg in node.args.posonlyargs)
+    arg_list.extend(_argument_signature(arg) for arg in node.args.args)
+    if node.args.vararg:
+        arg_list.append(f"*{_argument_signature(node.args.vararg)}")
+    elif node.args.kwonlyargs:
+        arg_list.append("*")
+    arg_list.extend(_argument_signature(arg) for arg in node.args.kwonlyargs)
+    if node.args.kwarg:
+        arg_list.append(f"**{_argument_signature(node.args.kwarg)}")
+    args = ", ".join(arg_list)
+    signature = f"{node.name}({args})"
+    if node.returns is not None:
+        signature += f" -> {ast.unparse(node.returns)}"
+    return signature
+
+
+def _argument_signature(arg: ast.arg) -> str:
+    if arg.annotation is None:
+        return arg.arg
+    return f"{arg.arg}: {ast.unparse(arg.annotation)}"
 
 
 def _diagnostics_context(diagnostics: TranslationDiagnostics) -> str:
