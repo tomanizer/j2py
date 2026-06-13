@@ -123,11 +123,17 @@ is used as a realistic, open-source stress test — not as a product scope or ta
 runtime.
 
 ```bash
+make corpus-list-presets       # show pinned presets (Spring, Guava, Jackson, …)
 make corpus-spring-dense-check  # preferred: density sample + construct fixtures vs baseline
 make corpus-spring-dense      # run without baseline comparison
 make corpus-spring-broad      # larger spring-context sample + constructs
+make corpus-guava-dense-check # Guava collect/base dense sample vs baseline
 make corpus-spring            # historical lexical Spring-only baseline
 ```
+
+Presets live in `scripts/corpus/corpus_presets.py`. Clone a checkout with `--clone`
+(or share `.corpus/<name>/` across worktrees). Regenerate a baseline with
+`make corpus-<preset>-update-baseline` after confirming no regressions.
 
 Baseline: `tests/fixtures/corpus/spring-dense-baseline.json`. See
 [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and

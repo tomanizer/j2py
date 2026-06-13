@@ -1,0 +1,570 @@
+{
+  "files": [
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/module-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.9230769230769231,
+      "error": "",
+      "handled_count": 12,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/WriteThroughEntry.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 6
+    },
+    {
+      "coverage": 0.9259259259259259,
+      "error": "",
+      "handled_count": 25,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Weigher.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 5
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 58,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalCacheFactory.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 8
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 23,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Buffer.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.9230769230769231,
+      "error": "",
+      "handled_count": 12,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/stats/DisabledStatsCounter.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 8
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 29,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/WriteOrderDeque.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 19
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 29,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AccessOrderDeque.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 19
+    },
+    {
+      "coverage": 0.9444444444444444,
+      "error": "",
+      "handled_count": 34,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Pacer.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 9
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/stats/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.958904109589041,
+      "error": "",
+      "handled_count": 70,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/SnapshotEntry.java",
+      "syntax_ok": false,
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:1;method_declaration:2",
+      "unhandled_reasons": "overloaded method for_entry requires manual dispatch:2;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 18
+    },
+    {
+      "coverage": 0.975,
+      "error": "",
+      "handled_count": 39,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/stats/GuardedStatsCounter.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 7
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 16,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Ticker.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 4
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 69,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/NodeFactory.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 9
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/RemovalListener.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.984375,
+      "error": "",
+      "handled_count": 63,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/SerializationProxy.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.UNSET_INT:1",
+      "warning_count": 3
+    },
+    {
+      "coverage": 0.9967637540453075,
+      "error": "",
+      "handled_count": 308,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/BoundedBuffer.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "array_type:1",
+      "unhandled_reasons": "unsupported expression array_type:1",
+      "warning_count": 11
+    },
+    {
+      "coverage": 0.9863013698630136,
+      "error": "",
+      "handled_count": 72,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Scheduler.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 14
+    },
+    {
+      "coverage": 0.9466666666666667,
+      "error": "",
+      "handled_count": 71,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalManualCache.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "import_declaration:2;method_invocation:2",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 32
+    },
+    {
+      "coverage": 0.9772727272727273,
+      "error": "",
+      "handled_count": 129,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalLoadingCache.java",
+      "syntax_ok": true,
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:3",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1;unknown static import com.github.benmanes.caffeine.cache.LocalAsyncCache.composeResult:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 16
+    },
+    {
+      "coverage": 0.9866666666666667,
+      "error": "",
+      "handled_count": 74,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Interner.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "warning_count": 24
+    },
+    {
+      "coverage": 0.9782608695652174,
+      "error": "",
+      "handled_count": 45,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/stats/ConcurrentStatsCounter.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 10
+    },
+    {
+      "coverage": 0.971830985915493,
+      "error": "",
+      "handled_count": 69,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Async.java",
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.BoundedLocalCache.MAXIMUM_EXPIRY:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 19
+    },
+    {
+      "coverage": 0.0,
+      "error": "",
+      "handled_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/package-info.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 90,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalCache.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 17
+    },
+    {
+      "coverage": 0.9868421052631579,
+      "error": "",
+      "handled_count": 75,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/FrequencySketch.java",
+      "syntax_ok": false,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument:1",
+      "warning_count": 16
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 4,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncLoadingCache.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 86,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LinkedDeque.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 31
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 4,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Expiry.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.918918918918919,
+      "error": "",
+      "handled_count": 34,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCacheLoader.java",
+      "syntax_ok": false,
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:1;method_invocation:2",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 9
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 14,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/stats/StatsCounter.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "coverage": 0.9516129032258065,
+      "error": "",
+      "handled_count": 59,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/CacheLoader.java",
+      "syntax_ok": false,
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:1;method_invocation:2",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 21
+    },
+    {
+      "coverage": 0.5833333333333334,
+      "error": "",
+      "handled_count": 7,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/RemovalCause.java",
+      "syntax_ok": true,
+      "unhandled_count": 5,
+      "unhandled_node_types": "class_body:5",
+      "unhandled_reasons": "enum constant class body requires manual translation:5",
+      "warning_count": 0
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 5,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LoadingCache.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 2
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCache.java",
+      "syntax_ok": false,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
+    },
+    {
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 15,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Cache.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    }
+  ],
+  "metadata": {
+    "corpus_checkout": "b0723da5976ebb52069f6b0cccfcf44186c3fdf3",
+    "corpus_ref": "v3.1.8",
+    "corpus_remote": "https://github.com/ben-manes/caffeine.git",
+    "include_constructs": false,
+    "include_tests": false,
+    "limit": 100,
+    "max_loc": 250,
+    "min_constructs": 5,
+    "modules": [
+      "caffeine/src/main/java"
+    ],
+    "preset": "caffeine-dense",
+    "strategy": "density"
+  },
+  "summary": {
+    "average_coverage": 0.9672507159651383,
+    "coverage_file_count": 33,
+    "coverage_threshold": 0.8,
+    "files_below_coverage_threshold": 1,
+    "files_scanned": 36,
+    "files_with_unhandled": 18,
+    "full_coverage_files": 15,
+    "parse_success_rate": 1.0,
+    "syntax_success_rate": 0.8611111111111112,
+    "top_unhandled_node_types": [
+      [
+        "import_declaration",
+        21
+      ],
+      [
+        "method_invocation",
+        7
+      ],
+      [
+        "class_body",
+        5
+      ],
+      [
+        "method_declaration",
+        2
+      ],
+      [
+        "array_type",
+        1
+      ]
+    ],
+    "top_unhandled_reasons": [
+      [
+        "unknown static import java.util.Objects.requireNonNull",
+        13
+      ],
+      [
+        "ambiguous get invocation requires receiver collection type",
+        6
+      ],
+      [
+        "enum constant class body requires manual translation",
+        5
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument",
+        2
+      ],
+      [
+        "overloaded method for_entry requires manual dispatch",
+        2
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity",
+        2
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo",
+        1
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.Caffeine.UNSET_INT",
+        1
+      ],
+      [
+        "unsupported expression array_type",
+        1
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.LocalAsyncCache.composeResult",
+        1
+      ],
+      [
+        "equals invocation with unexpected argument count",
+        1
+      ],
+      [
+        "unknown static import com.github.benmanes.caffeine.cache.BoundedLocalCache.MAXIMUM_EXPIRY",
+        1
+      ]
+    ]
+  }
+}

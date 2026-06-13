@@ -1,7 +1,18 @@
-.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov corpus-spring corpus-spring-smoke corpus-spring-update-baseline corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad clean ci-local-pr ci-local-governance build dist-check release-check
+.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov \
+	corpus-list-presets \
+	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
+	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
+	corpus-guava-dense corpus-guava-dense-check corpus-guava-dense-update-baseline \
+	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
+	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
+	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
+	clean ci-local-pr ci-local-governance build dist-check release-check
 
+CORPUS := uv run python scripts/corpus/translate_spring_sample.py
+
+# Legacy alias kept for docs/CI that still reference explicit args.
 SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
-SPRING_DENSE_ARGS := --strategy density --max-loc 250 --min-constructs 5 --include-constructs --baseline $(SPRING_DENSE_BASELINE)
+SPRING_DENSE_ARGS := --preset spring-dense
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
@@ -32,31 +43,65 @@ test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPI
 test-cov:  ## Run tests with coverage report
 	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml
 
+corpus-list-presets:  ## List pinned external Java corpus presets
+	$(CORPUS) --list-presets
+
 corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
-	uv run python scripts/corpus/translate_spring_sample.py --compare-baseline
+	$(CORPUS) --preset spring-lexical --compare-baseline
 
 corpus-spring-smoke:  ## Run a quick 25-file Spring corpus smoke sample without baseline comparison
-	uv run python scripts/corpus/translate_spring_sample.py --limit 25
+	$(CORPUS) --limit 25
 
 corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
-	uv run python scripts/corpus/translate_spring_sample.py --update-baseline --compare-baseline
+	$(CORPUS) --preset spring-lexical --update-baseline --compare-baseline
 
 corpus-spring-dense:  ## Run the preferred dense Spring + curated-construct corpus without comparing the baseline
-	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS)
+	$(CORPUS) $(SPRING_DENSE_ARGS)
 
 corpus-spring-dense-check:  ## Compare the preferred dense Spring + curated-construct corpus against its baseline
-	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS) --compare-baseline --fail-on-regression
+	$(CORPUS) $(SPRING_DENSE_ARGS) --compare-baseline --fail-on-regression
 
 corpus-spring-dense-update-baseline:  ## Regenerate the preferred dense Spring + curated-construct corpus baseline intentionally
-	uv run python scripts/corpus/translate_spring_sample.py $(SPRING_DENSE_ARGS) --update-baseline
+	$(CORPUS) $(SPRING_DENSE_ARGS) --update-baseline
 
-corpus-spring-broad:  ## Broader + more extensive sample (more modules + curated construct files for the new roadmap items)
-	# Note: does not compare to the default baseline (different sampling parameters)
-	uv run python scripts/corpus/translate_spring_sample.py \
-		--module spring-context/src/main/java \
-		--include-constructs \
-		--limit 150 \
-		--strategy density
+corpus-spring-broad:  ## Broader spring-context sample plus construct fixtures (no baseline compare)
+	$(CORPUS) --preset spring-broad
+
+corpus-guava-dense:  ## Run the Guava dense corpus without baseline comparison
+	$(CORPUS) --preset guava-dense
+
+corpus-guava-dense-check:  ## Compare Guava dense corpus against its baseline
+	$(CORPUS) --preset guava-dense --compare-baseline --fail-on-regression
+
+corpus-guava-dense-update-baseline:  ## Regenerate the Guava dense corpus baseline intentionally
+	$(CORPUS) --preset guava-dense --update-baseline
+
+corpus-commons-lang-dense:  ## Run the Commons Lang dense corpus without baseline comparison
+	$(CORPUS) --preset commons-lang-dense
+
+corpus-commons-lang-dense-check:  ## Compare Commons Lang dense corpus against its baseline
+	$(CORPUS) --preset commons-lang-dense --compare-baseline --fail-on-regression
+
+corpus-commons-lang-dense-update-baseline:  ## Regenerate the Commons Lang dense corpus baseline intentionally
+	$(CORPUS) --preset commons-lang-dense --update-baseline
+
+corpus-jackson-dense:  ## Run the Jackson databind dense corpus without baseline comparison
+	$(CORPUS) --preset jackson-dense
+
+corpus-jackson-dense-check:  ## Compare Jackson databind dense corpus against its baseline
+	$(CORPUS) --preset jackson-dense --compare-baseline --fail-on-regression
+
+corpus-jackson-dense-update-baseline:  ## Regenerate the Jackson databind dense corpus baseline intentionally
+	$(CORPUS) --preset jackson-dense --update-baseline
+
+corpus-caffeine-dense:  ## Run the Caffeine dense corpus without baseline comparison
+	$(CORPUS) --preset caffeine-dense
+
+corpus-caffeine-dense-check:  ## Compare Caffeine dense corpus against its baseline
+	$(CORPUS) --preset caffeine-dense --compare-baseline --fail-on-regression
+
+corpus-caffeine-dense-update-baseline:  ## Regenerate the Caffeine dense corpus baseline intentionally
+	$(CORPUS) --preset caffeine-dense --update-baseline
 
 # ── CI local presets ─────────────────────────────────────────────────────────
 # These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,

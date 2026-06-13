@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Run the rule-based skeleton translator against a Spring Framework sample.
+"""Run the rule-based skeleton translator against external Java corpora.
 
 This is a non-CI corpus harness. It never calls the LLM layer; it measures how far the
-deterministic tree-sitter-based skeleton translator gets on real Spring Java files.
+deterministic tree-sitter-based skeleton translator gets on real Java source samples.
+
+Use ``--preset`` for pinned corpora (Spring, Guava, Jackson, etc.) — see
+``scripts/corpus/corpus_presets.py`` or ``--list-presets``.
 """
 
 from __future__ import annotations
@@ -28,6 +31,12 @@ from j2py.analyze.symbols import extract_symbols  # noqa: E402
 from j2py.config.loader import ConfigLoader  # noqa: E402
 from j2py.parse.java_ast import parse_file  # noqa: E402
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics  # noqa: E402
+
+_CORPUS_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_CORPUS_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_CORPUS_SCRIPT_DIR))
+
+from corpus_presets import apply_preset, get_preset, list_preset_names  # noqa: E402
 
 DEFAULT_SPRING_REPO = REPO_ROOT / ".corpus" / "spring-framework"
 DEFAULT_JSON_OUT = REPO_ROOT / "corpus-reports" / "spring-sample.json"
@@ -66,28 +75,38 @@ class FileMetric:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Measure j2py skeleton coverage on a Spring Framework Java sample.",
+        description="Measure j2py skeleton coverage on an external Java corpus sample.",
+    )
+    parser.add_argument(
+        "--preset",
+        choices=list_preset_names(),
+        help="Use a pinned corpus preset (remote, ref, modules, baseline, sampling).",
+    )
+    parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="Print available corpus presets and exit.",
     )
     parser.add_argument(
         "--repo",
         type=Path,
-        default=DEFAULT_SPRING_REPO,
-        help=f"Spring checkout path. Default: {DEFAULT_SPRING_REPO}",
+        default=None,
+        help="Corpus checkout path. Defaults to the preset checkout or .corpus/spring-framework.",
     )
     parser.add_argument(
         "--clone",
         action="store_true",
-        help="Clone Spring Framework into --repo if it is missing.",
+        help="Clone the corpus remote into --repo if it is missing.",
     )
     parser.add_argument(
         "--remote",
-        default=SPRING_REMOTE,
-        help=f"Git remote used with --clone. Default: {SPRING_REMOTE}",
+        default=None,
+        help="Git remote used with --clone.",
     )
     parser.add_argument(
         "--ref",
-        default=SPRING_REF,
-        help=f"Branch/tag/commit to checkout when cloning or refreshing. Default: {SPRING_REF}",
+        default=None,
+        help="Branch/tag/commit to checkout when cloning or refreshing.",
     )
     parser.add_argument(
         "--module",
@@ -101,19 +120,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--limit",
         type=int,
-        default=DEFAULT_LIMIT,
+        default=None,
         help=f"Maximum number of Java files to translate. Default: {DEFAULT_LIMIT}",
     )
     parser.add_argument(
         "--json-out",
         type=Path,
-        default=DEFAULT_JSON_OUT,
+        default=None,
         help=f"Detailed JSON report path. Default: {DEFAULT_JSON_OUT}",
     )
     parser.add_argument(
         "--csv-out",
         type=Path,
-        default=DEFAULT_CSV_OUT,
+        default=None,
         help=f"Per-file CSV report path. Default: {DEFAULT_CSV_OUT}",
     )
     parser.add_argument(
@@ -124,7 +143,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--strategy",
         choices=["lexical", "random", "density"],
-        default="lexical",
+        default=None,
         help=(
             "File selection strategy. 'density' scores files by (distinct AST node types / size) "
             "and prefers small but construct-rich files. 'random' uses a fixed seed for "
@@ -134,13 +153,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-loc",
         type=int,
-        default=0,
+        default=None,
         help="Maximum source lines per file (0 = unlimited). Encourages minimal-size test files.",
     )
     parser.add_argument(
         "--min-constructs",
         type=int,
-        default=0,
+        default=None,
         help=(
             "Minimum number of (handled + unhandled) constructs for a file to be considered "
             "(0 = no filter)."
@@ -158,7 +177,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--baseline",
         type=Path,
-        default=DEFAULT_BASELINE,
+        default=None,
         help=f"Baseline JSON path for compare/update modes. Default: {DEFAULT_BASELINE}",
     )
     parser.add_argument(
@@ -179,23 +198,93 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
+    """Apply preset defaults, then legacy Spring defaults for bare invocations."""
+    if args.list_presets:
+        return args
+
+    raw = {
+        "repo": args.repo,
+        "remote": args.remote,
+        "ref": args.ref,
+        "modules": args.modules,
+        "limit": args.limit,
+        "strategy": args.strategy,
+        "max_loc": args.max_loc,
+        "min_constructs": args.min_constructs,
+        "include_constructs": True if args.include_constructs else None,
+        "include_tests": True if args.include_tests else None,
+        "baseline": args.baseline,
+        "json_out": args.json_out,
+        "csv_out": args.csv_out,
+    }
+
+    if args.preset:
+        resolved = apply_preset(get_preset(args.preset), raw)
+    else:
+        resolved = {
+            **raw,
+            "repo": raw["repo"] or DEFAULT_SPRING_REPO,
+            "remote": raw["remote"] or SPRING_REMOTE,
+            "ref": raw["ref"] or SPRING_REF,
+            "modules": raw["modules"] or list(DEFAULT_MODULES),
+            "limit": raw["limit"] if raw["limit"] is not None else DEFAULT_LIMIT,
+            "strategy": raw["strategy"] or "lexical",
+            "max_loc": raw["max_loc"] if raw["max_loc"] is not None else 0,
+            "min_constructs": raw["min_constructs"] if raw["min_constructs"] is not None else 0,
+            "include_constructs": bool(raw["include_constructs"]),
+            "include_tests": bool(raw["include_tests"]),
+            "baseline": raw["baseline"] or DEFAULT_BASELINE,
+            "json_out": raw["json_out"] or DEFAULT_JSON_OUT,
+            "csv_out": raw["csv_out"] or DEFAULT_CSV_OUT,
+            "preset": None,
+        }
+
+    args.repo = resolved["repo"]
+    args.remote = resolved["remote"]
+    args.ref = resolved["ref"]
+    args.modules = resolved["modules"]
+    args.limit = resolved["limit"]
+    args.strategy = resolved["strategy"]
+    args.max_loc = resolved["max_loc"]
+    args.min_constructs = resolved["min_constructs"]
+    args.include_constructs = resolved["include_constructs"]
+    args.include_tests = resolved["include_tests"]
+    args.baseline = resolved["baseline"]
+    args.json_out = resolved["json_out"]
+    args.csv_out = resolved["csv_out"]
+    args.preset_name = resolved.get("preset")
+    return args
+
+
+def print_preset_catalog() -> None:
+    for name in list_preset_names():
+        preset = get_preset(name)
+        print(f"{name}\t{preset.description}")
+
+
 def main() -> int:
-    args = parse_args()
+    args = resolve_args(parse_args())
+    if args.list_presets:
+        print_preset_catalog()
+        return 0
+
     repo = args.repo.resolve()
 
     if args.clone:
-        ensure_spring_checkout(repo, remote=args.remote, ref=args.ref)
+        ensure_repo_checkout(repo, remote=args.remote, ref=args.ref)
 
     if not repo.exists():
         print(
-            f"Spring checkout not found at {repo}. Re-run with --clone or pass --repo.",
+            f"Corpus checkout not found at {repo}. Re-run with --clone or pass --repo.",
             file=sys.stderr,
         )
         return 2
 
+    modules = tuple(args.modules)
     files = collect_java_files(
         repo,
-        modules=tuple(args.modules or DEFAULT_MODULES),
+        modules=modules,
         limit=args.limit,
         include_tests=args.include_tests,
         strategy=args.strategy,
@@ -212,8 +301,10 @@ def main() -> int:
     summary = summarize(metrics)
     metadata = build_metadata(
         repo=repo,
+        preset=args.preset_name,
+        remote=args.remote,
         requested_ref=args.ref,
-        modules=tuple(args.modules or DEFAULT_MODULES),
+        modules=modules,
         limit=args.limit,
         include_tests=args.include_tests,
         strategy=args.strategy,
@@ -249,7 +340,7 @@ def main() -> int:
     return 0
 
 
-def ensure_spring_checkout(repo: Path, *, remote: str, ref: str) -> None:
+def ensure_repo_checkout(repo: Path, *, remote: str, ref: str) -> None:
     if repo.exists():
         if not (repo / ".git").exists():
             raise SystemExit(f"{repo} exists but is not a git checkout")
@@ -468,6 +559,8 @@ def summarize(metrics: list[FileMetric]) -> dict[str, Any]:
 def build_metadata(
     *,
     repo: Path,
+    preset: str | None,
+    remote: str,
     requested_ref: str,
     modules: tuple[str, ...],
     limit: int,
@@ -477,10 +570,12 @@ def build_metadata(
     min_constructs: int = 0,
     include_constructs: bool = False,
 ) -> dict[str, Any]:
-    return {
-        "spring_remote": SPRING_REMOTE,
-        "spring_ref": requested_ref,
-        "spring_checkout": _git_head(repo),
+    checkout = _git_head(repo)
+    metadata: dict[str, Any] = {
+        "preset": preset,
+        "corpus_remote": remote,
+        "corpus_ref": requested_ref,
+        "corpus_checkout": checkout,
         "modules": list(modules),
         "limit": limit,
         "include_tests": include_tests,
@@ -489,6 +584,11 @@ def build_metadata(
         "min_constructs": min_constructs,
         "include_constructs": include_constructs,
     }
+    if remote == SPRING_REMOTE:
+        metadata["spring_remote"] = remote
+        metadata["spring_ref"] = requested_ref
+        metadata["spring_checkout"] = checkout
+    return metadata
 
 
 def write_json(
@@ -549,6 +649,37 @@ def print_human_summary(summary: dict[str, Any], json_out: Path, csv_out: Path) 
     print(f"CSV report: {csv_out}")
 
 
+def _metadata_comparable_keys(
+    baseline_metadata: dict[str, Any],
+    metadata: dict[str, Any],
+) -> list[str]:
+    ref_key = "corpus_ref" if "corpus_ref" in baseline_metadata else "spring_ref"
+    keys = [
+        ref_key,
+        "modules",
+        "limit",
+        "include_tests",
+        "strategy",
+        "max_loc",
+        "min_constructs",
+        "include_constructs",
+    ]
+    if baseline_metadata.get("preset") and metadata.get("preset"):
+        return ["preset", *keys]
+    return keys
+
+
+def _metadata_mismatches(
+    baseline_metadata: dict[str, Any],
+    metadata: dict[str, Any],
+) -> list[str]:
+    return [
+        key
+        for key in _metadata_comparable_keys(baseline_metadata, metadata)
+        if baseline_metadata.get(key) != metadata.get(key)
+    ]
+
+
 def compare_baseline(
     path: Path,
     *,
@@ -560,20 +691,7 @@ def compare_baseline(
     baseline_summary = baseline["summary"]
     baseline_metadata = baseline.get("metadata", {})
 
-    metadata_mismatches = [
-        key
-        for key in (
-            "spring_ref",
-            "modules",
-            "limit",
-            "include_tests",
-            "strategy",
-            "max_loc",
-            "min_constructs",
-            "include_constructs",
-        )
-        if baseline_metadata.get(key) != metadata.get(key)
-    ]
+    metadata_mismatches = _metadata_mismatches(baseline_metadata, metadata)
 
     deltas: dict[str, dict[str, Any]] = {}
     regressions: list[str] = []
