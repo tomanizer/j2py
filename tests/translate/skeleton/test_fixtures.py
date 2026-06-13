@@ -1,6 +1,5 @@
 """Skeleton translator tests — graduated target fixtures."""
 
-
 from pathlib import Path
 
 import pytest
@@ -107,6 +106,66 @@ def test_import_tracking_ignores_coincidental_strings_and_comments() -> None:
     assert_valid_python(result.source)
 
 
+def test_comment_only_constructor_body_emits_pass() -> None:
+    parsed = parse_source(
+        """
+        public final class Consumers {
+            private Consumers() {
+                // No instances.
+            }
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "    def __init__(self) -> None:" in result.source
+    assert "        # No instances." in result.source
+    assert "        pass" in result.source
+    assert_valid_python(result.source)
+
+
+def test_metadata_only_nested_class_emits_pass() -> None:
+    parsed = parse_source(
+        """
+        interface NodeFactory {
+            final class RetiredStrongKey {
+            }
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "    class RetiredStrongKey:" in result.source
+    assert "        # final" in result.source
+    assert "        pass" in result.source
+    assert_valid_python(result.source)
+
+
+def test_multiline_wildcard_generics_in_signatures_translate_to_valid_annotations() -> None:
+    parsed = parse_source(
+        """
+        import java.util.concurrent.CompletableFuture;
+        import java.util.concurrent.Executor;
+        import java.util.function.BiFunction;
+
+        public interface AsyncCache<K, V> {
+            CompletableFuture<V> get(K key, BiFunction<? super K, ? super Executor,
+              ? extends CompletableFuture<? extends V>> mappingFunction);
+
+            CompletableFuture<Map<K, V>> getAll(Set<K> keys, BiFunction<? super Set<? extends K>,
+              ? super Executor, ? extends CompletableFuture<? extends Map<? extends K,
+              ? extends V>>> mappingFunction);
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "?" not in result.source
+    assert "BiFunction[K, Executor, CompletableFuture[V]]" in result.source
+    assert "BiFunction[set[K], Executor, CompletableFuture[dict[K, V]]]" in result.source
+    assert_valid_python(result.source)
+
+
 def test_import_tracking_respects_disabled_type_hints_for_any_fields() -> None:
     cfg = CFG.model_copy(update={"emit_type_hints": False})
     parsed = parse_source(
@@ -183,9 +242,6 @@ def test_graduated_issue_2_target_fixtures_translate(
     assert_valid_python(result.source)
 
 
-
-
-
 def test_graduated_issue_8_overloads_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "Overloads.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -199,9 +255,6 @@ def test_graduated_issue_8_overloads_target_fixture_translates() -> None:
     assert "def add(self, left: str | int, right: str | int) -> str | int:" in result.source
     assert "return left + right" in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_graduated_issue_44_overload_chains_target_fixture_translates() -> None:
@@ -224,9 +277,6 @@ def test_graduated_issue_44_overload_chains_target_fixture_translates() -> None:
     assert 'def generate(self, name: str, separator: str = "-") -> str:' in result.source
     assert "return self.feature_name_prefix + separator + name" in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> None:
@@ -253,9 +303,6 @@ def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> Non
     # Redefinitions carry the systematic suppressions for mypy and ruff.
     assert result.source.count("# type: ignore[no-redef]  # noqa: F811") == 3
     assert_valid_python(result.source)
-
-
-
 
 
 def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
@@ -306,9 +353,6 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert mode.SAFE.order() == 2
 
 
-
-
-
 def test_graduated_issue_20_functional_stream_target_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "Functional.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -326,9 +370,6 @@ def test_graduated_issue_20_functional_stream_target_translates() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_instanceof_pattern_variable_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "InstanceofExpression.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -339,9 +380,6 @@ def test_instanceof_pattern_variable_target_fixture_translates() -> None:
     assert "text = value" in result.source
     assert "return text.strip()" in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_cast_expression_target_fixture_translates_with_warning() -> None:
@@ -361,14 +399,9 @@ def test_cast_expression_target_fixture_translates_with_warning() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_bitwise_operator_target_fixtures_translate() -> None:
     bitwise = parse_file(FIXTURES / "java" / "targets" / "BitwiseOperators.java")
-    bitwise_result = translate_skeleton_with_diagnostics(
-        bitwise, extract_symbols(bitwise), CFG
-    )
+    bitwise_result = translate_skeleton_with_diagnostics(bitwise, extract_symbols(bitwise), CFG)
 
     assert bitwise_result.coverage == 1.0
     assert not bitwise_result.diagnostics.unhandled
@@ -386,9 +419,7 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert_valid_python(bitwise_result.source)
 
     compound = parse_file(FIXTURES / "java" / "targets" / "CompoundAssignment.java")
-    compound_result = translate_skeleton_with_diagnostics(
-        compound, extract_symbols(compound), CFG
-    )
+    compound_result = translate_skeleton_with_diagnostics(compound, extract_symbols(compound), CFG)
 
     assert compound_result.coverage == 1.0
     assert not compound_result.diagnostics.unhandled
@@ -469,9 +500,6 @@ def test_unsigned_right_shift_resolves_array_element_java_type() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_sized_array_creation_target_fixture_translates() -> None:
     parsed = parse_file(FIXTURES / "java" / "targets" / "ArrayCreation.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -481,9 +509,6 @@ def test_sized_array_creation_target_fixture_translates() -> None:
     assert "return [0] * size" in result.source
     assert "__j2py_todo__" not in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_try_with_resources_target_fixture_translates() -> None:

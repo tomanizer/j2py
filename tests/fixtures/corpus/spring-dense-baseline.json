@@ -37,7 +37,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 10
+      "warning_count": 8
     },
     {
       "coverage": 1.0,
@@ -68,7 +68,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 7,
+      "handled_count": 15,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "tests/fixtures/corpus/constructs/SealedClasses.java",
@@ -128,7 +128,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 2
     },
     {
       "coverage": 1.0,
@@ -1021,7 +1021,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/util/CompositeSet.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -1203,7 +1203,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/util/FilteredSet.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -1220,7 +1220,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "coverage": 1.0,
@@ -1302,6 +1302,9 @@
     }
   ],
   "metadata": {
+    "corpus_checkout": "0c60266986197a191ff33eb498ebc8bac3dc933f",
+    "corpus_ref": "0c60266986197a191ff33eb498ebc8bac3dc933f",
+    "corpus_remote": "https://github.com/spring-projects/spring-framework.git",
     "include_constructs": true,
     "include_tests": false,
     "limit": 100,
@@ -1311,6 +1314,7 @@
       "spring-core/src/main/java",
       "spring-beans/src/main/java"
     ],
+    "preset": "spring-dense",
     "spring_checkout": "0c60266986197a191ff33eb498ebc8bac3dc933f",
     "spring_ref": "0c60266986197a191ff33eb498ebc8bac3dc933f",
     "spring_remote": "https://github.com/spring-projects/spring-framework.git",
@@ -1325,7 +1329,7 @@
     "files_with_unhandled": 0,
     "full_coverage_files": 43,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.98,
+    "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [],
     "top_unhandled_reasons": []
   }

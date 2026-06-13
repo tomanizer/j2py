@@ -20,6 +20,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Comment-only method/constructor bodies and metadata-only nested classes now emit
+  `pass`, and multiline Java wildcard generic signatures normalize to valid Python
+  annotations instead of leaking `?` syntax (#153).
 - LLM calls now send the system prompt as an Anthropic prompt-cache block, enabling
   warm calls to reuse the cached prompt instead of resending the fixed instructions (#116).
 - Static imports for known Java members now resolve at use sites, including

@@ -225,9 +225,8 @@ def translate_class(
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
-        (bool(instance_init_lines) or class_state.needs_instance_lock or requires_outer_self)
-        and not has_constructor
-    )
+        bool(instance_init_lines) or class_state.needs_instance_lock or requires_outer_self
+    ) and not has_constructor
 
     if (
         not members
@@ -236,7 +235,7 @@ def translate_class(
         and not nested_type_lines
         and not needs_synthetic_init
     ):
-        if not docstring_lines and not metadata_lines:
+        if class_body_needs_pass(lines):
             lines.append("    pass")
         return lines
 
@@ -775,10 +774,7 @@ def _translate_annotation_element(
             reason="unsupported annotation element default",
         )
         if cfg.emit_type_hints:
-            return (
-                f"    {py_name}: {py_type} | None = None"
-                f"  # TODO(j2py): unsupported default"
-            )
+            return f"    {py_name}: {py_type} | None = None  # TODO(j2py): unsupported default"
         return f"    {py_name} = None  # TODO(j2py): unsupported default"
 
     diagnostics.record(node, supported=True, reason="translated annotation element")

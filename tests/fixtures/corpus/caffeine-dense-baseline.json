@@ -42,7 +42,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 58,
+      "handled_count": 61,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalCacheFactory.java",
@@ -50,7 +50,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 6
     },
     {
       "coverage": 1.0,
@@ -137,7 +137,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/SnapshotEntry.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 3,
       "unhandled_node_types": "import_declaration:1;method_declaration:2",
       "unhandled_reasons": "overloaded method for_entry requires manual dispatch:2;unknown static import java.util.Objects.requireNonNull:1",
@@ -172,7 +172,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 69,
+      "handled_count": 77,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/NodeFactory.java",
@@ -354,7 +354,7 @@
     {
       "coverage": 1.0,
       "error": "",
-      "handled_count": 86,
+      "handled_count": 51,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LinkedDeque.java",
@@ -362,7 +362,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 31
+      "warning_count": 13
     },
     {
       "coverage": 1.0,
@@ -378,17 +378,17 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.918918918918919,
+      "coverage": 0.9230769230769231,
       "error": "",
-      "handled_count": 34,
+      "handled_count": 24,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCacheLoader.java",
-      "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:1;method_invocation:2",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import java.util.Objects.requireNonNull:1",
-      "warning_count": 9
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:1;method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 3
     },
     {
       "coverage": 1.0,
@@ -404,17 +404,17 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9516129032258065,
+      "coverage": 0.9636363636363636,
       "error": "",
-      "handled_count": 59,
+      "handled_count": 53,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/CacheLoader.java",
-      "syntax_ok": false,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:1;method_invocation:2",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import java.util.Objects.requireNonNull:1",
-      "warning_count": 21
+      "syntax_ok": true,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:1;method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import java.util.Objects.requireNonNull:1",
+      "warning_count": 14
     },
     {
       "coverage": 0.5833333333333334,
@@ -449,7 +449,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCache.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -485,7 +485,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9672507159651383,
+    "average_coverage": 0.9677410633763069,
     "coverage_file_count": 33,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 1,
@@ -493,7 +493,7 @@
     "files_with_unhandled": 18,
     "full_coverage_files": 15,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.8611111111111112,
+    "syntax_success_rate": 0.9722222222222222,
     "top_unhandled_node_types": [
       [
         "import_declaration",
@@ -501,7 +501,7 @@
       ],
       [
         "method_invocation",
-        7
+        5
       ],
       [
         "class_body",
@@ -522,12 +522,12 @@
         13
       ],
       [
-        "ambiguous get invocation requires receiver collection type",
-        6
-      ],
-      [
         "enum constant class body requires manual translation",
         5
+      ],
+      [
+        "ambiguous get invocation requires receiver collection type",
+        4
       ],
       [
         "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument",
