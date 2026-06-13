@@ -163,13 +163,15 @@ Commands mirror the Spring targets:
 
 ```bash
 make corpus-list-presets
+make corpus-clone-all                      # one-time local setup (all presets)
 make corpus-guava-dense-check
 make corpus-guava-dense-update-baseline   # intentional baseline refresh
 uv run python scripts/corpus/translate_spring_sample.py --preset guava-dense --clone
 ```
 
-Checkouts default to `.corpus/<name>/` under the j2py root. Share an existing clone with
-`--repo /path/to/checkout` when working in a git worktree.
+Checkouts live under `.corpus/<name>/` relative to the j2py repo root, or under
+`$J2PY_CORPUS_ROOT/.corpus/` when that environment variable is set (recommended in git
+worktrees so agents share one clone directory on the machine).
 
 Coverage aggregates only include files where the translator recorded at least one
 handled or unhandled construct. Files with no measured constructs, such as

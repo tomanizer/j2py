@@ -14,6 +14,26 @@ uv sync --locked
 
 Python 3.11 required. `uv` manages the virtualenv automatically.
 
+### Benchmark corpus checkouts (optional, not required for `make check`)
+
+External Java samples (Spring, Guava, Jackson, etc.) live in gitignored checkouts under
+`.corpus/`. Clone them once on your main checkout:
+
+```bash
+make corpus-clone-all
+```
+
+When using a **git worktree**, point at the main checkout's clones instead of
+re-downloading:
+
+```bash
+export J2PY_CORPUS_ROOT=/path/to/j2py   # directory that contains .corpus/
+make corpus-guava-dense-check
+```
+
+See [Corpus scoreboard](docs/CORPUS_SCOREBOARD.md) for presets, baselines, and scoreboard
+commands.
+
 ## Workflow
 
 1. **Branch from `main`**: `git checkout -b feat/my-feature`

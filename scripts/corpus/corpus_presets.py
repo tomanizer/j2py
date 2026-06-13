@@ -2,16 +2,36 @@
 
 Each preset defines a git remote/ref, source modules, sampling parameters, and baseline
 path. Use with ``translate_spring_sample.py --preset <name>``.
+
+External git checkouts live under ``<J2PY_CORPUS_ROOT or repo root>/.corpus/<name>/``.
+Set ``J2PY_CORPUS_ROOT`` to the main j2py checkout when working in a git worktree so
+agents and scripts reuse one shared clone directory.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CORPUS_ROOT = REPO_ROOT / ".corpus"
 FIXTURES_CORPUS = REPO_ROOT / "tests" / "fixtures" / "corpus"
+
+# One preset per unique checkout_dir — used by ``make corpus-clone-all``.
+CLONE_PRESET_NAMES: tuple[str, ...] = (
+    "spring-dense",
+    "guava-dense",
+    "commons-lang-dense",
+    "jackson-dense",
+    "caffeine-dense",
+)
+
+
+def corpus_checkout_root() -> Path:
+    """Return the ``.corpus/`` directory that holds external Java checkouts."""
+    override = os.environ.get("J2PY_CORPUS_ROOT", "").strip()
+    root = Path(override).expanduser().resolve() if override else REPO_ROOT
+    return root / ".corpus"
 
 
 @dataclass(frozen=True)
@@ -32,7 +52,7 @@ class CorpusPreset:
 
     @property
     def repo_path(self) -> Path:
-        return CORPUS_ROOT / self.checkout_dir
+        return corpus_checkout_root() / self.checkout_dir
 
     @property
     def json_out(self) -> Path:

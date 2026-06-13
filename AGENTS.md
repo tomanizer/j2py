@@ -60,6 +60,25 @@ markers. Graduated roadmap fixtures under `tests/fixtures/java/targets/` run in
 
 CI runs the same checks. A red CI means `make check` was skipped.
 
+## Benchmark corpus checkouts
+
+Corpus harness presets live in `scripts/corpus/corpus_presets.py`. External Java repos are
+**not** in git — they live under `.corpus/<name>/` (gitignored).
+
+**Before running corpus scoreboards** (`make corpus-*-dense-check`):
+
+1. On the **main** j2py checkout, run once: `make corpus-clone-all`
+2. In a **git worktree**, set `J2PY_CORPUS_ROOT` to the main checkout path so all agents
+   reuse the same clones:
+
+```bash
+export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py
+make corpus-guava-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/guava
+```
+
+Do not re-clone in every worktree unless you intend to. See
+[docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md).
+
 ## New translation rules
 
 Add to `j2py/translate/classes.py`, `statements.py`, `expressions.py`, or pure helpers
