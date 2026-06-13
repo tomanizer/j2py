@@ -88,6 +88,25 @@ Translate a directory in dependency order:
 uv run j2py translate path/to/java/root --output translated_py --no-llm
 ```
 
+Skip unchanged files on repeated directory runs:
+
+```bash
+uv run j2py translate path/to/java/root --output translated_py --incremental
+```
+
+Generate review reports:
+
+```bash
+uv run j2py translate path/to/java/root --output translated_py --dashboard dashboard.html
+uv run j2py translate SomeClass.java --report review.html
+```
+
+Watch a source tree and incrementally re-translate changed Java files:
+
+```bash
+uv run j2py watch path/to/java/root --output translated_py --no-llm
+```
+
 Side-by-side review in VS Code:
 
 ```bash
@@ -105,6 +124,10 @@ LLM completion (requires `ANTHROPIC_API_KEY`):
 ```bash
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```
+
+Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
+`pyproject.toml`, or `j2py_config.py`. See
+[docs/configuration.md](docs/configuration.md) for the schema.
 
 ## Quality gates
 

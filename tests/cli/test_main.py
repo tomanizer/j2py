@@ -214,6 +214,9 @@ def test_cli_translate_directory_exits_nonzero_on_structural_failure(
         use_llm: bool,
         model: str,
         validate: bool,
+        workers: int | None = None,
+        llm_concurrency: int | None = None,
+        incremental: bool = False,
     ) -> pipeline.DirectoryTranslationResult:
         result = pipeline.TranslationResult(
             source_path=source_root / "Sample.java",
@@ -331,10 +334,120 @@ def test_cli_translate_writes_self_contained_review_report(tmp_path: Path) -> No
     assert "Sample.java" in html
     assert "Java" in html
     assert "Python" in html
-    assert "data-provenance=\"rule\"" in html
+    assert 'data-provenance="rule"' in html
     assert "No unresolved rule-layer diagnostics." in html
     assert "https://" not in html
     assert "<script" not in html
+
+
+def test_cli_translate_writes_dashboard_and_state(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text(
+        """
+        package com.example;
+        public class Sample {
+            public String greet() { return "hello"; }
+        }
+        """,
+    )
+    output = tmp_path / "out"
+    dashboard = tmp_path / "dashboard.html"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--output",
+            str(output),
+            "--dashboard",
+            str(dashboard),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (output / ".j2py-state.json").exists()
+    html = dashboard.read_text()
+    assert "Confidence Heatmap" in html
+    assert "Sample.java" in html
+    assert "https://" not in html
+
+
+def test_cli_translate_json_output_is_machine_readable(tmp_path: Path) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"confidence": 1.0' in result.output
+    assert '"todos": []' in result.output
+    assert "Translating" not in result.output
+
+
+def test_cli_translate_incremental_reports_skipped_files(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text("package com.example; public class Sample {}")
+    output = tmp_path / "out"
+    runner = CliRunner()
+
+    first = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+    assert first.exit_code == 0
+
+    second = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--output",
+            str(output),
+            "--incremental",
+        ],
+    )
+
+    assert second.exit_code == 0
+    assert "1 files skipped, 0 re-translated" in second.output
+
+
+def test_cli_dashboard_regenerates_from_state(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text("package com.example; public class Sample {}")
+    output = tmp_path / "out"
+    runner = CliRunner()
+
+    translated = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+    assert translated.exit_code == 0
+
+    dashboard = tmp_path / "regenerated.html"
+    result = runner.invoke(app, ["dashboard", str(output), "--output", str(dashboard)])
+
+    assert result.exit_code == 0
+    assert "Sample.java" in dashboard.read_text()
 
 
 def test_cli_compare_existing_python_skips_translation_and_opens_diff(

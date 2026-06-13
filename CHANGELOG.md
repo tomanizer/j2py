@@ -8,6 +8,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- YAML/TOML/`pyproject.toml` configuration loading with strict schema validation,
+  helpful unknown-key suggestions, and documented config schema (#125).
+- Incremental directory translation state, `j2py watch`, dashboard generation,
+  machine-readable `--json` output, and parallel directory translation worker controls
+  for developer-experience workflows (#126, #127, #128, #129).
 - Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
   emitted as `@abstractmethod` ellipsis stubs (#115).
 - Common Java standard-library static calls and constants now translate to Python

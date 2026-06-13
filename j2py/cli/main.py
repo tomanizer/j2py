@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,7 +18,7 @@ from j2py.pipeline import PARSE_ERROR_LLM_SKIP_MSG
 
 if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
-    from j2py.pipeline import TranslationResult
+    from j2py.pipeline import DirectoryTranslationResult, TranslationResult
     from j2py.validate.checks import ValidationResult
     from j2py.verify.structure import StructuralVerificationResult
 
@@ -52,15 +54,55 @@ def translate(
         "--report",
         help="Write a self-contained HTML side-by-side review report.",
     ),
+    dashboard: Path | None = typer.Option(
+        None,
+        "--dashboard",
+        help="Write a self-contained directory translation dashboard.",
+    ),
+    incremental: bool = typer.Option(
+        False,
+        "--incremental",
+        help="Skip unchanged directory files using .j2py-state.json.",
+    ),
+    workers: int | None = typer.Option(
+        None,
+        "--workers",
+        min=1,
+        help="Directory translation worker threads. Defaults to config workers.",
+    ),
+    llm_concurrency: int | None = typer.Option(
+        None,
+        "--llm-concurrency",
+        min=1,
+        help="Maximum concurrent LLM calls during directory translation.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit machine-readable translation result JSON.",
+    ),
 ) -> None:
     """Translate a Java file or directory tree to Python."""
-    cfg = _load_config(config)
+    cfg = _load_config(config, source if source.is_dir() else source.parent)
 
     if source.is_dir():
-        _translate_dir(source, output or source.parent / (source.name + "_py"),
-                       cfg, llm, model, validate, dry_run, report)
+        _translate_dir(
+            source,
+            output or source.parent / (source.name + "_py"),
+            cfg,
+            llm,
+            model,
+            validate,
+            dry_run,
+            report,
+            dashboard,
+            incremental,
+            workers,
+            llm_concurrency,
+            json_output,
+        )
     else:
-        _translate_single(source, output, cfg, llm, model, validate, dry_run, report)
+        _translate_single(source, output, cfg, llm, model, validate, dry_run, report, json_output)
 
 
 def _translate_single(
@@ -72,38 +114,46 @@ def _translate_single(
     validate: bool,
     dry_run: bool,
     report: Path | None,
+    json_output: bool,
 ) -> None:
     from j2py.pipeline import translate_file
 
-    console.print(f"[bold]Translating[/bold] {source}")
+    if not json_output:
+        console.print(f"[bold]Translating[/bold] {source}")
     result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
-    _print_result_summary(result)
+    if json_output:
+        console.print(json.dumps(_result_payload(result), indent=2, sort_keys=True))
+    else:
+        _print_result_summary(result)
 
     if dry_run:
-        console.print(result.python_source)
+        if not json_output:
+            console.print(result.python_source)
         if _result_has_blocking_issues(result, validate=validate):
             raise typer.Exit(code=1)
         return
 
     dest = output or source.with_suffix(".py")
     dest.write_text(result.python_source)
-    console.print(f"[green]Written:[/green] {dest}")
-    _emit_runtime_module(dest.parent, [result.python_source])
+    if not json_output:
+        console.print(f"[green]Written:[/green] {dest}")
+    _emit_runtime_module(dest.parent, [result.python_source], quiet=json_output)
     if report is not None:
         from j2py.report import write_translation_report
 
         write_translation_report(report, [result])
-        console.print(f"[green]Report:[/green] {report}")
+        if not json_output:
+            console.print(f"[green]Report:[/green] {report}")
 
-    if validate and result.validation is not None:
+    if validate and result.validation is not None and not json_output:
         _print_validation(result.validation)
-    if result.structural_verification is not None:
+    if result.structural_verification is not None and not json_output:
         _print_structural_verification(result.structural_verification)
     if _result_has_blocking_issues(result, validate=validate):
         raise typer.Exit(code=1)
 
 
-def _emit_runtime_module(output_root: Path, sources: list[str]) -> None:
+def _emit_runtime_module(output_root: Path, sources: list[str], *, quiet: bool = False) -> None:
     """Vendor j2py_runtime.py next to translated output when dispatch is used."""
     from j2py.translate.runtime import (
         RUNTIME_IMPORT_LINE,
@@ -115,7 +165,8 @@ def _emit_runtime_module(output_root: Path, sources: list[str]) -> None:
         return
     runtime_path = output_root / f"{RUNTIME_MODULE_NAME}.py"
     runtime_path.write_text(runtime_module_source())
-    console.print(f"[green]Written:[/green] {runtime_path} (overload dispatch runtime)")
+    if not quiet:
+        console.print(f"[green]Written:[/green] {runtime_path} (overload dispatch runtime)")
 
 
 def _translate_dir(
@@ -127,6 +178,11 @@ def _translate_dir(
     validate: bool,
     dry_run: bool,
     report: Path | None,
+    dashboard: Path | None,
+    incremental: bool,
+    workers: int | None,
+    llm_concurrency: int | None,
+    json_output: bool,
 ) -> None:
     from j2py.pipeline import translate_directory
 
@@ -142,42 +198,91 @@ def _translate_dir(
         use_llm=llm,
         model=model,
         validate=validate,
+        workers=workers or cfg.workers,
+        llm_concurrency=llm_concurrency or cfg.llm_concurrency,
+        incremental=incremental,
     )
-    console.print("[bold]Translation order:[/bold]")
-    for index, path in enumerate(batch.order, start=1):
-        console.print(f"  {index}. {path.relative_to(source)}")
-    for warning in batch.warnings:
-        console.print(f"[yellow]Warning:[/yellow] {warning}")
+    if json_output:
+        console.print(json.dumps(_directory_payload(batch), indent=2, sort_keys=True))
+    else:
+        console.print("[bold]Translation order:[/bold]")
+        for index, path in enumerate(batch.order, start=1):
+            console.print(f"  {index}. {path.relative_to(source)}")
+        for warning in batch.warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+        if incremental:
+            console.print(
+                f"[dim]{batch.skipped_count} files skipped, "
+                f"{batch.translated_count} re-translated[/dim]",
+            )
 
     if not dry_run:
         output.mkdir(parents=True, exist_ok=True)
 
-    with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        task = progress.add_task("Writing...", total=len(batch.files))
+    if json_output:
         for result in batch.files:
-            progress.update(task, description=f"[cyan]{result.source_path.name}[/cyan]")
-            _print_result_summary(result)
-            if dry_run:
-                console.print(f"\n[bold]{result.source_path}[/bold]")
-                console.print(result.python_source)
-            elif result.output_path is not None:
+            if not dry_run and result.output_path is not None and not result.skipped:
                 result.output_path.parent.mkdir(parents=True, exist_ok=True)
                 result.output_path.write_text(result.python_source)
-            progress.advance(task)
+    else:
+        with Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), console=console
+        ) as progress:
+            task = progress.add_task("Writing...", total=len(batch.files))
+            for result in batch.files:
+                progress.update(task, description=f"[cyan]{result.source_path.name}[/cyan]")
+                _print_result_summary(result)
+                if dry_run:
+                    console.print(f"\n[bold]{result.source_path}[/bold]")
+                    console.print(result.python_source)
+                elif result.output_path is not None and not result.skipped:
+                    result.output_path.parent.mkdir(parents=True, exist_ok=True)
+                    result.output_path.write_text(result.python_source)
+                progress.advance(task)
 
     if not dry_run:
-        _emit_runtime_module(output, [result.python_source for result in batch.files])
+        from j2py.state import entry_from_result, load_state, save_state, source_key
+
+        _emit_runtime_module(
+            output,
+            [result.python_source for result in batch.files],
+            quiet=json_output,
+        )
+        previous_entries = load_state(output)
+        entries = {}
+        for result in batch.files:
+            key = source_key(result.source_path, source)
+            if result.skipped and key in previous_entries:
+                entries[key] = previous_entries[key]
+            else:
+                entries[key] = entry_from_result(
+                    result,
+                    source_root=source,
+                    output_root=output,
+                )
+        save_state(output, entries)
         if report is not None:
             from j2py.report import write_translation_report
 
             write_translation_report(report, batch.files)
-            console.print(f"[green]Report:[/green] {report}")
+            if not json_output:
+                console.print(f"[green]Report:[/green] {report}")
+        if dashboard is not None:
+            from j2py.dashboard import write_dashboard_for_results
 
-    console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
+            write_dashboard_for_results(
+                dashboard,
+                batch.files,
+                source_root=source,
+                output_root=output,
+            )
+            if not json_output:
+                console.print(f"[green]Dashboard:[/green] {dashboard}")
+
+    if not json_output:
+        console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
     failures = [
-        result
-        for result in batch.files
-        if _result_has_blocking_issues(result, validate=validate)
+        result for result in batch.files if _result_has_blocking_issues(result, validate=validate)
     ]
     if failures:
         console.print("[yellow]Translation verification failures:[/yellow]")
@@ -188,6 +293,70 @@ def _translate_dir(
             if result.structural_verification is not None:
                 _print_structural_verification(result.structural_verification)
         raise typer.Exit(code=1)
+
+
+@app.command()
+def dashboard(
+    output_root: Path = typer.Argument(..., help="Directory containing .j2py-state.json."),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Dashboard HTML path. Defaults to <output-root>/dashboard.html.",
+    ),
+) -> None:
+    """Regenerate a dashboard from an existing translation state file."""
+    from j2py.dashboard import write_dashboard_from_state
+
+    dashboard_path = output or output_root / "dashboard.html"
+    write_dashboard_from_state(output_root, dashboard_path)
+    console.print(f"[green]Dashboard:[/green] {dashboard_path}")
+
+
+@app.command()
+def watch(
+    source: Path = typer.Argument(..., help="Java file or directory to watch."),
+    output: Path = typer.Option(..., "--output", "-o", help="Output file or directory."),
+    config: list[Path] = typer.Option(
+        [], "--config", "-c", help="Extra config file(s) to layer on top of defaults."
+    ),
+    llm: bool = typer.Option(
+        True,
+        "--llm/--no-llm",
+        help="Use LLM completion for unresolved logic.",
+    ),
+    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model ID to use."),
+    validate: bool = typer.Option(
+        True, "--validate/--no-validate", help="Run mypy + ruff on output."
+    ),
+    poll_interval: float = typer.Option(
+        0.5,
+        "--poll-interval",
+        min=0.1,
+        help="Polling interval in seconds.",
+    ),
+) -> None:
+    """Watch Java sources and incrementally re-translate changes until interrupted."""
+    cfg = _load_config(config, source if source.is_dir() else source.parent)
+    console.print(f"[bold]Watching[/bold] {source} → {output}")
+    seen = _java_hashes(source)
+    _run_watch_translation(source, output, cfg, llm, model, validate)
+    try:
+        while True:
+            time.sleep(poll_interval)
+            current = _java_hashes(source)
+            changed = sorted(path for path, digest in current.items() if seen.get(path) != digest)
+            removed = sorted(path for path in seen if path not in current)
+            if changed or removed:
+                timestamp = time.strftime("%H:%M:%S")
+                for path in changed:
+                    console.print(f"[{timestamp}] Changed {path.name}")
+                for path in removed:
+                    console.print(f"[{timestamp}] Removed {path.name}")
+                _run_watch_translation(source, output, cfg, llm, model, validate)
+                seen = current
+    except KeyboardInterrupt:
+        console.print("[yellow]Stopped.[/yellow]")
 
 
 @app.command()
@@ -229,10 +398,7 @@ def _print_class_inventory(cls: ClassSymbol, *, indent: int) -> None:
 def _format_class_inventory_line(cls: ClassSymbol, *, indent: int) -> str:
     kind = _class_kind(cls)
     padding = " " * indent
-    return (
-        f"{padding}{cls.name} ({kind}) — "
-        f"{len(cls.methods)} methods, {len(cls.fields)} fields"
-    )
+    return f"{padding}{cls.name} ({kind}) — {len(cls.methods)} methods, {len(cls.fields)} fields"
 
 
 def _class_kind(cls: ClassSymbol) -> str:
@@ -334,7 +500,7 @@ def compare(
     else:
         from j2py.pipeline import translate_file
 
-        cfg = _load_config(config)
+        cfg = _load_config(config, source.parent)
         console.print(f"[bold]Translating[/bold] {source}")
         result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
         _print_result_summary(result)
@@ -393,13 +559,151 @@ def _print_manual_diff(source: Path, py_path: Path, args: list[str], message: st
     console.print(f"Python: {py_path}", soft_wrap=True)
 
 
-def _load_config(config: list[Path]) -> TranslationConfig:
-    from j2py.config.loader import ConfigLoader
+def _load_config(config: list[Path], auto_root: Path | None = None) -> TranslationConfig:
+    from j2py.config.loader import ConfigError, ConfigLoader
 
     loader = ConfigLoader().add_defaults()
-    for c in config:
-        loader.add_file(c)
-    return loader.build()
+    try:
+        if config:
+            for c in config:
+                loader.add_file(c)
+        elif auto_root is not None:
+            loader.add_auto_discovered(auto_root)
+        return loader.build()
+    except ConfigError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from exc
+
+
+def _result_payload(result: TranslationResult) -> dict[str, object]:
+    validation = result.validation
+    structural = result.structural_verification
+    diagnostics = result.diagnostics
+    return {
+        "file": str(result.source_path),
+        "output": str(result.output_path) if result.output_path else None,
+        "confidence": result.confidence,
+        "used_llm": result.used_llm,
+        "skipped": result.skipped,
+        "parse_ok": result.parse_ok,
+        "validation": None
+        if validation is None
+        else {
+            "syntax": validation.syntax_ok,
+            "ruff": validation.ruff_ok,
+            "mypy": validation.mypy_ok,
+            "ok": validation.ok,
+            "errors": validation.syntax_errors + validation.ruff_errors + validation.mypy_errors,
+        },
+        "structural_verification": None
+        if structural is None
+        else {
+            "ok": structural.ok,
+            "errors": structural.errors,
+        },
+        "todos": _todo_lines(result.python_source),
+        "unhandled": []
+        if diagnostics is None
+        else [
+            {
+                "line": item.line,
+                "node_type": item.node_type,
+                "reason": item.reason,
+                "text": item.text,
+            }
+            for item in diagnostics.unhandled
+        ],
+    }
+
+
+def _directory_payload(batch: DirectoryTranslationResult) -> dict[str, object]:
+    return {
+        "source_root": str(batch.source_root),
+        "output_root": str(batch.output_root),
+        "skipped": batch.skipped_count,
+        "translated": batch.translated_count,
+        "warnings": batch.warnings,
+        "files": [_result_payload(result) for result in batch.files],
+    }
+
+
+def _todo_lines(source: str) -> list[str]:
+    return [
+        line.strip()
+        for line in source.splitlines()
+        if "TODO(j2py)" in line or "__j2py_todo__" in line
+    ]
+
+
+def _java_hashes(source: Path) -> dict[Path, str]:
+    from j2py.state import sha256_file
+
+    files = sorted(source.rglob("*.java")) if source.is_dir() else [source]
+    return {path: sha256_file(path) for path in files if path.exists()}
+
+
+def _run_watch_translation(
+    source: Path,
+    output: Path,
+    cfg: TranslationConfig,
+    llm: bool,
+    model: str,
+    validate: bool,
+) -> None:
+    from j2py.pipeline import translate_directory, translate_file
+
+    if source.is_dir():
+        batch = translate_directory(
+            source,
+            output,
+            cfg=cfg,
+            use_llm=llm,
+            model=model,
+            validate=validate,
+            incremental=True,
+            workers=cfg.workers,
+            llm_concurrency=cfg.llm_concurrency,
+        )
+        output.mkdir(parents=True, exist_ok=True)
+        for result in batch.files:
+            if result.output_path is not None and not result.skipped:
+                result.output_path.parent.mkdir(parents=True, exist_ok=True)
+                result.output_path.write_text(result.python_source)
+        _emit_runtime_module(output, [result.python_source for result in batch.files])
+        from j2py.state import entry_from_result, load_state, save_state, source_key
+
+        previous_entries = load_state(output)
+        entries = {}
+        for result in batch.files:
+            key = source_key(result.source_path, source)
+            if result.skipped and key in previous_entries:
+                entries[key] = previous_entries[key]
+            else:
+                entries[key] = entry_from_result(
+                    result,
+                    source_root=source,
+                    output_root=output,
+                )
+        save_state(
+            output,
+            entries,
+        )
+        timestamp = time.strftime("%H:%M:%S")
+        console.print(
+            f"[{timestamp}] {batch.skipped_count} files skipped, "
+            f"{batch.translated_count} re-translated",
+        )
+        return
+
+    result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(result.python_source)
+    _emit_runtime_module(output.parent, [result.python_source])
+    timestamp = time.strftime("%H:%M:%S")
+    console.print(
+        f"[{timestamp}] Translated {source.name} → {output.name} "
+        f"(confidence: {result.confidence:.0%})",
+    )
 
 
 def _print_result_summary(result: TranslationResult) -> None:
@@ -438,14 +742,9 @@ def _print_structural_verification(verification: StructuralVerificationResult) -
 
 
 def _result_has_blocking_issues(result: TranslationResult, *, validate: bool) -> bool:
-    validation_failed = (
-        validate
-        and result.validation is not None
-        and not result.validation.ok
-    )
+    validation_failed = validate and result.validation is not None and not result.validation.ok
     structural_failed = (
-        result.structural_verification is not None
-        and not result.structural_verification.ok
+        result.structural_verification is not None and not result.structural_verification.ok
     )
     return validation_failed or structural_failed
 

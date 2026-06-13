@@ -12,6 +12,7 @@ from j2py.pipeline import (
     translate_directory,
     translate_file,
 )
+from j2py.state import entry_from_result, save_state, source_key
 from j2py.validate.checks import ValidationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -200,10 +201,7 @@ def test_post_llm_feedback_adds_targeted_repair_hints() -> None:
         path=validation_path,
         syntax_ok=True,
         mypy_errors=[
-            (
-                f"{validation_path}:1: error: Unused \"type: ignore\" comment  "
-                "[unused-ignore]"
-            ),
+            (f'{validation_path}:1: error: Unused "type: ignore" comment  [unused-ignore]'),
             (
                 f"{validation_path}:2: error: Overloaded function signature 2 will never be "
                 "matched: signature 1's parameter type(s) are the same or broader "
@@ -625,3 +623,93 @@ def test_translate_directory_surfaces_cycle_warnings(tmp_path: Path) -> None:
     assert sorted(path.name for path in result.order) == ["A.java", "B.java"]
     assert result.warnings
     assert "Circular dependencies" in result.warnings[0]
+
+
+def test_translate_directory_incremental_skips_unchanged_outputs(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "Base.java").write_text("package com.example; public class Base {}")
+    (source / "Child.java").write_text(
+        """
+        package com.example;
+        import com.example.Base;
+        public class Child extends Base {}
+        """,
+    )
+
+    first = translate_directory(source, output, cfg=CFG, use_llm=False, validate=False)
+    for result in first.files:
+        assert result.output_path is not None
+        result.output_path.parent.mkdir(parents=True, exist_ok=True)
+        result.output_path.write_text(result.python_source)
+    save_state(
+        output,
+        {
+            source_key(result.source_path, source): entry_from_result(
+                result,
+                source_root=source,
+                output_root=output,
+            )
+            for result in first.files
+        },
+    )
+
+    second = translate_directory(
+        source,
+        output,
+        cfg=CFG,
+        use_llm=False,
+        validate=False,
+        incremental=True,
+    )
+
+    assert second.skipped_count == 2
+    assert second.translated_count == 0
+    assert all(result.skipped for result in second.files)
+
+    (source / "Base.java").write_text(
+        "package com.example; public class Base { public int id() { return 1; } }",
+    )
+
+    third = translate_directory(
+        source,
+        output,
+        cfg=CFG,
+        use_llm=False,
+        validate=False,
+        incremental=True,
+    )
+
+    assert third.skipped_count == 0
+    assert third.translated_count == 2
+    assert not any(result.skipped for result in third.files)
+
+
+def test_translate_directory_workers_one_matches_parallel_output(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "A.java").write_text("package com.example; public class A {}")
+    (source / "B.java").write_text("package com.example; public class B {}")
+    cfg = ConfigLoader().add_defaults().build()
+
+    sequential = translate_directory(
+        source,
+        tmp_path / "out1",
+        cfg=cfg,
+        use_llm=False,
+        validate=False,
+        workers=1,
+    )
+    parallel = translate_directory(
+        source,
+        tmp_path / "out2",
+        cfg=cfg,
+        use_llm=False,
+        validate=False,
+        workers=4,
+    )
+
+    assert [item.python_source for item in sequential.files] == [
+        item.python_source for item in parallel.files
+    ]

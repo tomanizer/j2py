@@ -15,3 +15,8 @@ build/
 .DS_Store
 .corpus/
 corpus-reports/
+.j2py-state.json
+dashboard.html
+packages/j2py-vscode/node_modules/
+packages/j2py-vscode/out/
+packages/j2py-vscode/*.vsix

@@ -1,0 +1,74 @@
+{
+  "name": "j2py-vscode",
+  "displayName": "j2py",
+  "description": "Review Java-to-Python translations with j2py diagnostics and translate-on-save.",
+  "version": "0.1.0",
+  "publisher": "tomanizer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomanizer/j2py.git",
+    "directory": "packages/j2py-vscode"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:java",
+    "onLanguage:python",
+    "onCommand:j2py.translateFile",
+    "onCommand:j2py.openSideBySide"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "j2py.translateFile",
+        "title": "j2py: Translate Current File"
+      },
+      {
+        "command": "j2py.openSideBySide",
+        "title": "j2py: Open Side-by-Side"
+      }
+    ],
+    "configuration": {
+      "title": "j2py",
+      "properties": {
+        "j2py.executable": {
+          "type": "string",
+          "default": "j2py",
+          "description": "Path to the j2py CLI executable."
+        },
+        "j2py.outputDirectory": {
+          "type": "string",
+          "default": "${workspaceFolder}/j2py-output",
+          "description": "Directory where translated Python files are written."
+        },
+        "j2py.translateOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Translate Java files automatically when they are saved."
+        },
+        "j2py.useLlm": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow LLM completion during editor-triggered translation."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.15.0",
+    "typescript": "^5.4.0"
+  }
+}
