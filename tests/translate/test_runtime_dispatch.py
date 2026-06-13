@@ -101,6 +101,23 @@ def test_arity_distinguishes_overloads() -> None:
     assert Pad().pad("a") == "a "
 
 
+def test_staticmethod_dispatch_does_not_bind_instance_receiver() -> None:
+    class Names:
+        @staticmethod
+        @overloaded
+        def get(value: object) -> str:
+            return "object"
+
+        @staticmethod
+        @overloaded  # noqa: F811
+        def get(value: str) -> str:  # noqa: F811
+            return value
+
+    assert Names.get(object()) == "object"
+    assert Names.get("name") == "name"
+    assert Names().get("name") == "name"
+
+
 def test_constructor_dispatch_supports_delegation_via_self_init() -> None:
     class Context:
         @overloaded

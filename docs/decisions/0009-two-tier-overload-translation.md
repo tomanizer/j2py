@@ -1,7 +1,8 @@
 # ADR 0009 — Two-tier overload translation with runtime dispatch
 
 **Date:** 2026-06-11
-**Status:** Accepted (extends ADR 0006)
+**Status:** Accepted (extends ADR 0006; extended by
+[ADR 0013](0013-static-overload-dispatch.md))
 
 ## Context
 

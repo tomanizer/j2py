@@ -132,7 +132,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Layered rule → LLM pipeline | [ADR 0003](decisions/0003-layered-translation-pipeline.md) |
 | Claude (Anthropic) as LLM backend | [ADR 0004](decisions/0004-claude-as-llm-backend.md) |
 | Python 3.11+ output with type hints | [ADR 0005](decisions/0005-python-311-target-with-type-hints.md) |
-| Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md) |
+| Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md), [ADR 0009](decisions/0009-two-tier-overload-translation.md), [ADR 0013](decisions/0013-static-overload-dispatch.md) |
 | Type declaration translation | [ADR 0007](decisions/0007-type-declaration-translation.md) |
 | Post-LLM structural verification | [ADR 0010](decisions/0010-post-llm-structural-verification.md) |
 
