@@ -96,6 +96,7 @@ def _translate_block_lambda(node: JavaNode, ctx: TranslationContext) -> str:
         sig_parts: list[str] = []
         for _raw, py_name, py_type in params:
             if ctx.cfg.emit_type_hints and py_type:
+                ctx.diagnostics.imports.need_type_annotation(py_type)
                 sig_parts.append(f"{py_name}: {py_type}")
             else:
                 sig_parts.append(py_name)

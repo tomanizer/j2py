@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from j2py.analyze.symbols import FileSymbols
@@ -10,11 +9,6 @@ from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
 from j2py.translate.classes import top_level_classes, translate_class
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.translate.runtime import (
-    RUNTIME_IMPORT_LINE,
-    RUNTIME_MONITOR_IMPORT_LINE,
-    RUNTIME_TODO_IMPORT_LINE,
-)
 
 
 @dataclass
@@ -67,7 +61,7 @@ def translate_skeleton_with_diagnostics(
         )
 
     lines = ["from __future__ import annotations"]
-    import_lines = _import_lines(parsed, cfg, class_blocks, static_import_todos)
+    import_lines = _import_lines(parsed, cfg, diagnostics, static_import_todos)
     if import_lines:
         lines.append("")
         lines.extend(import_lines)
@@ -89,7 +83,7 @@ def translate_skeleton_with_diagnostics(
 def _import_lines(
     parsed: ParsedFile,
     cfg: TranslationConfig,
-    class_blocks: list[list[str]],
+    diagnostics: TranslationDiagnostics,
     static_import_todos: list[str] | None = None,
 ) -> list[str]:
     imports: set[str] = set()
@@ -103,38 +97,8 @@ def _import_lines(
         if mapped:
             imports.update(line for line in mapped.splitlines() if line.strip())
 
-    flattened = "\n".join(line for block in class_blocks for line in block)
-    stripped_lines = {line.strip() for block in class_blocks for line in block}
-    if "@dataclass(frozen=True)" in flattened:
-        imports.add("from dataclasses import dataclass")
-    if "Enum):" in flattened:
-        imports.add("from enum import Enum")
-    if "@overloaded" in stripped_lines:
-        imports.add(RUNTIME_IMPORT_LINE)
-    if "__j2py_todo__" in flattened:
-        imports.add(RUNTIME_TODO_IMPORT_LINE)
-    if re.search(r"\bABC\)", flattened) or "@abstractmethod" in stripped_lines:
-        imports.add("from abc import ABC, abstractmethod")
-
-    typing_names: set[str] = set()
-    if "Any" in flattened:
-        typing_names.add("Any")
-    if re.search(r"(?<!\w)cast\(", flattened):
-        typing_names.add("cast")
-    if "(Protocol):" in flattened:
-        typing_names.add("Protocol")
-    if "@overload" in stripped_lines:
-        typing_names.add("overload")
-    if typing_names:
-        imports.add(f"from typing import {', '.join(sorted(typing_names))}")
-    if "_j2py_monitor(" in flattened:
-        imports.add(RUNTIME_MONITOR_IMPORT_LINE)
-    if "_j2py_lock" in flattened or "threading.Lock" in flattened:
-        imports.add("import threading")
-    if re.search(r"(?<!\w)math\.", flattened):
-        imports.add("import math")
+    imports.update(diagnostics.imports.render())
     imports.update(static_import_todos or [])
-
     return sorted(imports)
 
 

@@ -177,6 +177,10 @@ def translate_class(
     )
     class_method_names = _member_method_names(members, cfg)
     class_state = ClassTranslationState(needs_instance_lock=class_uses_synchronized_this(node))
+    if class_state.needs_instance_lock:
+        diagnostics.imports.need_threading()
+    if "abstract" in _modifiers(node):
+        diagnostics.imports.need_abc()
     lock_init_lines = [instance_lock_init_line()] if class_state.needs_instance_lock else []
 
     lines = [f"class {class_name}{_base_suffix(node)}:"]
@@ -287,6 +291,7 @@ def _translate_interface(
     static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated interface declaration")
+    diagnostics.imports.need_typing("Protocol")
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     body = node.child_by_field("body")
@@ -321,10 +326,16 @@ def _translate_interface(
             continue
 
         diagnostics.record(method, supported=True, reason="translated abstract interface method")
+        params = _parameter_infos(method, cfg)
+        return_type = _return_type(method, cfg)
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(return_type)
+            for param in params:
+                diagnostics.imports.need_type_annotation(param.py_type)
         signature = _signature(
             _member_python_name(method),
-            _parameter_infos(method, cfg),
-            return_type=_return_type(method, cfg),
+            params,
+            return_type=return_type,
             include_self="static" not in _modifiers(method),
             emit_type_hints=cfg.emit_type_hints,
         )
@@ -345,6 +356,7 @@ def _translate_enum(
     static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated enum declaration")
+    diagnostics.imports.need_enum()
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     body = node.child_by_field("body")
@@ -391,6 +403,8 @@ def _translate_enum(
 
     for field in fields:
         diagnostics.record(field.node, supported=True, reason="translated enum field declaration")
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(field.py_type)
         lines.append(f"    {_field_assignment(field.py_name, field.py_type, cfg)}")
 
     for group in _member_groups(members):
@@ -524,9 +538,12 @@ def _translate_record(
     static_method_imports: dict[str, str],
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated record declaration")
+    diagnostics.imports.need_dataclass()
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     params = _parameter_infos(node, cfg)
+    for param in params:
+        diagnostics.imports.need_type_annotation(param.py_type)
 
     lines = ["@dataclass(frozen=True)", f"class {class_name}:"]
     if not params:
@@ -585,6 +602,7 @@ def _translate_annotation_declaration(
             if cfg.emit_line_comments:
                 lines.append(f"# {annotation.text.strip()}")
 
+    diagnostics.imports.need_dataclass()
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
 
     body = node.child_by_field("body")
@@ -648,6 +666,8 @@ def _translate_annotation_element(
 
     py_name = translate_field_name(name_node.text, snake_case=cfg.snake_case_fields)
     py_type = _annotation_element_py_type(type_node, cfg)
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(py_type)
     default_node = _annotation_element_default_node(node)
     if default_node is None:
         diagnostics.record(node, supported=True, reason="translated annotation element")
@@ -940,6 +960,8 @@ def _translate_method(
         else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
     )
     return_type = "None" if is_constructor else _return_type(node, ctx.cfg)
+    if ctx.cfg.emit_type_hints:
+        ctx.diagnostics.imports.need_type_annotation(return_type)
     params = _params(node, ctx)
     if not is_static:
         params.insert(0, "self")
@@ -951,6 +973,7 @@ def _translate_method(
     if is_static:
         lines.append("    @staticmethod")
     if is_abstract:
+        ctx.diagnostics.imports.need_abc()
         lines.append("    @abstractmethod")
     returns = f" -> {return_type}" if ctx.cfg.emit_type_hints else ""
     lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
@@ -1125,6 +1148,7 @@ def _params(node: JavaNode, ctx: TranslationContext) -> list[str]:
         _register_param(ctx, param)
         prefix = "*" if param.is_spread else ""
         if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(param.py_type)
             params.append(f"{prefix}{param.py_name}: {param.py_type}")
         else:
             params.append(f"{prefix}{param.py_name}")
