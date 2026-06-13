@@ -633,16 +633,6 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
         # key mapper from first arg to groupingBy; value is the post-map item
         grouping_args = _collector_invocation_arguments(terminal_arg)
         if collector_arg_count == 2:
-            if len(grouping_args) < 2:
-                ctx.diagnostics.record(
-                    node,
-                    supported=False,
-                    reason=(
-                        "Collectors.groupingBy with downstream collector "
-                        "requires manual translation"
-                    ),
-                )
-                return None
             downstream = grouping_args[1]
             if not _is_collectors_mapping_to_list_identity(downstream, item_name, ctx):
                 ctx.diagnostics.record(
@@ -909,6 +899,27 @@ def _is_stream_identity_mapper(
     if arg.type == "lambda_expression":
         mapped = _lambda_body_expression(arg, ctx, default_alias=item_name)
         return mapped == item_name
+    return _is_function_identity(arg)
+
+
+def _is_function_identity(arg: JavaNode) -> bool:
+    if arg.type == "method_invocation":
+        receiver = arg.child_by_field("object")
+        name = arg.child_by_field("name")
+        return (
+            receiver is not None
+            and receiver.text == "Function"
+            and name is not None
+            and name.text == "identity"
+            and _method_invocation_arg_count(arg) == 0
+        )
+    if arg.type == "method_reference":
+        named = arg.named_children
+        return (
+            len(named) >= 2
+            and named[0].text == "Function"
+            and named[-1].text == "identity"
+        )
     return False
 
 
@@ -948,7 +959,7 @@ def _method_invocation_arg_count(node: JavaNode | None) -> int | None:
     args_node = node.child_by_field("arguments") or first_child_by_type(node, "argument_list")
     if args_node is None:
         return 0
-    return len(args_node.named_children)
+    return len(_argument_list_nodes(args_node))
 
 
 def _collector_invocation_arguments(node: JavaNode | None) -> list[JavaNode]:
@@ -957,7 +968,11 @@ def _collector_invocation_arguments(node: JavaNode | None) -> list[JavaNode]:
     args_node = node.child_by_field("arguments") or first_child_by_type(node, "argument_list")
     if args_node is None:
         return []
-    return list(args_node.named_children)
+    return _argument_list_nodes(args_node)
+
+
+def _argument_list_nodes(args_node: JavaNode) -> list[JavaNode]:
+    return [child for child in args_node.named_children if not is_comment(child)]
 
 
 def _stream_item_name(source: str, ctx: TranslationContext) -> str:
