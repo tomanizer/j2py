@@ -37,6 +37,7 @@ def _cache_key(
     context: str,
     diagnostics: str,
     validation_feedback: str,
+    previous_python: str,
     config_fingerprint: str,
     system: str,
 ) -> str:
@@ -48,6 +49,7 @@ def _cache_key(
             "java_sha256": hashlib.sha256(java_source.encode()).hexdigest(),
             "model": model,
             "partial_sha256": hashlib.sha256(partial_python.encode()).hexdigest(),
+            "previous_sha256": hashlib.sha256(previous_python.encode()).hexdigest(),
             "prompt_version": PROMPT_VERSION,
             "system": system,
             "validation_feedback": validation_feedback,
@@ -65,6 +67,7 @@ def translate_with_llm(
     context: str = "",
     diagnostics: str = "",
     validation_feedback: str = "",
+    previous_python: str = "",
     config_fingerprint: str = "",
     model: str = "claude-sonnet-4-6",
     use_cache: bool = True,
@@ -89,6 +92,7 @@ def translate_with_llm(
         context=context,
         diagnostics=diagnostics,
         validation_feedback=validation_feedback,
+        previous_python=previous_python,
     )
 
     key = _cache_key(
@@ -98,6 +102,7 @@ def translate_with_llm(
         context=context,
         diagnostics=diagnostics,
         validation_feedback=validation_feedback,
+        previous_python=previous_python,
         config_fingerprint=config_fingerprint,
         system=system,
     )

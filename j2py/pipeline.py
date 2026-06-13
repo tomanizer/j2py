@@ -16,6 +16,7 @@ from j2py.validate.checks import ValidationResult, validate_source
 from j2py.verify.structure import StructuralVerificationResult, verify_structure
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
+LLM_REPAIR_RETRY_LIMIT = 2
 
 
 @dataclass
@@ -114,20 +115,25 @@ def _translate_parsed_file(
             context=context,
             diagnostics=diagnostics_context,
             validation_feedback=validation_feedback,
+            previous_python="",
             config_fingerprint=config_fingerprint,
             model=model,
         )
         used_llm = True
         validation = validate_source(python_source, validation_path) if validate else None
         structural_verification = verify_structure(symbols, python_source)
-        feedback = _post_llm_feedback(validation, structural_verification)
-        if feedback:
+        for _ in range(LLM_REPAIR_RETRY_LIMIT):
+            feedback = _post_llm_feedback(validation, structural_verification)
+            if not feedback:
+                break
+            previous_python = python_source
             python_source = translate_with_llm(
                 java_source=java_source,
                 partial_python=skeleton,
                 context=context,
                 diagnostics=diagnostics_context,
                 validation_feedback=feedback,
+                previous_python=previous_python,
                 config_fingerprint=config_fingerprint,
                 model=model,
             )
@@ -165,7 +171,41 @@ def _post_llm_feedback(
         errors.extend(validation.ruff_errors)
         errors.extend(validation.mypy_errors)
     errors.extend(structural_verification.errors)
-    return "\n".join(errors[:limit])
+    selected = errors[:limit]
+    hints = _llm_repair_hints(selected)
+    if hints:
+        selected.append("Repair guidance:")
+        selected.extend(hints)
+    return "\n".join(selected)
+
+
+def _llm_repair_hints(errors: list[str]) -> list[str]:
+    """Return targeted prompt hints for common validation failures."""
+    joined = "\n".join(errors)
+    hints: list[str] = []
+    if "unused-ignore" in joined:
+        hints.append(
+            "- Remove unused # type: ignore comments; prefer typed placeholders or "
+            "direct annotations that pass mypy.",
+        )
+    if "overload-cannot-match" in joined or "will never be matched" in joined:
+        hints.append(
+            "- Fix unreachable overloads: do not put an object/Any overload before a "
+            "narrower overload. For unresolved Java types, create nominal local "
+            "placeholder classes so overload signatures stay distinct, or collapse "
+            "to a single implementation signature.",
+        )
+    if "Missing type arguments for generic type" in joined:
+        hints.append(
+            "- Add explicit type arguments to bare generic containers, for example "
+            "tuple[object, ...], list[object], or dict[str, object].",
+        )
+    if "javax." in joined or "jakarta." in joined or "org." in joined:
+        hints.append(
+            "- Do not import unresolved Java packages. Replace Java platform/framework "
+            "types with local TODO(j2py) placeholder classes or Protocols.",
+        )
+    return hints
 
 
 def translate_directory(

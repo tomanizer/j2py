@@ -56,6 +56,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         context: str,
         diagnostics: str,
         validation_feedback: str,
+        previous_python: str,
         config_fingerprint: str,
         model: str,
     ) -> str:
@@ -64,6 +65,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         assert "package: com.example" in context
         assert "array_creation_expression" in diagnostics
         assert validation_feedback == ""
+        assert previous_python == ""
         assert config_fingerprint
         assert model == "claude-test"
         return PARTIAL_LLM_OUTPUT
@@ -155,10 +157,10 @@ def test_translate_file_reports_validation_failure_for_invalid_llm_output(
 
 
 def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -> None:
-    calls: list[str] = []
+    calls: list[tuple[str, str]] = []
 
     def fake_translate_with_llm(**kwargs) -> str:
-        calls.append(kwargs["validation_feedback"])
+        calls.append((kwargs["validation_feedback"], kwargs["previous_python"]))
         if len(calls) == 1:
             return "def broken(:\n"
         return PARTIAL_LLM_OUTPUT
@@ -183,11 +185,40 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
     result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
     assert result.used_llm
-    assert calls[0] == ""
-    assert "SyntaxError:" in calls[1]
+    assert calls[0] == ("", "")
+    assert "SyntaxError:" in calls[1][0]
+    assert calls[1][1] == "def broken(:\n"
     assert result.python_source == PARTIAL_LLM_OUTPUT
     assert result.validation is not None
     assert result.validation.ok
+
+
+def test_post_llm_feedback_adds_targeted_repair_hints() -> None:
+    validation = ValidationResult(
+        path=Path("<string>"),
+        syntax_ok=True,
+        mypy_errors=[
+            "x.py:1: error: Unused \"type: ignore\" comment  [unused-ignore]",
+            (
+                "x.py:2: error: Overloaded function signature 2 will never be "
+                "matched: signature 1's parameter type(s) are the same or broader "
+                "[overload-cannot-match]"
+            ),
+            "x.py:3: error: Cannot find implementation or library stub for module javax.foo",
+            'x.py:4: error: Missing type arguments for generic type "tuple"  [type-arg]',
+        ],
+    )
+
+    feedback = pipeline._post_llm_feedback(
+        validation,
+        pipeline.StructuralVerificationResult(errors=[]),
+    )
+
+    assert "Repair guidance:" in feedback
+    assert "Remove unused # type: ignore comments" in feedback
+    assert "Fix unreachable overloads" in feedback
+    assert "Do not import unresolved Java packages" in feedback
+    assert "Add explicit type arguments" in feedback
 
 
 def test_translate_file_does_not_retry_when_llm_output_validates_and_verifies(monkeypatch) -> None:
@@ -317,8 +348,9 @@ class DroppedMethod:
 
     result = translate_file(source, cfg=CFG, use_llm=True)
 
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert "Missing method in class DroppedMethod: second" in calls[1]
+    assert "Missing method in class DroppedMethod: second" in calls[2]
     assert result.structural_verification is not None
     assert not result.structural_verification.ok
     assert result.structural_verification.errors == [
@@ -328,7 +360,7 @@ class DroppedMethod:
     ]
 
 
-def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) -> None:
+def test_translate_file_stops_after_bounded_llm_retries(monkeypatch) -> None:
     calls: list[str] = []
 
     def fake_translate_with_llm(**kwargs) -> str:
@@ -347,9 +379,10 @@ def test_translate_file_does_not_loop_when_llm_retry_still_fails(monkeypatch) ->
 
     result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=True)
 
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert calls[0] == ""
     assert "SyntaxError:" in calls[1]
+    assert "SyntaxError:" in calls[2]
     assert result.python_source == "def still_broken(:\n"
     assert result.validation is not None
     assert not result.validation.ok
@@ -368,9 +401,10 @@ def test_translate_file_still_retries_structural_errors_when_validation_disabled
 
     result = translate_file(PARTIAL_FIXTURE, cfg=CFG, use_llm=True, validate=False)
 
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert calls[0] == ""
     assert "Structural verification skipped" in calls[1]
+    assert "Structural verification skipped" in calls[2]
     assert result.validation is None
     assert result.structural_verification is not None
     assert not result.structural_verification.ok
