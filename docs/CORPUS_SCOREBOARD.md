@@ -1,7 +1,12 @@
-# Spring Corpus Scoreboard
+# Corpus scoreboard
 
-The Spring corpus harness measures deterministic rule-layer progress against real Spring
-Framework Java source. It never calls the LLM layer.
+j2py is a general Java-to-Python library. The **Spring corpus** name refers to an
+external measurement harness: a pinned checkout of Spring Framework Java source, plus
+small curated construct fixtures, used to stress-test the deterministic rule layer. It
+never calls the LLM layer and does not define product scope.
+
+The Spring corpus harness measures deterministic rule-layer progress against that
+benchmark checkout.
 
 The preferred progress scoreboard is the dense Spring + curated-construct corpus.
 It combines real Spring Framework files with the focused non-Spring construct files
@@ -42,9 +47,9 @@ Current preferred dense baseline:
 - parse success rate: 100.00%
 - generated Python syntax success rate: 98.00%
 - files included in coverage metrics: 43 of 100
-- average skeleton coverage: 98.75%
-- full-coverage files: 38 of 43 coverage-bearing files
-- files with unhandled constructs: 5 of 100
+- average skeleton coverage: 100.00%
+- full-coverage files: 43 of 43 coverage-bearing files
+- files with unhandled constructs: 0 of 100
 - files below 80% coverage: 0 of 43 coverage-bearing files
 - all curated non-Spring construct fixtures are included in the selected sample
 

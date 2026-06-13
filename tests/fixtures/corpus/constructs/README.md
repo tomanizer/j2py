@@ -1,6 +1,12 @@
 # Curated Constructs Mini-Corpus
 
-This directory contains small, focused `.java` files designed to exercise specific Java language constructs that are common in Spring codebases but historically under-covered or challenging for the j2py rule layer.
+Small, focused `.java` files that exercise specific Java language constructs for the
+j2py rule layer. They are mixed into the external **Spring Framework benchmark corpus**
+via `--include-constructs` — Spring is the stress-test checkout, not the product scope.
+
+These files target constructs that are common in large Java codebases (including
+enterprise frameworks) but historically under-covered or challenging for deterministic
+translation.
 
 ## Goals
 - **Minimal size**: Each file is intentionally small (typically < 60 LOC) and self-contained.
