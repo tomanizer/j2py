@@ -15,6 +15,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - `AdvancedStreams` graduated from future xfail target to the deterministic corpus
   construct regression suite after flatMap and groupingBy downstream support (#75).
 
+### Fixed
+- `List.get(index)` and map-like Spring receivers (`MultiValueMap`,
+  `AnnotationAttributes`, `*Map` types) resolve without ambiguous-get diagnostics
+  when receiver types are known from declarations or parameters (#87).
+
 ## 0.2.0a1 - 2026-06-11
 
 ### Added

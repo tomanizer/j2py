@@ -136,3 +136,28 @@ def element_type_from_container(py_type: str) -> str | None:
         elif char == "," and depth == 0:
             return inner[:index].strip()
     return inner.strip() or None
+
+
+MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "AnnotationAttributes",
+        "MergedAnnotation",
+        "Properties",
+    },
+)
+
+
+def type_simple_name(py_type: str) -> str:
+    """Return the unqualified base name from a translated type hint."""
+    base = py_type.split("[", 1)[0].strip()
+    return base.rsplit(".", 1)[-1]
+
+
+def is_map_like_type(py_type: str) -> bool:
+    """True when a translated type behaves like a Java Map for `.get(key)` lowering."""
+    if py_type == "dict" or py_type.startswith("dict["):
+        return True
+    simple = type_simple_name(py_type)
+    if simple in MAP_LIKE_SIMPLE_NAMES:
+        return True
+    return simple.endswith("Map")

@@ -21,6 +21,7 @@ from j2py.translate.rules.naming import (
 )
 from j2py.translate.rules.types import (
     element_type_from_container,
+    is_map_like_type,
     java_default_value,
     translate_type,
 )
@@ -389,7 +390,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         receiver_type = _expression_py_type(receiver_nodes[0], ctx) if receiver_nodes else None
         if receiver_type is not None and _is_list_type(receiver_type):
             return f"{receiver}[{args}]"
-        if receiver_type is not None and _is_dict_type(receiver_type):
+        if receiver_type is not None and is_map_like_type(receiver_type):
             return f"{receiver}.get({args})"
         if raw_receiver.split(".")[-1][:1].isupper():
             return f"{receiver}.get({args})"
@@ -1901,14 +1902,10 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         return "bool"
     if method_name in {"get", "getOrDefault"} and receiver_nodes:
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
-        if receiver_type is not None and _is_dict_type(receiver_type):
+        if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
     return None
 
 
 def _is_list_type(py_type: str) -> bool:
     return py_type == "list" or py_type.startswith("list[")
-
-
-def _is_dict_type(py_type: str) -> bool:
-    return py_type == "dict" or py_type.startswith("dict[")

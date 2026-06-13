@@ -357,6 +357,91 @@ def test_map_get_preserves_missing_key_semantics() -> None:
 
 
 
+def test_list_get_uses_local_variable_type() -> None:
+    """List.get(index) on a locally declared list rewrites to indexing."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+
+        public class Calls {
+            public String first(List<String> values) {
+                List<String> copy = values;
+                return copy.get(0);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return copy[0]" in python_source
+    assert "copy.get(" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_map_get_uses_local_variable_type() -> None:
+    """Map.get(key) on a locally declared map keeps .get semantics."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.Map;
+
+        public class Calls {
+            public String lookup(Map<String, Object> values) {
+                Map<String, Object> attrs = values;
+                return attrs.get("mode");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return attrs.get("mode")' in python_source
+    assert_valid_python(python_source)
+
+
+def test_annotation_attributes_get_is_map_like() -> None:
+    """Spring AnnotationAttributes.get(key) is treated as map-like."""
+    python_source, coverage = translate_source(
+        """
+        import org.springframework.core.annotation.AnnotationAttributes;
+
+        public class Calls {
+            public Object mode(AnnotationAttributes candidate) {
+                return candidate.get("mode");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return candidate.get("mode")' in python_source
+    assert_valid_python(python_source)
+
+
+def test_multi_value_map_get_is_map_like() -> None:
+    """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
+    python_source, coverage = translate_source(
+        """
+        import org.springframework.util.MultiValueMap;
+
+        public class ProfileCondition {
+            public boolean matches(MultiValueMap attrs) {
+                if (attrs != null) {
+                    for (Object value : attrs.get("value")) {
+                        return true;
+                    }
+                }
+                return true;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'attrs.get("value")' in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_ambiguous_get_invocation_drops_coverage() -> None:
     result = translate_source_with_diagnostics(
         """
