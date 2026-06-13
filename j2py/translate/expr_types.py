@@ -7,8 +7,13 @@ from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.types import (
+    LIST_RETURNING_METHOD_NAMES,
+    MAP_RETURNING_METHOD_NAMES,
+    NULL_PASS_THROUGH_METHOD_NAMES,
     element_type_from_container,
+    is_list_like_type,
     is_map_like_type,
+    return_type_from_function,
     translate_type,
     type_simple_name,
 )
@@ -94,16 +99,43 @@ def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None
     return type_fields.get(field_name)
 
 
+def _is_this_receiver(node: JavaNode) -> bool:
+    if node.type == "this":
+        return True
+    if node.type == "field_access":
+        children = node.named_children
+        return len(children) == 2 and children[1].type == "this"
+    return False
+
+
 def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
     named = [child for child in node.named_children if not is_comment(child)]
     args_node = first_child_by_type(node, "argument_list")
     if args_node is None or args_node not in named:
         return None
     args_index = named.index(args_node)
-    if args_index == 0:
-        return None
     method_name = named[args_index - 1].text
     receiver_nodes = named[: args_index - 1]
+    arg_nodes = list(args_node.named_children)
+
+    if not receiver_nodes and method_name in ctx.class_method_return_types:
+        return ctx.class_method_return_types[method_name]
+
+    if method_name in NULL_PASS_THROUGH_METHOD_NAMES and arg_nodes:
+        return infer_expression_py_type(arg_nodes[0], ctx)
+
+    if method_name in LIST_RETURNING_METHOD_NAMES:
+        return "list"
+
+    if method_name in MAP_RETURNING_METHOD_NAMES:
+        return "dict"
+
+    if method_name == "apply" and receiver_nodes:
+        receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
+        if receiver_type is not None:
+            function_return = return_type_from_function(receiver_type)
+            if function_return is not None:
+                return function_return
 
     int_return_methods = {
         "size",
@@ -140,4 +172,4 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
 
 
 def _is_list_type(py_type: str) -> bool:
-    return py_type == "list" or py_type.startswith("list[")
+    return is_list_like_type(py_type)

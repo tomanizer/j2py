@@ -187,6 +187,7 @@ def translate_class(
         ]
     )
     class_method_names = _member_method_names(members, cfg)
+    class_method_return_types = _class_method_return_types(members, cfg)
     class_state = ClassTranslationState(needs_instance_lock=class_uses_synchronized_this(node))
     if class_state.needs_instance_lock:
         diagnostics.imports.need_threading()
@@ -274,6 +275,7 @@ def translate_class(
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
                     class_methods=class_method_names,
+                    class_method_return_types=class_method_return_types,
                     static_field_aliases=static_field_aliases or {},
                     static_method_imports=static_method_imports or {},
                     pre_body_lines=(
@@ -298,6 +300,7 @@ def translate_class(
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
             class_methods=class_method_names,
+            class_method_return_types=class_method_return_types,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
             allow_local_helpers=True,
@@ -345,6 +348,7 @@ def _translate_interface(
         else [child for child in body.named_children if child.type == "method_declaration"]
     )
     class_method_names = _member_method_names(methods, cfg)
+    class_method_return_types = _class_method_return_types(methods, cfg)
     nested_type_lines = _nested_type_lines(
         body,
         cfg,
@@ -393,6 +397,7 @@ def _translate_interface(
                 class_field_types={},
                 class_field_java_types={},
                 class_methods=class_method_names,
+                class_method_return_types=class_method_return_types,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
                 allow_local_helpers=True,
@@ -1089,6 +1094,25 @@ def _member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) ->
     }
 
 
+def _class_method_return_types(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    grouped: dict[str, list[str]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        raw_name = _raw_member_name(member)
+        if raw_name == "__init__":
+            continue
+        grouped.setdefault(raw_name, []).append(_return_type(member, cfg))
+    result: dict[str, str] = {}
+    for name, return_types in grouped.items():
+        unique = list(dict.fromkeys(return_types))
+        result[name] = unique[0] if len(unique) == 1 else " | ".join(unique)
+    return result
+
+
 def _raw_member_name(member: JavaNode) -> str:
     if member.type == "constructor_declaration":
         return "__init__"
@@ -1266,6 +1290,7 @@ def _translate_overloaded_members(
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
+    class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
@@ -1285,6 +1310,7 @@ def _translate_overloaded_members(
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
         class_methods=class_methods,
+        class_method_return_types=class_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
         pre_body_lines=pre_body_lines,

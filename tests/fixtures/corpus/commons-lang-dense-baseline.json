@@ -183,16 +183,16 @@
       "warning_count": 2
     },
     {
-      "coverage": 0.8571428571428571,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 6,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/builder/Reflection.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 1
     },
     {
@@ -209,16 +209,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.9545454545454546,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 21,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/concurrent/UncheckedFutureImpl.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
@@ -807,16 +807,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.9166666666666666,
+      "coverage": 0.9565217391304348,
       "error": "",
       "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/reflect/TypeLiteral.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_invocation:2",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;equals invocation with unexpected argument count:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "equals invocation with unexpected argument count:1",
       "warning_count": 7
     },
     {
@@ -1262,16 +1262,16 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.9473684210526315,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/builder/Diff.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 10
     },
     {
@@ -1317,13 +1317,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9828928465296887,
+    "average_coverage": 0.9857008299269169,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 3,
     "files_scanned": 100,
-    "files_with_unhandled": 12,
-    "full_coverage_files": 88,
+    "files_with_unhandled": 9,
+    "full_coverage_files": 91,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
@@ -1333,7 +1333,7 @@
       ],
       [
         "method_invocation",
-        7
+        3
       ],
       [
         "assert_statement",
@@ -1344,10 +1344,6 @@
       [
         "overloaded method of requires manual dispatch",
         6
-      ],
-      [
-        "ambiguous get invocation requires receiver collection type",
-        4
       ],
       [
         "equals invocation with unexpected argument count",

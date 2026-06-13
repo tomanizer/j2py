@@ -43,6 +43,7 @@ def translate_overloaded_members(
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
+    class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
@@ -61,6 +62,7 @@ def translate_overloaded_members(
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
     inner_capture_names = inner_class_names_requiring_outer or set()
+    method_return_types = dict(class_method_return_types or {})
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -73,6 +75,7 @@ def translate_overloaded_members(
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
+            class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
             pre_body_lines=pre_body_lines,
@@ -93,6 +96,7 @@ def translate_overloaded_members(
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
+            class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
             class_state=class_state,
@@ -111,6 +115,7 @@ def translate_overloaded_members(
             class_field_java_types=field_java_types,
             declared_type_fields=nested_type_fields,
             declared_type_java_fields=nested_type_java_fields,
+            class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
             docstring_lines=docstring_lines,
@@ -128,6 +133,7 @@ def translate_overloaded_members(
         class_field_java_types=field_java_types,
         declared_type_fields=nested_type_fields,
         declared_type_java_fields=nested_type_java_fields,
+        class_method_return_types=method_return_types,
         static_field_aliases=static_fields,
         static_method_imports=static_methods,
         pre_body_lines=pre_body_lines,
@@ -189,6 +195,7 @@ def _merged_constructor_overload(
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
+    class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     pre_body_lines: list[str],
@@ -241,6 +248,7 @@ def _merged_constructor_overload(
     ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
+    ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = True
     for param in impl.params:
         _register_param(ctx, param)
@@ -292,6 +300,7 @@ def _merged_forwarding_method_overload(
     class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
+    class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     docstring_lines: list[str] | None = None,
@@ -349,6 +358,7 @@ def _merged_forwarding_method_overload(
     ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
+    ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
     for param in impl.params:
         _register_param(ctx, param)
@@ -570,6 +580,7 @@ def _merged_method_overload(
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
+    class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     class_state: ClassTranslationState | None = None,
@@ -630,6 +641,7 @@ def _merged_method_overload(
     ctx.class_field_java_types = dict(class_field_java_types)
     ctx.declared_type_fields = dict(declared_type_fields)
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
+    ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
     for param in merged_params:
         _register_param(ctx, param)
@@ -719,6 +731,7 @@ def _dispatch_overload_members(
     class_field_java_types: dict[str, str],
     declared_type_fields: dict[str, dict[str, str]],
     declared_type_java_fields: dict[str, dict[str, str]],
+    class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     pre_body_lines: list[str],
@@ -767,6 +780,7 @@ def _dispatch_overload_members(
             class_field_java_types=dict(class_field_java_types),
             declared_type_fields=dict(declared_type_fields),
             declared_type_java_fields=dict(declared_type_java_fields),
+            class_method_return_types=dict(class_method_return_types),
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
             allow_local_helpers=True,

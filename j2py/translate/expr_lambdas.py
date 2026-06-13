@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
+from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import (
     translate_class_name,
     translate_field_name,
@@ -137,6 +139,8 @@ def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str
         ctx.local_names.add(raw_name)
         if py_type is not None:
             ctx.variable_types[raw_name] = py_type
+        elif _lambda_body_is_map_get_on_param(body_node, raw_name):
+            ctx.variable_types[raw_name] = "dict"
     try:
         body = translate_expression(body_node, ctx)
     finally:
@@ -187,6 +191,25 @@ def _lambda_parameters(
                 ),
             )
     return params
+
+
+def _lambda_body_is_map_get_on_param(body_node: JavaNode, param_name: str) -> bool:
+    if body_node.type != "method_invocation":
+        return False
+    named = [child for child in body_node.named_children if not is_comment(child)]
+    args_node = first_child_by_type(body_node, "argument_list")
+    if args_node is None or args_node not in named:
+        return False
+    args_index = named.index(args_node)
+    if args_index < 1 or named[args_index - 1].text != "get":
+        return False
+    if len(list(args_node.named_children)) != 1:
+        return False
+    receiver_nodes = named[: args_index - 1]
+    if len(receiver_nodes) != 1:
+        return False
+    receiver = receiver_nodes[0]
+    return receiver.type == "identifier" and receiver.text == param_name
 
 
 def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:

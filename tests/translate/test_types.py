@@ -67,6 +67,8 @@ def test_element_type_from_container(container: str, expected: str | None) -> No
     [
         ("dict[str, int]", True),
         ("MultiValueMap[str, str]", True),
+        ("ListMultimap[str, str]", True),
+        ("Multimap[str, str]", True),
         ("AnnotationAttributes", True),
         ("AnnotationAttributes | None", True),
         ("list[str]", False),
@@ -80,7 +82,23 @@ def test_is_map_like_type(py_type: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("py_type", "expected"),
     [
+        ("list[str]", True),
+        ("ImmutableList[str]", True),
+        ("ArrayList[str]", True),
+        ("dict[str, int]", False),
+    ],
+)
+def test_is_list_like_type(py_type: str, expected: bool) -> None:
+    from j2py.translate.rules.types import is_list_like_type
+
+    assert is_list_like_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("py_type", "expected"),
+    [
         ("Field", True),
+        ("BeanPropertyWriter", True),
         ("java.lang.reflect.Field", True),
         ("ScheduledFuture", True),
         ("Future", True),

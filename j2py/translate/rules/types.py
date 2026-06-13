@@ -158,7 +158,37 @@ API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
         "Field",
         "ForkJoinTask",
         "Future",
+        "Optional",
         "ScheduledFuture",
+    },
+)
+
+# Java methods whose return value behaves like a list for `.get(index)` lowering.
+LIST_RETURNING_METHOD_NAMES: frozenset[str] = frozenset(
+    {
+        "asList",
+        "getEnumConstants",
+        "reverse",
+        "subList",
+        "toList",
+    },
+)
+
+# Java methods whose return value behaves like a map for `.get(key)` lowering.
+MAP_RETURNING_METHOD_NAMES: frozenset[str] = frozenset(
+    {
+        "getAll",
+        "getAllPresent",
+        "getTypeArguments",
+        "loadAll",
+    },
+)
+
+# Null-check helpers that return their first argument unchanged.
+NULL_PASS_THROUGH_METHOD_NAMES: frozenset[str] = frozenset(
+    {
+        "checkNotNull",
+        "requireNonNull",
     },
 )
 
@@ -180,7 +210,7 @@ def is_map_like_type(py_type: str) -> bool:
     simple = type_simple_name(py_type)
     if simple in MAP_LIKE_SIMPLE_NAMES:
         return True
-    return simple.endswith("Map")
+    return simple.endswith("Map") or simple.endswith("Multimap")
 
 
 def is_api_get_receiver_type(py_type: str) -> bool:
@@ -191,4 +221,41 @@ def is_api_get_receiver_type(py_type: str) -> bool:
             for part in py_type.split("|")
             if part.strip() != "None"
         )
-    return type_simple_name(py_type) in API_GET_RECEIVER_SIMPLE_NAMES
+    simple = type_simple_name(py_type)
+    if simple in API_GET_RECEIVER_SIMPLE_NAMES:
+        return True
+    return simple.endswith("Property") or simple.endswith("PropertyWriter")
+
+
+def is_list_like_type(py_type: str) -> bool:
+    """True when a translated type behaves like a Java List for `.get(index)` lowering."""
+    if " | " in py_type:
+        return any(
+            is_list_like_type(part.strip())
+            for part in py_type.split("|")
+            if part.strip() != "None"
+        )
+    if py_type == "list" or py_type.startswith("list["):
+        return True
+    simple = type_simple_name(py_type)
+    return simple.endswith("List") and not simple.endswith("Multimap")
+
+
+def return_type_from_function(py_type: str) -> str | None:
+    """Return the output type parameter from ``Function[Input, Output]``."""
+    bracket = py_type.find("[")
+    if bracket == -1 or not py_type.endswith("]"):
+        return None
+    if type_simple_name(py_type.split("[", 1)[0]) != "Function":
+        return None
+    inner = py_type[bracket + 1 : -1]
+    depth = 0
+    for index in range(len(inner) - 1, -1, -1):
+        char = inner[index]
+        if char in {">", "]"}:
+            depth += 1
+        elif char in {"<", "["}:
+            depth -= 1
+        elif char == "," and depth == 0:
+            return inner[index + 1 :].strip() or None
+    return None

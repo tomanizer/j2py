@@ -137,7 +137,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/SnapshotEntry.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "method_declaration:2",
       "unhandled_reasons": "overloaded method for_entry requires manual dispatch:2",
@@ -176,7 +176,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/NodeFactory.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -235,16 +235,16 @@
       "warning_count": 14
     },
     {
-      "coverage": 0.96,
+      "coverage": 0.9863013698630136,
       "error": "",
       "handled_count": 72,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalManualCache.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:1;method_invocation:2",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1",
       "warning_count": 32
     },
     {
@@ -378,16 +378,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9615384615384616,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 25,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCacheLoader.java",
-      "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -404,16 +404,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9818181818181818,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 54,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/CacheLoader.java",
-      "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 14
     },
     {
@@ -449,7 +449,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/AsyncCache.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -485,23 +485,19 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9793905880418955,
+    "average_coverage": 0.9819040646026946,
     "coverage_file_count": 33,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 1,
     "files_scanned": 36,
-    "files_with_unhandled": 13,
-    "full_coverage_files": 20,
+    "files_with_unhandled": 11,
+    "full_coverage_files": 22,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.8333333333333334,
+    "syntax_success_rate": 0.9722222222222222,
     "top_unhandled_node_types": [
       [
         "import_declaration",
         8
-      ],
-      [
-        "method_invocation",
-        5
       ],
       [
         "class_body",
@@ -514,16 +510,16 @@
       [
         "array_type",
         1
+      ],
+      [
+        "method_invocation",
+        1
       ]
     ],
     "top_unhandled_reasons": [
       [
         "enum constant class body requires manual translation",
         5
-      ],
-      [
-        "ambiguous get invocation requires receiver collection type",
-        4
       ],
       [
         "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument",

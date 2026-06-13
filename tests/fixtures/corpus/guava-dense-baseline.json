@@ -365,16 +365,16 @@
       "warning_count": 5
     },
     {
-      "coverage": 0.9444444444444444,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 17,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableSet.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 9
     },
     {
@@ -482,16 +482,16 @@
       "warning_count": 13
     },
     {
-      "coverage": 0.95,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 19,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/FilteredKeyListMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 8
     },
     {
@@ -534,16 +534,16 @@
       "warning_count": 4
     },
     {
-      "coverage": 0.975,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 39,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableMultiset.java",
       "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 11
     },
     {
@@ -729,16 +729,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.96875,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 31,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/IndexedImmutableSet.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 20
     },
     {
@@ -755,16 +755,16 @@
       "warning_count": 5
     },
     {
-      "coverage": 0.96,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 24,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/FilteredEntrySetMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 11
     },
     {
@@ -794,16 +794,16 @@
       "warning_count": 2
     },
     {
-      "coverage": 0.9,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ForwardingListMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 7
     },
     {
@@ -937,29 +937,29 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9166666666666666,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 11,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ForwardingSortedSetMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 7
     },
     {
-      "coverage": 0.9666666666666667,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 29,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/FilteredKeySetMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 13
     },
     {
@@ -989,29 +989,29 @@
       "warning_count": 8
     },
     {
-      "coverage": 0.967741935483871,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 30,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ImmutableMapKeySet.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 13
     },
     {
-      "coverage": 0.967741935483871,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 30,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/RegularImmutableAsList.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 17
     },
     {
@@ -1080,16 +1080,16 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.9166666666666666,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 11,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ForwardingSetMultimap.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 8
     },
     {
@@ -1210,16 +1210,16 @@
       "warning_count": 8
     },
     {
-      "coverage": 0.9642857142857143,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 27,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/DescendingImmutableSortedMultiset.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 16
     },
     {
@@ -1275,16 +1275,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.9705882352941176,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 33,
       "parse_error_count": 2,
       "parse_ok": false,
       "path": "guava/src/com/google/common/base/Platform.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 6
     },
     {
@@ -1318,13 +1318,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9663206046733227,
+    "average_coverage": 0.9726350820234024,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 3,
     "files_scanned": 100,
-    "files_with_unhandled": 30,
-    "full_coverage_files": 70,
+    "files_with_unhandled": 17,
+    "full_coverage_files": 83,
     "parse_success_rate": 0.99,
     "syntax_success_rate": 0.95,
     "top_unhandled_node_types": [
@@ -1333,12 +1333,12 @@
         22
       ],
       [
-        "method_invocation",
-        14
-      ],
-      [
         "method_declaration",
         9
+      ],
+      [
+        "method_invocation",
+        1
       ],
       [
         "object_creation_expression",
@@ -1346,10 +1346,6 @@
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "ambiguous get invocation requires receiver collection type",
-        13
-      ],
       [
         "overloaded method create requires manual dispatch",
         9
@@ -1424,6 +1420,10 @@
       ],
       [
         "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull",
+        1
+      ],
+      [
+        "unknown static import com.google.common.collect.Maps.immutableEntry",
         1
       ]
     ]
