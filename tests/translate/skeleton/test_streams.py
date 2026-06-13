@@ -341,6 +341,69 @@ def test_stream_pipeline_grouping_by_basic() -> None:
 
 
 
+def test_stream_pipeline_grouping_by_mapping_to_list() -> None:
+    """groupingBy + Collectors.mapping(identity, toList()) uses groupby helper."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category, int value) {}
+
+            public Map<String, List<Item>> byCategory(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.groupingBy(
+                                Item::category,
+                                Collectors.mapping(i -> i, Collectors.toList())
+                        ));
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def _j2py_groupby_" in python_source
+    assert "item.category" in python_source
+    assert "groups[key].append(item)" in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_pipeline_grouping_by_non_identity_mapping_falls_back() -> None:
+    """Non-identity mapping downstream still records explicit diagnostic."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category, int value) {}
+
+            public Map<String, List<String>> byCategory(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.groupingBy(
+                                Item::category,
+                                Collectors.mapping(i -> i.category(), Collectors.toList())
+                        ));
+            }
+        }
+        """,
+    )
+
+    reasons = [u.reason for u in result.diagnostics.unhandled]
+    assert any(
+        "Collectors.groupingBy with downstream collector requires manual translation" in r
+        for r in reasons
+    )
+    assert_valid_python(result.source)
+
+
+
+
+
 def test_stream_pipeline_to_map_basic() -> None:
     """Phase 3: basic toMap produces helper with dict accumulation."""
     python_source, coverage = translate_source(

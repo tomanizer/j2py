@@ -10,6 +10,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Added
 - Stream pipelines with `flatMap(List::stream)` rewrite to nested comprehensions
   instead of falling back to a translated `flat_map` chain (#92).
+- `Collectors.groupingBy(key, Collectors.mapping(identity, Collectors.toList()))`
+  rewrites via the existing `_j2py_groupby_*` helper pattern (#93).
+- `AdvancedStreams` graduated from future xfail target to the deterministic corpus
+  construct regression suite after flatMap and groupingBy downstream support (#75).
 
 ## 0.2.0a1 - 2026-06-11
 
