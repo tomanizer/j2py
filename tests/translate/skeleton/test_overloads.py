@@ -89,8 +89,9 @@ def test_overload_default_expression_diagnostics_are_preserved() -> None:
     assert not result.diagnostics.unhandled
     assert 'name: str | None = None' in result.source
     assert 'separator: str = "-"' not in result.source
+    assert "from typing import cast" in result.source
     assert [warning.reason for warning in result.diagnostics.warnings].count(
-        "dropped Java cast; verify runtime type",
+        "Java reference cast translated to typing.cast; verify runtime type",
     ) == 2
     assert_valid_python(result.source)
 

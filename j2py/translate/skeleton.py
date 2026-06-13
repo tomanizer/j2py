@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from j2py.analyze.symbols import FileSymbols
@@ -97,6 +98,8 @@ def _import_lines(
     typing_names: set[str] = set()
     if "Any" in flattened:
         typing_names.add("Any")
+    if re.search(r"(?<!\w)cast\(", flattened):
+        typing_names.add("cast")
     if "(Protocol):" in flattened:
         typing_names.add("Protocol")
     if "@overload" in stripped_lines:

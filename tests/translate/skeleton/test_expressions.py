@@ -1095,3 +1095,173 @@ def test_super_method_calls_corpus_construct_reaches_full_coverage() -> None:
     assert "super().end_class()" in result.source
     assert "return super().get_generator(resource)" in result.source
     assert_valid_python(result.source)
+
+
+def test_primitive_int_cast_emits_int_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int narrow(double x) { return (int) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return int(x)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_long_cast_emits_int_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public long widen(int x) { return (long) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return int(x)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_byte_cast_emits_signed_narrowing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public byte truncate(int x) { return (byte) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return ((int(x) & 0xFF) ^ 0x80) - 0x80" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_short_cast_emits_signed_narrowing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public short truncate(int x) { return (short) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return ((int(x) & 0xFFFF) ^ 0x8000) - 0x8000" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_char_cast_emits_chr_with_mask() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public char fromInt(int x) { return (char) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return chr(int(x) & 0xFFFF)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_float_cast_emits_float_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public float narrow(double x) { return (float) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return float(x)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_primitive_double_cast_emits_float_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public double widen(int x) { return (double) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return float(x)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_reference_cast_emits_typing_cast_with_warning() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public MyType narrow(Object x) { return (MyType) x; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import cast" in result.source
+    assert "return cast(MyType, x)" in result.source
+    assert len(result.diagnostics.warnings) == 1
+    assert result.diagnostics.warnings[0].reason == (
+        "Java reference cast translated to typing.cast; verify runtime type"
+    )
+    assert_valid_python(result.source)
+
+
+def test_numeric_cast_does_not_emit_typing_cast_import() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int narrow(double x) { return (int) x; }
+        }
+        """,
+    )
+    assert "from typing import cast" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_int_cast_of_char_parameter_emits_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int code(char c) { return (int) c; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return ord(c)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_float_cast_of_char_parameter_emits_float_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public double asDouble(char c) { return (double) c; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return float(ord(c))" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_method_named_forecast_does_not_trigger_cast_import() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Weather {
+            public String forecast(int days) { return "sunny"; }
+        }
+        """,
+    )
+    assert "from typing import cast" not in result.source
+    assert_valid_python(result.source)

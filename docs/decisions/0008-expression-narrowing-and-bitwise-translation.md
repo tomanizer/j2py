@@ -32,13 +32,40 @@ if isinstance(value, str):
     text = value
 ```
 
-Cast expressions are erased to the operand expression and emit a warning diagnostic:
+Cast expressions translate based on the cast target type:
+
+**Primitive numeric casts** map to Python builtins or bit-level equivalents:
+
+| Java cast | Source type | Python translation |
+|---|---|---|
+| `(int) x` / `(long) x` | numeric | `int(x)` |
+| `(int) c` / `(long) c` | `char` | `ord(c)` |
+| `(float) x` / `(double) x` | numeric | `float(x)` |
+| `(float) c` / `(double) c` | `char` | `float(ord(c))` |
+| `(byte) x` | numeric | `((int(x) & 0xFF) ^ 0x80) - 0x80` |
+| `(byte) c` | `char` | `((ord(c) & 0xFF) ^ 0x80) - 0x80` |
+| `(short) x` | numeric | `((int(x) & 0xFFFF) ^ 0x8000) - 0x8000` |
+| `(short) c` | `char` | `((ord(c) & 0xFFFF) ^ 0x8000) - 0x8000` |
+| `(char) x` | numeric | `chr(int(x) & 0xFFFF)` |
+| `(char) c` | `char` | `c` (identity) |
+
+The byte/short XOR formula (`(v ^ sign_bit) - sign_bit`) reinterprets the unsigned
+masked value as a two's-complement signed integer without a conditional branch. The
+`char` source type is detected from variable and field Java type metadata in the
+translation context; if the source type is unknown the translator falls back to `int()`
+for integral casts.
+
+**Reference casts** emit `typing.cast()` and record a reviewer warning:
 
 ```python
-value
+cast(TargetType, value)
 ```
 
-The warning reason is `dropped Java cast; verify runtime type`.
+The warning reason is `Java reference cast translated to typing.cast; verify runtime type`.
+`typing.cast` is a no-op at runtime (it exists for type checkers only), which matches
+Java reference cast semantics: the JVM also performs no widening or narrowing on the
+bits — it only checks assignability at runtime. The `cast` name is auto-imported from
+`typing` when it appears in generated class output.
 
 Java bitwise operators `&`, `|`, `^`, `<<`, and `>>` translate to the matching Python
 operators. Compound assignment for these operators translates to the matching Python
@@ -67,11 +94,18 @@ When the Java operand width is unknown, the translator emits the 32-bit form and
 + Common Spring corpus expression shapes now translate deterministically instead of
   becoming unresolved regions.
 + Generated code remains valid Python and side-by-side reviewable.
++ Numeric casts preserve Java semantics including two's-complement narrowing for
+  byte and short.
 + Unsigned right shift on known integral widths preserves Java results for negative
   operands.
 + Unknown-width unsigned right shift remains valid Python and is marked with an
   explicit diagnostic.
-- Cast runtime checks are not preserved.
++ Reference casts are now visible in generated output as `typing.cast(...)` rather
+  than being silently dropped, improving side-by-side reviewability.
+- Java reference cast runtime `ClassCastException` checks are not preserved; the
+  generated Python raises no equivalent exception for a wrong type.
+- Primitive cast source-type detection is limited to simple identifiers and
+  `this`-field accesses; complex expressions involving `char` fall back to `int()`.
 
 ## References
 

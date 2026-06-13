@@ -250,9 +250,10 @@ def test_cast_expression_target_fixture_translates_with_warning() -> None:
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "return value.get_canonical_name()" in result.source
+    assert "from typing import cast" in result.source
+    assert "return cast(TypeReference, value).get_canonical_name()" in result.source
     assert [warning.reason for warning in result.diagnostics.warnings] == [
-        "dropped Java cast; verify runtime type",
+        "Java reference cast translated to typing.cast; verify runtime type",
     ]
     assert_valid_python(result.source)
 
