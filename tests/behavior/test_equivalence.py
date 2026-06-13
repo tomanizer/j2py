@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -16,11 +16,17 @@ from j2py.pipeline import translate_directory
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "behavior"
 CFG = ConfigLoader().add_defaults().build()
 
+#: Per-process wall-clock cap. A corpus case that loops forever (in Java or in the
+#: translated Python) must fail loudly instead of hanging the CI job indefinitely.
+PROCESS_TIMEOUT_SECONDS = 30
+
 
 @dataclass(frozen=True)
 class BehaviorCase:
     name: str
     main_class: str = "Main"
+    xfail_reason: str | None = None
+    process_timeout: int = field(default=PROCESS_TIMEOUT_SECONDS)
 
     @property
     def path(self) -> Path:
@@ -38,9 +44,14 @@ class ProcessResult:
 def _discover_cases() -> tuple[BehaviorCase, ...]:
     """Every fixtures/behavior/<name>/ directory that holds a Main.java is a case.
 
-    A case may override the entry-point class by committing a one-line
-    ``main_class.txt`` (defaults to ``Main``). New corpus cases are added by
-    dropping a directory here — no edit to this file is required.
+    Optional sidecar files in a fixture directory:
+    - ``main_class.txt``: entry-point class name (default: ``Main``)
+    - ``xfail.txt``: reason string — marks the case xfail(strict=True) to track known
+      rule-layer bugs; the test is expected to fail until the bug is fixed
+    - ``timeout_seconds.txt``: per-process timeout in seconds (default: PROCESS_TIMEOUT_SECONDS)
+      — useful for infinite-loop xfail cases that would otherwise hang for 30 s each run
+
+    New corpus cases are added by dropping a directory here — no edit to this file is required.
     """
     cases: list[BehaviorCase] = []
     for entry in sorted(FIXTURES.iterdir()):
@@ -48,11 +59,30 @@ def _discover_cases() -> tuple[BehaviorCase, ...]:
             continue
         override = entry / "main_class.txt"
         main_class = override.read_text().strip() if override.exists() else "Main"
-        cases.append(BehaviorCase(entry.name, main_class))
+        xfail_file = entry / "xfail.txt"
+        xfail_reason = xfail_file.read_text().strip() if xfail_file.exists() else None
+        timeout_file = entry / "timeout_seconds.txt"
+        timeout = (
+            int(timeout_file.read_text().strip())
+            if timeout_file.exists()
+            else PROCESS_TIMEOUT_SECONDS
+        )
+        cases.append(BehaviorCase(entry.name, main_class, xfail_reason, timeout))
     return tuple(cases)
 
 
 CASES = _discover_cases()
+
+
+def _case_params() -> list[object]:
+    """Build pytest.param entries, attaching xfail marks for known-broken cases."""
+    params = []
+    for case in CASES:
+        marks: list[pytest.MarkDecorator] = []
+        if case.xfail_reason:
+            marks.append(pytest.mark.xfail(strict=True, reason=case.xfail_reason))
+        params.append(pytest.param(case, id=case.name, marks=marks))
+    return params
 
 
 #: Floor for the curated behavior corpus. The corpus is the release gate for
@@ -118,7 +148,7 @@ def test_python_runner_uses_main_class_import_path(main_class: str, expected: st
 
 
 @pytest.mark.behavior
-@pytest.mark.parametrize("case", CASES, ids=[case.name for case in CASES])
+@pytest.mark.parametrize("case", _case_params())
 def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: Path) -> None:
     _require_java_toolchain()
 
@@ -133,9 +163,14 @@ def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: P
     compile_result = _run(
         ["javac", "-d", str(classes), *(str(path) for path in java_files)],
         cwd=java_work,
+        timeout=case.process_timeout,
     )
     assert compile_result.returncode == 0, compile_result.stderr
-    java_result = _run(["java", "-cp", str(classes), case.main_class], cwd=java_work)
+    java_result = _run(
+        ["java", "-cp", str(classes), case.main_class],
+        cwd=java_work,
+        timeout=case.process_timeout,
+    )
 
     translated = translate_directory(
         java_work,
@@ -151,7 +186,11 @@ def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: P
 
     runner = python_work / "run_translated.py"
     runner.write_text(_python_runner_source(case.main_class), encoding="utf-8")
-    python_result = _run([sys.executable, str(runner)], cwd=python_work)
+    python_result = _run(
+        [sys.executable, str(runner)],
+        cwd=python_work,
+        timeout=case.process_timeout,
+    )
     _assert_same_behavior(java=java_result, python=python_result)
 
 
@@ -163,12 +202,7 @@ def _require_java_toolchain() -> None:
         )
 
 
-#: Per-process wall-clock cap. A corpus case that loops forever (in Java or in the
-#: translated Python) must fail loudly instead of hanging the CI job indefinitely.
-PROCESS_TIMEOUT_SECONDS = 30
-
-
-def _run(command: list[str], *, cwd: Path) -> ProcessResult:
+def _run(command: list[str], *, cwd: Path, timeout: int = PROCESS_TIMEOUT_SECONDS) -> ProcessResult:
     try:
         proc = subprocess.run(
             command,
@@ -177,14 +211,14 @@ def _run(command: list[str], *, cwd: Path) -> ProcessResult:
             encoding="utf-8",
             text=True,
             check=False,
-            timeout=PROCESS_TIMEOUT_SECONDS,
+            timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
         return ProcessResult(
             command=tuple(command),
             returncode=124,
             stdout=exc.stdout or "",
-            stderr=(exc.stderr or "") + f"\nTIMEOUT after {PROCESS_TIMEOUT_SECONDS}s",
+            stderr=(exc.stderr or "") + f"\nTIMEOUT after {timeout}s",
         )
     return ProcessResult(
         command=tuple(command),

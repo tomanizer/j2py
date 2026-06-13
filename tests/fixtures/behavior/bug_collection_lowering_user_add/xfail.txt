@@ -1,0 +1,1 @@
+Rule layer rewrites any .add() call to .append() regardless of receiver type; user-defined add() on non-collection objects crashes with AttributeError
