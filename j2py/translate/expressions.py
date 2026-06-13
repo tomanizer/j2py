@@ -166,6 +166,11 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
                 return _translate_division(node, children[0], children[2], ctx)
             if operator_text == ">>>":
                 return _translate_unsigned_right_shift(node, children[0], children[2], ctx)
+            char_arithmetic = _translate_char_arithmetic(
+                node, children[0], children[2], operator_text, ctx
+            )
+            if char_arithmetic is not None:
+                return char_arithmetic
             binary_operator: str | None
             binary_operator = _translate_binary_operator(operator_text)
             if binary_operator is None:
@@ -559,6 +564,18 @@ def _translate_division(
     from j2py.translate.expr_ops import _translate_division as impl
 
     return impl(node, left_node, right_node, ctx)
+
+
+def _translate_char_arithmetic(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    operator: str,
+    ctx: TranslationContext,
+) -> str | None:
+    from j2py.translate.expr_ops import _translate_char_arithmetic as impl
+
+    return impl(node, left_node, right_node, operator, ctx)
 
 
 def _translate_unsigned_right_shift_assign(

@@ -73,6 +73,92 @@ def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
 
 
 
+def test_char_arithmetic_wraps_operands_in_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Chars {
+            public char nextChar(char c) {
+                return (char) (c + 1);
+            }
+
+            public int charCode(char c) {
+                return c + 0;
+            }
+
+            public char toUpper(char c) {
+                return (char) (c - 32);
+            }
+
+            public int distance(char a, char b) {
+                return b - a;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "__j2py_todo__" not in result.source
+    # char + int / char - int wrap the char operand in ord(); narrowing cast adds chr().
+    assert "chr(int(ord(c) + 1) & 0xFFFF)" in result.source
+    assert "return ord(c) + 0" in result.source
+    assert "chr(int(ord(c) - 32) & 0xFFFF)" in result.source
+    # char - char: both operands wrapped.
+    assert "return ord(b) - ord(a)" in result.source
+    assert all(
+        "char arithmetic translated with ord()" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_char_arithmetic_runs_without_type_error() -> None:
+    """Acceptance criterion: translated char arithmetic must not raise TypeError."""
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public char nextChar(char c) {
+                return (char) (c + 1);
+            }
+
+            public int charCode(char c) {
+                return c + 0;
+            }
+
+            public char toUpper(char c) {
+                return (char) (c - 32);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<chars>", "exec"), namespace)
+    chars = namespace["Chars"]()  # type: ignore[operator]
+    assert chars.next_char("a") == "b"
+    assert chars.char_code("a") == 97
+    assert chars.to_upper("a") == "A"
+
+
+def test_char_comparison_is_not_rewritten() -> None:
+    """Single-char str comparison matches Java numeric char ordering; leave it alone."""
+    source, coverage = translate_source(
+        """
+        public class Chars {
+            public boolean isUpper(char c) {
+                return c >= 'A' && c <= 'Z';
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "ord(" not in source
+    assert 'c >= "A"' in source
+    assert 'c <= "Z"' in source
+
+
 def test_compound_assignment_translates() -> None:
     python_source, coverage = translate_source(
         """

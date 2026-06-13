@@ -348,6 +348,57 @@ def _translate_division(
     return f"__j2py_todo__({node.text!r})"
 
 
+_CHAR_JAVA_TYPES = {"char", "Character"}
+# Operators that are numeric in Java when applied to char operands. Comparison and
+# equality operators (==, !=, <, >, ...) are intentionally excluded: single-character
+# str comparison in Python yields the same ordering as Java's numeric char comparison.
+_CHAR_NUMERIC_OPERATORS = {"+", "-", "*", "%", "&", "|", "^", "<<", ">>"}
+
+
+def _is_char_operand(node: JavaNode, ctx: TranslationContext) -> bool:
+    if node.type == "character_literal":
+        return True
+    java_type = _java_expression_type(node, ctx)
+    if java_type is None:
+        return False
+    return _java_type_simple_name(java_type) in _CHAR_JAVA_TYPES
+
+
+def _translate_char_arithmetic(
+    node: JavaNode,
+    left_node: JavaNode,
+    right_node: JavaNode,
+    operator: str,
+    ctx: TranslationContext,
+) -> str | None:
+    """Translate arithmetic/bitwise binary expressions involving a Java ``char``.
+
+    Java ``char`` is a 16-bit numeric type, so ``c + 1`` is integer arithmetic. The
+    rule layer maps ``char`` to Python ``str``, where ``"a" + 1`` raises ``TypeError``.
+    Wrap each char operand in ``ord()`` so the operation is numeric. A char result that
+    is meant to round-trip back to a char is wrapped in ``chr()`` by the enclosing cast
+    (see ``_translate_cast_expression``); the warning flags sites for reviewers.
+    """
+    if operator not in _CHAR_NUMERIC_OPERATORS:
+        return None
+    left_is_char = _is_char_operand(left_node, ctx)
+    right_is_char = _is_char_operand(right_node, ctx)
+    if not (left_is_char or right_is_char):
+        return None
+
+    def render(operand: JavaNode, is_char: bool) -> str:
+        expr = translate_expression(operand, ctx)
+        return f"ord({expr})" if is_char else expr
+
+    left = render(left_node, left_is_char)
+    right = render(right_node, right_is_char)
+    ctx.diagnostics.warn(
+        node,
+        reason="char arithmetic translated with ord(); wrap result in chr() if a char is expected",
+    )
+    return f"{left} {operator} {right}"
+
+
 def _translate_null_comparison(
     left_node: JavaNode,
     right_node: JavaNode,
