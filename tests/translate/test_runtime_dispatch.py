@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 import pytest
@@ -182,5 +183,5 @@ def test_j2py_todo_raises_not_implemented_error() -> None:
 
 def test_j2py_todo_includes_java_source_in_message() -> None:
     snippet = "someComplexExpression()"
-    with pytest.raises(NotImplementedError, match=snippet):
+    with pytest.raises(NotImplementedError, match=re.escape(snippet)):
         __j2py_todo__(snippet)
