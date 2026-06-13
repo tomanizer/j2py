@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import pytest
 
-from j2py.translate.runtime import overloaded
+from j2py.translate.runtime import __j2py_todo__, overloaded
 
 
 class TypeReference:
@@ -173,3 +173,14 @@ def test_indistinguishable_runtime_types_raise_instead_of_misdispatching() -> No
 
     with pytest.raises(TypeError, match="ambiguous overload"):
         Tie().pick(object())
+
+
+def test_j2py_todo_raises_not_implemented_error() -> None:
+    with pytest.raises(NotImplementedError, match="untranslated Java construct"):
+        __j2py_todo__("new int[rows][cols]")
+
+
+def test_j2py_todo_includes_java_source_in_message() -> None:
+    snippet = "someComplexExpression()"
+    with pytest.raises(NotImplementedError, match=snippet):
+        __j2py_todo__(snippet)

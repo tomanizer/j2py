@@ -8,12 +8,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from j2py.translate.runtime.j2py_runtime import overloaded
+from j2py.translate.runtime.j2py_runtime import __j2py_todo__, overloaded
 
 RUNTIME_MODULE_NAME = "j2py_runtime"
 RUNTIME_IMPORT_LINE = f"from {RUNTIME_MODULE_NAME} import overloaded"
+RUNTIME_TODO_IMPORT_LINE = f"from {RUNTIME_MODULE_NAME} import __j2py_todo__"
 
-__all__ = ["RUNTIME_IMPORT_LINE", "RUNTIME_MODULE_NAME", "overloaded", "runtime_module_source"]
+__all__ = [
+    "RUNTIME_IMPORT_LINE",
+    "RUNTIME_MODULE_NAME",
+    "RUNTIME_TODO_IMPORT_LINE",
+    "__j2py_todo__",
+    "overloaded",
+    "runtime_module_source",
+]
 
 
 def runtime_module_source() -> str:
