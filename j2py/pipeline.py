@@ -172,11 +172,21 @@ def _post_llm_feedback(
         errors.extend(validation.mypy_errors)
     errors.extend(structural_verification.errors)
     selected = errors[:limit]
+    if validation is not None:
+        selected = _sanitize_feedback_paths(selected, validation.path)
     hints = _llm_repair_hints(selected)
     if hints:
         selected.append("Repair guidance:")
         selected.extend(hints)
     return "\n".join(selected)
+
+
+def _sanitize_feedback_paths(errors: list[str], path: Path) -> list[str]:
+    """Replace environment-specific validation paths before they reach LLM caching."""
+    path_str = str(path)
+    if not path_str or path_str == path.name:
+        return errors
+    return [error.replace(path_str, path.name) for error in errors]
 
 
 def _llm_repair_hints(errors: list[str]) -> list[str]:
@@ -200,7 +210,7 @@ def _llm_repair_hints(errors: list[str]) -> list[str]:
             "- Add explicit type arguments to bare generic containers, for example "
             "tuple[object, ...], list[object], or dict[str, object].",
         )
-    if "javax." in joined or "jakarta." in joined or "org." in joined:
+    if any(prefix in joined for prefix in ("javax.", "jakarta.", "org.", "com.", "net.")):
         hints.append(
             "- Do not import unresolved Java packages. Replace Java platform/framework "
             "types with local TODO(j2py) placeholder classes or Protocols.",

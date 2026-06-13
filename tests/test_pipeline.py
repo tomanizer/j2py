@@ -194,18 +194,28 @@ def test_translate_file_retries_llm_once_with_validation_feedback(monkeypatch) -
 
 
 def test_post_llm_feedback_adds_targeted_repair_hints() -> None:
+    validation_path = Path("/tmp/j2py-cache-test/generated.py")
     validation = ValidationResult(
-        path=Path("<string>"),
+        path=validation_path,
         syntax_ok=True,
         mypy_errors=[
-            "x.py:1: error: Unused \"type: ignore\" comment  [unused-ignore]",
             (
-                "x.py:2: error: Overloaded function signature 2 will never be "
+                f"{validation_path}:1: error: Unused \"type: ignore\" comment  "
+                "[unused-ignore]"
+            ),
+            (
+                f"{validation_path}:2: error: Overloaded function signature 2 will never be "
                 "matched: signature 1's parameter type(s) are the same or broader "
                 "[overload-cannot-match]"
             ),
-            "x.py:3: error: Cannot find implementation or library stub for module javax.foo",
-            'x.py:4: error: Missing type arguments for generic type "tuple"  [type-arg]',
+            (
+                f"{validation_path}:3: error: Cannot find implementation or library stub "
+                "for module com.example"
+            ),
+            (
+                f"{validation_path}:4: error: Missing type arguments for generic type "
+                '"tuple"  [type-arg]'
+            ),
         ],
     )
 
@@ -219,6 +229,8 @@ def test_post_llm_feedback_adds_targeted_repair_hints() -> None:
     assert "Fix unreachable overloads" in feedback
     assert "Do not import unresolved Java packages" in feedback
     assert "Add explicit type arguments" in feedback
+    assert str(validation_path) not in feedback
+    assert "generated.py:1:" in feedback
 
 
 def test_translate_file_does_not_retry_when_llm_output_validates_and_verifies(monkeypatch) -> None:
