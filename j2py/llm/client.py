@@ -9,6 +9,7 @@ from pathlib import Path
 
 import anthropic
 import diskcache
+from anthropic.types import TextBlockParam
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from j2py.llm.prompts import PROMPT_VERSION
@@ -59,6 +60,15 @@ def _cache_key(
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def _system_text(system: list[TextBlockParam]) -> str:
+    texts: list[str] = []
+    for block in system:
+        text = block.get("text")
+        if block.get("type") == "text" and isinstance(text, str):
+            texts.append(text)
+    return "\n".join(texts)
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
 def translate_with_llm(
     *,
@@ -104,7 +114,7 @@ def translate_with_llm(
         validation_feedback=validation_feedback,
         previous_python=previous_python,
         config_fingerprint=config_fingerprint,
-        system=system,
+        system=_system_text(system),
     )
     if use_cache:
         cached: str | None = _cache.get(key)
