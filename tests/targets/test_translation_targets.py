@@ -34,14 +34,7 @@ class TranslationTarget:
         return self.fixture_root / self.fixture
 
 
-FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
-    TranslationTarget(
-        fixture="AdvancedStreams.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
-        tracking="advanced-streams",
-        reason="Advanced stream collectors and long chains are not fully supported",
-    ),
-)
+FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
     for path in sorted(TARGET_FIXTURES.glob("*.java"))

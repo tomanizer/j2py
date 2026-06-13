@@ -503,7 +503,7 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             reason="Collectors.joining with prefix/suffix requires manual translation",
         )
         return None
-    if is_grouping and collector_arg_count != 1:
+    if is_grouping and collector_arg_count not in {1, 2}:
         ctx.diagnostics.record(
             node,
             supported=False,
@@ -631,9 +631,32 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
             return None
         # Phase 3 basic support for groupingBy using helper + defaultdict (per plan)
         # key mapper from first arg to groupingBy; value is the post-map item
+        grouping_args = _collector_invocation_arguments(terminal_arg)
+        if collector_arg_count == 2:
+            if len(grouping_args) < 2:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        "Collectors.groupingBy with downstream collector "
+                        "requires manual translation"
+                    ),
+                )
+                return None
+            downstream = grouping_args[1]
+            if not _is_collectors_mapping_to_list_identity(downstream, item_name, ctx):
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        "Collectors.groupingBy with downstream collector "
+                        "requires manual translation"
+                    ),
+                )
+                return None
         key_mapper = item_name
-        if terminal_arg is not None and terminal_arg.named_children:
-            key_arg = terminal_arg.named_children[0]
+        if grouping_args:
+            key_arg = grouping_args[0]
             k = _stream_map_expression(key_arg, item_name, ctx)
             if k:
                 key_mapper = k
@@ -865,6 +888,47 @@ def _is_collectors_grouping_by(node: JavaNode | None) -> bool:
     )
 
 
+def _is_collectors_mapping(node: JavaNode | None) -> bool:
+    if node is None or node.type != "method_invocation":
+        return False
+    receiver = node.child_by_field("object")
+    name = node.child_by_field("name")
+    return (
+        receiver is not None
+        and receiver.text == "Collectors"
+        and name is not None
+        and name.text == "mapping"
+    )
+
+
+def _is_stream_identity_mapper(
+    arg: JavaNode,
+    item_name: str,
+    ctx: TranslationContext,
+) -> bool:
+    if arg.type == "lambda_expression":
+        mapped = _lambda_body_expression(arg, ctx, default_alias=item_name)
+        return mapped == item_name
+    return False
+
+
+def _is_collectors_mapping_to_list_identity(
+    node: JavaNode,
+    item_name: str,
+    ctx: TranslationContext,
+) -> bool:
+    """True for Collectors.mapping(identity, Collectors.toList())."""
+    if not _is_collectors_mapping(node):
+        return False
+    mapping_args = _collector_invocation_arguments(node)
+    if len(mapping_args) != 2:
+        return False
+    mapper, downstream = mapping_args
+    if not _is_collectors_to_list(downstream):
+        return False
+    return _is_stream_identity_mapper(mapper, item_name, ctx)
+
+
 def _is_collectors_to_map(node: JavaNode | None) -> bool:
     if node is None or node.type != "method_invocation":
         return False
@@ -885,6 +949,15 @@ def _method_invocation_arg_count(node: JavaNode | None) -> int | None:
     if args_node is None:
         return 0
     return len(args_node.named_children)
+
+
+def _collector_invocation_arguments(node: JavaNode | None) -> list[JavaNode]:
+    if node is None or node.type != "method_invocation":
+        return []
+    args_node = node.child_by_field("arguments") or first_child_by_type(node, "argument_list")
+    if args_node is None:
+        return []
+    return list(args_node.named_children)
 
 
 def _stream_item_name(source: str, ctx: TranslationContext) -> str:
