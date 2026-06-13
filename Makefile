@@ -1,5 +1,5 @@
 .PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov \
-	corpus-list-presets \
+	corpus-list-presets corpus-clone-all \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
 	corpus-guava-dense corpus-guava-dense-check corpus-guava-dense-update-baseline \
@@ -45,6 +45,13 @@ test-cov:  ## Run tests with coverage report
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
+
+corpus-clone-all:  ## Clone or refresh all pinned corpus preset checkouts under .corpus/
+	@for preset in $$(PYTHONPATH=scripts/corpus uv run python -c "from corpus_presets import CLONE_PRESET_NAMES; print(' '.join(CLONE_PRESET_NAMES))"); do \
+		echo "=== $$preset ==="; \
+		$(CORPUS) --preset $$preset --clone --limit 1 || exit $$?; \
+	done
+	@echo "Done. Checkouts are under .corpus/ (or \$$J2PY_CORPUS_ROOT/.corpus/ when set)."
 
 corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
 	$(CORPUS) --preset spring-lexical --compare-baseline
