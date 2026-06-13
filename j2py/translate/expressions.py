@@ -201,6 +201,8 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
 def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
     if raw_name in ctx.expression_aliases:
         return ctx.expression_aliases[raw_name]
+    if raw_name in ctx.static_field_aliases:
+        return ctx.static_field_aliases[raw_name]
     py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
     if (
         ctx.in_instance_method
@@ -428,6 +430,17 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     raw_receiver = receiver_nodes[0].text if receiver_nodes else ""
     receiver = translate_expression(receiver_nodes[0], ctx) if receiver_nodes else ""
 
+    if not receiver and method_name in ctx.static_method_imports:
+        static_call = _translate_static_imported_method(
+            node,
+            imported_name=ctx.static_method_imports[method_name],
+            arg_nodes=arg_nodes,
+            args=arg_expressions,
+            ctx=ctx,
+        )
+        if static_call is not None:
+            return static_call
+
     static_call = _translate_static_method_invocation(
         node,
         raw_receiver=raw_receiver,
@@ -586,7 +599,7 @@ def _translate_static_method_invocation(
         if method_name == "min" and len(args) == 2:
             return f"min({args[0]}, {args[1]})"
         if method_name == "pow" and len(args) == 2:
-            return f"{args[0]} ** {args[1]}"
+            return f"pow({args[0]}, {args[1]})"
         if method_name in {"sqrt", "floor", "ceil", "log"} and len(args) == 1:
             return f"math.{method_name}({args[0]})"
         if method_name == "round" and len(args) == 1:
@@ -648,6 +661,23 @@ def _translate_static_method_invocation(
 
     return None
 
+def _translate_static_imported_method(
+    node: JavaNode,
+    *,
+    imported_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    raw_receiver, method_name = imported_name.rsplit(".", 1)
+    return _translate_static_method_invocation(
+        node,
+        raw_receiver=raw_receiver,
+        method_name=method_name,
+        arg_nodes=arg_nodes,
+        args=args,
+        ctx=ctx,
+    )
 
 def _translate_string_format(args: list[str]) -> str:
     if len(args) == 1:
@@ -660,7 +690,6 @@ def _translate_string_format(args: list[str]) -> str:
 def _is_locale_argument(node: JavaNode) -> bool:
     parts = node.text.split(".")
     return any(part == "Locale" for part in parts[:-1]) or node.text == "Locale"
-
 
 
 def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str | None:

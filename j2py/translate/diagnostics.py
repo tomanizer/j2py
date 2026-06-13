@@ -101,6 +101,8 @@ class TranslationContext:
     variable_types: dict[str, str] = field(default_factory=dict)
     variable_java_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)
+    static_field_aliases: dict[str, str] = field(default_factory=dict)
+    static_method_imports: dict[str, str] = field(default_factory=dict)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
     allow_local_helpers: bool = False
