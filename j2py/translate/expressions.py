@@ -227,6 +227,16 @@ def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
         ctx.diagnostics.record(node, supported=False, reason="malformed field access")
         return node.text
 
+    if _is_qualified_this_access(node):
+        if ctx.outer_self_alias is not None:
+            return ctx.outer_self_alias
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="qualified outer this requires captured outer self",
+        )
+        return f"__j2py_todo__({node.text!r})"
+
     static_field = _translate_static_field_access(node, ctx)
     if static_field is not None:
         return static_field
@@ -239,6 +249,17 @@ def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
     if children[-1].text == "length":
         return f"len({target})"
     return f"{target}.{field_name}"
+
+
+def _is_qualified_this_access(node: JavaNode) -> bool:
+    children = node.named_children
+    return (
+        node.type == "field_access"
+        and len(children) == 2
+        and children[0].type
+        in {"identifier", "type_identifier", "scoped_identifier", "scoped_type_identifier"}
+        and children[1].type == "this"
+    )
 
 
 def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:

@@ -300,6 +300,47 @@ def test_interface_declaration_translates_to_protocol() -> None:
     assert_valid_python(result.source)
 
 
+def test_sealed_interface_preserves_permits_and_nested_permitted_types() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "SealedClasses.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class SealedClasses(Protocol):" in result.source
+    assert "# sealed: permits Success, Failure, Pending" in result.source
+    assert "@dataclass(frozen=True)\n    class Success:" in result.source
+    assert "@dataclass(frozen=True)\n    class Failure:" in result.source
+    assert "class Pending:" in result.source
+    assert "# final" in result.source
+    assert "class ExtendedPending(Pending):" in result.source
+    assert "# non-sealed" in result.source
+    assert (
+        "SealedClassesPermitted = Success | Failure | Pending"
+        "  # sealed permitted subclasses"
+    ) in result.source
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_captures_qualified_outer_this() -> None:
+    parsed = parse_file(FIXTURES / "java" / "OuterThisCapture.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "_outer_self = self" in result.source
+    assert "print(_outer_self.name)" in result.source
+    assert "_outer_self.process()" in result.source
+    assert "def __init__(self, _outer_self: object) -> None:" in result.source
+    assert "self._outer_self = _outer_self" in result.source
+    assert "return self._outer_self.name" in result.source
+    assert "return self.InnerTask(self)" in result.source
+    assert "OuterThisCapture.self" not in result.source
+    assert "verify captured outer this references" not in {
+        warning.reason for warning in result.diagnostics.warnings
+    }
+    assert_valid_python(result.source)
+
+
 
 
 

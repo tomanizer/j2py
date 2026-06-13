@@ -27,7 +27,12 @@ from j2py.translate.class_model import (
     ParameterInfo,
     _modifiers,
 )
-from j2py.translate.comments import is_comment, translate_comment
+from j2py.translate.comments import (
+    is_comment,
+    is_javadoc_comment,
+    translate_comment,
+    translate_javadoc_docstring,
+)
 from j2py.translate.diagnostics import (
     ClassTranslationState,
     TranslationContext,
@@ -88,6 +93,9 @@ def translate_class(
     inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    docstring_lines: list[str] | None = None,
+    outer_self_alias: str | None = None,
+    requires_outer_self: bool = False,
 ) -> list[str]:
     if node.type == "interface_declaration":
         return _translate_interface(
@@ -96,6 +104,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            docstring_lines=docstring_lines,
         )
     if node.type == "enum_declaration":
         return _translate_enum(
@@ -112,6 +121,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            docstring_lines=docstring_lines,
         )
     if node.type == "annotation_type_declaration":
         return _translate_annotation_declaration(
@@ -120,6 +130,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            docstring_lines=docstring_lines,
         )
 
     is_supported_class = node.type == "class_declaration"
@@ -179,11 +190,16 @@ def translate_class(
     class_state = ClassTranslationState(needs_instance_lock=class_uses_synchronized_this(node))
     if class_state.needs_instance_lock:
         diagnostics.imports.need_threading()
-    if "abstract" in _modifiers(node):
+    modifiers = _modifiers(node)
+    if "abstract" in modifiers:
         diagnostics.imports.need_abc()
     lock_init_lines = [instance_lock_init_line()] if class_state.needs_instance_lock else []
 
+    metadata_lines = _type_metadata_comment_lines(node, indent="    ")
     lines = [f"class {class_name}{_base_suffix(node)}:"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+    lines.extend(metadata_lines)
     static_field_lines, instance_init_lines = _translate_fields(
         node,
         fields,
@@ -194,6 +210,7 @@ def translate_class(
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
     )
+    nested_outer_capture_names = _nested_type_names_using_qualified_this(body)
     nested_type_lines = _nested_type_lines(
         body,
         cfg,
@@ -204,30 +221,46 @@ def translate_class(
         inherited_declared_type_java_fields=declared_type_java_fields,
         static_field_aliases=static_field_aliases or {},
         static_method_imports=static_method_imports or {},
+        outer_capture_names=nested_outer_capture_names,
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
-        (bool(instance_init_lines) or class_state.needs_instance_lock) and not has_constructor
+        (bool(instance_init_lines) or class_state.needs_instance_lock or requires_outer_self)
+        and not has_constructor
     )
 
-    if not members and not static_field_lines and not instance_init_lines and not nested_type_lines:
-        lines.append("    pass")
+    if (
+        not members
+        and not static_field_lines
+        and not instance_init_lines
+        and not nested_type_lines
+        and not needs_synthetic_init
+    ):
+        if not docstring_lines and not metadata_lines:
+            lines.append("    pass")
         return lines
 
-    lines.extend(static_field_lines)
+    if static_field_lines:
+        if docstring_lines or metadata_lines:
+            lines.append("")
+        lines.extend(static_field_lines)
 
     if needs_synthetic_init:
-        if static_field_lines:
+        if static_field_lines or docstring_lines or metadata_lines:
             lines.append("")
-        lines.append("    def __init__(self) -> None:")
+        init_params = "self, _outer_self: object" if requires_outer_self else "self"
+        lines.append(f"    def __init__({init_params}) -> None:")
+        if requires_outer_self:
+            lines.append("        self._outer_self = _outer_self")
         lines.extend(lock_init_lines)
         lines.extend(instance_init_lines)
 
     if nested_type_lines:
-        if static_field_lines or needs_synthetic_init:
+        if static_field_lines or needs_synthetic_init or docstring_lines or metadata_lines:
             lines.append("")
         lines.extend(nested_type_lines)
 
+    member_docstrings = _member_docstrings(body, cfg)
     for group in _member_groups(members):
         lines.append("")
         if len(group) > 1:
@@ -250,6 +283,8 @@ def translate_class(
                         else []
                     ),
                     class_state=class_state,
+                    docstring_lines=_docstring_for_group(group, member_docstrings),
+                    inner_class_names_requiring_outer=nested_outer_capture_names,
                 ),
             )
             continue
@@ -268,13 +303,22 @@ def translate_class(
             static_method_imports=static_method_imports or {},
             allow_local_helpers=True,
             class_state=class_state,
+            outer_self_alias=outer_self_alias,
+            inner_class_names_requiring_outer=nested_outer_capture_names,
         )
         pre_body_lines = (
             lock_init_lines + instance_init_lines
             if member.type == "constructor_declaration"
             else []
         )
-        lines.extend(_translate_method(member, ctx, pre_body_lines=pre_body_lines))
+        lines.extend(
+            _translate_method(
+                member,
+                ctx,
+                pre_body_lines=pre_body_lines,
+                docstring_lines=member_docstrings.get(_node_key(member)),
+            )
+        )
 
     if class_body_needs_pass(lines):
         lines.append("    pass")
@@ -289,18 +333,51 @@ def _translate_interface(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    docstring_lines: list[str] | None = None,
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated interface declaration")
     diagnostics.imports.need_typing("Protocol")
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     body = node.child_by_field("body")
-    methods = [] if body is None else list(body.find_all("method_declaration"))
+    methods = (
+        []
+        if body is None
+        else [child for child in body.named_children if child.type == "method_declaration"]
+    )
     class_method_names = _member_method_names(methods, cfg)
+    nested_type_lines = _nested_type_lines(
+        body,
+        cfg,
+        diagnostics,
+        inherited_class_field_types={},
+        inherited_class_field_java_types={},
+        inherited_declared_type_fields={},
+        inherited_declared_type_java_fields={},
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
+    sealed_alias_lines = _sealed_type_alias_lines(node, body, class_name, indent="    ")
 
     lines = [f"class {class_name}(Protocol):"]
-    wrote_member = False
+    if docstring_lines:
+        lines.extend(docstring_lines)
+    metadata_lines = _type_metadata_comment_lines(node, indent="    ")
+    lines.extend(metadata_lines)
+    wrote_member = bool(docstring_lines or metadata_lines)
+    if nested_type_lines:
+        if wrote_member:
+            lines.append("")
+        lines.extend(nested_type_lines)
+        wrote_member = True
+    if sealed_alias_lines:
+        if wrote_member:
+            lines.append("")
+        lines.extend(sealed_alias_lines)
+        wrote_member = True
     for method in methods:
+        if wrote_member:
+            lines.append("")
         _record_annotation_diagnostics(method, cfg, diagnostics)
         method_body = _method_body(method)
         if method_body is not None:
@@ -536,6 +613,7 @@ def _translate_record(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    docstring_lines: list[str] | None = None,
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated record declaration")
     diagnostics.imports.need_dataclass()
@@ -546,8 +624,13 @@ def _translate_record(
         diagnostics.imports.need_type_annotation(param.py_type)
 
     lines = ["@dataclass(frozen=True)", f"class {class_name}:"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+    metadata_lines = _type_metadata_comment_lines(node, indent="    ")
+    lines.extend(metadata_lines)
     if not params:
-        lines.append("    pass")
+        if not docstring_lines and not metadata_lines:
+            lines.append("    pass")
         return lines
     for param in params:
         lines.append(f"    {param.py_name}: {param.py_type}")
@@ -578,6 +661,7 @@ def _translate_annotation_declaration(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    docstring_lines: list[str] | None = None,
 ) -> list[str]:
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
@@ -604,6 +688,8 @@ def _translate_annotation_declaration(
 
     diagnostics.imports.need_dataclass()
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
+    if docstring_lines:
+        lines.extend(docstring_lines)
 
     body = node.child_by_field("body")
     member_lines: list[str] = []
@@ -855,13 +941,21 @@ def _nested_type_lines(
     inherited_declared_type_java_fields: dict[str, dict[str, str]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    outer_capture_names: set[str] | None = None,
 ) -> list[str]:
     if body is None:
         return []
 
     lines: list[str] = []
+    pending_docstring: list[str] | None = None
+    capture_names = outer_capture_names or set()
     for child in body.named_children:
+        if is_javadoc_comment(child):
+            pending_docstring = _javadoc_docstring(child, cfg, indent="    ")
+            continue
         if child.type not in TYPE_DECLARATION_NODES:
+            if not is_comment(child):
+                pending_docstring = None
             continue
         if lines:
             lines.append("")
@@ -875,9 +969,107 @@ def _nested_type_lines(
             inherited_declared_type_java_fields=inherited_declared_type_java_fields,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            docstring_lines=pending_docstring,
+            outer_self_alias=(
+                "self._outer_self"
+                if _type_name(child) in capture_names and child.type == "class_declaration"
+                else None
+            ),
+            requires_outer_self=(
+                _type_name(child) in capture_names and child.type == "class_declaration"
+            ),
         )
+        pending_docstring = None
         lines.extend(f"    {line}" if line else line for line in child_lines)
     return lines
+
+
+def _type_metadata_comment_lines(node: JavaNode, *, indent: str) -> list[str]:
+    modifiers = _modifiers(node)
+    lines: list[str] = []
+    permits = _permits_names(node)
+    if "sealed" in modifiers:
+        if permits:
+            lines.append(f"{indent}# sealed: permits {', '.join(permits)}")
+        else:
+            lines.append(f"{indent}# sealed")
+    if "non-sealed" in modifiers:
+        lines.append(f"{indent}# non-sealed")
+    if "final" in modifiers and node.type == "class_declaration":
+        lines.append(f"{indent}# final")
+    return lines
+
+
+def _sealed_type_alias_lines(
+    node: JavaNode,
+    body: JavaNode | None,
+    class_name: str,
+    *,
+    indent: str,
+) -> list[str]:
+    permits = _permits_names(node)
+    if not permits or body is None:
+        return []
+    nested_names = _direct_nested_type_names(body)
+    if any(name not in nested_names for name in permits):
+        return []
+    alias = f"{class_name}Permitted"
+    return [f"{indent}{alias} = {' | '.join(permits)}  # sealed permitted subclasses"]
+
+
+def _permits_names(node: JavaNode) -> list[str]:
+    permits_node = first_child_by_type(node, "permits")
+    if permits_node is None:
+        return []
+    names: list[str] = []
+    for child in permits_node.walk():
+        if child.type in {"type_identifier", "scoped_type_identifier", "identifier"}:
+            names.append(translate_class_name(child.text))
+    return names
+
+
+def _direct_nested_type_names(body: JavaNode) -> set[str]:
+    names: set[str] = set()
+    for child in body.named_children:
+        if child.type not in TYPE_DECLARATION_NODES:
+            continue
+        type_name = _type_name(child)
+        if type_name is not None:
+            names.add(type_name)
+    return names
+
+
+def _nested_type_names_using_qualified_this(body: JavaNode | None) -> set[str]:
+    if body is None:
+        return set()
+    names: set[str] = set()
+    for child in body.named_children:
+        if child.type != "class_declaration":
+            continue
+        type_name = _type_name(child)
+        if type_name is not None and _uses_qualified_this(child):
+            names.add(type_name)
+    return names
+
+
+def _type_name(node: JavaNode) -> str | None:
+    name_node = node.child_by_field("name")
+    if name_node is None:
+        return None
+    return translate_class_name(name_node.text)
+
+
+def _uses_qualified_this(node: JavaNode) -> bool:
+    if node.type == "field_access":
+        children = node.named_children
+        if (
+            len(children) == 2
+            and children[0].type
+            in {"identifier", "type_identifier", "scoped_identifier", "scoped_type_identifier"}
+            and children[1].type == "this"
+        ):
+            return True
+    return any(_uses_qualified_this(child) for child in node.named_children)
 
 
 def _base_suffix(node: JavaNode) -> str:
@@ -928,6 +1120,63 @@ def _member_python_name(member: JavaNode) -> str:
     return translate_method_name(raw_name)
 
 
+_NodeKey = tuple[int, int, int, int, str]
+
+
+def _node_key(node: JavaNode) -> _NodeKey:
+    location = node.location
+    return (
+        location.line,
+        location.column,
+        location.end_line,
+        location.end_column,
+        node.type,
+    )
+
+
+def _member_docstrings(body: JavaNode | None, cfg: TranslationConfig) -> dict[_NodeKey, list[str]]:
+    if body is None:
+        return {}
+    docstrings: dict[_NodeKey, list[str]] = {}
+    pending: list[str] | None = None
+    for child in body.named_children:
+        if is_javadoc_comment(child):
+            pending = _javadoc_docstring(child, cfg, indent="        ")
+            continue
+        if child.type in {"constructor_declaration", "method_declaration"}:
+            if pending:
+                docstrings[_node_key(child)] = pending
+            pending = None
+            continue
+        if not is_comment(child):
+            pending = None
+    return docstrings
+
+
+def _docstring_for_group(
+    group: list[JavaNode],
+    docstrings: dict[_NodeKey, list[str]],
+) -> list[str] | None:
+    for member in reversed(group):
+        docstring = docstrings.get(_node_key(member))
+        if docstring:
+            return docstring
+    return None
+
+
+def _javadoc_docstring(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    *,
+    indent: str,
+) -> list[str] | None:
+    if not cfg.emit_line_comments:
+        return None
+    if not cfg.emit_docstrings:
+        return translate_comment(node, indent=indent)
+    return translate_javadoc_docstring(node, indent=indent)
+
+
 def _translate_method(
     node: JavaNode,
     ctx: TranslationContext,
@@ -937,6 +1186,7 @@ def _translate_method(
     decorator_lines: list[str] | None = None,
     def_line_suffix: str = "",
     supported_reason: str | None = None,
+    docstring_lines: list[str] | None = None,
 ) -> list[str]:
     _record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
     supported = node.type in {"constructor_declaration", "method_declaration"}
@@ -979,6 +1229,8 @@ def _translate_method(
     lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
 
     if is_abstract:
+        if docstring_lines:
+            lines.extend(docstring_lines)
         lines.append("        ...")
         return lines
 
@@ -988,6 +1240,10 @@ def _translate_method(
 
     ctx.allow_local_helpers = True
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if pre_body_lines or body_lines != ["        pass"]:
+            lines.append("")
     lines.extend(pre_body_lines or [])
 
     # Flush any helpers generated for block lambdas encountered while walking
@@ -1018,6 +1274,8 @@ def _translate_overloaded_members(
     static_method_imports: dict[str, str] | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
 ) -> list[str]:
     from j2py.translate.overloads import translate_overloaded_members
 
@@ -1035,6 +1293,8 @@ def _translate_overloaded_members(
         static_method_imports=static_method_imports,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
     )
 
 

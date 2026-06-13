@@ -407,6 +407,21 @@ def test_switch_expression_translates_arrow_rules_and_yield_blocks() -> None:
     assert_valid_python(python_source)
 
 
+def test_pattern_matching_switch_expression_uses_python_match_helper() -> None:
+    parsed = parse_file(FIXTURES / "java" / "PatternMatchSwitch.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "match _j2py_subject:" in result.source
+    assert "case int() as i:" in result.source
+    assert "case str() as s if not s:" in result.source
+    assert "case None:" in result.source
+    assert "case _:" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert_valid_python(result.source)
+
+
 
 
 
