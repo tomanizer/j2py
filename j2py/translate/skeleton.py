@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
-from j2py.translate.classes import top_level_classes, translate_class
+from j2py.translate.class_model import TYPE_DECLARATION_NODES
+from j2py.translate.classes import translate_class
+from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
 
 
@@ -46,10 +48,16 @@ def translate_skeleton_with_diagnostics(
         parsed,
         diagnostics,
     )
-    class_nodes = top_level_classes(parsed.root)
-
     class_blocks: list[list[str]] = []
-    for class_node in class_nodes:
+    pending_docstring: list[str] | None = None
+    for class_node in parsed.root.named_children:
+        if is_javadoc_comment(class_node):
+            pending_docstring = _javadoc_docstring(class_node, cfg, indent="    ")
+            continue
+        if class_node.type not in TYPE_DECLARATION_NODES:
+            if not is_comment(class_node):
+                pending_docstring = None
+            continue
         class_blocks.append(
             translate_class(
                 class_node,
@@ -57,8 +65,10 @@ def translate_skeleton_with_diagnostics(
                 diagnostics,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                docstring_lines=pending_docstring,
             )
         )
+        pending_docstring = None
 
     lines = ["from __future__ import annotations"]
     import_lines = _import_lines(parsed, cfg, diagnostics, static_import_todos)
@@ -78,6 +88,23 @@ def translate_skeleton_with_diagnostics(
         coverage=diagnostics.coverage,
         diagnostics=diagnostics,
     )
+
+
+def _javadoc_docstring(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    *,
+    indent: str,
+) -> list[str] | None:
+    if not cfg.emit_line_comments:
+        return None
+    if not cfg.emit_docstrings:
+        from j2py.translate.comments import translate_comment
+
+        return translate_comment(node, indent=indent)
+    from j2py.translate.comments import translate_javadoc_docstring
+
+    return translate_javadoc_docstring(node, indent=indent)
 
 
 def _import_lines(

@@ -299,6 +299,44 @@ def test_cli_translate_skips_runtime_module_when_dispatch_unused(tmp_path: Path)
     assert not (tmp_path / "j2py_runtime.py").exists()
 
 
+def test_cli_translate_writes_self_contained_review_report(tmp_path: Path) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text(
+        """
+        public class Sample {
+            public String greet() { return "hello"; }
+        }
+        """,
+    )
+    output = tmp_path / "Sample.py"
+    report = tmp_path / "report.html"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--output",
+            str(output),
+            "--report",
+            str(report),
+        ],
+    )
+
+    assert result.exit_code == 0
+    html = report.read_text()
+    assert "Sample.java" in html
+    assert "Java" in html
+    assert "Python" in html
+    assert "data-provenance=\"rule\"" in html
+    assert "No unresolved rule-layer diagnostics." in html
+    assert "https://" not in html
+    assert "<script" not in html
+
+
 def test_cli_compare_existing_python_skips_translation_and_opens_diff(
     tmp_path: Path,
     monkeypatch,

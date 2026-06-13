@@ -47,15 +47,20 @@ def translate(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print translated output, do not write files."
     ),
+    report: Path | None = typer.Option(
+        None,
+        "--report",
+        help="Write a self-contained HTML side-by-side review report.",
+    ),
 ) -> None:
     """Translate a Java file or directory tree to Python."""
     cfg = _load_config(config)
 
     if source.is_dir():
         _translate_dir(source, output or source.parent / (source.name + "_py"),
-                       cfg, llm, model, validate, dry_run)
+                       cfg, llm, model, validate, dry_run, report)
     else:
-        _translate_single(source, output, cfg, llm, model, validate, dry_run)
+        _translate_single(source, output, cfg, llm, model, validate, dry_run, report)
 
 
 def _translate_single(
@@ -66,6 +71,7 @@ def _translate_single(
     model: str,
     validate: bool,
     dry_run: bool,
+    report: Path | None,
 ) -> None:
     from j2py.pipeline import translate_file
 
@@ -83,6 +89,11 @@ def _translate_single(
     dest.write_text(result.python_source)
     console.print(f"[green]Written:[/green] {dest}")
     _emit_runtime_module(dest.parent, [result.python_source])
+    if report is not None:
+        from j2py.report import write_translation_report
+
+        write_translation_report(report, [result])
+        console.print(f"[green]Report:[/green] {report}")
 
     if validate and result.validation is not None:
         _print_validation(result.validation)
@@ -115,6 +126,7 @@ def _translate_dir(
     model: str,
     validate: bool,
     dry_run: bool,
+    report: Path | None,
 ) -> None:
     from j2py.pipeline import translate_directory
 
@@ -155,6 +167,11 @@ def _translate_dir(
 
     if not dry_run:
         _emit_runtime_module(output, [result.python_source for result in batch.files])
+        if report is not None:
+            from j2py.report import write_translation_report
+
+            write_translation_report(report, batch.files)
+            console.print(f"[green]Report:[/green] {report}")
 
     console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")
     failures = [

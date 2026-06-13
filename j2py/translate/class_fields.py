@@ -5,7 +5,7 @@ from __future__ import annotations
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
-from j2py.translate.comments import is_comment, translate_comment
+from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import first_child_by_type
@@ -256,7 +256,8 @@ def _translate_fields(
         "static_initializer",
         *TYPE_DECLARATION_NODES,
     }
-    for child in body.named_children:
+    body_children = body.named_children
+    for index, child in enumerate(body_children):
         if child.type == "static_initializer":
             diagnostics.record(child, supported=True, reason="translated static initializer")
             static_body = first_child_by_type(child, "block")
@@ -274,6 +275,11 @@ def _translate_fields(
             continue
         if is_comment(child):
             diagnostics.warn(child, reason="preserved comment")
+            if is_javadoc_comment(child) and _javadoc_is_consumed_by_declaration(
+                body_children,
+                index,
+            ):
+                continue
             if not cfg.emit_line_comments:
                 continue
             static_lines.extend(translate_comment(child, indent="    "))
@@ -282,6 +288,18 @@ def _translate_fields(
         static_lines.append(f"    # TODO(j2py): unsupported class member {child.type}")
 
     return static_lines, instance_init_lines
+
+
+def _javadoc_is_consumed_by_declaration(children: list[JavaNode], index: int) -> bool:
+    for child in children[index + 1:]:
+        if is_comment(child):
+            continue
+        return child.type in {
+            "constructor_declaration",
+            "method_declaration",
+            *TYPE_DECLARATION_NODES,
+        }
+    return False
 
 
 def _translate_static_field(

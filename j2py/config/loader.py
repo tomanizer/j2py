@@ -31,6 +31,7 @@ class TranslationConfig(BaseModel):
     snake_case_methods: bool = True
     snake_case_fields: bool = True
     emit_line_comments: bool = True    # # java: <original line>
+    emit_docstrings: bool = True       # Convert Javadoc blocks to Python docstrings
     confidence_comments: bool = True   # # TODO(j2py): low-confidence
     target_python: str = "3.11"
 
