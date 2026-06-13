@@ -23,6 +23,12 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
     if body_node is not None:
         return _translate_anonymous_class(node, body_node, base_type, args, ctx)
 
+    # Bare java.lang.Object → Python object(). This is the canonical dedicated-lock
+    # idiom (`private final Object lock = new Object();`); `Object` has no Python
+    # name, so the fallback would emit an undefined `Object()` and raise NameError.
+    if base_type in {"Object", "java.lang.Object"} and not args:
+        return "object()"
+
     collection_literals = {
         "ArrayList": "[]",
         "LinkedList": "[]",

@@ -623,13 +623,30 @@ def test_synchronized_non_this_lock_uses_j2py_monitor() -> None:
     )
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
+    # Canonical dedicated-lock idiom: `new Object()` must become a real object()
+    # so the constructor doesn't raise NameError before the monitor helper runs.
+    assert "self.monitor: object = object()" in result.source
     assert "with _j2py_monitor(self.monitor):" in result.source
     assert "from j2py_runtime import _j2py_monitor" in result.source
     assert any(
         "_j2py_monitor" in warning.reason
         for warning in result.diagnostics.warnings
     )
-    assert_valid_python(result.source)
+    assert_module_executes(result.source)
+
+
+def test_new_object_translates_to_object_call() -> None:
+    python_source, _ = translate_source(
+        """
+        public class Holder {
+            private final Object lock = new Object();
+        }
+        """,
+    )
+
+    assert "self.lock: object = object()" in python_source
+    assert "Object()" not in python_source
+    assert_module_executes(python_source)
 
 
 def test_synchronized_class_literal_uses_j2py_monitor() -> None:
