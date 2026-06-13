@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-PROMPT_VERSION = "j2py-translation-v3"
+PROMPT_VERSION = "j2py-translation-v7"
 
 SYSTEM_PROMPT = """\
 You are an expert Java-to-Python translator and a conservative code transposer, not a \
@@ -27,7 +27,28 @@ Rules:
     * for (T item : collection) → for item in collection:
     * System.out.println → print
     * Math.abs/max/min → abs/max/min (built-in)
-- For method overloads: use @typing.overload stubs + a unified implementation
+- For method overloads: use @typing.overload stubs plus a unified implementation.
+  When overloads are dispatched through *args, make the overload stubs positional-only
+  with "/" so mypy does not require keyword-call compatibility that Java does not have.
+  The concrete implementation must accept every overload signature under mypy.
+- Do NOT import unresolved Java platform/framework packages such as javax.*, org.*,
+  jakarta.*, or Spring classes as if they were Python modules. When such types are needed
+  only for annotations or placeholders, use a local TODO(j2py) stub, a Protocol-shaped
+  placeholder, or Any with an explicit TODO comment. Do not add unused type-ignore
+  comments for imports that mypy already ignores.
+- Never wrap unresolved Java imports in try/except ImportError fallbacks. Generate the
+  local placeholder directly instead. Avoid # type: ignore in generated output unless
+  there is no typed alternative; fix the type shape instead of suppressing validation.
+- When an unresolved Java type appears in overload signatures, prefer a local nominal
+  placeholder class or Protocol over Any/object so overload signatures remain distinct.
+  Do not emit @overload stubs where an earlier Any/object signature makes a later
+  signature unreachable under mypy; either use nominal placeholders or collapse to a
+  single implementation signature.
+- If same-arity Java overloads would map to overlapping Python signatures, such as
+  Object and String becoming object and str, merge those overloads into one Python
+  overload using a union of the actually supported runtime types, for example
+  `name: ObjectName | str, /`. Never emit an object/Any overload stub that overlaps
+  a narrower overload stub of the same arity.
 - For synchronized(this): initialize self._j2py_lock = threading.Lock() in __init__ \
 and use with self._j2py_lock
 - For other synchronized locks: use with <expr> and verify the monitor supports \
@@ -51,6 +72,7 @@ def build_translation_prompt(
     context: str = "",
     diagnostics: str = "",
     validation_feedback: str = "",
+    previous_python: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Build the system prompt and messages list for a translation call.
 
@@ -66,6 +88,14 @@ def build_translation_prompt(
     if validation_feedback:
         user_parts.append(
             f"<validation_feedback>\n{validation_feedback}\n</validation_feedback>",
+        )
+    if previous_python.strip():
+        user_parts.append(
+            f"<previous_llm_output>\n{previous_python}\n</previous_llm_output>\n\n"
+            "The previous LLM output above failed validation or structural checks. "
+            "Repair that Python output using the validation feedback. Preserve correct "
+            "logic from the previous output and change only what is needed to produce "
+            "valid, reviewable Python."
         )
 
     user_parts.append(f"<java_source>\n{java_source}\n</java_source>")

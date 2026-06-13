@@ -24,7 +24,8 @@ from j2py.parse.java_ast import parse_source
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 
-SPRING_CORPUS = Path(__file__).parents[2] / ".corpus" / "spring-framework"
+REPO_ROOT = Path(__file__).parents[2]
+SPRING_CORPUS = REPO_ROOT / ".corpus" / "spring-framework"
 NEEDS_API_KEY = pytest.mark.skipif(
     not os.environ.get("ANTHROPIC_API_KEY"),
     reason="ANTHROPIC_API_KEY not set",
@@ -134,3 +135,78 @@ def test_pipeline_output_has_no_markdown_fences() -> None:
     assert "```" not in result.python_source, (
         "Markdown fences leaked into translation output:\n" + result.python_source[:500]
     )
+
+
+LLM_GAP_PROBE_CASES = [
+    pytest.param(
+        REPO_ROOT / "tests/fixtures/corpus/constructs/AdvancedStreams.java",
+        [
+            ".stream()",
+            "List.stream",
+            "collectors.grouping_by",
+            "unsupported stream intermediate",
+        ],
+        True,
+        id="advanced-streams",
+    ),
+    pytest.param(
+        SPRING_CORPUS
+        / "spring-context/src/main/java/org/springframework/jmx/support/ObjectNameManager.java",
+        [
+            'NotImplementedError("j2py overload dispatch required")',
+            "overloaded method get_instance requires manual dispatch",
+        ],
+        True,
+        marks=NEEDS_SPRING,
+        id="object-name-manager-overloads",
+    ),
+]
+
+
+@NEEDS_API_KEY
+@LIVE_LLM
+@pytest.mark.parametrize(("path", "forbidden_fragments", "require_mypy"), LLM_GAP_PROBE_CASES)
+def test_llm_probe_known_static_gap_files(
+    path: Path,
+    forbidden_fragments: list[str],
+    require_mypy: bool,
+) -> None:
+    """Probe whether live LLM completion resolves current static rule-layer gaps.
+
+    This is intentionally an on-demand smoke test, not part of `make check`. It exercises
+    real files that the deterministic skeleton still cannot fully translate and verifies
+    that the LLM result at least removes the specific static failure markers.
+    """
+    from j2py.pipeline import translate_file
+
+    cfg = ConfigLoader().add_defaults().build()
+    result = translate_file(path, cfg=cfg, use_llm=True, validate=True)
+
+    print("\n=== LIVE LLM GAP PROBE ===")
+    print("file:", path)
+    print("confidence:", result.confidence)
+    print("used_llm:", result.used_llm)
+    if result.diagnostics is not None:
+        print("skeleton unhandled:")
+        for item in result.diagnostics.unhandled:
+            print(f"  line {item.line}: {item.node_type} - {item.reason}")
+    if result.validation is not None:
+        print("validation syntax_ok:", result.validation.syntax_ok)
+        print("validation mypy_ok:", result.validation.mypy_ok)
+        for error in result.validation.syntax_errors + result.validation.mypy_errors[:5]:
+            print("  validation:", error)
+    if result.structural_verification is not None:
+        print("structural ok:", result.structural_verification.ok)
+        for error in result.structural_verification.errors:
+            print("  structural:", error)
+    print("=== FINAL LLM OUTPUT ===")
+    print(result.python_source)
+
+    assert result.used_llm, "LLM should have been invoked for the selected static gap file"
+    ast.parse(result.python_source)
+    assert "```" not in result.python_source
+    if require_mypy:
+        assert result.validation is not None
+        assert result.validation.mypy_ok, result.validation.mypy_errors
+    for fragment in forbidden_fragments:
+        assert fragment not in result.python_source
