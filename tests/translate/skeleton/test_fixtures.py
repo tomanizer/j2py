@@ -58,7 +58,6 @@ def test_abstract_class_with_superclass_keeps_superclass_and_abc() -> None:
     assert_valid_python(result.source)
 
 
-
 @pytest.mark.parametrize(
     ("fixture_name", "expected_fragments"),
     [
