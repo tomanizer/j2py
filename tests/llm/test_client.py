@@ -41,7 +41,6 @@ def test_translate_with_llm_calls_client_and_writes_cache(monkeypatch) -> None:
             assert kwargs["model"] == "claude-test"
             assert kwargs["system"][0]["cache_control"] == {
                 "type": "ephemeral",
-                "ttl": "5m",
             }
             return SimpleNamespace(
                 content=[anthropic.types.TextBlock(type="text", text="translated python")],

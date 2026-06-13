@@ -85,7 +85,7 @@ def build_translation_prompt(
         {
             "type": "text",
             "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral", "ttl": "5m"},
+            "cache_control": {"type": "ephemeral"},
         },
     ]
     user_parts: list[str] = []

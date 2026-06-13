@@ -15,7 +15,7 @@ def test_build_translation_prompt_includes_context_source_and_partial() -> None:
 
     assert len(system) == 1
     assert system[0]["type"] == "text"
-    assert system[0]["cache_control"] == {"type": "ephemeral", "ttl": "5m"}
+    assert system[0]["cache_control"] == {"type": "ephemeral"}
     assert "Java-to-Python translator" in system[0]["text"]
     content = messages[0]["content"]
     assert "<project_context>" in content

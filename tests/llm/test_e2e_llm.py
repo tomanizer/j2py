@@ -118,7 +118,7 @@ def test_prompt_cache_reports_second_call_cache_hit() -> None:
     print("second cache_creation_input_tokens:", second.usage.cache_creation_input_tokens)
     print("second cache_read_input_tokens:", second.usage.cache_read_input_tokens)
 
-    assert system[0]["cache_control"] == {"type": "ephemeral", "ttl": "5m"}
+    assert system[0]["cache_control"] == {"type": "ephemeral"}
     assert (second.usage.cache_read_input_tokens or 0) > 0
 
 
