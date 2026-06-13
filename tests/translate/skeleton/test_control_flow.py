@@ -8,6 +8,7 @@ from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
     FIXTURES,
+    assert_module_executes,
     assert_valid_python,
     translate_source,
     translate_source_with_diagnostics,
@@ -650,10 +651,14 @@ def test_synchronized_class_literal_uses_j2py_monitor() -> None:
 
 
 def test_class_with_both_synchronized_this_and_object_emits_both_imports() -> None:
+    # The non-this lock is a user-defined type (translates to a real, defined
+    # class) so the emitted module is genuinely runnable — see assert_module_executes.
     python_source, _ = translate_source(
         """
+        class WriteLock {}
+
         public class Dual {
-            private final Object writeLock = new Object();
+            private final WriteLock writeLock = new WriteLock();
 
             public void onThis() {
                 synchronized (this) { doA(); }
@@ -670,7 +675,7 @@ def test_class_with_both_synchronized_this_and_object_emits_both_imports() -> No
     assert "with _j2py_monitor(self.write_lock):" in python_source
     assert "import threading" in python_source
     assert "from j2py_runtime import _j2py_monitor" in python_source
-    assert_valid_python(python_source)
+    assert_module_executes(python_source)
 
 
 def test_synchronized_import_not_emitted_for_field_named_j2py_monitor() -> None:

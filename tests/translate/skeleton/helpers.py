@@ -1,6 +1,8 @@
 """Shared helpers for skeleton translator tests."""
 
 import ast
+import importlib
+import sys
 from pathlib import Path
 
 from j2py.analyze.symbols import extract_symbols
@@ -24,3 +26,19 @@ def translate_source_with_diagnostics(source: str, cfg=CFG):
 
 def assert_valid_python(source: str) -> None:
     ast.parse(source)
+
+
+def assert_module_executes(source: str) -> None:
+    """Execute *source* as a module body, resolving imports and top-level defs.
+
+    Stronger than :func:`assert_valid_python` (which only parses): this runs the
+    ``from __future__``/import lines — including the vendored ``from j2py_runtime
+    import ...`` the skeleton emits — and the class/function definitions, so it
+    catches undefined names emitted at module scope (e.g. a mistranslated ``new
+    Object()`` leaking an undefined ``Object``). Method/constructor bodies are not
+    invoked, so undefined free functions referenced only inside them are tolerated.
+    """
+    runtime = importlib.import_module("j2py.translate.runtime.j2py_runtime")
+    sys.modules.setdefault("j2py_runtime", runtime)
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<translated>", "exec"), namespace)
