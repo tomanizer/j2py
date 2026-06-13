@@ -162,6 +162,7 @@ def _translate_unsigned_right_shift(
     left_node: JavaNode,
     right_node: JavaNode,
     ctx: TranslationContext,
+    left: str | None = None,
 ) -> str:
     width = _java_integral_width(left_node, ctx)
     if width is None:
@@ -171,9 +172,10 @@ def _translate_unsigned_right_shift(
             reason="unsigned right shift assumed 32-bit int width; verify operand type",
         )
     mask = "0xFFFFFFFFFFFFFFFF" if width == 64 else "0xFFFFFFFF"
-    left = translate_expression(left_node, ctx)
+    if left is None:
+        left = translate_expression(left_node, ctx)
     right = translate_expression(right_node, ctx)
-    return f"({left} >> {right}) & ({mask} >> {right})"
+    return f"({left} & {mask}) >> {right}"
 
 
 def _java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
