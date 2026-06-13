@@ -175,7 +175,7 @@ def _translate_unsigned_right_shift(
     if left is None:
         left = translate_expression(left_node, ctx)
     right = translate_expression(right_node, ctx)
-    return f"({left} & {mask}) >> {right}"
+    return f"({left} & {mask}) >> {_masked_shift_distance(right, width)}"
 
 
 def _is_simple_lvalue(node: JavaNode) -> bool:
@@ -200,15 +200,16 @@ def _translate_unsigned_right_shift_assign(
 
     if _is_simple_lvalue(left_node):
         left = translate_expression(left_node, ctx)
-        return f"{left} = ({left} & {mask}) >> {right}"
+        return f"{left} = ({left} & {mask}) >> {_masked_shift_distance(right, width)}"
 
     if left_node.type == "array_access" and len(left_node.named_children) >= 2:
         array_node, index_node = left_node.named_children[0], left_node.named_children[1]
         array = translate_expression(array_node, ctx)
         index = translate_expression(index_node, ctx)
+        distance = _masked_shift_distance(right, width)
         return (
             f"_j2py_idx = {index}; "
-            f"{array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {right}"
+            f"{array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {distance}"
         )
 
     if left_node.type == "field_access" and len(left_node.named_children) == 2:
@@ -216,9 +217,10 @@ def _translate_unsigned_right_shift_assign(
 
         target = translate_expression(left_node.named_children[0], ctx)
         field = translate_field_name(left_node.named_children[1].text)
+        distance = _masked_shift_distance(right, width)
         return (
             f"_j2py_val = {target}.{field}; "
-            f"{target}.{field} = (_j2py_val & {mask}) >> {right}"
+            f"{target}.{field} = (_j2py_val & {mask}) >> {distance}"
         )
 
     left = translate_expression(left_node, ctx)
@@ -226,7 +228,7 @@ def _translate_unsigned_right_shift_assign(
         node,
         reason="unsigned right shift assignment on complex left-hand side may evaluate twice",
     )
-    return f"{left} = ({left} & {mask}) >> {right}"
+    return f"{left} = ({left} & {mask}) >> {_masked_shift_distance(right, width)}"
 
 
 def _java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
@@ -241,11 +243,28 @@ def _java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None
         return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
     if node.type == "field_access":
         return _field_access_java_type(node, ctx)
+    if node.type == "array_access" and node.named_children:
+        array_java_type = _java_expression_type(node.named_children[0], ctx)
+        if array_java_type is None:
+            return None
+        return _java_type_strip_one_array_dimension(array_java_type)
     if node.type == "parenthesized_expression" and len(node.named_children) == 1:
         return _java_expression_type(node.named_children[0], ctx)
     if node.type == "cast_expression" and node.named_children:
         return node.named_children[0].text
     return None
+
+
+def _java_type_strip_one_array_dimension(java_type: str) -> str | None:
+    stripped = java_type.strip()
+    if stripped.endswith("[]"):
+        return stripped[:-2].strip()
+    return None
+
+
+def _masked_shift_distance(right: str, width: int) -> str:
+    distance_mask = "0x3F" if width == 64 else "0x1F"
+    return f"({right} & {distance_mask})"
 
 
 def _field_access_java_type(node: JavaNode, ctx: TranslationContext) -> str | None:

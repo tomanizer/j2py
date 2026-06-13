@@ -48,9 +48,12 @@ Java unsigned right shift (`>>>`) translates to a masked Python signed shift bas
 the known Java operand width:
 
 ```python
-(value & 0xFFFFFFFF) >> bits
-(value & 0xFFFFFFFFFFFFFFFF) >> bits
+(value & 0xFFFFFFFF) >> (bits & 0x1F)
+(value & 0xFFFFFFFFFFFFFFFF) >> (bits & 0x3F)
 ```
+
+Java masks the shift distance to 5 bits for `int` operands and 6 bits for `long`
+operands before applying the unsigned right shift.
 
 The 32-bit mask is used for known `int`, `byte`, `short`, `char`, and boxed
 equivalents. The 64-bit mask is used for known `long` and `Long`. Unsigned right shift

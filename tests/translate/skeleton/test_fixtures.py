@@ -270,11 +270,11 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert not bitwise_result.diagnostics.unhandled
     assert "return left & right | left ^ right" in bitwise_result.source
     assert "return value << 2 >> 1" in bitwise_result.source
-    assert "return (value & 0xFFFFFFFF) >> 1" in bitwise_result.source
+    assert "return (value & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
     assert "value = -1" in bitwise_result.source
-    assert "return (value & 0xFFFFFFFFFFFFFFFF) >> 2" in bitwise_result.source
-    assert "value = (value & 0xFFFFFFFF) >> 1" in bitwise_result.source
-    assert "return (source.value() & 0xFFFFFFFF) >> 1" in bitwise_result.source
+    assert "return (value & 0xFFFFFFFFFFFFFFFF) >> (2 & 0x3F)" in bitwise_result.source
+    assert "value = (value & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
+    assert "return (source.value() & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
     assert [warning.reason for warning in bitwise_result.diagnostics.warnings] == [
         "unsigned right shift assumed 32-bit int width; verify operand type",
     ]
@@ -306,7 +306,7 @@ def test_unsigned_right_shift_resolves_nested_field_java_type() -> None:
     )
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
-    assert "return (holder.bits & 0xFFFFFFFFFFFFFFFF) >> 1" in result.source
+    assert "return (holder.bits & 0xFFFFFFFFFFFFFFFF) >> (1 & 0x3F)" in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
@@ -326,10 +326,42 @@ def test_unsigned_right_shift_assign_evaluates_array_index_once() -> None:
 
     assert "_j2py_idx = self.index();" in result.source
     assert (
-        "self.values[_j2py_idx] = (self.values[_j2py_idx] & 0xFFFFFFFF) >> 1"
+        "self.values[_j2py_idx] = (self.values[_j2py_idx] & 0xFFFFFFFF) >> (1 & 0x1F)"
         in result.source
     )
     assert "self.values[self.index()] = (self.values[self.index()]" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_masks_shift_distance_for_int() -> None:
+    parsed = parse_source(
+        """
+        class Demo {
+            int shift(int value) { return value >>> 32; }
+        }
+        """,
+        path=Path("Demo.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return (value & 0xFFFFFFFF) >> (32 & 0x1F)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_resolves_array_element_java_type() -> None:
+    parsed = parse_source(
+        """
+        class Demo {
+            long pick(long[] values, int i) { return values[i] >>> 1; }
+        }
+        """,
+        path=Path("Demo.java"),
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return (values[i] & 0xFFFFFFFFFFFFFFFF) >> (1 & 0x3F)" in result.source
+    assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
 
