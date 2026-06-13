@@ -271,6 +271,17 @@ def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
     return translate_expression(children[0], ctx)
 
 
+def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
+    """Return the Java type string for simple identifier/field expressions, or None."""
+    if node.type == "identifier":
+        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
+    if node.type == "field_access" and len(node.named_children) == 2:
+        obj, field = node.named_children
+        if obj.type == "this":
+            return ctx.class_field_java_types.get(field.text)
+    return None
+
+
 def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     children = node.named_children
     if len(children) < 2:
@@ -278,22 +289,29 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
         return f"__j2py_todo__({node.text!r})"
 
     type_node = children[0]
-    value_expr = translate_expression(children[-1], ctx)
+    value_node = children[-1]
+    value_expr = translate_expression(value_node, ctx)
 
     if type_node.type == "floating_point_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
+        src = _java_type_of_value(value_node, ctx)
+        if src in {"char", "Character"}:
+            return f"float(ord({value_expr}))"
         return f"float({value_expr})"
 
     if type_node.type == "integral_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
         type_text = type_node.text
+        src = _java_type_of_value(value_node, ctx)
+        is_char_src = src in {"char", "Character"}
+        base = f"ord({value_expr})" if is_char_src else f"int({value_expr})"
         if type_text == "char":
-            return f"chr(int({value_expr}) & 0xFFFF)"
+            return value_expr if is_char_src else f"chr({base} & 0xFFFF)"
         if type_text == "byte":
-            return f"int({value_expr}) & 0xFF"
+            return f"(({base} & 0xFF) ^ 0x80) - 0x80"
         if type_text == "short":
-            return f"int({value_expr}) & 0xFFFF"
-        return f"int({value_expr})"
+            return f"(({base} & 0xFFFF) ^ 0x8000) - 0x8000"
+        return base  # int / long
 
     py_type = translate_type(type_node.text, ctx.cfg)
     ctx.diagnostics.record(node, supported=True, reason="translated reference cast to typing.cast")

@@ -1126,7 +1126,7 @@ def test_primitive_long_cast_emits_int_call() -> None:
     assert_valid_python(result.source)
 
 
-def test_primitive_byte_cast_emits_int_and_mask() -> None:
+def test_primitive_byte_cast_emits_signed_narrowing() -> None:
     result = translate_source_with_diagnostics(
         """
         public class CastDemo {
@@ -1135,12 +1135,12 @@ def test_primitive_byte_cast_emits_int_and_mask() -> None:
         """,
     )
     assert result.coverage == 1.0
-    assert "return int(x) & 0xFF" in result.source
+    assert "return ((int(x) & 0xFF) ^ 0x80) - 0x80" in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
 
-def test_primitive_short_cast_emits_int_and_mask() -> None:
+def test_primitive_short_cast_emits_signed_narrowing() -> None:
     result = translate_source_with_diagnostics(
         """
         public class CastDemo {
@@ -1149,7 +1149,7 @@ def test_primitive_short_cast_emits_int_and_mask() -> None:
         """,
     )
     assert result.coverage == 1.0
-    assert "return int(x) & 0xFFFF" in result.source
+    assert "return ((int(x) & 0xFFFF) ^ 0x8000) - 0x8000" in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
@@ -1220,6 +1220,46 @@ def test_numeric_cast_does_not_emit_typing_cast_import() -> None:
         """
         public class CastDemo {
             public int narrow(double x) { return (int) x; }
+        }
+        """,
+    )
+    assert "from typing import cast" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_int_cast_of_char_parameter_emits_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int code(char c) { return (int) c; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return ord(c)" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_float_cast_of_char_parameter_emits_float_ord() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public double asDouble(char c) { return (double) c; }
+        }
+        """,
+    )
+    assert result.coverage == 1.0
+    assert "return float(ord(c))" in result.source
+    assert not result.diagnostics.warnings
+    assert_valid_python(result.source)
+
+
+def test_method_named_forecast_does_not_trigger_cast_import() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Weather {
+            public String forecast(int days) { return "sunny"; }
         }
         """,
     )
