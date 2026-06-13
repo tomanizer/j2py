@@ -28,9 +28,19 @@ from __future__ import annotations
 import builtins
 import inspect
 from collections.abc import Callable
-from typing import Any, ClassVar
+from typing import Any, ClassVar, NoReturn
 
-__all__ = ["overloaded"]
+__all__ = ["__j2py_todo__", "overloaded"]
+
+
+def __j2py_todo__(java_source: str) -> NoReturn:
+    """Raise NotImplementedError for an untranslated Java construct.
+
+    j2py emits calls to this function in place of Java constructs that the
+    rule layer could not translate. Reaching this at runtime signals a
+    translation gap that requires manual attention.
+    """
+    raise NotImplementedError(f"untranslated Java construct: {java_source!r}")
 
 _WILDCARD: Any = object()  # annotation cannot be checked at runtime
 _CALLABLE: Any = object()  # annotation means "any callable"

@@ -283,6 +283,7 @@ def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
 
     assert result.coverage < 1.0
     assert "__j2py_todo__('new int[rows][cols]')" in result.source
+    assert "from j2py_runtime import __j2py_todo__" in result.source
     assert [
         diagnostic.reason for diagnostic in result.diagnostics.unhandled
     ] == ["multidimensional array creation requires nested allocation handling"]

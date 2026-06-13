@@ -9,7 +9,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
 from j2py.translate.classes import top_level_classes, translate_class
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.translate.runtime import RUNTIME_IMPORT_LINE
+from j2py.translate.runtime import RUNTIME_IMPORT_LINE, RUNTIME_TODO_IMPORT_LINE
 
 
 @dataclass
@@ -91,6 +91,8 @@ def _import_lines(
         imports.add("from enum import Enum")
     if "@overloaded" in stripped_lines:
         imports.add(RUNTIME_IMPORT_LINE)
+    if "__j2py_todo__" in flattened:
+        imports.add(RUNTIME_TODO_IMPORT_LINE)
 
     typing_names: set[str] = set()
     if "Any" in flattened:
