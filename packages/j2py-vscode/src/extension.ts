@@ -13,12 +13,33 @@ type J2pyResult = {
 
 let diagnostics: vscode.DiagnosticCollection;
 let statusBar: vscode.StatusBarItem;
+let highConfidenceDecoration: vscode.TextEditorDecorationType;
+let mediumConfidenceDecoration: vscode.TextEditorDecorationType;
+let lowConfidenceDecoration: vscode.TextEditorDecorationType;
 
 export function activate(context: vscode.ExtensionContext): void {
   diagnostics = vscode.languages.createDiagnosticCollection("j2py");
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 80);
   statusBar.command = "j2py.translateFile";
-  context.subscriptions.push(diagnostics, statusBar);
+  highConfidenceDecoration = vscode.window.createTextEditorDecorationType({
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    overviewRulerColor: "#34a853",
+  });
+  mediumConfidenceDecoration = vscode.window.createTextEditorDecorationType({
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    overviewRulerColor: "#fbbc04",
+  });
+  lowConfidenceDecoration = vscode.window.createTextEditorDecorationType({
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    overviewRulerColor: "#ea4335",
+  });
+  context.subscriptions.push(
+    diagnostics,
+    statusBar,
+    highConfidenceDecoration,
+    mediumConfidenceDecoration,
+    lowConfidenceDecoration,
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("j2py.translateFile", translateActiveFile),
@@ -115,12 +136,14 @@ function decorateConfidence(document: vscode.TextDocument, result: J2pyResult): 
     : result.used_llm
       ? "medium"
       : "high";
-  const decoration = vscode.window.createTextEditorDecorationType({
-    overviewRulerLane: vscode.OverviewRulerLane.Left,
-    overviewRulerColor: severity === "high" ? "#34a853" : severity === "medium" ? "#fbbc04" : "#ea4335",
-    gutterIconPath: undefined,
-  });
-  const editor = vscode.window.visibleTextEditors.find((item) => item.document.uri.fsPath === document.uri.fsPath);
+  const decoration = severity === "high"
+    ? highConfidenceDecoration
+    : severity === "medium"
+      ? mediumConfidenceDecoration
+      : lowConfidenceDecoration;
+  const editor = vscode.window.visibleTextEditors.find(
+    (item) => item.document.uri.fsPath === document.uri.fsPath,
+  );
   if (editor) {
     const range = new vscode.Range(0, 0, Math.max(document.lineCount - 1, 0), 0);
     editor.setDecorations(decoration, [range]);
