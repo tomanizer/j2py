@@ -86,6 +86,14 @@ def translate_body(body: JavaNode, ctx: TranslationContext, *, indent: str) -> l
     return lines
 
 
+def _with_expression_comments(line: str, ctx: TranslationContext) -> str:
+    if not ctx.pending_expression_comments:
+        return line
+    comment = "; ".join(ctx.pending_expression_comments)
+    ctx.pending_expression_comments.clear()
+    return f"{line}  # {comment}"
+
+
 def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     if is_comment(node):
         ctx.diagnostics.warn(node, reason="preserved comment")
@@ -96,13 +104,18 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "expression_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated expression statement")
         expr = node.named_children[0] if node.named_children else node
-        return [f"{indent}{translate_expression(expr, ctx)}"]
+        return [_with_expression_comments(f"{indent}{translate_expression(expr, ctx)}", ctx)]
 
     if node.type == "return_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated return statement")
         if not node.named_children:
             return [f"{indent}return"]
-        return [f"{indent}return {translate_expression(node.named_children[0], ctx)}"]
+        return [
+            _with_expression_comments(
+                f"{indent}return {translate_expression(node.named_children[0], ctx)}",
+                ctx,
+            )
+        ]
 
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
@@ -202,11 +215,11 @@ def _translate_local_variable_declaration(
         ctx.variable_java_types[raw_name] = java_type
         value = translate_expression(value_node, ctx) if value_node else "None"
         if not ctx.cfg.emit_type_hints:
-            lines.append(f"{indent}{py_name} = {value}")
+            lines.append(_with_expression_comments(f"{indent}{py_name} = {value}", ctx))
         elif value in {"[]", "{}", "set()"}:
-            lines.append(f"{indent}{py_name}: {py_type} = {value}")
+            lines.append(_with_expression_comments(f"{indent}{py_name}: {py_type} = {value}", ctx))
         else:
-            lines.append(f"{indent}{py_name} = {value}")
+            lines.append(_with_expression_comments(f"{indent}{py_name} = {value}", ctx))
     return lines
 
 

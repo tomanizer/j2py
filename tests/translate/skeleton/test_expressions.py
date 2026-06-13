@@ -1193,7 +1193,7 @@ def test_primitive_int_cast_emits_int_call() -> None:
     )
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "return int(x)" in result.source
+    assert "return int(x)  # cast: (int) - numeric narrowing" in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
 
@@ -1293,7 +1293,7 @@ def test_reference_cast_emits_typing_cast_with_warning() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "from typing import cast" in result.source
-    assert "return cast(MyType, x)" in result.source
+    assert "return cast(MyType, x)  # cast: (MyType)" in result.source
     assert len(result.diagnostics.warnings) == 1
     assert result.diagnostics.warnings[0].reason == (
         "Java reference cast translated to typing.cast; verify runtime type"
@@ -1310,6 +1310,57 @@ def test_numeric_cast_does_not_emit_typing_cast_import() -> None:
         """,
     )
     assert "from typing import cast" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_cast_expression_comment_is_suppressed_when_line_comments_are_disabled() -> None:
+    cfg = CFG.model_copy(update={"emit_line_comments": False})
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int narrow(double x) { return (int) x; }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "return int(x)" in result.source
+    assert "# cast:" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_local_variable_cast_emits_trailing_comment() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public String name(Object x) {
+                String name = (String) x;
+                return name;
+            }
+        }
+        """,
+    )
+
+    assert "name = cast(str, x)  # cast: (String)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_condition_cast_comment_stays_on_condition_line() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastDemo {
+            public int choose(Object x) {
+                if ((Integer) x > 0) {
+                    return 1;
+                }
+                return 0;
+            }
+        }
+        """,
+    )
+
+    assert "if cast(int, x) > 0:  # cast: (Integer)" in result.source
+    assert "return 1  # cast:" not in result.source
     assert_valid_python(result.source)
 
 

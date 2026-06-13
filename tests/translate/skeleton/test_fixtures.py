@@ -251,7 +251,10 @@ def test_cast_expression_target_fixture_translates_with_warning() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "from typing import cast" in result.source
-    assert "return cast(TypeReference, value).get_canonical_name()" in result.source
+    assert (
+        "return cast(TypeReference, value).get_canonical_name()  # cast: (TypeReference)"
+        in result.source
+    )
     assert [warning.reason for warning in result.diagnostics.warnings] == [
         "Java reference cast translated to typing.cast; verify runtime type",
     ]
@@ -413,5 +416,4 @@ def test_static_initializer_and_synchronized_target_fixture_translates() -> None
     assert "__j2py_todo__" not in result.source
     assert not result.diagnostics.warnings
     assert_valid_python(result.source)
-
 

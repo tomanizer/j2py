@@ -116,6 +116,10 @@ class TranslationContext:
     # generated names are in scope and the structure remains reviewable.
     pending_local_helpers: list[list[str]] = field(default_factory=list)
 
+    # Expression visitors can surface reviewer-visible markers here; statement
+    # emitters attach them as trailing comments once the full line is known.
+    pending_expression_comments: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ClassTranslationState:

@@ -287,6 +287,25 @@ def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
     return None
 
 
+def _remember_cast_comment(type_node: JavaNode, ctx: TranslationContext) -> None:
+    if not ctx.cfg.emit_line_comments:
+        return
+    comment = f"cast: ({type_node.text})"
+    if _is_numeric_narrowing_cast(type_node):
+        comment = f"{comment} - numeric narrowing"
+    ctx.pending_expression_comments.append(comment)
+
+
+def _is_numeric_narrowing_cast(type_node: JavaNode) -> bool:
+    return type_node.type in {"integral_type", "floating_point_type"} and type_node.text in {
+        "byte",
+        "short",
+        "int",
+        "float",
+        "char",
+    }
+
+
 def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     children = node.named_children
     if len(children) < 2:
@@ -296,6 +315,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     type_node = children[0]
     value_node = children[-1]
     value_expr = translate_expression(value_node, ctx)
+    _remember_cast_comment(type_node, ctx)
 
     if type_node.type == "floating_point_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
