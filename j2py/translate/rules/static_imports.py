@@ -21,6 +21,8 @@ KNOWN_STATIC_METHOD_IMPORTS: frozenset[str] = frozenset(
         "java.lang.Math.log",
         "java.util.Collections.unmodifiableList",
         "java.util.Objects.requireNonNull",
+        "java.util.Objects.equals",
+        "java.util.Arrays.equals",
         "com.google.common.base.Preconditions.checkNotNull",
         "com.google.common.base.Preconditions.checkState",
         "com.google.common.base.Preconditions.checkArgument",

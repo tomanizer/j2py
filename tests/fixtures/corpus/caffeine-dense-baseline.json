@@ -131,17 +131,17 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9726027397260274,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 71,
+      "handled_count": 86,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/SnapshotEntry.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method for_entry requires manual dispatch:2",
-      "warning_count": 18
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 19
     },
     {
       "coverage": 1.0,
@@ -261,16 +261,16 @@
       "warning_count": 16
     },
     {
-      "coverage": 0.9866666666666667,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 74,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/Interner.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 24
     },
     {
@@ -485,13 +485,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9819040646026946,
+    "average_coverage": 0.9831383250150373,
     "coverage_file_count": 33,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 1,
     "files_scanned": 36,
-    "files_with_unhandled": 11,
-    "full_coverage_files": 22,
+    "files_with_unhandled": 9,
+    "full_coverage_files": 24,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.9722222222222222,
     "top_unhandled_node_types": [
@@ -504,15 +504,7 @@
         5
       ],
       [
-        "method_declaration",
-        2
-      ],
-      [
         "array_type",
-        1
-      ],
-      [
-        "method_invocation",
         1
       ]
     ],
@@ -523,10 +515,6 @@
       ],
       [
         "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument",
-        2
-      ],
-      [
-        "overloaded method for_entry requires manual dispatch",
         2
       ],
       [
@@ -547,10 +535,6 @@
       ],
       [
         "unknown static import com.github.benmanes.caffeine.cache.LocalAsyncCache.composeResult",
-        1
-      ],
-      [
-        "equals invocation with unexpected argument count",
         1
       ],
       [
