@@ -269,6 +269,7 @@ def translate_class(
                     group,
                     cfg=cfg,
                     diagnostics=diagnostics,
+                    containing_class_name=class_name,
                     class_fields=instance_field_names,
                     class_field_types=class_field_types,
                     class_field_java_types=class_field_java_types,
@@ -496,6 +497,7 @@ def _translate_enum(
                     group,
                     cfg=cfg,
                     diagnostics=diagnostics,
+                    containing_class_name=class_name,
                     class_fields=instance_field_names,
                     class_field_types=class_field_types,
                     class_field_java_types=class_field_java_types,
@@ -1239,9 +1241,10 @@ def _translate_method(
     if unsupported_reason is not None:
         return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
-    lines: list[str] = list(decorator_lines or [])
+    lines: list[str] = []
     if is_static:
         lines.append("    @staticmethod")
+    lines.extend(decorator_lines or [])
     if is_abstract:
         ctx.diagnostics.imports.need_abc()
         lines.append("    @abstractmethod")
@@ -1284,6 +1287,7 @@ def _translate_overloaded_members(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str] | None = None,
     class_field_java_types: dict[str, str] | None = None,
@@ -1304,6 +1308,7 @@ def _translate_overloaded_members(
         members,
         cfg=cfg,
         diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
         class_fields=class_fields,
         class_field_types=class_field_types,
         class_field_java_types=class_field_java_types,
@@ -1388,7 +1393,14 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
         return []
 
     infos: list[ParameterInfo] = []
-    for param in params_node.find_all("formal_parameter", "spread_parameter"):
+    for param in params_node.named_children:
+        if param.type == "ERROR":
+            recovered = _recover_error_parameter_info(param, cfg)
+            if recovered is not None:
+                infos.append(recovered)
+            continue
+        if param.type not in {"formal_parameter", "spread_parameter"}:
+            continue
         is_spread = param.type == "spread_parameter"
         type_node = param.child_by_field("type")
         name_node = param.child_by_field("name")
@@ -1422,6 +1434,41 @@ def _parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterIn
             ),
         )
     return infos
+
+
+_PARAMETER_TYPE_NODE_TYPES = {
+    "array_type",
+    "boolean_type",
+    "floating_point_type",
+    "generic_type",
+    "integral_type",
+    "scoped_type_identifier",
+    "type_identifier",
+}
+
+
+def _recover_error_parameter_info(node: JavaNode, cfg: TranslationConfig) -> ParameterInfo | None:
+    """Recover annotated varargs that tree-sitter-java nests under ERROR nodes."""
+    if "..." not in node.text:
+        return None
+    type_node = next(
+        (child for child in node.named_children if child.type in _PARAMETER_TYPE_NODE_TYPES),
+        None,
+    )
+    identifiers = [child for child in node.walk() if child.type == "identifier"]
+    name_node = identifiers[-1] if identifiers else None
+    if type_node is None or name_node is None:
+        return None
+    raw_name = name_node.text
+    java_type = type_node.text
+    py_type = translate_type(java_type, cfg)
+    return ParameterInfo(
+        raw_name=raw_name,
+        py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
+        py_type=py_type.removeprefix("*"),
+        java_type=java_type,
+        is_spread=True,
+    )
 
 
 def _params(node: JavaNode, ctx: TranslationContext) -> list[str]:

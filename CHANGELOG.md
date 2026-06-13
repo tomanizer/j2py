@@ -27,6 +27,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Static overload groups with distinguishable Python signatures now translate through the
+  vendored runtime dispatcher, receiverless same-group static calls are class-qualified,
+  and boxed primitive forwarding overloads merge without manual-dispatch diagnostics
+  (#88).
 - Comment-only method/constructor bodies and metadata-only nested classes now emit
   `pass`, and multiline Java wildcard generic signatures normalize to valid Python
   annotations instead of leaking `?` syntax (#153).

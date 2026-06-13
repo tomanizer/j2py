@@ -911,30 +911,30 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.8666666666666667,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 13,
+      "handled_count": 26,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/time/FastTimeZone.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method get_gmt_time_zone requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
-      "coverage": 0.8461538461538461,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 11,
+      "handled_count": 19,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/ClassLoaderUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method to_string requires manual dispatch:2",
-      "warning_count": 8
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 9
     },
     {
       "coverage": 1.0,
@@ -1145,16 +1145,16 @@
       "warning_count": 4
     },
     {
-      "coverage": 0.6666666666666666,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 4,
+      "handled_count": 7,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/DoubleRange.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method of requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -1236,29 +1236,29 @@
       "warning_count": 7
     },
     {
-      "coverage": 0.6666666666666666,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 4,
+      "handled_count": 7,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/LongRange.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method of requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
-      "coverage": 0.6666666666666666,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 4,
+      "handled_count": 7,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/IntegerRange.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method of requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 3
     },
     {
@@ -1317,20 +1317,16 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9857008299269169,
+    "average_coverage": 0.9985726247987118,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
-    "files_below_coverage_threshold": 3,
+    "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 9,
-    "full_coverage_files": 91,
+    "files_with_unhandled": 4,
+    "full_coverage_files": 96,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
-      [
-        "method_declaration",
-        10
-      ],
       [
         "method_invocation",
         3
@@ -1342,20 +1338,8 @@
     ],
     "top_unhandled_reasons": [
       [
-        "overloaded method of requires manual dispatch",
-        6
-      ],
-      [
         "equals invocation with unexpected argument count",
         3
-      ],
-      [
-        "overloaded method get_gmt_time_zone requires manual dispatch",
-        2
-      ],
-      [
-        "overloaded method to_string requires manual dispatch",
-        2
       ],
       [
         "unsupported statement assert_statement",

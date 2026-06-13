@@ -174,6 +174,12 @@ class TranslationContext:
     # Java method name -> translated return type for the enclosing class.
     class_method_return_types: dict[str, str] = field(default_factory=dict)
 
+    # Java static method names that must dispatch through the containing class
+    # when called without a receiver (used for static @overloaded groups; see
+    # ADR 0013).
+    static_dispatch_methods: set[str] = field(default_factory=set)
+    static_dispatch_class_name: str | None = None
+
     # Block lambdas (and future local helpers) are collected here during expression
     # translation and flushed near the top of the enclosing method body so the
     # generated names are in scope and the structure remains reviewable.

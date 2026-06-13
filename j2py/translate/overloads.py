@@ -37,6 +37,7 @@ def translate_overloaded_members(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str] | None = None,
     class_field_java_types: dict[str, str] | None = None,
@@ -128,6 +129,7 @@ def translate_overloaded_members(
         members,
         cfg=cfg,
         diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
         class_fields=class_fields,
         class_field_types=field_types,
         class_field_java_types=field_java_types,
@@ -323,9 +325,16 @@ def _merged_forwarding_method_overload(
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
     )
+    pass_through_forwarding = False
     if merged is None:
-        return None
-    impl, defaults_by_position, throwaway_diagnostics = merged
+        impl = _resolve_pass_through_forwarding(forwards)
+        if impl is None:
+            return None
+        defaults_by_position: dict[int, _MergedDefault] = {}
+        throwaway_diagnostics = TranslationDiagnostics()
+        pass_through_forwarding = True
+    else:
+        impl, defaults_by_position, throwaway_diagnostics = merged
     if _method_body(impl.member) is None:
         return None
     diagnostics.handled.extend(throwaway_diagnostics.handled)
@@ -342,7 +351,11 @@ def _merged_forwarding_method_overload(
             diagnostics.record(
                 forward.member,
                 supported=True,
-                reason="translated forwarding method overload",
+                reason=(
+                    "translated pass-through forwarding method overload"
+                    if pass_through_forwarding
+                    else "translated forwarding method overload"
+                ),
             )
 
     ctx = TranslationContext(
@@ -462,6 +475,30 @@ def _resolve_overload_defaults(
     return impl, defaults_by_position, throwaway_diagnostics
 
 
+def _resolve_pass_through_forwarding(forwards: list[_OverloadForward]) -> _OverloadForward | None:
+    """Resolve same-arity forwarding overloads that pass every parameter through."""
+    implementations = [forward for forward in forwards if forward.forwarded is None]
+    if len(implementations) != 1:
+        return None
+    impl = implementations[0]
+    if not impl.params:
+        return None
+
+    for forward in forwards:
+        if forward is impl:
+            continue
+        if forward.forwarded is None or len(forward.forwarded) != len(impl.params):
+            return None
+        own_names = {param.raw_name: index for index, param in enumerate(forward.params)}
+        vector = _forward_entries(forward.forwarded, own_names)
+        if vector is None or len(vector) != len(impl.params):
+            return None
+        for position, entry in enumerate(vector):
+            if entry != position:
+                return None
+    return impl
+
+
 def _resolve_forward_chain(
     start: _OverloadForward,
     by_arity: dict[int, _OverloadForward],
@@ -509,13 +546,50 @@ def _forward_entries(
 ) -> list[int | JavaNode] | None:
     entries: list[int | JavaNode] = []
     for arg in args:
-        if arg.type == "identifier" and arg.text in own_names:
-            entries.append(own_names[arg.text])
+        pass_through = _pass_through_argument(arg, own_names)
+        if pass_through is not None:
+            entries.append(pass_through)
         elif _references_names(arg, set(own_names)):
             return None
         else:
             entries.append(arg)
     return entries
+
+
+_BOXED_PRIMITIVE_VALUE_OF_RECEIVERS = frozenset(
+    {
+        "Boolean",
+        "Byte",
+        "Short",
+        "Integer",
+        "Long",
+        "Float",
+        "Double",
+        "Character",
+    }
+)
+
+
+def _pass_through_argument(arg: JavaNode, own_names: dict[str, int]) -> int | None:
+    if arg.type == "identifier" and arg.text in own_names:
+        return own_names[arg.text]
+    if arg.type != "method_invocation":
+        return None
+    name = arg.child_by_field("name")
+    receiver = arg.child_by_field("object")
+    args_node = first_child_by_type(arg, "argument_list")
+    if (
+        name is None
+        or receiver is None
+        or args_node is None
+        or name.text != "valueOf"
+        or receiver.text not in _BOXED_PRIMITIVE_VALUE_OF_RECEIVERS
+    ):
+        return None
+    arg_nodes = list(args_node.named_children)
+    if len(arg_nodes) != 1 or arg_nodes[0].type != "identifier":
+        return None
+    return own_names.get(arg_nodes[0].text)
 
 
 def _references_names(node: JavaNode, names: set[str]) -> bool:
@@ -726,6 +800,7 @@ def _dispatch_overload_members(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str],
     class_field_java_types: dict[str, str],
@@ -751,7 +826,10 @@ def _dispatch_overload_members(
         return None
     if any(member.type != members[0].type for member in members):
         return None
-    if any("static" in _modifiers(member) for member in members):
+    is_static = "static" in _modifiers(members[0])
+    if any(("static" in _modifiers(member)) != is_static for member in members):
+        return None
+    if is_static and members[0].type != "method_declaration":
         return None
 
     erased = [_erased_overload_signature(member, cfg) for member in members]
@@ -762,7 +840,11 @@ def _dispatch_overload_members(
     reason = (
         "translated overloaded constructor via runtime dispatch"
         if is_constructor
-        else "translated overloaded method via runtime dispatch"
+        else (
+            "translated static overloaded method via runtime dispatch"
+            if is_static
+            else "translated overloaded method via runtime dispatch"
+        )
     )
 
     name_node = members[0].child_by_field("name")
@@ -784,7 +866,9 @@ def _dispatch_overload_members(
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
             allow_local_helpers=True,
-            self_dispatch_methods={java_name} if java_name else set(),
+            self_dispatch_methods={java_name} if java_name and not is_static else set(),
+            static_dispatch_methods={java_name} if java_name and is_static else set(),
+            static_dispatch_class_name=containing_class_name if is_static else None,
             class_state=class_state,
             inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         )

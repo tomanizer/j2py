@@ -885,16 +885,16 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.8666666666666667,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 13,
+      "handled_count": 17,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/deser/impl/NullsFailProvider.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method construct_for_property requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 4
     },
     {
@@ -1317,13 +1317,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9927537724687068,
+    "average_coverage": 0.9942518998095308,
     "coverage_file_count": 89,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 7,
-    "full_coverage_files": 82,
+    "files_with_unhandled": 6,
+    "full_coverage_files": 83,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
@@ -1333,10 +1333,6 @@
       ],
       [
         "method_invocation",
-        2
-      ],
-      [
-        "method_declaration",
         2
       ],
       [
@@ -1363,10 +1359,6 @@
     "top_unhandled_reasons": [
       [
         "unsupported statement false",
-        2
-      ],
-      [
-        "overloaded method construct_for_property requires manual dispatch",
         2
       ],
       [
