@@ -98,6 +98,8 @@ def _import_lines(
         imports.add(RUNTIME_IMPORT_LINE)
     if "__j2py_todo__" in flattened:
         imports.add(RUNTIME_TODO_IMPORT_LINE)
+    if re.search(r"\bABC\)", flattened) or "@abstractmethod" in stripped_lines:
+        imports.add("from abc import ABC, abstractmethod")
 
     typing_names: set[str] = set()
     if "Any" in flattened:

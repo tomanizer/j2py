@@ -7,10 +7,16 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
-### Fixed
+### Added
+- Abstract Java classes now translate to Python `ABC` subclasses, with abstract methods
+  emitted as `@abstractmethod` ellipsis stubs (#115).
 - Common Java standard-library static calls and constants now translate to Python
   equivalents, including `Math.*`, numeric parse/string helpers, collection helpers,
   array factories, and `Objects.isNull/nonNull` (#113).
+
+### Fixed
+- LLM calls now send the system prompt as an Anthropic prompt-cache block, enabling
+  warm calls to reuse the cached prompt instead of resending the fixed instructions (#116).
 - Java cast expressions now add reviewer-visible trailing `# cast: (...)` comments when
   line comments are enabled, with numeric narrowing casts marked explicitly (#112).
 - Java unsigned right shift (`>>>` and `>>>=`) lowers to masked Python shifts for

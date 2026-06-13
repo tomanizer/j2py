@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from anthropic.types import TextBlockParam
+
 PROMPT_VERSION = "j2py-translation-v7"
 
 SYSTEM_PROMPT = """\
@@ -73,12 +75,19 @@ def build_translation_prompt(
     diagnostics: str = "",
     validation_feedback: str = "",
     previous_python: str = "",
-) -> tuple[str, list[dict[str, Any]]]:
+) -> tuple[list[TextBlockParam], list[dict[str, Any]]]:
     """Build the system prompt and messages list for a translation call.
 
     Returns:
-        (system_prompt, messages) ready for the Anthropic messages API.
+        (system_prompt_blocks, messages) ready for the Anthropic messages API.
     """
+    system: list[TextBlockParam] = [
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        },
+    ]
     user_parts: list[str] = []
 
     if context:
@@ -111,4 +120,4 @@ def build_translation_prompt(
         user_parts.append("Translate the Java source above to Python.")
 
     messages = [{"role": "user", "content": "\n\n".join(user_parts)}]
-    return SYSTEM_PROMPT, messages
+    return system, messages

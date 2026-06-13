@@ -253,12 +253,12 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         "return max(left, right)",
         "return min(left, right)",
         "return base ** exponent",
-        "return round(value)",
+        "return math.floor(value + 0.5)",
         "return math.sqrt(value) + math.floor(value) + math.ceil(value) + math.log(value)",
         "return math.pi + math.e",
         "return int(value)",
         "return int(value, 16)",
-        "return str(value) + bin(value) + hex(value)",
+        "return str(value) + format(value, 'b') + format(value, 'x')",
         "return 2**31 - 1",
         "return float(value)",
         'return "%s:%d" % (name, count)',
@@ -299,7 +299,7 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         ("return Math.sqrt(base);", "return math.sqrt(base)"),
         ("return Math.floor(base);", "return math.floor(base)"),
         ("return Math.ceil(base);", "return math.ceil(base)"),
-        ("return Math.round(base);", "return round(base)"),
+        ("return Math.round(base);", "return math.floor(base + 0.5)"),
         ("return Math.log(base);", "return math.log(base)"),
         ("return Math.PI;", "return math.pi"),
         ("return Math.E;", "return math.e"),
@@ -307,13 +307,17 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         ("return Integer.parseInt(text, 16);", "return int(text, 16)"),
         ("return Integer.valueOf(value);", "return int(value)"),
         ("return Integer.toString(left);", "return str(left)"),
-        ("return Integer.toBinaryString(left);", "return bin(left)"),
-        ("return Integer.toHexString(left);", "return hex(left)"),
+        ("return Integer.toBinaryString(left);", "return format(left, 'b')"),
+        ("return Integer.toHexString(left);", "return format(left, 'x')"),
         ("return Integer.MAX_VALUE;", "return 2**31 - 1"),
         ("return Long.parseLong(text);", "return int(text)"),
         ("return Double.parseDouble(text);", "return float(text)"),
         ("return String.valueOf(value);", "return str(value)"),
         ('return String.format("%s:%d", name, left);', 'return "%s:%d" % (name, left)'),
+        (
+            'return String.format(Locale.US, "%s:%d", name, left);',
+            'return "%s:%d" % (name, left)',
+        ),
         ("Collections.sort(values); return null;", "values.sort()"),
         ("Collections.reverse(values); return null;", "values.reverse()"),
         ("return Collections.unmodifiableList(values);", "return values"),
@@ -328,6 +332,7 @@ def test_static_standard_library_mapping_cases(body: str, expected: str) -> None
     result = translate_source_with_diagnostics(
         f"""
         import java.util.List;
+        import java.util.Locale;
 
         public class StaticStdlibCase {{
             public Object value(

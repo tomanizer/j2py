@@ -13,7 +13,10 @@ def test_build_translation_prompt_includes_context_source_and_partial() -> None:
         previous_python="def broken(:\n",
     )
 
-    assert "Java-to-Python translator" in system
+    assert len(system) == 1
+    assert system[0]["type"] == "text"
+    assert system[0]["cache_control"] == {"type": "ephemeral"}
+    assert "Java-to-Python translator" in system[0]["text"]
     content = messages[0]["content"]
     assert "<project_context>" in content
     assert "package com.example" in content
@@ -38,13 +41,14 @@ def test_system_prompt_frames_llm_as_structural_transposer() -> None:
         partial_python="class A:\n    pass\n",
     )
 
-    assert "conservative code transposer" in system
-    assert "Preserve class, method, field, and statement ordering" in system
-    assert "Preserve the Java control-flow shape" in system
-    assert "not a Python refactoring assistant" in system
-    assert "do not rewrite algorithms" in system
-    assert "positional-only" in system
-    assert "Do NOT import unresolved Java platform/framework packages" in system
-    assert "Never wrap unresolved Java imports in try/except ImportError" in system
-    assert "overload signatures remain distinct" in system
-    assert "same-arity Java overloads" in system
+    system_text = system[0]["text"]
+    assert "conservative code transposer" in system_text
+    assert "Preserve class, method, field, and statement ordering" in system_text
+    assert "Preserve the Java control-flow shape" in system_text
+    assert "not a Python refactoring assistant" in system_text
+    assert "do not rewrite algorithms" in system_text
+    assert "positional-only" in system_text
+    assert "Do NOT import unresolved Java platform/framework packages" in system_text
+    assert "Never wrap unresolved Java imports in try/except ImportError" in system_text
+    assert "overload signatures remain distinct" in system_text
+    assert "same-arity Java overloads" in system_text

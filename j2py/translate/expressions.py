@@ -590,7 +590,7 @@ def _translate_static_method_invocation(
         if method_name in {"sqrt", "floor", "ceil", "log"} and len(args) == 1:
             return f"math.{method_name}({args[0]})"
         if method_name == "round" and len(args) == 1:
-            return f"round({args[0]})"
+            return f"math.floor({args[0]} + 0.5)"
 
     if receiver == "Integer":
         if method_name == "parseInt" and len(args) in {1, 2}:
@@ -600,9 +600,9 @@ def _translate_static_method_invocation(
         if method_name == "toString" and len(args) == 1:
             return f"str({args[0]})"
         if method_name == "toBinaryString" and len(args) == 1:
-            return f"bin({args[0]})"
+            return f"format({args[0]}, 'b')"
         if method_name == "toHexString" and len(args) == 1:
-            return f"hex({args[0]})"
+            return f"format({args[0]}, 'x')"
 
     if receiver == "Long" and method_name == "parseLong" and len(args) == 1:
         return f"int({args[0]})"
@@ -614,7 +614,8 @@ def _translate_static_method_invocation(
         if method_name == "valueOf" and len(args) == 1:
             return f"str({args[0]})"
         if method_name == "format" and args:
-            return _translate_string_format(args)
+            format_args = args[1:] if arg_nodes and _is_locale_argument(arg_nodes[0]) else args
+            return _translate_string_format(format_args)
 
     if receiver == "Collections":
         if method_name == "sort" and len(args) == 1:
@@ -654,6 +655,11 @@ def _translate_string_format(args: list[str]) -> str:
     if len(args) == 2:
         return f"{args[0]} % {args[1]}"
     return f"{args[0]} % ({', '.join(args[1:])})"
+
+
+def _is_locale_argument(node: JavaNode) -> bool:
+    parts = node.text.split(".")
+    return any(part == "Locale" for part in parts[:-1]) or node.text == "Locale"
 
 
 
