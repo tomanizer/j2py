@@ -94,6 +94,18 @@ translations against the translated code.
 − A passing literal/JVM-oracle test proves equivalence on the tested inputs only — it is
   evidence, not a proof. Confidence grows with input volume, not certainty.
 
+## Validation
+
+A 2026-06-14 tracer bullet proved the loop end-to-end on Commons-Lang `CharUtils`
+(rule-layer-only): six literal-oracle assertions hand-ported from `CharUtilsTest` ran as
+pytest, passing on correct translations and catching three real divergences (bare
+static-call `NameError`; two overload-dispatch stubs). The two silent bugs sit in the
+*handled* portion of the rule layer's output — `CharUtils` scores ~0.67 coverage under the
+production config, the unhandled third being overload manual-dispatch — so node coverage
+rates the buggy code as success. The exercise also surfaced that the harness must resolve a
+class's dependency closure before it can import, which reshaped Phase 1. See
+[docs/EQUIVALENCE_TESTING.md §8](../EQUIVALENCE_TESTING.md).
+
 ## References
 
 - Project audit, 2026-06-14 (measurement–mission gap; confirmed Guava precedence
