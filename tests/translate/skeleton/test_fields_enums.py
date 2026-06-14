@@ -141,6 +141,55 @@ def test_anonymous_class_instance_field_translates_to_helper_init() -> None:
     assert_valid_python(result.source)
 
 
+def test_static_field_anonymous_class_translates_with_local_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public abstract class Ticker {
+            private static final Ticker SYSTEM_TICKER = new Ticker() {
+                @Override
+                public long read() {
+                    return System.nanoTime();
+                }
+            };
+
+            public abstract long read();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class _J2pyAnonymous1(Ticker):" in result.source
+    assert "system_ticker: Ticker = _J2pyAnonymous1()" in result.source
+    assert result.source.index("class _J2pyAnonymous1(Ticker):") < result.source.index(
+        "system_ticker: Ticker = _J2pyAnonymous1()",
+    )
+    assert_valid_python(result.source)
+
+
+def test_static_field_anonymous_subclass_of_outer_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public abstract class NopHandler {
+            public final static NopHandler instance = new NopHandler() {
+                @Override
+                public String name() {
+                    return "nop";
+                }
+            };
+
+            public abstract String name();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class _J2pyAnonymous1(NopHandler):" in result.source
+    assert "instance: NopHandler = _J2pyAnonymous1()" in result.source
+    assert_valid_python(result.source)
+
+
 def test_anonymous_and_inner_corpus_construct_reaches_full_coverage() -> None:
     parsed = parse_file(FIXTURES / "corpus" / "constructs" / "AnonymousAndInner.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
@@ -229,7 +278,7 @@ def test_super_constructor_invocation_and_base_class_translate() -> None:
 
 
 
-def test_block_lambda_in_field_initializer_does_not_emit_undefined_helper() -> None:
+def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
     result = translate_source_with_diagnostics(
         """
         import java.util.function.Function;
@@ -240,12 +289,12 @@ def test_block_lambda_in_field_initializer_does_not_emit_undefined_helper() -> N
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "_j2py_lambda_" not in result.source
-    assert "__j2py_todo__" in result.source
-    assert any(
-        "block lambda requires local helper scope" in item.reason
-        for item in result.diagnostics.unhandled
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def _j2py_lambda_1(s):" in result.source
+    assert "self.mapper: Function[str, str] = _j2py_lambda_1" in result.source
+    assert result.source.index("def _j2py_lambda_1(") < result.source.index(
+        "self.mapper: Function[str, str] = _j2py_lambda_1",
     )
     assert_valid_python(result.source)
 
@@ -253,7 +302,7 @@ def test_block_lambda_in_field_initializer_does_not_emit_undefined_helper() -> N
 
 
 
-def test_grouping_by_in_field_initializer_does_not_emit_undefined_helper() -> None:
+def test_grouping_by_in_field_initializer_emits_local_helper_in_init() -> None:
     result = translate_source_with_diagnostics(
         """
         import java.util.List;
@@ -267,11 +316,12 @@ def test_grouping_by_in_field_initializer_does_not_emit_undefined_helper() -> No
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "_j2py_groupby_" not in result.source
-    assert any(
-        "Collectors.groupingBy requires local helper scope" in item.reason
-        for item in result.diagnostics.unhandled
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def _j2py_groupby_1(source):" in result.source
+    assert "self.groups: dict[str, list[str]] = _j2py_groupby_1(items)" in result.source
+    assert result.source.index("def _j2py_groupby_1(") < result.source.index(
+        "self.groups: dict[str, list[str]] = _j2py_groupby_1(items)",
     )
     assert_valid_python(result.source)
 
