@@ -20,16 +20,30 @@ def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
         return f"__j2py_todo__({node.text!r})"
 
     operator = children[0].text
-    operand = translate_expression(named_children[-1], ctx)
+    operand_node = named_children[-1]
+    operand = _translate_unary_operand(operand_node, ctx)
     if operator == "!":
         if operand.startswith("not "):
             return operand.removeprefix("not ")
         return f"not {operand}"
-    if operator in {"+", "-"}:
+    if operator in {"+", "-", "~"}:
         return f"{operator}{operand}"
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported unary operator {operator}")
     return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_unary_operand(node: JavaNode, ctx: TranslationContext) -> str:
+    operand = translate_expression(node, ctx)
+    if _unary_operand_needs_parentheses(node):
+        return f"({operand})"
+    return operand
+
+
+def _unary_operand_needs_parentheses(node: JavaNode) -> bool:
+    while node.type == "parenthesized_expression" and len(node.named_children) == 1:
+        node = node.named_children[0]
+    return node.type in {"binary_expression", "ternary_expression"}
 
 
 def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str:

@@ -6,6 +6,22 @@ public class BitwiseOperators {
         return (left & right) | (left ^ right);
     }
 
+    public int complementInt(int value) {
+        return ~value;
+    }
+
+    public long complementLong(long value) {
+        return ~value;
+    }
+
+    public int invertedMask(int accessFlags, int mask) {
+        return accessFlags & ~mask;
+    }
+
+    public int groupedComplement(int left, int right) {
+        return ~(left | right);
+    }
+
     public int shifts(int value) {
         return (value << 2) >> 1;
     }

@@ -51,6 +51,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Java unsigned right shift (`>>>` and `>>>=`) lowers to masked Python shifts for
   known `int`/`long` widths, with an explicit 32-bit assumption warning only when the
   operand width is unknown (#109).
+- Java bitwise complement (`~`) now translates for integral operands while preserving
+  explicit grouping around lower-precedence operands (#158).
 
 ## 0.3.0a1 - 2026-06-13
 
