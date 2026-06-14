@@ -53,6 +53,7 @@ class CorpusPreset:
     min_constructs: int = 5
     include_constructs: bool = False
     include_tests: bool = False
+    exclude_paths: tuple[str, ...] = ()
 
     @property
     def repo_path(self) -> Path:
@@ -143,6 +144,12 @@ PRESETS: dict[str, CorpusPreset] = {
                 "guava/src/com/google/common/base",
             ),
             baseline_name="guava-dense-baseline.json",
+            exclude_paths=(
+                # tree-sitter-java ERROR on Jspecify type-use @Nullable before varargs
+                # (`@Nullable Object @Nullable ... args` in lenientFormat); translation
+                # still reaches full coverage but parse_ok stays false — see #160.
+                "guava/src/com/google/common/base/Platform.java",
+            ),
         ),
         _preset(
             "commons-lang-dense",
@@ -206,6 +213,7 @@ def apply_preset(
         "min_constructs",
         "include_constructs",
         "include_tests",
+        "exclude_paths",
     )
     resolved: dict[str, object] = {
         "repo": preset.repo_path,
@@ -218,6 +226,7 @@ def apply_preset(
         "min_constructs": preset.min_constructs,
         "include_constructs": preset.include_constructs,
         "include_tests": preset.include_tests,
+        "exclude_paths": list(preset.exclude_paths),
         "baseline": preset.baseline,
         "json_out": preset.json_out,
         "csv_out": preset.csv_out,

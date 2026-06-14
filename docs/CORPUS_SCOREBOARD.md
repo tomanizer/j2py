@@ -179,6 +179,17 @@ handled or unhandled construct. Files with no measured constructs, such as
 `package-info.java`, still count in parse/syntax rates and per-file reports but do not
 pull the average coverage or below-threshold count toward zero.
 
+## Known parser exclusions
+
+Some corpus presets omit individual files when tree-sitter-java produces ERROR nodes for
+valid modern Java that j2py still translates. Exclusions are listed in
+`CorpusPreset.exclude_paths` (`scripts/corpus/corpus_presets.py`) and recorded in baseline
+metadata as `exclude_paths`.
+
+| Preset | Excluded path | Root cause |
+|--------|---------------|------------|
+| `guava-dense` | `guava/src/com/google/common/base/Platform.java` | Jspecify type-use `@Nullable` before varargs (`@Nullable Object @Nullable ... args`) — tree-sitter-java ERROR; skeleton translation reaches full coverage (#160). |
+
 ## Cross-corpus triage
 
 To rank rule-layer gaps across all committed baselines (unhandled reason clusters plus

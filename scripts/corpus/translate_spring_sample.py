@@ -214,6 +214,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
         "min_constructs": args.min_constructs,
         "include_constructs": True if args.include_constructs else None,
         "include_tests": True if args.include_tests else None,
+        "exclude_paths": None,
         "baseline": args.baseline,
         "json_out": args.json_out,
         "csv_out": args.csv_out,
@@ -234,6 +235,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
             "min_constructs": raw["min_constructs"] if raw["min_constructs"] is not None else 0,
             "include_constructs": bool(raw["include_constructs"]),
             "include_tests": bool(raw["include_tests"]),
+            "exclude_paths": [],
             "baseline": raw["baseline"] or DEFAULT_BASELINE,
             "json_out": raw["json_out"] or DEFAULT_JSON_OUT,
             "csv_out": raw["csv_out"] or DEFAULT_CSV_OUT,
@@ -250,6 +252,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
     args.min_constructs = resolved["min_constructs"]
     args.include_constructs = resolved["include_constructs"]
     args.include_tests = resolved["include_tests"]
+    args.exclude_paths = tuple(resolved["exclude_paths"])
     args.baseline = resolved["baseline"]
     args.json_out = resolved["json_out"]
     args.csv_out = resolved["csv_out"]
@@ -291,6 +294,7 @@ def main() -> int:
         return 2
 
     modules = tuple(args.modules)
+    exclude_paths = tuple(args.exclude_paths)
     files = collect_java_files(
         repo,
         modules=modules,
@@ -300,6 +304,7 @@ def main() -> int:
         max_loc=args.max_loc,
         min_constructs=args.min_constructs,
         include_constructs=args.include_constructs,
+        exclude_paths=exclude_paths,
     )
     if not files:
         print(f"No Java files found under {repo}", file=sys.stderr)
@@ -320,6 +325,7 @@ def main() -> int:
         max_loc=args.max_loc,
         min_constructs=args.min_constructs,
         include_constructs=args.include_constructs,
+        exclude_paths=exclude_paths,
     )
 
     write_json(args.json_out, metadata=metadata, summary=summary, metrics=metrics)
@@ -377,6 +383,7 @@ def collect_java_files(
     max_loc: int = 0,
     min_constructs: int = 0,
     include_constructs: bool = False,
+    exclude_paths: tuple[str, ...] = (),
 ) -> list[Path]:
     """Collect Java files with improved strategies for minimal size + broad construct coverage.
 
@@ -400,9 +407,13 @@ def collect_java_files(
 
     seen: set[Path] = set()
     candidates: list[Path] = []
+    excluded = set(exclude_paths)
     for root in roots:
         for path in sorted(root.rglob("*.java")):
             if path not in seen:
+                rel = path.relative_to(repo).as_posix()
+                if rel in excluded:
+                    continue
                 seen.add(path)
                 candidates.append(path)
 
@@ -578,6 +589,7 @@ def build_metadata(
     max_loc: int = 0,
     min_constructs: int = 0,
     include_constructs: bool = False,
+    exclude_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     checkout = _git_head(repo)
     metadata: dict[str, Any] = {
@@ -592,6 +604,7 @@ def build_metadata(
         "max_loc": max_loc,
         "min_constructs": min_constructs,
         "include_constructs": include_constructs,
+        "exclude_paths": list(exclude_paths),
     }
     if remote == SPRING_REMOTE:
         metadata["spring_remote"] = remote
@@ -672,6 +685,7 @@ def _metadata_comparable_keys(
         "max_loc",
         "min_constructs",
         "include_constructs",
+        "exclude_paths",
     ]
     if baseline_metadata.get("preset") and metadata.get("preset"):
         return ["preset", *keys]
