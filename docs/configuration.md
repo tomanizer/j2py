@@ -1,16 +1,19 @@
 # j2py configuration
 
 j2py loads layered configuration from defaults plus either explicitly passed files
-(`--config`) or the first conventional project config found near the source root:
+(`--config`) or the first non-executable conventional project config found near the
+source root:
 
 1. `j2py.yaml`
 2. `j2py.yml`
 3. `j2py.toml`
 4. `pyproject.toml` under `[tool.j2py]`
-5. `j2py_config.py`
 
-Python config files remain supported for backwards compatibility. YAML config requires
-the optional `yaml` extra:
+Python config files are not auto-discovered. They remain supported for backwards
+compatibility only when passed explicitly with `--config`; loading one imports and
+executes that Python file, so use this only for trusted configuration.
+
+YAML config requires the optional `yaml` extra:
 
 ```bash
 pip install "j2py-converter[yaml]"
@@ -65,6 +68,12 @@ MyType = "mymodule.MyType"
 ```
 
 ## Python
+
+Python config is trusted-code configuration and must be passed explicitly:
+
+```bash
+uv run j2py translate src/main/java --config j2py_config.py
+```
 
 ```python
 type_map = {"MyType": "mymodule.MyType"}

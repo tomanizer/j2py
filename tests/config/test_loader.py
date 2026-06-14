@@ -116,3 +116,30 @@ target_python = "3.12"
     cfg = ConfigLoader().add_defaults().add_auto_discovered(tmp_path).build()
 
     assert cfg.target_python == "3.12"
+
+
+def test_config_loader_auto_discovers_toml(tmp_path: Path) -> None:
+    (tmp_path / "j2py.toml").write_text('target_python = "3.12"\n')
+
+    cfg = ConfigLoader().add_defaults().add_auto_discovered(tmp_path).build()
+
+    assert cfg.target_python == "3.12"
+
+
+def test_config_loader_auto_discovers_yaml(tmp_path: Path) -> None:
+    pytest.importorskip("yaml")
+    (tmp_path / "j2py.yaml").write_text("target_python: '3.12'\n")
+
+    cfg = ConfigLoader().add_defaults().add_auto_discovered(tmp_path).build()
+
+    assert cfg.target_python == "3.12"
+
+
+def test_config_loader_auto_discovery_ignores_python_config(tmp_path: Path) -> None:
+    (tmp_path / "j2py_config.py").write_text(
+        "raise RuntimeError('auto-discovered Python config executed')\n",
+    )
+
+    cfg = ConfigLoader().add_defaults().add_auto_discovered(tmp_path).build()
+
+    assert cfg.target_python == "3.11"

@@ -72,13 +72,12 @@ class ConfigLoader:
         return self
 
     def add_auto_discovered(self, root: Path) -> ConfigLoader:
-        """Load the first conventional project config file found under ``root``."""
+        """Load the first non-executable project config file found under ``root``."""
         candidates = [
             root / "j2py.yaml",
             root / "j2py.yml",
             root / "j2py.toml",
             root / "pyproject.toml",
-            root / "j2py_config.py",
         ]
         for candidate in candidates:
             if candidate.exists():
