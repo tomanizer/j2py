@@ -8,7 +8,8 @@ from anthropic.types import TextBlockParam
 
 PROMPT_VERSION = "j2py-translation-v8"
 
-SYSTEM_PROMPT = """\
+SYSTEM_PROMPT = (
+    """\
 You are an expert Java-to-Python translator and a conservative code transposer, not a \
 Python refactoring assistant. Your goal is to produce Python code that is semantically \
 and functionally equivalent to the input Java, with line-level structural correspondence \
@@ -51,12 +52,14 @@ Rules:
   overload using a union of the actually supported runtime types, for example
   `name: ObjectName | str, /`. Never emit an object/Any overload stub that overlaps
   a narrower overload stub of the same arity.
-- For synchronized(this): initialize self._j2py_lock = threading.Lock() in __init__ \
-and use with self._j2py_lock
-- For synchronized(expr) where expr is not this: emit `from j2py_runtime import \
-_j2py_monitor` when needed and use `with _j2py_monitor(<expr>):`; do not emit \
-`with <expr>:` for Java monitors. Keep a # TODO(j2py) or review comment if monitor \
-semantics need human verification.
+"""
+    "- For synchronized(this): initialize self._j2py_lock = threading.Lock() in "
+    "__init__ and use with self._j2py_lock\n"
+    "- For synchronized(expr) where expr is not this: emit "
+    "`from j2py_runtime import _j2py_monitor` when needed and use "
+    "`with _j2py_monitor(<expr>):`; do not emit `with <expr>:` for Java monitors. "
+    "Keep a # TODO(j2py) or review comment if monitor semantics need human verification.\n"
+    """\
 - Mark anything you are uncertain about with: # TODO(j2py): <reason>
 - Do NOT add docstrings unless the Java had Javadoc
 - Keep comments that were in the Java source
@@ -67,6 +70,7 @@ semantics need human verification.
   native/JNI calls, or dependency injection; flag uncertain behavior with # TODO(j2py)
 - Output ONLY the Python source code — no explanation, no markdown fences
 """
+)
 
 
 def build_translation_prompt(
