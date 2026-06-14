@@ -417,17 +417,17 @@
       "warning_count": 14
     },
     {
-      "coverage": 0.5833333333333334,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 7,
+      "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/RemovalCause.java",
       "syntax_ok": true,
-      "unhandled_count": 5,
-      "unhandled_node_types": "class_body:5",
-      "unhandled_reasons": "enum constant class body requires manual translation:5",
-      "warning_count": 0
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 5
     },
     {
       "coverage": 1.0,
@@ -485,13 +485,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9831383250150373,
+    "average_coverage": 0.9957645876412998,
     "coverage_file_count": 33,
     "coverage_threshold": 0.8,
-    "files_below_coverage_threshold": 1,
+    "files_below_coverage_threshold": 0,
     "files_scanned": 36,
-    "files_with_unhandled": 9,
-    "full_coverage_files": 24,
+    "files_with_unhandled": 8,
+    "full_coverage_files": 25,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.9722222222222222,
     "top_unhandled_node_types": [
@@ -500,19 +500,11 @@
         8
       ],
       [
-        "class_body",
-        5
-      ],
-      [
         "array_type",
         1
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "enum constant class body requires manual translation",
-        5
-      ],
       [
         "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument",
         2

@@ -217,6 +217,9 @@ def _uses_qualified_this(node: JavaNode) -> bool:
 def _anonymous_helper_init_lines(
     fields: list[FieldInfo],
     ctx: TranslationContext,
+    *,
+    def_indent: str = "            ",
+    body_indent: str = "                ",
 ) -> list[str]:
     from j2py.translate.class_fields import (
         _class_field_types,
@@ -224,7 +227,7 @@ def _anonymous_helper_init_lines(
         _instance_field_names,
     )
 
-    lines = ["            def __init__(self):"]
+    lines = [f"{def_indent}def __init__(self):"]
     field_ctx = TranslationContext(
         cfg=ctx.cfg,
         diagnostics=ctx.diagnostics,
@@ -248,7 +251,7 @@ def _anonymous_helper_init_lines(
                 f"{_field_assignment(f'self.{field.py_name}', annotation, ctx.cfg)} = "
                 f"{default_value}"
             )
-        lines.append(f"                {assignment}")
+        lines.append(f"{body_indent}{assignment}")
     return lines
 
 
@@ -260,6 +263,10 @@ def _anonymous_method_lines(
     instance_field_types: dict[str, str],
     instance_field_java_types: dict[str, str],
     outer_self_alias: str | None,
+    member_indent: str = "            ",
+    body_indent: str = "                ",
+    nested_helper_indent: str = "        ",
+    supported_reason: str = "translated anonymous class method",
 ) -> list[str]:
     from j2py.translate.class_model import _modifiers
     from j2py.translate.classes import (
@@ -274,7 +281,7 @@ def _anonymous_method_lines(
     ctx.diagnostics.record(
         method,
         supported=True,
-        reason="translated anonymous class method",
+        reason=supported_reason,
     )
 
     name_node = method.child_by_field("name")
@@ -291,8 +298,8 @@ def _anonymous_method_lines(
     returns = f" -> {_return_type(method, ctx.cfg)}" if ctx.cfg.emit_type_hints else ""
     lines: list[str] = []
     if is_static:
-        lines.append("            @staticmethod")
-    lines.append(f"            def {py_name}({', '.join(rendered_params)}){returns}:")
+        lines.append(f"{member_indent}@staticmethod")
+    lines.append(f"{member_indent}def {py_name}({', '.join(rendered_params)}){returns}:")
 
     previous_param_names = set(ctx.param_names)
     previous_types = dict(ctx.variable_types)
@@ -317,15 +324,17 @@ def _anonymous_method_lines(
     try:
         body = _method_body(method)
         body_lines = (
-            translate_body(body, ctx, indent="                ")
+            translate_body(body, ctx, indent=body_indent)
             if body
-            else ["                pass"]
+            else [f"{body_indent}pass"]
         )
         nested_helpers = ctx.pending_local_helpers[start_index:]
         del ctx.pending_local_helpers[start_index:]
         for helper in nested_helpers:
             lines.append("")
-            lines.extend(f"        {line}" if line else line for line in helper)
+            lines.extend(
+                f"{nested_helper_indent}{line}" if line else line for line in helper
+            )
         lines.extend(body_lines)
     finally:
         ctx.param_names = previous_param_names
