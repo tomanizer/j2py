@@ -187,6 +187,10 @@ valid modern Java that j2py still translates. Exclusions are listed in
 `CorpusPreset.exclude_paths` (`scripts/corpus/corpus_presets.py`) and recorded in baseline
 metadata as `exclude_paths`.
 
+Baseline comparison treats older metadata that omitted `exclude_paths` as equivalent to
+`exclude_paths: []` only when the current run also has no exclusions. Non-empty exclusion
+lists remain part of the comparability contract.
+
 | Preset | Excluded path | Root cause |
 |--------|---------------|------------|
 | `guava-dense` | `guava/src/com/google/common/base/Platform.java` | Jspecify type-use `@Nullable` before varargs (`@Nullable Object @Nullable ... args`) — tree-sitter-java ERROR; skeleton translation reaches full coverage (#160). |

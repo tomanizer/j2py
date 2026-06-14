@@ -1305,6 +1305,7 @@
     "corpus_checkout": "29ccc7665f3bc5d84155a3092ab2209a053324e6",
     "corpus_ref": "rel/commons-lang-3.17.0",
     "corpus_remote": "https://github.com/apache/commons-lang.git",
+    "exclude_paths": [],
     "include_constructs": false,
     "include_tests": false,
     "limit": 100,
