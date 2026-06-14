@@ -1,4 +1,6 @@
-# j2py — Claude Code guidance
+# j2py — Agent guidance
+
+This file is mirrored in `AGENTS.md` and `CLAUDE.md`. Keep both files in sync.
 
 ## Mission
 

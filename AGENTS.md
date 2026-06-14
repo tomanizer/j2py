@@ -1,64 +1,84 @@
-# j2py — Agent guidance (Codex, Copilot, Cursor, and others)
+# j2py — Agent guidance
 
-This file mirrors [CLAUDE.md](CLAUDE.md) for non-Claude agents. Both must be kept in sync.
+This file is mirrored in `AGENTS.md` and `CLAUDE.md`. Keep both files in sync.
 
 ## Mission
 
-j2py converts Java source to semantically equivalent Python with line-level structural
-correspondence. "Working Python" is necessary but not sufficient — the output must be
-reviewable against the original Java side-by-side.
+j2py converts Java source code to semantically and functionally equivalent Python, with
+line-level structural correspondence so human review is tractable. The goal is never to
+produce "running Python" alone — it is to produce Python that a reviewer can audit
+against the original Java class-by-class, method-by-method.
 
-## Before writing any code
+## Key documents — read before working
 
-Read these documents first:
+| Document | What it contains |
+|---|---|
+| [docs/PRD.md](docs/PRD.md) | Product goals, user stories, non-goals, success criteria |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
+| [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Branch workflow, PR rules, commit style, changelog |
 
-- [docs/PRD.md](docs/PRD.md) — product goals and non-goals
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — pipeline stages and component boundaries
-- [docs/decisions/](docs/decisions/) — settled design decisions as ADRs
-- [CONTRIBUTING.md](CONTRIBUTING.md) — workflow, commit style, PR rules
+## Architecture at a glance
 
-## Pipeline summary
-
-| Stage | Package | Status |
-|---|---|---|
-| Java parsing | `j2py/parse/` | Implemented |
-| Symbol analysis | `j2py/analyze/` | Implemented |
-| Rule-based skeleton | `j2py/translate/skeleton.py` | Implemented but incomplete |
-| Direct visitors | `j2py/translate/classes.py`, `statements.py`, `expressions.py` | Implemented |
-| Type/naming/literal rules | `j2py/translate/rules/` | Implemented |
-| LLM completion | `j2py/llm/` | Implemented |
-| Validation | `j2py/validate/` | Implemented |
-| CLI | `j2py/cli/` | Implemented |
-
-## Constraints — do not violate without an ADR
-
-- Parser: **tree-sitter-java only** — do not introduce javalang, ANTLR, or regex-based parsing
-- LLM: **Anthropic SDK only** — no LangChain, no OpenAI, no litellm wrappers
-- Output target: **Python 3.11+** with PEP 484/585 type annotations
-- Tests: **no live Anthropic API calls in the normal test suite or CI**.
-  The single exception is the on-demand exploratory test
-  `tests/llm/test_e2e_llm.py` (marked `live_llm`). It is excluded by default
-  via pytest configuration (`addopts = ... -m 'not live_llm'`). It may only be run
-  explicitly with `pytest -m live_llm ...` (after setting `ANTHROPIC_API_KEY`)
-  when a human wants to manually evaluate the current tree-sitter + rule
-  skeleton quality against real LLM completion. This test must never be
-  required for `make check` or PRs.
-- Rule layer: keep deterministic helpers focused and stateless where possible; use
-  `TranslationContext` and diagnostics when a rule cannot preserve Java semantics
-
-## Quality gates
-
-Every PR must pass:
-
-```bash
-make check     # lint (ruff) + typecheck (mypy strict) + test (pytest)
+```
+Java source
+    │
+    ▼
+[parse/]      tree-sitter-java → JavaNode AST, ParsedFile
+    │
+    ▼
+[analyze/]    Symbol table (classes/methods/fields) + dependency graph (networkx)
+    │
+    ▼
+[translate/]  ① Rule-based skeleton (translate/skeleton.py) — target ~70% coverage
+              ② Direct visitors: classes.py, statements.py, expressions.py
+              ③ Rules sub-package: types, naming, literals
+    │
+    ▼
+[llm/]        Claude fills what the rule layer couldn't reach
+              Disk-cached responses; tenacity retry
+    │
+    ▼
+[validate/]   ast.parse → ruff → mypy
+    │
+    ▼
+Python output
 ```
 
-Note: `make check` (and normal `pytest`) exclude the `behavior` and `live_llm`
-markers. Graduated roadmap fixtures under `tests/fixtures/java/targets/` run in
-`make check`; future xfail contracts run via `make test-targets`.
+The rule layer (`translate/skeleton.py`) is implemented and handles many common Java
+structures, but it remains incomplete. New deterministic translation work belongs in
+`classes.py`, `statements.py`, `expressions.py`, or pure helpers under
+`translate/rules/`. The earlier selector/transform prototype has been removed. See
+[ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).
 
-CI runs the same checks. A red CI means `make check` was skipped.
+## Settled design decisions
+
+Consult ADRs for full context. Do not reverse these without a new ADR:
+
+- **tree-sitter** for Java parsing ([ADR 0002](docs/decisions/0002-tree-sitter-for-java-parsing.md))
+- **Layered pipeline**: rule → LLM, not LLM-only ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
+- **Claude** as LLM backend ([ADR 0004](docs/decisions/0004-claude-as-llm-backend.md))
+- **Python 3.11+** with full type annotations as output target ([ADR 0005](docs/decisions/0005-python-311-target-with-type-hints.md))
+- **Line-level structural correspondence** as the quality bar — same method order, same
+  control-flow structure, camelCase→snake_case names ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
+- **Equivalence verification** via harvested-test differential testing with a
+  JVM-independent oracle ([ADR 0014](docs/decisions/0014-equivalence-differential-testing.md),
+  design in [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md))
+
+## Development workflow
+
+```bash
+uv run pytest               # run tests
+uv run mypy j2py/           # type-check
+uv run ruff check j2py/     # lint
+uv run ruff format j2py/    # format
+
+make check                  # lint + typecheck + test (run before every commit)
+make ci-local-pr            # full local PR check — must pass before pushing
+```
+
+All `make` targets must pass locally before pushing. CI gates are identical to local
+presets; a red CI means `make check` was not run.
 
 ## Benchmark corpus checkouts
 
@@ -79,16 +99,36 @@ make corpus-guava-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/guava
 Do not re-clone in every worktree unless you intend to. See
 [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md).
 
-## New translation rules
+## Code review focus areas
 
-Add to `j2py/translate/classes.py`, `statements.py`, `expressions.py`, or pure helpers
-under `j2py/translate/rules/`. Each rule needs:
-1. A Java fixture in `tests/fixtures/java/`
-2. An expected Python fixture in `tests/fixtures/python/`
-3. A parametrised test in `tests/translate/`
+Before approving or merging a PR, verify:
 
-## When to create an ADR
+1. **mypy passes** — `make typecheck` clean; no `# type: ignore` without a comment explaining why
+2. **Tests cover the change** — new translation rules need parametrised fixture tests
+3. **ADR for design changes** — any change to parser, pipeline layering, LLM model/prompt, or
+   output format needs either an existing ADR reference or a new ADR
+4. **No live LLM calls in normal tests** — tests must not call the Anthropic API
+   during `make check`, normal `pytest`, or CI. Use fixtures or stubs by default.
+   The only exception is `tests/llm/test_e2e_llm.py`, which must be marked
+   `live_llm` and is excluded by pytest configuration unless explicitly run with
+   `pytest -m live_llm` and `ANTHROPIC_API_KEY`. Graduated roadmap fixtures run in
+   `make check`; future xfail contracts run via `make test-targets`.
+5. **Rule-layer changes have Java fixtures** — `tests/fixtures/java/*.java` + expected `tests/fixtures/python/*.py`
+6. **Confidence score honest** — `TranslationResult.confidence` reflects rule-layer
+   node coverage (`diagnostics.coverage`); semantic warnings are tracked separately
+   via `diagnostics.semantic_warning_count` and do not reduce coverage
+7. **Rule-layer helpers stay focused** — keep translation functions stateless where
+   possible and use diagnostics when a rule cannot preserve Java semantics
 
-Any change to: parser library, LLM provider, pipeline stages, Python output version,
-or non-obvious translation choices (e.g., how to handle Java method overloading).
-See [ADR 0001](docs/decisions/0001-record-architecture-decisions.md) for the template.
+## Writing new ADRs
+
+Create `docs/decisions/NNNN-slug.md` using the template in
+[ADR 0001](docs/decisions/0001-record-architecture-decisions.md).
+
+Triggers for a new ADR:
+- Changing the parser library
+- Changing the LLM provider or model selection strategy
+- Adding a new pipeline stage
+- Changing the Python output target version
+- Changing the translation of any Java construct with non-obvious Python equivalents
+  (e.g., choosing `@singledispatch` over overload stubs for method overloading)

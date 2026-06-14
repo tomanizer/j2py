@@ -115,7 +115,7 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   Spring sample against the committed baseline on translation/corpus path changes.
 - `j2py analyze` dependency graph and translation-order output for file and directory modes.
 - Skeleton translator tests split under `tests/translate/skeleton/` by concern (#69).
-- ADR 0010: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
+- ADR 0015: `synchronized(this)` translates to `self._j2py_lock` with `threading.Lock()`
   initialization in constructors or synthetic `__init__`.
 - Preferred dense Spring + curated-construct corpus baseline workflow:
   `corpus-spring-dense-check`, `corpus-spring-dense-update-baseline`, and

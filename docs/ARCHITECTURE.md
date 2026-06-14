@@ -135,8 +135,10 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md), [ADR 0009](decisions/0009-two-tier-overload-translation.md), [ADR 0013](decisions/0013-static-overload-dispatch.md) |
 | Type declaration translation | [ADR 0007](decisions/0007-type-declaration-translation.md) |
 | Post-LLM structural verification | [ADR 0010](decisions/0010-post-llm-structural-verification.md) |
-| `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
+| Javadoc docstring translation | [ADR 0011](decisions/0011-javadoc-docstring-translation.md) |
+| Sealed type metadata | [ADR 0012](decisions/0012-sealed-type-metadata.md) |
 | Equivalence verification (differential testing) | [ADR 0014](decisions/0014-equivalence-differential-testing.md) |
+| `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
 
 ## Dependency rules
 
