@@ -14,16 +14,16 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.9655172413793104,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 28,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/CompoundOrdering.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 11
     },
     {
@@ -976,16 +976,16 @@
       "warning_count": 24
     },
     {
-      "coverage": 0.8235294117647058,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 14,
+      "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/HashMultiset.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method create requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 8
     },
     {
@@ -1184,29 +1184,29 @@
       "warning_count": 17
     },
     {
-      "coverage": 0.7333333333333333,
+      "coverage": 0.9545454545454546,
       "error": "",
-      "handled_count": 11,
+      "handled_count": 21,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/HashBasedTable.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "import_declaration:1;method_declaration:3",
-      "unhandled_reasons": "overloaded method create requires manual dispatch:3;unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
       "warning_count": 4
     },
     {
-      "coverage": 0.8235294117647058,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 14,
+      "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/LinkedHashMultiset.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method create requires manual dispatch:3",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 8
     },
     {
@@ -1318,13 +1318,13 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9726350820234024,
+    "average_coverage": 0.9787214425864365,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
-    "files_below_coverage_threshold": 3,
+    "files_below_coverage_threshold": 2,
     "files_scanned": 100,
-    "files_with_unhandled": 17,
-    "full_coverage_files": 83,
+    "files_with_unhandled": 14,
+    "full_coverage_files": 86,
     "parse_success_rate": 0.99,
     "syntax_success_rate": 0.95,
     "top_unhandled_node_types": [
@@ -1333,23 +1333,11 @@
         22
       ],
       [
-        "method_declaration",
-        9
-      ],
-      [
-        "method_invocation",
-        1
-      ],
-      [
         "object_creation_expression",
         1
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "overloaded method create requires manual dispatch",
-        9
-      ],
       [
         "unknown static import com.google.common.collect.Iterators.singletonIterator",
         2
@@ -1369,10 +1357,6 @@
       [
         "unknown static import java.lang.annotation.ElementType.TYPE",
         2
-      ],
-      [
-        "equals invocation with unexpected argument count",
-        1
       ],
       [
         "unknown static import com.google.common.base.NullnessCasts.uncheckedCastNullableTToT",

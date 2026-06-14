@@ -768,16 +768,16 @@
       "warning_count": 0
     },
     {
-      "coverage": 0.9777777777777777,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 44,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/time/GmtTimeZone.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 16
     },
     {
@@ -807,16 +807,16 @@
       "warning_count": 9
     },
     {
-      "coverage": 0.9565217391304348,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/reflect/TypeLiteral.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 7
     },
     {
@@ -1041,16 +1041,16 @@
       "warning_count": 3
     },
     {
-      "coverage": 0.96,
+      "coverage": 1.0,
       "error": "",
       "handled_count": 24,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/mutable/MutableObject.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 15
     },
     {
@@ -1317,30 +1317,22 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9985726247987118,
+    "average_coverage": 0.9996296296296296,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
     "files_scanned": 100,
-    "files_with_unhandled": 4,
-    "full_coverage_files": 96,
+    "files_with_unhandled": 1,
+    "full_coverage_files": 99,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
-      [
-        "method_invocation",
-        3
-      ],
       [
         "assert_statement",
         1
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "equals invocation with unexpected argument count",
-        3
-      ],
       [
         "unsupported statement assert_statement",
         1

@@ -27,6 +27,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Static two-argument `equals` helpers (`Objects.equals`, `Arrays.equals`, static-import
+  `equals`, and similar utility calls) now translate to Python `==` instead of emitting
+  an unexpected-argument-count diagnostic (#156).
 - Static overload groups with distinguishable Python signatures now translate through the
   vendored runtime dispatcher, receiverless same-group static calls are class-qualified,
   and boxed primitive forwarding overloads merge without manual-dispatch diagnostics

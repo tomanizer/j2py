@@ -508,16 +508,16 @@
       "warning_count": 1
     },
     {
-      "coverage": 0.8787878787878788,
+      "coverage": 0.90625,
       "error": "",
       "handled_count": 29,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/jsontype/NamedType.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "false:2;method_invocation:1;true:1",
-      "unhandled_reasons": "equals invocation with unexpected argument count:1;unsupported statement false:2;unsupported statement true:1",
+      "unhandled_count": 3,
+      "unhandled_node_types": "false:2;true:1",
+      "unhandled_reasons": "unsupported statement false:2;unsupported statement true:1",
       "warning_count": 5
     },
     {
@@ -1317,7 +1317,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9942518998095308,
+    "average_coverage": 0.9945604629692175,
     "coverage_file_count": 89,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
@@ -1329,10 +1329,6 @@
     "top_unhandled_node_types": [
       [
         "false",
-        2
-      ],
-      [
-        "method_invocation",
         2
       ],
       [
@@ -1354,6 +1350,10 @@
       [
         "object_creation_expression",
         1
+      ],
+      [
+        "method_invocation",
+        1
       ]
     ],
     "top_unhandled_reasons": [
@@ -1371,10 +1371,6 @@
       ],
       [
         "malformed ternary expression",
-        1
-      ],
-      [
-        "equals invocation with unexpected argument count",
         1
       ],
       [
