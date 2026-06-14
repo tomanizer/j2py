@@ -12,6 +12,7 @@ removal, mirroring the behaviour-corpus discipline.
 
 from __future__ import annotations
 
+import sys
 import types
 from collections.abc import Mapping
 from pathlib import Path
@@ -45,6 +46,8 @@ def load_translated_module(
     class importable so its own methods can be exercised.
     """
     module = types.ModuleType(name)
+    module.__file__ = f"<{name}>"
+    sys.modules[name] = module
     if injected_globals:
         module.__dict__.update(injected_globals)
     exec(compile(source, f"<{name}>", "exec"), module.__dict__)  # noqa: S102

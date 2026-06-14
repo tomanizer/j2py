@@ -13,6 +13,8 @@ translation flips the marker and forces its removal. Overloaded methods (``toCha
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from tests.equivalence.harness import (
@@ -38,7 +40,8 @@ def char_utils(char_utils_source: str):
         "char_utils_fixture",
         {"array_utils": array_utils_stub()},
     )
-    return module.CharUtils
+    yield module.CharUtils
+    sys.modules.pop("char_utils_fixture", None)
 
 
 # --- Correctly translated, non-overloaded methods: these must pass. ---------------
