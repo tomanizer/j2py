@@ -27,6 +27,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Anonymous classes in static and instance field initializers now emit nested helper
+  classes at class or `__init__` scope instead of the local-helper diagnostic (#159).
 - Static two-argument `equals` helpers (`Objects.equals`, `Arrays.equals`, static-import
   `equals`, and similar utility calls) now translate to Python `==` instead of emitting
   an unexpected-argument-count diagnostic (#156).
