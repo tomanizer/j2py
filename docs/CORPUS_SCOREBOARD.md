@@ -27,8 +27,9 @@ A curated "constructs" mini-corpus lives in `tests/fixtures/corpus/constructs/`.
 are tiny, focused non-Spring files that guarantee coverage of important Java features
 used across Spring-style codebases (interface defaults + statics, text blocks,
 anonymous/sophisticated inner classes, switch fall-through + complex rules, advanced
-enums with constructors/methods, etc.). They are included in the preferred dense
-baseline and directly support the followup roadmap items under the #47 parent.
+enums with constructors/methods, enum constant class bodies, etc.). They are included in
+the preferred dense baseline and directly support the followup roadmap items under the
+#47 parent.
 
 The preferred committed baseline lives at:
 

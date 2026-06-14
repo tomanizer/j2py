@@ -27,8 +27,8 @@ The suite has three lanes:
 - **Graduated corpus constructs**: Java fixtures under
   `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
   (`AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`,
-  `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`,
-  `TextBlocks`, `VarKeyword`). These also run in `make check`.
+  `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`,
+  `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
   behavior that should become supported next. **Currently empty** — all curated
   constructs are graduated as of 2026-06-13 (see `docs/decisions/AUDIT-2026-06-13.md`).

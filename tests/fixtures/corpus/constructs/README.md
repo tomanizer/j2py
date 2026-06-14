@@ -22,6 +22,7 @@ translation.
 | AdvancedStreams.java        | flatMap, reduce, groupingBy+downstream, block lambdas in streams, long chains | Advanced streams |
 | AnonymousAndInner.java      | Anonymous classes (expression + stateful), local classes, non-static inner classes with capture | Anonymous + sophisticated inner classes (#50) |
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
+| EnumConstantClassBody.java  | Enum constants with anonymous class bodies overriding abstract methods | Enum constant class bodies (#157) |
 | InterfaceDefaults.java      | Interface `default` methods, `static` methods on interfaces | Interface default + static methods (#48) |
 | SealedClasses.java          | `sealed` interfaces, `permits`, `non-sealed`, records as permitted types | Sealed classes |
 | SuperMethodCalls.java       | `super.method(...)` as statement and return-expression receiver | Super method receiver calls |
@@ -44,7 +45,7 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 
 | Tier | Files | How to run |
 |------|-------|------------|
-| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `ComplexRecords`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`, `SuperMethodCalls` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
+| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`, `SuperMethodCalls` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
 | Future xfail (`make test-targets`) | _(none)_ | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into

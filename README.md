@@ -51,8 +51,8 @@ Deterministic support today includes:
 Known gaps include:
 
 - overload groups whose erased Python signatures collide (e.g. `int` vs `long`) and
-  static-method overload groups that still fall back to manual-dispatch TODOs
-- enum constant class bodies and complex enum static initialization
+  other ambiguous overload groups that still fall back to manual-dispatch TODOs
+- complex enum static initialization beyond translated enum constant class bodies
 - annotation semantics beyond syntactic metadata shells
 - runtime/framework behavior (dependency injection, persistence mappings, container
   lifecycle) — j2py translates source structure, not application frameworks
