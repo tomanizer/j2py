@@ -1,1 +1,0 @@
-Rule layer only recognises < in counted for-loop; <= falls back to while-loop where continue skips the increment → infinite loop in Python

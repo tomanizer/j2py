@@ -165,6 +165,8 @@ class TranslationContext:
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
     inner_class_names_requiring_outer: set[str] = field(default_factory=set)
+    containing_class_name: str | None = None
+    nested_class_names: set[str] = field(default_factory=set)
 
     # Java method names that must dispatch through self when called without a
     # receiver (used for @overloaded groups so sibling overload calls re-enter

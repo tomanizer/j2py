@@ -1,1 +1,0 @@
-Rule layer renames method def to sum_() to avoid Python builtin clash, but translate_attribute_method_name leaves the call site as .sum() → AttributeError

@@ -211,6 +211,7 @@ def translate_class(
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
     )
+    direct_nested_type_names = set() if body is None else _direct_nested_type_names(body)
     nested_outer_capture_names = _nested_type_names_using_qualified_this(body)
     nested_type_lines = _nested_type_lines(
         body,
@@ -287,6 +288,7 @@ def translate_class(
                     class_state=class_state,
                     docstring_lines=_docstring_for_group(group, member_docstrings),
                     inner_class_names_requiring_outer=nested_outer_capture_names,
+                    nested_class_names=direct_nested_type_names,
                 ),
             )
             continue
@@ -308,6 +310,8 @@ def translate_class(
             class_state=class_state,
             outer_self_alias=outer_self_alias,
             inner_class_names_requiring_outer=nested_outer_capture_names,
+            containing_class_name=class_name,
+            nested_class_names=direct_nested_type_names,
         )
         pre_body_lines = (
             lock_init_lines + instance_init_lines
@@ -1527,6 +1531,7 @@ def _translate_overloaded_members(
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str]:
     from j2py.translate.overloads import translate_overloaded_members
 
@@ -1548,6 +1553,7 @@ def _translate_overloaded_members(
         class_state=class_state,
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+        nested_class_names=nested_class_names or set(),
     )
 
 

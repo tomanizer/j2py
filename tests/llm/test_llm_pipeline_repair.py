@@ -8,9 +8,8 @@ verify:
    (coverage < 1.0).
 2. The pipeline passes the rule-layer skeleton and diagnostics to the LLM.
 3. The pipeline returns the LLM response as the final output.
-4. For rule-layer bugs where coverage == 1.0 but output is wrong, the skeleton
-   contains the expected broken pattern (so a future LLM-trigger improvement can
-   be regression-tested).
+4. Previously fixed rule-layer bug classes remain covered by direct skeleton
+   assertions so they do not silently regress.
 
 These tests run in the normal ``make check`` suite (no special marker needed).
 """
@@ -115,15 +114,11 @@ public class Pure {
 
 
 # ---------------------------------------------------------------------------
-# Skeleton shape for rule-layer bugs: confirm the broken pattern is present
-# so a future LLM-trigger fix can assert the LLM receives it
+# Skeleton shape for previously fixed rule-layer bugs
 # ---------------------------------------------------------------------------
 
-def test_skeleton_drops_arithmetic_parens() -> None:
-    """Documents that (a + b) * 2 skeleton contains the broken a + b * 2 form.
-
-    When the parentheses bug is fixed, this test will xpass and should be removed.
-    """
+def test_skeleton_preserves_arithmetic_parens() -> None:
+    """Regression guard for parenthesized arithmetic grouping."""
     src, _ = translate_source("""
     public class Calc {
         public static int run(int a, int b) {
@@ -131,18 +126,11 @@ def test_skeleton_drops_arithmetic_parens() -> None:
         }
     }
     """)
-    assert "(a + b) * 2" not in src, (
-        "Parentheses bug appears to be fixed — remove this assertion and update "
-        "test_parenthesized_arithmetic_grouping_preserved in test_rule_layer_known_gaps.py"
-    )
-    assert "a + b * 2" in src or "a + b" in src
+    assert "(a + b) * 2" in src
 
 
-def test_skeleton_uses_float_divide_assign() -> None:
-    """Documents that x /= 6 skeleton uses /= (float) not //= (int).
-
-    When the compound-int-division bug is fixed, update accordingly.
-    """
+def test_skeleton_uses_int_divide_assign() -> None:
+    """Regression guard for Java int compound division."""
     src, _ = translate_source("""
     public class Div {
         public static int run() {
@@ -152,15 +140,12 @@ def test_skeleton_uses_float_divide_assign() -> None:
         }
     }
     """)
-    assert "/=" in src
-    assert "//=" not in src
+    assert "//=" in src
+    assert "/=" not in src.replace("//=", "")
 
 
-def test_skeleton_lowers_user_add_to_append() -> None:
-    """Documents that user-defined .add() is incorrectly rewritten to .append().
-
-    When the collection-lowering bug is fixed, update accordingly.
-    """
+def test_skeleton_keeps_user_add_method_call() -> None:
+    """Regression guard for user-defined add methods on non-collection receivers."""
     src, _ = translate_source("""
     public class Counter {
         private int value = 0;
@@ -172,7 +157,8 @@ def test_skeleton_lowers_user_add_to_append() -> None:
         }
     }
     """)
-    assert ".append(5)" in src
+    assert ".add(5)" in src or ".add(" in src
+    assert ".append(5)" not in src
 
 
 # ---------------------------------------------------------------------------

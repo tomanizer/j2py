@@ -1,8 +1,7 @@
 """Unit tests documenting known rule-layer translation bugs.
 
-Each test asserts the *current* (broken) behaviour with an xfail mark so it becomes
-a green regression-guard the moment the bug is fixed. Promote a test by removing the
-xfail mark and flipping the assertion once the fix lands.
+Each test covers a previously broken semantic translation edge so the rule layer cannot
+regress silently.
 
 These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite via
 ``make check``.
@@ -10,19 +9,12 @@ These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite
 
 from __future__ import annotations
 
-import pytest
-
 from tests.translate.skeleton.helpers import translate_source, translate_source_with_diagnostics
 
 # ---------------------------------------------------------------------------
 # Bug 1: Parentheses dropped in arithmetic expressions
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer strips parenthesized_expression nodes unconditionally; "
-           "(a + b) * 2 becomes a + b * 2 (expressions.py:151-154)",
-)
 def test_parenthesized_arithmetic_grouping_preserved() -> None:
     """(a + b) * 2 must translate with grouping intact, not drop the parens."""
     src, _ = translate_source("""
@@ -35,11 +27,6 @@ def test_parenthesized_arithmetic_grouping_preserved() -> None:
     assert "(a + b) * 2" in src
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer strips parenthesized_expression nodes unconditionally; "
-           "nested grouping like (a - b) * (c + d) loses both pairs of parens",
-)
 def test_nested_parenthesized_grouping_preserved() -> None:
     src, _ = translate_source("""
     public class Calc {
@@ -55,11 +42,6 @@ def test_nested_parenthesized_grouping_preserved() -> None:
 # Bug 2: Compound integer division emits /= (float) instead of //= (int)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer passes /= through unchanged; Python /= produces float, "
-           "Java x /= n on ints must become x //= n (expressions.py:107)",
-)
 def test_compound_int_division_uses_floor_divide_assign() -> None:
     """x /= 6 on a Java int must become x //= 6, not x /= 6."""
     src, _ = translate_source("""
@@ -79,12 +61,6 @@ def test_compound_int_division_uses_floor_divide_assign() -> None:
 # Bug 3: Collection-method lowering fires on user-defined .add() methods
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer rewrites any .add(n) call to .append(n) without checking "
-           "the receiver type; user-defined add() on non-collection objects crashes "
-           "(expressions.py:467-468)",
-)
 def test_user_defined_add_method_not_lowered_to_append() -> None:
     src, _ = translate_source("""
     public class Counter {
@@ -105,13 +81,6 @@ def test_user_defined_add_method_not_lowered_to_append() -> None:
 # Bug 4: Builtin-clash rename renames def but not call site
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="translate_method_name renames the def to sum_() to avoid shadowing the "
-           "Python builtin, but translate_attribute_method_name only escapes keywords "
-           "(not builtins), so receiver.sum() stays as .sum() → AttributeError "
-           "(rules/naming.py:46-53, expressions.py:546-548)",
-)
 def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
     """A user method named 'sum' must have matching name at def and call site."""
     src, _ = translate_source("""
@@ -137,12 +106,6 @@ def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="range-loop detection requires strict < (stmt_control.py:243); "
-           "i <= N falls back to while-loop and continue skips the i++ increment → "
-           "infinite loop at runtime",
-)
 def test_for_loop_le_bound_with_continue_translates_to_range() -> None:
     """for (int i=1; i<=5; i++) with a continue must not produce a while-loop."""
     src, _ = translate_source("""

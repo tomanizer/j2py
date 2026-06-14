@@ -1,1 +1,0 @@
-Rule layer emits /= for integer compound division; Python /= produces a float (3.333...) instead of truncated int (3)

@@ -31,6 +31,9 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
     ):
         return f"self.{py_base_type}(self)"
 
+    if ctx.containing_class_name and py_base_type in ctx.nested_class_names:
+        return f"{ctx.containing_class_name}.{py_base_type}({args})"
+
     # Bare java.lang.Object → Python object(). This is the canonical dedicated-lock
     # idiom (`private final Object lock = new Object();`); `Object` has no Python
     # name, so the fallback would emit an undefined `Object()` and raise NameError.
