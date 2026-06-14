@@ -199,6 +199,34 @@ def test_anonymous_and_inner_corpus_construct_reaches_full_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_enum_constant_class_body_reaches_full_coverage() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "EnumConstantClassBody.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class _J2pyEnumConstantEXPLICIT:" in result.source
+    assert "_EnumConstantClassBody_j2py_enum_bodies" in result.source
+    assert "return False" in result.source
+    assert "return True" in result.source
+    assert "return body_cls.was_evicted(self)" in result.source
+    assert "_J2PY_ENUM_BODY_BY_NAME" not in result.source
+    assert "@abstractmethod" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_enum_constant_class_body_runs_at_runtime() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "EnumConstantClassBody.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated>", "exec"), namespace)
+    enum_cls = namespace["EnumConstantClassBody"]
+    assert enum_cls.EXPLICIT.was_evicted() is False
+    assert enum_cls.REPLACED.was_evicted() is False
+    assert enum_cls.COLLECTED.was_evicted() is True
+
+
 def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
     result = translate_source_with_diagnostics(
         """

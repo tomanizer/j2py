@@ -472,16 +472,56 @@ def _translate_enum(
     if not constants and not fields and not members:
         lines.append("    pass")
         return lines
+
+    module_prefix: list[str] = []
+    constant_body_helpers: list[list[str]] = []
+    constant_assignments: list[list[str]] = []
+    constants_with_bodies: list[str] = []
+    overridden_method_py_names: set[str] = set()
+    bodies_map_name = _enum_constant_bodies_map_name(class_name)
+
     for constant in constants:
-        lines.extend(
-            _translate_enum_constant(
-                constant,
-                cfg,
-                diagnostics,
-                static_field_aliases=static_field_aliases,
-                static_method_imports=static_method_imports,
-            )
+        name_node = constant.child_by_field("name") or first_child_by_type(
+            constant,
+            "identifier",
         )
+        constant_name = (
+            name_node.text if name_node is not None else constant.text.split("(", 1)[0]
+        )
+        assignment_lines, helper_lines, overridden = _translate_enum_constant(
+            constant,
+            cfg,
+            diagnostics,
+            constant_name=constant_name,
+            static_field_aliases=static_field_aliases,
+            static_method_imports=static_method_imports,
+            enum_field_names=instance_field_names,
+            enum_field_types=class_field_types,
+            enum_field_java_types=class_field_java_types,
+        )
+        constant_assignments.append(assignment_lines)
+        if helper_lines is not None:
+            constant_body_helpers.append(helper_lines)
+            constants_with_bodies.append(constant_name)
+            for raw_name in overridden:
+                overridden_method_py_names.add(
+                    translate_method_name(raw_name, snake_case=cfg.snake_case_methods),
+                )
+
+    for helper_lines in constant_body_helpers:
+        module_prefix.extend(helper_lines)
+        module_prefix.append("")
+
+    for assignment_lines in constant_assignments:
+        lines.extend(assignment_lines)
+
+    if constants_with_bodies:
+        body_entries = ", ".join(
+            f'"{name}": _J2pyEnumConstant{translate_class_name(name)}'
+            for name in constants_with_bodies
+        )
+        module_prefix.append(f"{bodies_map_name} = {{{body_entries}}}")
+        module_prefix.append("")
 
     for field in fields:
         diagnostics.record(field.node, supported=True, reason="translated enum field declaration")
@@ -509,6 +549,30 @@ def _translate_enum(
                 ),
             )
             continue
+        member = group[0]
+        name_node = member.child_by_field("name")
+        raw_name = name_node.text if name_node is not None else "unknown"
+        py_name = translate_method_name(raw_name, snake_case=cfg.snake_case_methods)
+        if (
+            constants_with_bodies
+            and py_name in overridden_method_py_names
+            and member.type == "method_declaration"
+        ):
+            diagnostics.record(
+                member,
+                supported=True,
+                reason="translated enum method via constant body dispatch",
+            )
+            lines.extend(
+                _enum_constant_body_dispatcher(
+                    member,
+                    py_name,
+                    cfg,
+                    diagnostics,
+                    bodies_map_name=bodies_map_name,
+                ),
+            )
+            continue
         ctx = TranslationContext(
             cfg=cfg,
             diagnostics=diagnostics,
@@ -522,7 +586,7 @@ def _translate_enum(
             allow_local_helpers=True,
         )
         lines.extend(_translate_method(group[0], ctx))
-    return lines
+    return module_prefix + lines
 
 
 def _enum_interface_names(node: JavaNode) -> list[str]:
@@ -553,29 +617,174 @@ def _translate_enum_constant(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
+    constant_name: str,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
-) -> list[str]:
+    enum_field_names: set[str],
+    enum_field_types: dict[str, str],
+    enum_field_java_types: dict[str, str],
+) -> tuple[list[str], list[str] | None, set[str]]:
     diagnostics.record(constant, supported=True, reason="translated enum constant")
-    name_node = constant.child_by_field("name") or first_child_by_type(constant, "identifier")
-    constant_name = name_node.text if name_node is not None else constant.text.split("(", 1)[0]
     body = first_child_by_type(constant, "class_body")
+    helper_lines: list[str] | None = None
+    overridden: set[str] = set()
     if body is not None:
-        diagnostics.record(
-            body,
-            supported=False,
-            reason="enum constant class body requires manual translation",
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=enum_field_names,
+            class_field_types=enum_field_types,
+            class_field_java_types=enum_field_java_types,
+            static_field_aliases=dict(static_field_aliases),
+            static_method_imports=dict(static_method_imports),
+            allow_local_helpers=True,
         )
+        helper_lines, overridden = _translate_enum_constant_class_body(
+            body,
+            constant_name,
+            ctx,
+        )
+
     args_node = first_child_by_type(constant, "argument_list")
     if args_node is None or not args_node.named_children:
-        return [f"    {constant_name} = {constant_name!r}"]
+        assignment = [f"    {constant_name} = {constant_name!r}"]
+    else:
+        arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        arg_ctx.static_field_aliases = dict(static_field_aliases)
+        arg_ctx.static_method_imports = dict(static_method_imports)
+        args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]
+        value = f"({', '.join(args)})" if len(args) > 1 else args[0]
+        assignment = [f"    {constant_name} = {value}"]
 
-    arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
-    arg_ctx.static_field_aliases = dict(static_field_aliases)
-    arg_ctx.static_method_imports = dict(static_method_imports)
-    args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]
-    value = f"({', '.join(args)})" if len(args) > 1 else args[0]
-    return [f"    {constant_name} = {value}"]
+    return assignment, helper_lines, overridden
+
+
+def _translate_enum_constant_class_body(
+    body: JavaNode,
+    constant_name: str,
+    ctx: TranslationContext,
+) -> tuple[list[str], set[str]]:
+    from j2py.translate.expr_objects import (
+        _anonymous_helper_init_lines,
+        _anonymous_method_lines,
+    )
+
+    ctx.diagnostics.record(
+        body,
+        supported=True,
+        reason="translated enum constant class body",
+    )
+    helper_name = f"_J2pyEnumConstant{translate_class_name(constant_name)}"
+    lines = [f"class {helper_name}:"]
+
+    instance_fields: list[FieldInfo] = []
+    methods: list[JavaNode] = []
+    overridden: set[str] = set()
+    for member in body.named_children:
+        if is_comment(member):
+            ctx.diagnostics.warn(member, reason="preserved comment")
+            if ctx.cfg.emit_line_comments:
+                lines.extend(translate_comment(member, indent="    "))
+            continue
+        if member.type == "field_declaration":
+            for field in field_infos_from_declaration(member, ctx.cfg):
+                if field.is_static:
+                    ctx.diagnostics.record(
+                        member,
+                        supported=False,
+                        reason="unsupported enum constant class body static field_declaration",
+                    )
+                    lines.append(
+                        "    # TODO(j2py): unsupported enum constant class body static field",
+                    )
+                    continue
+                ctx.diagnostics.record(
+                    member,
+                    supported=True,
+                    reason="translated enum constant class body instance field",
+                )
+                instance_fields.append(field)
+            continue
+        if member.type == "method_declaration":
+            methods.append(member)
+            name_node = member.child_by_field("name")
+            if name_node is not None:
+                overridden.add(name_node.text)
+            continue
+        ctx.diagnostics.record(
+            member,
+            supported=False,
+            reason=f"unsupported enum constant class body member {member.type}",
+        )
+        lines.append(
+            f"    # TODO(j2py): unsupported enum constant class body member {member.type}",
+        )
+
+    instance_field_names = _instance_field_names(instance_fields)
+    instance_field_types = _instance_field_types(instance_fields)
+    instance_field_java_types = {
+        field.name: field.java_type for field in instance_fields
+    }
+    wrote_member = False
+    if instance_fields:
+        lines.extend(
+            _anonymous_helper_init_lines(
+                instance_fields,
+                ctx,
+                def_indent="    ",
+                body_indent="        ",
+            ),
+        )
+        wrote_member = True
+
+    for method in methods:
+        if wrote_member:
+            lines.append("")
+        lines.extend(
+            _anonymous_method_lines(
+                method,
+                ctx,
+                instance_field_names=instance_field_names,
+                instance_field_types=instance_field_types,
+                instance_field_java_types=instance_field_java_types,
+                outer_self_alias=None,
+                member_indent="    ",
+                body_indent="        ",
+                nested_helper_indent="",
+                supported_reason="translated enum constant class body method",
+            ),
+        )
+        wrote_member = True
+
+    if not wrote_member:
+        lines.append("    pass")
+
+    return lines, overridden
+
+
+def _enum_constant_bodies_map_name(class_name: str) -> str:
+    return f"_{class_name}_j2py_enum_bodies"
+
+
+def _enum_constant_body_dispatcher(
+    method: JavaNode,
+    py_name: str,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    *,
+    bodies_map_name: str,
+) -> list[str]:
+    return_type = _return_type(method, cfg)
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(return_type)
+    returns = f" -> {return_type}" if cfg.emit_type_hints else ""
+    return [
+        f"    def {py_name}(self){returns}:",
+        f"        body_cls = {bodies_map_name}.get(self.name)",
+        "        if body_cls is None:",
+        "            raise NotImplementedError(self.name)",
+        f"        return body_cls.{py_name}(self)",
+    ]
 
 
 def _enum_fields(enum_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]:
