@@ -87,6 +87,24 @@ include = [
     "SECURITY.md",
     "Makefile",
 ]
+exclude = [
+    "/.claude",
+    "/.codex",
+    "/.claire",
+    "/.venv",
+    "/.corpus",
+    "/corpus-reports",
+    "/dist",
+    "/.mypy_cache*",
+    "/.pytest_cache*",
+    "/.ruff_cache*",
+    "**/__pycache__*",
+    "**/*.pyc",
+    "**/*.pyo",
+    "/packages/j2py-vscode/node_modules",
+    "/packages/j2py-vscode/out",
+    "/packages/j2py-vscode/*.vsix",
+]
 
 [tool.ruff]
 target-version = "py311"

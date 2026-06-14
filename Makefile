@@ -6,7 +6,7 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
-	clean ci-local-pr ci-local-governance build dist-check release-check
+	clean ci-local-pr ci-local-governance build sdist-hygiene-check dist-check release-check
 
 CORPUS := uv run python scripts/corpus/translate_spring_sample.py
 
@@ -124,13 +124,16 @@ ci-local-governance: check  ## For CI/tooling/dependency PRs — same gates, exp
 # ── Utility ──────────────────────────────────────────────────────────────────
 
 clean:  ## Remove build artifacts and caches
-	rm -rf dist/ .mypy_cache/ .ruff_cache/ .pytest_cache/ htmlcov/ .coverage coverage.xml corpus-reports/
-	find . -type d -name __pycache__ -not -path './.venv/*' -exec rm -rf {} +
+	rm -rf dist/ .mypy_cache*/ .ruff_cache*/ .pytest_cache*/ htmlcov/ .coverage coverage.xml corpus-reports/
+	find . -type d -name '__pycache__*' -not -path './.venv/*' -exec rm -rf {} +
 
 build:  ## Build wheel and sdist
 	uv build
 
-dist-check: build  ## Validate built distributions with twine
+sdist-hygiene-check:  ## Fail if source distributions contain local/generated state
+	uv run python scripts/packaging/check_sdist_hygiene.py dist/*.tar.gz
+
+dist-check: build sdist-hygiene-check  ## Validate built distributions with twine
 	uv run --extra dev twine check dist/*.whl dist/*.tar.gz
 
 release-check: check test-targets test-behavior dist-check  ## Run alpha release readiness checks

@@ -39,4 +39,6 @@ name is already owned by an unrelated Jupyter notebook converter.
 - future target xfail suite
 - Java/Python behavior-equivalence tests
 - wheel and sdist build
-- `twine check dist/*`
+- sdist hygiene guard that rejects local agent state, caches, corpus clones, reports,
+  VS Code build output, VSIX files, and `node_modules`
+- `twine check dist/*.whl dist/*.tar.gz`
