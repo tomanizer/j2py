@@ -59,6 +59,9 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 - **Python 3.11+** with full type annotations as output target ([ADR 0005](docs/decisions/0005-python-311-target-with-type-hints.md))
 - **Line-level structural correspondence** as the quality bar — same method order, same
   control-flow structure, camelCase→snake_case names ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
+- **Equivalence verification** via harvested-test differential testing with a
+  JVM-independent oracle ([ADR 0014](docs/decisions/0014-equivalence-differential-testing.md),
+  design in [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md))
 
 ## Development workflow
 
