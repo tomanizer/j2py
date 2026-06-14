@@ -43,7 +43,7 @@ def _translate_unary_operand(node: JavaNode, ctx: TranslationContext) -> str:
 def _unary_operand_needs_parentheses(node: JavaNode) -> bool:
     while node.type == "parenthesized_expression" and len(node.named_children) == 1:
         node = node.named_children[0]
-    return node.type in {"binary_expression", "ternary_expression"}
+    return node.type in {"binary_expression", "switch_expression", "ternary_expression"}
 
 
 def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str:

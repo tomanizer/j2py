@@ -409,6 +409,7 @@ def test_bitwise_operator_target_fixtures_translate() -> None:
     assert "return ~value" in bitwise_result.source
     assert "return access_flags & ~mask" in bitwise_result.source
     assert "return ~(left | right)" in bitwise_result.source
+    assert "return ~(1 if value == 0 else value)" in bitwise_result.source
     assert "return value << 2 >> 1" in bitwise_result.source
     assert "return (value & 0xFFFFFFFF) >> (1 & 0x1F)" in bitwise_result.source
     assert "value = -1" in bitwise_result.source

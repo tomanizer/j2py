@@ -22,6 +22,13 @@ public class BitwiseOperators {
         return ~(left | right);
     }
 
+    public int groupedSwitchComplement(int value) {
+        return ~(switch (value) {
+            case 0 -> 1;
+            default -> value;
+        });
+    }
+
     public int shifts(int value) {
         return (value << 2) >> 1;
     }
