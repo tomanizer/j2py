@@ -768,17 +768,17 @@
       "warning_count": 6
     },
     {
-      "coverage": 0.8571428571428571,
+      "coverage": 0.9,
       "error": "",
-      "handled_count": 6,
+      "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/com/fasterxml/jackson/databind/introspect/NopAnnotationIntrospector.java",
       "syntax_ok": true,
       "unhandled_count": 1,
-      "unhandled_node_types": "object_creation_expression:1",
-      "unhandled_reasons": "anonymous class requires local helper scope:1",
-      "warning_count": 2
+      "unhandled_node_types": "field_declaration:1",
+      "unhandled_reasons": "unsupported anonymous class static field_declaration:1",
+      "warning_count": 3
     },
     {
       "coverage": 1.0,
@@ -1317,7 +1317,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9945604629692175,
+    "average_coverage": 0.9950420039001967,
     "coverage_file_count": 89,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 0,
@@ -1348,7 +1348,7 @@
         1
       ],
       [
-        "object_creation_expression",
+        "field_declaration",
         1
       ],
       [
@@ -1378,7 +1378,7 @@
         1
       ],
       [
-        "anonymous class requires local helper scope",
+        "unsupported anonymous class static field_declaration",
         1
       ],
       [

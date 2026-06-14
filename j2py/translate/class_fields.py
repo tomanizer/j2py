@@ -198,6 +198,7 @@ def _translate_fields(
         class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
         declared_type_java_fields=type_java_fields,
+        allow_local_helpers=True,
     )
     instance_ctx = TranslationContext(
         cfg=cfg,
@@ -208,6 +209,7 @@ def _translate_fields(
         declared_type_fields=type_fields,
         declared_type_java_fields=type_java_fields,
         in_instance_method=True,
+        allow_local_helpers=True,
     )
 
     for field in fields:
@@ -223,9 +225,15 @@ def _translate_fields(
             )
             if cfg.emit_type_hints:
                 diagnostics.imports.need_type_annotation(field.py_type)
+            initializer = translate_expression(field.initializer, instance_ctx)
+            helper_lines: list[str] = []
+            _extend_with_local_helpers(helper_lines, instance_ctx, base_indent="        ")
+            instance_init_lines.extend(helper_lines)
+            if helper_lines:
+                instance_init_lines.append("")
             instance_init_lines.append(
                 f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
-                f"{translate_expression(field.initializer, instance_ctx)}",
+                f"{initializer}",
             )
             continue
 
@@ -261,7 +269,7 @@ def _translate_fields(
         if child.type == "static_initializer":
             diagnostics.record(child, supported=True, reason="translated static initializer")
             static_body = first_child_by_type(child, "block")
-            static_lines.extend(
+            body_lines = (
                 translate_body(
                     static_body,
                     static_ctx,
@@ -270,6 +278,8 @@ def _translate_fields(
                 if static_body is not None
                 else ["    pass"]
             )
+            _extend_with_local_helpers(static_lines, static_ctx, base_indent="    ")
+            static_lines.extend(body_lines)
             continue
         if child.type in supported_members:
             continue
@@ -324,10 +334,42 @@ def _translate_static_field(
     diagnostics.record(field.node, supported=True, reason="translated static field declaration")
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(field.py_type)
-    return [
-        f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = "
-        f"{translate_expression(field.initializer, ctx)}",
-    ]
+    initializer = translate_expression(field.initializer, ctx)
+    lines: list[str] = []
+    _extend_with_local_helpers(lines, ctx, base_indent="    ")
+    lines.append(
+        f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}",
+    )
+    return lines
+
+
+def _extend_with_local_helpers(
+    lines: list[str],
+    ctx: TranslationContext,
+    *,
+    base_indent: str,
+) -> None:
+    if not ctx.pending_local_helpers:
+        return
+    for helper in ctx.pending_local_helpers:
+        if lines and helper:
+            lines.append("")
+        lines.extend(_reindent_local_helper_lines(helper, target_base_indent=base_indent))
+    ctx.pending_local_helpers.clear()
+
+
+def _reindent_local_helper_lines(helper: list[str], *, target_base_indent: str) -> list[str]:
+    source_base_indent = "        "
+    indent_shift = len(target_base_indent) - len(source_base_indent)
+    reindented: list[str] = []
+    for line in helper:
+        if not line.strip():
+            reindented.append(line)
+            continue
+        leading_spaces = len(line) - len(line.lstrip(" "))
+        new_leading = max(0, leading_spaces + indent_shift)
+        reindented.append(" " * new_leading + line.lstrip(" "))
+    return reindented
 
 
 def _field_assignment(name: str, py_type: str, cfg: TranslationConfig) -> str:

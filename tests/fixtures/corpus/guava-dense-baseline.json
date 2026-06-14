@@ -690,17 +690,17 @@
       "warning_count": 17
     },
     {
-      "coverage": 0.8571428571428571,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 6,
+      "handled_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/Ticker.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "object_creation_expression:1",
-      "unhandled_reasons": "anonymous class requires local helper scope:1",
-      "warning_count": 3
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 5
     },
     {
       "coverage": 1.0,
@@ -1318,23 +1318,19 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9787214425864365,
+    "average_coverage": 0.9801500140150079,
     "coverage_file_count": 100,
     "coverage_threshold": 0.8,
     "files_below_coverage_threshold": 2,
     "files_scanned": 100,
-    "files_with_unhandled": 14,
-    "full_coverage_files": 86,
+    "files_with_unhandled": 13,
+    "full_coverage_files": 87,
     "parse_success_rate": 0.99,
     "syntax_success_rate": 0.95,
     "top_unhandled_node_types": [
       [
         "import_declaration",
         22
-      ],
-      [
-        "object_creation_expression",
-        1
       ]
     ],
     "top_unhandled_reasons": [
@@ -1364,10 +1360,6 @@
       ],
       [
         "unknown static import java.util.Collections.singleton",
-        1
-      ],
-      [
-        "anonymous class requires local helper scope",
         1
       ],
       [
