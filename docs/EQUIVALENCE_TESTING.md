@@ -79,6 +79,7 @@ JVM, and gates PRs like the existing behaviour corpus.
 | **JUnit→pytest shim** | Fixed mapping of assertion/lifecycle constructs. Deterministic, hand-written, independently unit-tested, never LLM-routed. | **Trusted (max)** |
 | **Oracle runner** | Run the instrumented Java suite; capture expected constants, optional arg→result tuples, and Java method coverage. | Normal |
 | **Correspondence manifest** | Emitted by j2py at translation time: `Java FQN + signature → Python module + qualname`. Links oracle to verifier. | Normal |
+| **Dependency resolver / stubber** | Make a translated class importable in isolation: translate its dependency closure, or inject stubs for helpers the tested methods don't exercise, and supply any reference the translation left unimported. Surfaced as mandatory by the tracer bullet (§8). | Normal |
 | **Comparator / normalizer** | The written equivalence relation: numeric/overflow, collection ordering, exception mapping, null/None. | High |
 | **Surface metric** | Compute equivalence-verified surface % and size the untestable bucket. | Normal |
 
@@ -122,13 +123,20 @@ corpus as small `main`-wrapped programs. No new infrastructure; immediately wide
 runtime gate around classes we already know fail. Bridges to the real harness.
 
 ### Phase 1 — Walk: literal-oracle harvest on the pure surface
-- Build the trusted JUnit→pytest shim and its independent unit tests first.
+Target **dependency-light pure utility classes** — the tracer bullet (§8) showed even a
+coverage=1.0 class is unimportable until its cross-class dependencies are resolved, and
+that Guava's math tests are mostly expression-oracle (`BigInteger` cross-checks), so
+**Commons-Lang `CharUtils`/`NumberUtils`/`StringUtils` are better first targets than Guava
+math**.
+- **Build the dependency resolver/stubber first** — without it nothing imports.
+- Build the trusted JUnit→pytest shim and its independent unit tests.
 - Emit the correspondence manifest from the translator.
-- Harvest literal-oracle unit tests for pure utility classes (Guava `IntMath`/`Strings`/`Preconditions`,
-  Commons `StringUtils`). Run translated tests against translated code.
+- Harvest literal-oracle unit tests for the target classes; run translated tests against
+  translated code.
 - Stand up the comparator's first normalization rules (numeric, exceptions).
-- **Exit criterion:** the Guava precedence bug (and the 5 tracked xfails) are caught by
-  this gate, not just the toy corpus.
+- **Exit criterion:** the divergences already found by hand in §8 (bare static-call
+  `NameError`, overload-dispatch stub) — plus the Guava precedence bug and the 5 tracked
+  xfails — are caught by this gate automatically, not just the toy corpus.
 
 ### Phase 2 — Measure and decide on folding
 - Add Java method-coverage capture to the oracle pass.
@@ -143,7 +151,40 @@ runtime gate around classes we already know fail. Bridges to the real harness.
 - Make equivalence-verified surface a headline scoreboard alongside node coverage.
 - Add property-based fuzzing as the additive breadth source.
 
-## 8. Metrics (the new scoreboard)
+## 8. Tracer-bullet validation (2026-06-14)
+
+Before committing to the harness build, the loop was proven end-to-end by hand on one real
+class: Commons-Lang `CharUtils` translated rule-layer-only (coverage = 1.0), with six
+literal-oracle assertions hand-ported from `CharUtilsTest.java` and run as pytest.
+
+**Result: 3 pass / 3 fail.** Correct translations passed (`compare`, `isAscii`,
+`isAsciiNumeric`); three real divergences were caught — every one in a file the corpus
+baseline scores at full node coverage:
+
+| Method | Divergence |
+|---|---|
+| `isAsciiAlpha` | `NameError` — sibling static methods called as **bare unqualified names** (`is_ascii_alpha_upper(ch)` instead of `CharUtils.is_ascii_alpha_upper(ch)`) |
+| `toIntValue` | `NotImplementedError: j2py overload dispatch required` — overload group falls back to a runtime-raising stub |
+| `toChar` | same overload-dispatch stub (legitimate where Java types erase to the same Python type; see open question 1) |
+
+**Obstacles the harness must handle (the real payoff — found by doing, not guessing):**
+
+1. **Dependency closure is mandatory.** `CharUtils` will not import without
+   `ArrayUtils.setAll`; single-file translation is not runnable in isolation.
+2. **Unresolved references are emitted without imports.** The translation referenced
+   `array_utils.set_all(...)` but emitted no `import` for it.
+3. **Rule-layer-only ≠ importable for real classes — but the cause is dependencies, not
+   coverage.** `CharUtils` is coverage = 1.0; the earlier "needs LLM" conclusion from
+   `StringUtils` was an output-size artifact (9.6k LOC exceeds the LLM token budget), not a
+   general truth. The gate can run on rule-layer output once dependencies are resolved.
+4. **Overloaded methods raise at runtime**, so any harvested test hitting one fails on the
+   stub, not on logic. Exclude overloaded methods from the first surface or resolve dispatch.
+
+A manual reference implementation of this loop was produced in this session (translate
+`CharUtils` → stub `ArrayUtils` → run six ported literal-oracle assertions); it should be
+committed under `tests/fixtures/equivalence/` as the Phase 1 harvester seed.
+
+## 9. Metrics (the new scoreboard)
 
 Per library, per run:
 - **Equivalence-verified surface %** — public methods with ≥1 passing differential test ÷
@@ -152,7 +193,7 @@ Per library, per run:
 - **Inputs per verified method** — confidence grows with volume.
 - **Divergences** — the gold; each opens a bug ticket. Trend to zero.
 
-## 9. Open questions
+## 10. Open questions
 
 1. **Overflow semantics** — comparator models Java modular arithmetic, or every overflow
    divergence is a j2py bug to fix? (Affects whether translated output is idiomatic

@@ -94,6 +94,16 @@ translations against the translated code.
 − A passing literal/JVM-oracle test proves equivalence on the tested inputs only — it is
   evidence, not a proof. Confidence grows with input volume, not certainty.
 
+## Validation
+
+A 2026-06-14 tracer bullet proved the loop end-to-end on Commons-Lang `CharUtils`
+(rule-layer-only, coverage = 1.0): six literal-oracle assertions hand-ported from
+`CharUtilsTest` ran as pytest, passing on correct translations and catching three real
+divergences (bare static-call `NameError`; two overload-dispatch stubs) — all in a file the
+corpus baseline rates at full coverage. It also surfaced that the harness must resolve a
+class's dependency closure before it can import, which reshaped Phase 1. See
+[docs/EQUIVALENCE_TESTING.md §8](../EQUIVALENCE_TESTING.md).
+
 ## References
 
 - Project audit, 2026-06-14 (measurement–mission gap; confirmed Guava precedence
