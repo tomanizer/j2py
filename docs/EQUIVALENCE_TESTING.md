@@ -154,12 +154,17 @@ math**.
 ## 8. Tracer-bullet validation (2026-06-14)
 
 Before committing to the harness build, the loop was proven end-to-end by hand on one real
-class: Commons-Lang `CharUtils` translated rule-layer-only (coverage = 1.0), with six
-literal-oracle assertions hand-ported from `CharUtilsTest.java` and run as pytest.
+class: Commons-Lang `CharUtils` translated rule-layer-only, with six literal-oracle
+assertions hand-ported from `CharUtilsTest.java` and run as pytest.
+
+Under the production config (`add_defaults().build()`) `CharUtils` scores **coverage ≈
+0.67**, and *all* of the unhandled third is overload manual-dispatch (`toChar`,
+`toIntValue`, … — loud, by-design `NotImplementedError` fallbacks). Crucially, the two
+**silent** bugs below live in the *handled* 67% — counted as success, emitted wrong. That
+is the whole thesis: handled ≠ correct, and node coverage cannot see it.
 
 **Result: 3 pass / 3 fail.** Correct translations passed (`compare`, `isAscii`,
-`isAsciiNumeric`); three real divergences were caught — every one in a file the corpus
-baseline scores at full node coverage:
+`isAsciiNumeric`); three real divergences were caught:
 
 | Method | Divergence |
 |---|---|
@@ -174,9 +179,11 @@ baseline scores at full node coverage:
 2. **Unresolved references are emitted without imports.** The translation referenced
    `array_utils.set_all(...)` but emitted no `import` for it.
 3. **Rule-layer-only ≠ importable for real classes — but the cause is dependencies, not
-   coverage.** `CharUtils` is coverage = 1.0; the earlier "needs LLM" conclusion from
-   `StringUtils` was an output-size artifact (9.6k LOC exceeds the LLM token budget), not a
-   general truth. The gate can run on rule-layer output once dependencies are resolved.
+   coverage.** The earlier "needs LLM" conclusion from `StringUtils` was an output-size
+   artifact (9.6k LOC exceeds the LLM token budget), not a general truth. `CharUtils`
+   imports from rule-layer output alone once its one dependency is stubbed, despite scoring
+   only ~0.67 (the unhandled third is all overload manual-dispatch, which does not block
+   the non-overloaded tested methods).
 4. **Overloaded methods raise at runtime**, so any harvested test hitting one fails on the
    stub, not on logic. Exclude overloaded methods from the first surface or resolve dispatch.
 
