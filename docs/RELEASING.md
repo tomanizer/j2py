@@ -38,6 +38,7 @@ name is already owned by an unrelated Jupyter notebook converter.
 - normal pytest suite
 - future target xfail suite
 - Java/Python behavior-equivalence tests
+- fresh `dist/` cleanup before building release artifacts
 - wheel and sdist build
 - sdist hygiene guard that rejects local agent state, caches, corpus clones, reports,
   VS Code build output, VSIX files, and `node_modules`

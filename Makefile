@@ -6,7 +6,7 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
-	clean ci-local-pr ci-local-governance build sdist-hygiene-check dist-check release-check
+	clean clean-dist ci-local-pr ci-local-governance build sdist-hygiene-check dist-check release-check
 
 CORPUS := uv run python scripts/corpus/translate_spring_sample.py
 
@@ -123,11 +123,14 @@ ci-local-governance: check  ## For CI/tooling/dependency PRs — same gates, exp
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-clean:  ## Remove build artifacts and caches
-	rm -rf dist/ .mypy_cache*/ .ruff_cache*/ .pytest_cache*/ htmlcov/ .coverage coverage.xml corpus-reports/
+clean: clean-dist  ## Remove build artifacts and caches
+	rm -rf .mypy_cache*/ .ruff_cache*/ .pytest_cache*/ htmlcov/ .coverage coverage.xml corpus-reports/
 	find . -type d -name '__pycache__*' -not -path './.venv/*' -exec rm -rf {} +
 
-build:  ## Build wheel and sdist
+clean-dist:  ## Remove release distribution artifacts
+	rm -rf dist/
+
+build: clean-dist  ## Build wheel and sdist from a fresh dist/ directory
 	uv build
 
 sdist-hygiene-check:  ## Fail if source distributions contain local/generated state
