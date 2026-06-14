@@ -44,11 +44,7 @@ def safe_identifier(name: str) -> str:
 
 
 def safe_attribute_name(name: str) -> str:
-    """Append trailing underscore only when attribute syntax would be invalid.
-
-    Python builtins are valid attribute names (`obj.list()`), unlike local identifiers
-    where `list()` would shadow a builtin and must be escaped for reviewable output.
-    """
+    """Append trailing underscore if `name` collides with a Python keyword."""
     if keyword.iskeyword(name):
         return f"{name}_"
     return name

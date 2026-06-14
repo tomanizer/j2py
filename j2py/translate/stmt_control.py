@@ -85,7 +85,7 @@ def _translate_if(
             ctx.variable_types[binding.raw_name] = binding.py_type
             lines.append(f"{indent}    {binding.py_name} = {binding.source}")
         try:
-            lines.extend(translate_body(consequence, ctx, indent=f"{indent}    "))
+            lines.extend(_translate_statement_or_body(consequence, ctx, indent=f"{indent}    "))
         finally:
             ctx.local_names = previous_locals
             ctx.variable_types = previous_types
@@ -99,8 +99,21 @@ def _translate_if(
         return lines
 
     lines.append(f"{indent}else:")
-    lines.extend(translate_body(alternative, ctx, indent=f"{indent}    "))
+    lines.extend(_translate_statement_or_body(alternative, ctx, indent=f"{indent}    "))
     return lines
+
+
+def _translate_statement_or_body(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    if node.type == "block":
+        return translate_body(node, ctx, indent=indent)
+    from j2py.translate.statements import translate_statement
+
+    return translate_statement(node, ctx, indent=indent)
 
 
 def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
@@ -240,15 +253,18 @@ def _range_loop_parts(
         or len(update_children) < 2
         or update_children[-1].text != "++"
         or condition_children[0].text != name_node.text
-        or condition_children[1].text != "<"
+        or condition_children[1].text not in {"<", "<="}
         or update.named_children[0].text != name_node.text
     ):
         return None
+    stop = translate_expression(condition_children[2], ctx)
+    if condition_children[1].text == "<=":
+        stop = f"({stop}) + 1"
     return (
         name_node.text,
         translate_field_name(name_node.text, snake_case=ctx.cfg.snake_case_fields),
         translate_expression(value_node, ctx),
-        translate_expression(condition_children[2], ctx),
+        stop,
     )
 
 

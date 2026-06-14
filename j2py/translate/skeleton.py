@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
+from j2py.translate.class_fields import (
+    _collect_declared_type_fields,
+    _collect_declared_type_java_fields,
+)
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
@@ -52,6 +56,8 @@ def translate_skeleton_with_diagnostics(
         parsed,
         diagnostics,
     )
+    module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
+    module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
     for class_node in parsed.root.named_children:
@@ -70,6 +76,8 @@ def translate_skeleton_with_diagnostics(
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
                 docstring_lines=pending_docstring,
+                inherited_declared_type_fields=module_declared_type_fields,
+                inherited_declared_type_java_fields=module_declared_type_java_fields,
             )
         )
         pending_docstring = None
@@ -92,6 +100,28 @@ def translate_skeleton_with_diagnostics(
         coverage=diagnostics.coverage,
         diagnostics=diagnostics,
     )
+
+
+def _module_declared_type_fields(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    fields: dict[str, dict[str, str]] = {}
+    for class_node in parsed.root.named_children:
+        if class_node.type in TYPE_DECLARATION_NODES:
+            fields.update(_collect_declared_type_fields(class_node, cfg))
+    return fields
+
+
+def _module_declared_type_java_fields(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    fields: dict[str, dict[str, str]] = {}
+    for class_node in parsed.root.named_children:
+        if class_node.type in TYPE_DECLARATION_NODES:
+            fields.update(_collect_declared_type_java_fields(class_node, cfg))
+    return fields
 
 
 def _javadoc_docstring(

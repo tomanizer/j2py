@@ -12,6 +12,7 @@ import pytest
 
 from j2py.config.loader import ConfigLoader
 from j2py.pipeline import translate_directory
+from j2py.translate.runtime import RUNTIME_MODULE_NAME, runtime_module_source
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "behavior"
 CFG = ConfigLoader().add_defaults().build()
@@ -185,6 +186,15 @@ def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: P
         assert result.output_path is not None
         result.output_path.parent.mkdir(parents=True, exist_ok=True)
         result.output_path.write_text(result.python_source, encoding="utf-8")
+    uses_runtime = any(
+        f"from {RUNTIME_MODULE_NAME} import " in result.python_source
+        for result in translated.files
+    )
+    if uses_runtime:
+        (python_work / f"{RUNTIME_MODULE_NAME}.py").write_text(
+            runtime_module_source(),
+            encoding="utf-8",
+        )
 
     runner = python_work / "run_translated.py"
     runner.write_text(_python_runner_source(case.main_class), encoding="utf-8")

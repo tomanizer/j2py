@@ -24,12 +24,11 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         return _translate_anonymous_class(node, body_node, base_type, args, ctx)
 
     py_base_type = translate_class_name(base_type)
-    if (
-        ctx.in_instance_method
-        and py_base_type in ctx.inner_class_names_requiring_outer
-        and not args
-    ):
-        return f"self.{py_base_type}(self)"
+    if ctx.containing_class_name and py_base_type in ctx.nested_class_names:
+        if ctx.in_instance_method and py_base_type in ctx.inner_class_names_requiring_outer:
+            constructor_args = f"self, {args}" if args else "self"
+            return f"self.{py_base_type}({constructor_args})"
+        return f"{ctx.containing_class_name}.{py_base_type}({args})"
 
     # Bare java.lang.Object → Python object(). This is the canonical dedicated-lock
     # idiom (`private final Object lock = new Object();`); `Object` has no Python

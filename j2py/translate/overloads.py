@@ -51,6 +51,7 @@ def translate_overloaded_members(
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str]:
     name = _member_python_name(members[0])
     for member in members:
@@ -63,6 +64,7 @@ def translate_overloaded_members(
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
     inner_capture_names = inner_class_names_requiring_outer or set()
+    direct_nested_names = nested_class_names or set()
     method_return_types = dict(class_method_return_types or {})
 
     if members[0].type == "constructor_declaration":
@@ -70,6 +72,7 @@ def translate_overloaded_members(
             members,
             cfg=cfg,
             diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
             class_fields=class_fields,
             class_field_types=field_types,
             class_field_java_types=field_java_types,
@@ -83,6 +86,7 @@ def translate_overloaded_members(
             class_state=class_state,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
+            nested_class_names=direct_nested_names,
         )
         if merged_constructor is not None:
             return merged_constructor
@@ -91,6 +95,7 @@ def translate_overloaded_members(
             members,
             cfg=cfg,
             diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
             class_fields=class_fields,
             class_field_types=field_types,
             class_field_java_types=field_java_types,
@@ -103,6 +108,7 @@ def translate_overloaded_members(
             class_state=class_state,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
+            nested_class_names=direct_nested_names,
         )
         if merged_method is not None:
             return merged_method
@@ -111,6 +117,7 @@ def translate_overloaded_members(
             members,
             cfg=cfg,
             diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
             class_fields=class_fields,
             class_field_types=field_types,
             class_field_java_types=field_java_types,
@@ -121,6 +128,7 @@ def translate_overloaded_members(
             static_method_imports=static_methods,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
+            nested_class_names=direct_nested_names,
         )
         if forwarded_method is not None:
             return forwarded_method
@@ -142,6 +150,7 @@ def translate_overloaded_members(
         class_state=class_state,
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_capture_names,
+        nested_class_names=direct_nested_names,
     )
     if dispatched is not None:
         return dispatched
@@ -191,6 +200,7 @@ def _merged_constructor_overload(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str],
     class_field_java_types: dict[str, str],
@@ -204,6 +214,7 @@ def _merged_constructor_overload(
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
     forwards = [
         _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
@@ -245,6 +256,8 @@ def _merged_constructor_overload(
         allow_local_helpers=True,
         class_state=class_state,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+        containing_class_name=containing_class_name,
+        nested_class_names=nested_class_names or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -297,6 +310,7 @@ def _merged_forwarding_method_overload(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str],
     class_field_java_types: dict[str, str],
@@ -307,6 +321,7 @@ def _merged_forwarding_method_overload(
     static_method_imports: dict[str, str],
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -366,6 +381,8 @@ def _merged_forwarding_method_overload(
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+        containing_class_name=containing_class_name,
+        nested_class_names=nested_class_names or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -648,6 +665,7 @@ def _merged_method_overload(
     *,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
     class_fields: set[str],
     class_field_types: dict[str, str],
     class_field_java_types: dict[str, str],
@@ -660,6 +678,7 @@ def _merged_method_overload(
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -710,6 +729,8 @@ def _merged_method_overload(
         allow_local_helpers=True,
         class_state=class_state,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+        containing_class_name=containing_class_name,
+        nested_class_names=nested_class_names or set(),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -813,6 +834,7 @@ def _dispatch_overload_members(
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
     """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
 
@@ -871,6 +893,8 @@ def _dispatch_overload_members(
             static_dispatch_class_name=containing_class_name if is_static else None,
             class_state=class_state,
             inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+            containing_class_name=containing_class_name,
+            nested_class_names=nested_class_names or set(),
         )
         member_pre_body = (
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []

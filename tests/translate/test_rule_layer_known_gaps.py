@@ -1,8 +1,7 @@
 """Unit tests documenting known rule-layer translation bugs.
 
-Each test asserts the *current* (broken) behaviour with an xfail mark so it becomes
-a green regression-guard the moment the bug is fixed. Promote a test by removing the
-xfail mark and flipping the assertion once the fix lands.
+Each test covers a previously broken semantic translation edge so the rule layer cannot
+regress silently.
 
 These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite via
 ``make check``.
@@ -10,19 +9,12 @@ These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite
 
 from __future__ import annotations
 
-import pytest
-
 from tests.translate.skeleton.helpers import translate_source, translate_source_with_diagnostics
 
 # ---------------------------------------------------------------------------
 # Bug 1: Parentheses dropped in arithmetic expressions
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer strips parenthesized_expression nodes unconditionally; "
-           "(a + b) * 2 becomes a + b * 2 (expressions.py:151-154)",
-)
 def test_parenthesized_arithmetic_grouping_preserved() -> None:
     """(a + b) * 2 must translate with grouping intact, not drop the parens."""
     src, _ = translate_source("""
@@ -35,11 +27,6 @@ def test_parenthesized_arithmetic_grouping_preserved() -> None:
     assert "(a + b) * 2" in src
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer strips parenthesized_expression nodes unconditionally; "
-           "nested grouping like (a - b) * (c + d) loses both pairs of parens",
-)
 def test_nested_parenthesized_grouping_preserved() -> None:
     src, _ = translate_source("""
     public class Calc {
@@ -51,17 +38,24 @@ def test_nested_parenthesized_grouping_preserved() -> None:
     assert "(a - b) * (c + d)" in src
 
 
+def test_right_hand_division_grouping_preserved_under_multiplication() -> None:
+    src, _ = translate_source("""
+    public class Calc {
+        public static int run(int a, int b, int c) {
+            return a * (b / c);
+        }
+    }
+    """)
+    assert "a * (b // c)" in src
+    assert "a * b // c" not in src
+
+
 # ---------------------------------------------------------------------------
-# Bug 2: Compound integer division emits /= (float) instead of //= (int)
+# Bug 2: Compound integer division emits /= (float) instead of truncating int division
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer passes /= through unchanged; Python /= produces float, "
-           "Java x /= n on ints must become x //= n (expressions.py:107)",
-)
-def test_compound_int_division_uses_floor_divide_assign() -> None:
-    """x /= 6 on a Java int must become x //= 6, not x /= 6."""
+def test_compound_int_division_uses_truncating_helper() -> None:
+    """x /= 6 on a Java int must truncate toward zero, not use Python /= or //=."""
     src, _ = translate_source("""
     public class Div {
         public static int run() {
@@ -71,20 +65,30 @@ def test_compound_int_division_uses_floor_divide_assign() -> None:
         }
     }
     """)
-    assert "//=" in src
-    assert "/=" not in src.replace("//=", "")
+    assert "from j2py_runtime import _j2py_idiv" in src
+    assert "x = _j2py_idiv(x, 6)" in src
+    assert "//=" not in src
+    assert "/=" not in src
+
+
+def test_compound_negative_int_division_uses_truncating_helper() -> None:
+    src, _ = translate_source("""
+    public class Div {
+        public static int run() {
+            int x = -20;
+            x /= 6;
+            return x;
+        }
+    }
+    """)
+    assert "x = -20" in src
+    assert "x = _j2py_idiv(x, 6)" in src
 
 
 # ---------------------------------------------------------------------------
 # Bug 3: Collection-method lowering fires on user-defined .add() methods
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer rewrites any .add(n) call to .append(n) without checking "
-           "the receiver type; user-defined add() on non-collection objects crashes "
-           "(expressions.py:467-468)",
-)
 def test_user_defined_add_method_not_lowered_to_append() -> None:
     src, _ = translate_source("""
     public class Counter {
@@ -101,17 +105,26 @@ def test_user_defined_add_method_not_lowered_to_append() -> None:
     assert ".append(5)" not in src
 
 
+def test_list_field_add_still_lowers_to_append() -> None:
+    src, _ = translate_source("""
+    import java.util.ArrayList;
+    import java.util.List;
+
+    public class Names {
+        private List<String> values = new ArrayList<>();
+        public void addName(String value) {
+            values.add(value);
+        }
+    }
+    """)
+    assert "self.values.append(value)" in src
+    assert "self.values.add(value)" not in src
+
+
 # ---------------------------------------------------------------------------
 # Bug 4: Builtin-clash rename renames def but not call site
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="translate_method_name renames the def to sum_() to avoid shadowing the "
-           "Python builtin, but translate_attribute_method_name only escapes keywords "
-           "(not builtins), so receiver.sum() stays as .sum() → AttributeError "
-           "(rules/naming.py:46-53, expressions.py:546-548)",
-)
 def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
     """A user method named 'sum' must have matching name at def and call site."""
     src, _ = translate_source("""
@@ -133,16 +146,40 @@ def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
     )
 
 
+def test_builtin_clash_rename_consistent_for_sibling_top_level_class() -> None:
+    src, _ = translate_source("""
+    class Stats {
+        public int sum(int a, int b) { return a + b; }
+    }
+    public class UseStats {
+        public static void main(String[] args) {
+            Stats s = new Stats();
+            System.out.println(s.sum(3, 4));
+        }
+    }
+    """)
+    assert "def sum_(" in src
+    assert ".sum_(3, 4)" in src
+    assert ".sum(3, 4)" not in src
+
+
+def test_builtin_clash_rename_consistent_for_same_class_receiver() -> None:
+    src, _ = translate_source("""
+    public class Stats {
+        public int sum(int a, int b) { return a + b; }
+        public int call(Stats other) {
+            return other.sum(3, 4);
+        }
+    }
+    """)
+    assert "def sum_(" in src
+    assert "return other.sum_(3, 4)" in src
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="range-loop detection requires strict < (stmt_control.py:243); "
-           "i <= N falls back to while-loop and continue skips the i++ increment → "
-           "infinite loop at runtime",
-)
 def test_for_loop_le_bound_with_continue_translates_to_range() -> None:
     """for (int i=1; i<=5; i++) with a continue must not produce a while-loop."""
     src, _ = translate_source("""
@@ -159,6 +196,40 @@ def test_for_loop_le_bound_with_continue_translates_to_range() -> None:
     """)
     assert "for i in range(" in src
     assert "while" not in src
+
+
+def test_for_loop_le_bound_parenthesizes_non_atomic_stop() -> None:
+    src, _ = translate_source("""
+    public class Loop {
+        public static int run(boolean flag) {
+            int total = 0;
+            for (int i = 0; i <= (flag ? 2 : 3); i++) {
+                total += i;
+            }
+            return total;
+        }
+    }
+    """)
+    assert "for i in range(0, (2 if flag else 3) + 1):" in src
+    assert "for i in range(0, 2 if flag else 3 + 1):" not in src
+
+
+def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> None:
+    src, _ = translate_source("""
+    public class Outer {
+        private int base = 2;
+        class Inner {
+            private int value;
+            Inner(int value) { this.value = value; }
+            int total() { return Outer.this.base + value; }
+        }
+        public int run() {
+            Inner inner = new Inner(3);
+            return inner.total();
+        }
+    }
+    """)
+    assert "inner = self.Inner(self, 3)" in src
 
 
 # ---------------------------------------------------------------------------

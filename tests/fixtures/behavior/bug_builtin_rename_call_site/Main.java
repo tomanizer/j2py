@@ -1,7 +1,7 @@
 public class Main {
     static class Stats {
         // Method named 'sum' collides with Python builtin.
-        // Rule layer renames the def to sum_() but call site stays .sum() → AttributeError.
+        // The translated def and call site must use the same escaped name.
         public int sum(int a, int b) {
             return a + b;
         }

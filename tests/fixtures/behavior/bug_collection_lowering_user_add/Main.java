@@ -15,7 +15,7 @@ public class Main {
         Accumulator acc = new Accumulator();
         acc.add(10);
         acc.add(5);
-        // Expected: 15 — but rule layer rewrites acc.add(n) to acc.append(n)
+        // Expected: 15; user-defined add(n) must not be lowered to append(n).
         System.out.println(acc.result());
     }
 }

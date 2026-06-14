@@ -10,8 +10,20 @@ from collections.abc import Callable
 
 import pytest
 
-from j2py.translate.runtime import __j2py_todo__, _j2py_monitor, overloaded
+from j2py.translate.runtime import __j2py_todo__, _j2py_idiv, _j2py_monitor, overloaded
 from j2py.translate.runtime.j2py_runtime import _j2py_monitor_registry
+
+
+def test_idiv_truncates_toward_zero() -> None:
+    assert _j2py_idiv(20, 6) == 3
+    assert _j2py_idiv(-20, 6) == -3
+    assert _j2py_idiv(20, -6) == -3
+    assert _j2py_idiv(-20, -6) == 3
+
+
+def test_idiv_rejects_zero_divisor() -> None:
+    with pytest.raises(ZeroDivisionError):
+        _j2py_idiv(1, 0)
 
 
 class TypeReference:

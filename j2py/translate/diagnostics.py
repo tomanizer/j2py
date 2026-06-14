@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.runtime import (
+    RUNTIME_IDIV_IMPORT_LINE,
     RUNTIME_IMPORT_LINE,
     RUNTIME_MONITOR_IMPORT_LINE,
     RUNTIME_TODO_IMPORT_LINE,
@@ -52,6 +53,9 @@ class ImportSet:
 
     def need_overloaded(self) -> None:
         self.lines.add(RUNTIME_IMPORT_LINE)
+
+    def need_idiv(self) -> None:
+        self.lines.add(RUNTIME_IDIV_IMPORT_LINE)
 
     def need_todo_sentinel(self) -> None:
         self.lines.add(RUNTIME_TODO_IMPORT_LINE)
@@ -165,6 +169,8 @@ class TranslationContext:
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
     inner_class_names_requiring_outer: set[str] = field(default_factory=set)
+    containing_class_name: str | None = None
+    nested_class_names: set[str] = field(default_factory=set)
 
     # Java method names that must dispatch through self when called without a
     # receiver (used for @overloaded groups so sibling overload calls re-enter

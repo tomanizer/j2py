@@ -122,6 +122,18 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
                 return f"__j2py_todo__({node.text!r})"
             if operator == ">>>=":
                 return _translate_unsigned_right_shift_assign(node, left_node, right_node, ctx)
+            if operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
+                left = translate_expression(left_node, ctx)
+                right = translate_expression(right_node, ctx)
+                ctx.diagnostics.imports.need_idiv()
+                ctx.diagnostics.warn(
+                    node,
+                    reason=(
+                        "integer compound division translated with truncating division; "
+                        "verify truncation semantics"
+                    ),
+                )
+                return f"{left} = _j2py_idiv({left}, {right})"
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
             return f"{left} {operator} {right}"
@@ -195,10 +207,12 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
             )
             if null_comparison is not None:
                 return null_comparison
+            left = _translate_binary_operand(children[0], operator_text, ctx, is_right=False)
+            right = _translate_binary_operand(children[2], operator_text, ctx, is_right=True)
             return (
-                f"{translate_expression(children[0], ctx)} "
+                f"{left} "
                 f"{binary_operator} "
-                f"{translate_expression(children[2], ctx)}"
+                f"{right}"
             )
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported expression {node.type}")
@@ -319,6 +333,96 @@ def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
         if obj.type == "this":
             return ctx.class_field_java_types.get(field.text)
     return None
+
+
+def _is_integral_java_type(java_type: str | None) -> bool:
+    if java_type is None:
+        return False
+    simple = java_type.strip()
+    if "<" in simple:
+        simple = simple.split("<", 1)[0]
+    if "." in simple:
+        simple = simple.rsplit(".", 1)[-1]
+    simple = simple.rstrip("[]")
+    return simple in {
+        "Byte",
+        "Character",
+        "Integer",
+        "Long",
+        "Short",
+        "byte",
+        "char",
+        "int",
+        "long",
+        "short",
+    }
+
+
+_BINARY_PRECEDENCE: dict[str, int] = {
+    "||": 1,
+    "&&": 2,
+    "|": 3,
+    "^": 4,
+    "&": 5,
+    "==": 6,
+    "!=": 6,
+    "<": 7,
+    "<=": 7,
+    ">": 7,
+    ">=": 7,
+    "<<": 8,
+    ">>": 8,
+    ">>>": 8,
+    "+": 9,
+    "-": 9,
+    "*": 10,
+    "/": 10,
+    "%": 10,
+}
+
+
+def _translate_binary_operand(
+    node: JavaNode,
+    parent_operator: str,
+    ctx: TranslationContext,
+    *,
+    is_right: bool,
+) -> str:
+    if node.type != "parenthesized_expression" or len(node.named_children) != 1:
+        return translate_expression(node, ctx)
+
+    inner = node.named_children[0]
+    expression = translate_expression(inner, ctx)
+    if inner.type != "binary_expression" or len(inner.children) < 3:
+        return expression
+
+    inner_operator = inner.children[1].text
+    if _binary_parentheses_change_meaning(
+        parent_operator,
+        inner_operator,
+        is_right=is_right,
+    ):
+        return f"({expression})"
+    return expression
+
+
+def _binary_parentheses_change_meaning(
+    parent_operator: str,
+    inner_operator: str,
+    *,
+    is_right: bool,
+) -> bool:
+    parent_precedence = _BINARY_PRECEDENCE.get(parent_operator)
+    inner_precedence = _BINARY_PRECEDENCE.get(inner_operator)
+    if parent_precedence is None or inner_precedence is None:
+        return True
+    if inner_precedence < parent_precedence:
+        return True
+    return (
+        is_right
+        and inner_precedence == parent_precedence
+        and (parent_operator in {"-", "/", "%"} or inner_operator in {"/", "%"})
+    )
 
 
 def _remember_cast_comment(type_node: JavaNode, ctx: TranslationContext) -> None:
@@ -486,7 +590,9 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return f"print({args})"
 
     if method_name == "add" and receiver:
-        return f"{receiver}.append({args})"
+        receiver_type = _expression_py_type(receiver_nodes[0], ctx) if receiver_nodes else None
+        if receiver_type is not None and _is_list_type(receiver_type):
+            return f"{receiver}.append({args})"
 
     if method_name in {"size", "length"} and receiver and not args:
         return f"len({receiver})"
@@ -585,10 +691,13 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         ):
             return f"{ctx.static_dispatch_class_name}.{py_method}({args})"
     else:
-        py_method = translate_attribute_method_name(
-            method_name,
-            snake_case=ctx.cfg.snake_case_methods,
-        )
+        if receiver_nodes and _receiver_is_declared_type(receiver_nodes[0], ctx):
+            py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+        else:
+            py_method = translate_attribute_method_name(
+                method_name,
+                snake_case=ctx.cfg.snake_case_methods,
+            )
     if receiver:
         return f"{receiver}.{py_method}({args})"
     if ctx.in_instance_method and py_method in ctx.class_methods:
@@ -598,6 +707,18 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
 def _receiver_simple_name(raw_receiver: str) -> str:
     return raw_receiver.rsplit(".", 1)[-1]
+
+
+def _receiver_is_declared_type(node: JavaNode, ctx: TranslationContext) -> bool:
+    receiver_type = _expression_py_type(node, ctx)
+    if receiver_type is None:
+        return False
+    simple = receiver_type.rsplit(".", 1)[-1]
+    if ctx.containing_class_name in {simple, receiver_type}:
+        return True
+    # ``declared_type_fields`` is keyed by translated Java type name; values hold
+    # field maps for those types.
+    return simple in ctx.declared_type_fields or receiver_type in ctx.declared_type_fields
 
 
 def _argument_nodes(args_node: JavaNode) -> list[JavaNode]:
