@@ -699,8 +699,18 @@ def _metadata_mismatches(
     return [
         key
         for key in _metadata_comparable_keys(baseline_metadata, metadata)
-        if baseline_metadata.get(key) != metadata.get(key)
+        if not _metadata_values_match(key, baseline_metadata, metadata)
     ]
+
+
+def _metadata_values_match(
+    key: str,
+    baseline_metadata: dict[str, Any],
+    metadata: dict[str, Any],
+) -> bool:
+    if key == "exclude_paths":
+        return set(baseline_metadata.get(key) or []) == set(metadata.get(key) or [])
+    return baseline_metadata.get(key) == metadata.get(key)
 
 
 def compare_baseline(

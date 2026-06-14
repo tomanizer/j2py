@@ -1305,6 +1305,7 @@
     "corpus_checkout": "287af92705039b2afaa5ce2680026a3f6c25a8e9",
     "corpus_ref": "jackson-databind-2.18.2",
     "corpus_remote": "https://github.com/FasterXML/jackson-databind.git",
+    "exclude_paths": [],
     "include_constructs": false,
     "include_tests": false,
     "limit": 100,

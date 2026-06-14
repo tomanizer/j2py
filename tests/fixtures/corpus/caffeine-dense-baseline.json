@@ -473,6 +473,7 @@
     "corpus_checkout": "b0723da5976ebb52069f6b0cccfcf44186c3fdf3",
     "corpus_ref": "v3.1.8",
     "corpus_remote": "https://github.com/ben-manes/caffeine.git",
+    "exclude_paths": [],
     "include_constructs": false,
     "include_tests": false,
     "limit": 100,
