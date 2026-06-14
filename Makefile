@@ -133,7 +133,7 @@ clean-dist:  ## Remove release distribution artifacts
 build: clean-dist  ## Build wheel and sdist from a fresh dist/ directory
 	uv build
 
-sdist-hygiene-check:  ## Fail if source distributions contain local/generated state
+sdist-hygiene-check: build  ## Fail if source distributions contain local/generated state
 	uv run python scripts/packaging/check_sdist_hygiene.py dist/*.tar.gz
 
 dist-check: build sdist-hygiene-check  ## Validate built distributions with twine
