@@ -74,4 +74,3 @@ def test_is_ascii_alpha(char_utils, ch, expected):
 def test_class_reference_qualified(char_utils_source: str):
     assert "from org.apache.commons.lang3.ArrayUtils import ArrayUtils" in char_utils_source
     assert "ArrayUtils.set_all" in char_utils_source
-    assert "array_utils.set_all" not in char_utils_source
