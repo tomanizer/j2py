@@ -1,4 +1,4 @@
-# ADR 0010 — synchronized(this) translation
+# ADR 0015 — synchronized(this) translation
 
 **Date:** 2026-06-11
 **Status:** Accepted
