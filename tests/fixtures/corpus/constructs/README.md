@@ -45,7 +45,7 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 
 | Tier | Files | How to run |
 |------|-------|------------|
-| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `TextBlocks`, `VarKeyword`, `SwitchFallthrough`, `AnonymousAndInner`, `SuperMethodCalls` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
+| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
 | Future xfail (`make test-targets`) | _(none)_ | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into
