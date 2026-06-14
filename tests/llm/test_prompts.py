@@ -1,6 +1,6 @@
 """Tests for LLM prompt construction."""
 
-from j2py.llm.prompts import build_translation_prompt
+from j2py.llm.prompts import PROMPT_VERSION, build_translation_prompt
 
 
 def test_build_translation_prompt_includes_context_source_and_partial() -> None:
@@ -52,3 +52,21 @@ def test_system_prompt_frames_llm_as_structural_transposer() -> None:
     assert "Never wrap unresolved Java imports in try/except ImportError" in system_text
     assert "overload signatures remain distinct" in system_text
     assert "same-arity Java overloads" in system_text
+
+
+def test_system_prompt_uses_j2py_monitor_for_non_this_synchronized_locks() -> None:
+    system, _ = build_translation_prompt(
+        java_source="public class A { void run() { synchronized (lock) {} } }",
+        partial_python="",
+    )
+
+    system_text = system[0]["text"]
+    assert "_j2py_monitor" in system_text
+    assert "from j2py_runtime import _j2py_monitor" in system_text
+    assert "with _j2py_monitor(<expr>):" in system_text
+    assert "do not emit `with <expr>:`" in system_text
+    assert "For other synchronized locks: use with <expr>" not in system_text
+
+
+def test_prompt_version_bumped_for_synchronized_monitor_guidance() -> None:
+    assert PROMPT_VERSION == "j2py-translation-v8"
