@@ -709,7 +709,7 @@ def _metadata_values_match(
     metadata: dict[str, Any],
 ) -> bool:
     if key == "exclude_paths":
-        return baseline_metadata.get(key, []) == metadata.get(key, [])
+        return set(baseline_metadata.get(key) or []) == set(metadata.get(key) or [])
     return baseline_metadata.get(key) == metadata.get(key)
 
 

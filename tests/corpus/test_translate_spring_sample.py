@@ -335,6 +335,80 @@ def test_compare_baseline_missing_exclude_paths_still_mismatches_non_empty_curre
     assert comparison["deltas"] == {}
 
 
+def test_compare_baseline_exclude_paths_order_insensitive(tmp_path: Path) -> None:
+    baseline_metrics = [_metric("A.java", coverage=1.0)]
+    baseline_path = tmp_path / "baseline.json"
+    corpus.write_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "density",
+            "include_constructs": True,
+            "exclude_paths": ["module/B.java", "module/A.java"],
+        },
+        summary=corpus.summarize(baseline_metrics),
+        metrics=baseline_metrics,
+    )
+
+    current_metrics = [_metric("A.java", coverage=0.5)]
+    comparison = corpus.compare_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "density",
+            "include_constructs": True,
+            "exclude_paths": ["module/A.java", "module/B.java"],
+        },
+        summary=corpus.summarize(current_metrics),
+        metrics=current_metrics,
+    )
+
+    assert comparison["metadata_mismatches"] == []
+
+
+def test_compare_baseline_treats_null_exclude_paths_as_empty(tmp_path: Path) -> None:
+    baseline_metrics = [_metric("A.java", coverage=1.0)]
+    baseline_path = tmp_path / "baseline.json"
+    corpus.write_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "density",
+            "include_constructs": True,
+            "exclude_paths": None,
+        },
+        summary=corpus.summarize(baseline_metrics),
+        metrics=baseline_metrics,
+    )
+
+    current_metrics = [_metric("A.java", coverage=0.5)]
+    comparison = corpus.compare_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+            "strategy": "density",
+            "include_constructs": True,
+            "exclude_paths": [],
+        },
+        summary=corpus.summarize(current_metrics),
+        metrics=current_metrics,
+    )
+
+    assert comparison["metadata_mismatches"] == []
+
+
 def test_compare_baseline_still_mismatches_unrelated_metadata(tmp_path: Path) -> None:
     baseline_metrics = [_metric("A.java", coverage=1.0)]
     baseline_path = tmp_path / "baseline.json"
