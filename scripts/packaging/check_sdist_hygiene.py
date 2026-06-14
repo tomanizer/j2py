@@ -42,7 +42,17 @@ def main(argv: list[str]) -> int:
     failed = False
     for raw_path in argv[1:]:
         path = Path(raw_path)
-        matches = forbidden_entries(path)
+        try:
+            matches = forbidden_entries(path)
+        except FileNotFoundError:
+            print(f"Error: File '{path}' not found.", file=sys.stderr)
+            failed = True
+            continue
+        except tarfile.TarError as exc:
+            print(f"Error: Failed to read tar archive '{path}': {exc}", file=sys.stderr)
+            failed = True
+            continue
+
         if not matches:
             print(f"{path}: clean")
             continue

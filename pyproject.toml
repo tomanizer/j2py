@@ -78,7 +78,6 @@ packages = ["j2py"]
 include = [
     "j2py",
     "packages/j2py-vscode",
-    "scripts/packaging",
     "tests",
     "docs",
     "README.md",

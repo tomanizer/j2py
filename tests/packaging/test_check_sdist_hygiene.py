@@ -5,8 +5,11 @@ import tarfile
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 
-def _load_hygiene_module():
+
+@pytest.fixture(scope="session")
+def hygiene_module():
     path = Path(__file__).resolve().parents[2] / "scripts/packaging/check_sdist_hygiene.py"
     spec = importlib.util.spec_from_file_location("check_sdist_hygiene", path)
     assert spec is not None
@@ -25,8 +28,10 @@ def _write_archive(path: Path, names: list[str]) -> None:
             archive.addfile(info, BytesIO(payload))
 
 
-def test_forbidden_entries_detects_local_and_generated_state(tmp_path: Path) -> None:
-    module = _load_hygiene_module()
+def test_forbidden_entries_detects_local_and_generated_state(
+    tmp_path: Path,
+    hygiene_module,
+) -> None:
     archive_path = tmp_path / "j2py_converter-1.0.0.tar.gz"
     entries = [
         "j2py_converter-1.0.0/README.md",
@@ -44,11 +49,10 @@ def test_forbidden_entries_detects_local_and_generated_state(tmp_path: Path) -> 
     ]
     _write_archive(archive_path, entries)
 
-    assert module.forbidden_entries(archive_path) == entries[1:]
+    assert hygiene_module.forbidden_entries(archive_path) == entries[1:]
 
 
-def test_forbidden_entries_allows_clean_archive(tmp_path: Path) -> None:
-    module = _load_hygiene_module()
+def test_forbidden_entries_allows_clean_archive(tmp_path: Path, hygiene_module) -> None:
     archive_path = tmp_path / "j2py_converter-1.0.0.tar.gz"
     _write_archive(
         archive_path,
@@ -60,4 +64,4 @@ def test_forbidden_entries_allows_clean_archive(tmp_path: Path) -> None:
         ],
     )
 
-    assert module.forbidden_entries(archive_path) == []
+    assert hygiene_module.forbidden_entries(archive_path) == []
