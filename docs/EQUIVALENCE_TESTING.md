@@ -100,13 +100,13 @@ fold step is demand-driven — we let coverage data, not speculation, justify th
 These are real Java↔Python differences; surfacing them is the point of the gate, not a
 nuisance. Each is a normalization rule (or a confirmed translation bug):
 
-- **Integer width / overflow** — Java `int`/`long` wrap at 2³¹/2⁶³; Python ints are
+- **Integer width / overflow** — Java `int`/`long` wrap at 2³¹-1/2⁶³-1; Python ints are
   unbounded. Decide per ADR follow-up whether the comparator models Java modular
   arithmetic or treats every overflow divergence as a j2py bug to fix.
 - **Integer division and `%` sign** — already a known rule-layer bug class.
 - **char/byte arithmetic, float formatting, NaN.**
 - **Unordered collections** — `HashMap`/`HashSet` iteration order differs; compare as
-  set/multiset, not sequence.
+  map/set, not sequence.
 - **Exceptions** — compare mapped exception *class* (`IllegalArgumentException` ↔
   `ValueError`) and optionally message, not just return values.
 - **null vs None, autoboxing identity, String.hashCode order effects.**
@@ -124,8 +124,8 @@ runtime gate around classes we already know fail. Bridges to the real harness.
 ### Phase 1 — Walk: literal-oracle harvest on the pure surface
 - Build the trusted JUnit→pytest shim and its independent unit tests first.
 - Emit the correspondence manifest from the translator.
-- Harvest literal-oracle unit tests for pure utility classes (Guava `IntMath`/`Strings`,
-  Commons `StringUtils`, `Preconditions`). Run translated tests against translated code.
+- Harvest literal-oracle unit tests for pure utility classes (Guava `IntMath`/`Strings`/`Preconditions`,
+  Commons `StringUtils`). Run translated tests against translated code.
 - Stand up the comparator's first normalization rules (numeric, exceptions).
 - **Exit criterion:** the Guava precedence bug (and the 5 tracked xfails) are caught by
   this gate, not just the toy corpus.
