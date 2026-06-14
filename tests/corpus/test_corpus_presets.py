@@ -83,7 +83,37 @@ def test_apply_preset_allows_explicit_limit_override() -> None:
 
     assert resolved["limit"] == 25
     assert resolved["strategy"] == "density"
+    assert resolved["exclude_paths"] == [
+        "guava/src/com/google/common/base/Platform.java",
+    ]
     assert "guava/src/com/google/common/collect" in resolved["modules"]
+
+
+def test_guava_dense_excludes_platform_java_parser_gap() -> None:
+    preset = presets.get_preset("guava-dense")
+    resolved = presets.apply_preset(
+        preset,
+        {
+            "repo": None,
+            "remote": None,
+            "ref": None,
+            "modules": None,
+            "limit": None,
+            "strategy": None,
+            "max_loc": None,
+            "min_constructs": None,
+            "include_constructs": None,
+            "include_tests": None,
+            "exclude_paths": None,
+            "baseline": None,
+            "json_out": None,
+            "csv_out": None,
+        },
+    )
+
+    assert resolved["exclude_paths"] == [
+        "guava/src/com/google/common/base/Platform.java",
+    ]
 
 
 def test_corpus_checkout_root_defaults_to_repo_root(monkeypatch: pytest.MonkeyPatch) -> None:

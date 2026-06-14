@@ -27,6 +27,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Guava dense corpus excludes `Platform.java` because tree-sitter-java leaves ERROR nodes
+  on Jspecify type-use `@Nullable` annotations before varargs; the file still translates
+  at full coverage but would otherwise be the sole `parse_ok=false` entry (#160).
 - Anonymous classes in static and instance field initializers now emit nested helper
   classes at class or `__init__` scope instead of the local-helper diagnostic (#159).
 - Static two-argument `equals` helpers (`Objects.equals`, `Arrays.equals`, static-import

@@ -181,6 +181,28 @@ def test_collect_java_files_prioritizes_curated_constructs(
     assert len(selected) == 3
 
 
+def test_collect_java_files_respects_exclude_paths(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    module = repo / "guava" / "src" / "com" / "google" / "common" / "base"
+    module.mkdir(parents=True)
+    included = module / "Included.java"
+    excluded = module / "Platform.java"
+    included.write_text("package com.google.common.base;\nclass Included { }\n")
+    excluded.write_text("package com.google.common.base;\nclass Platform { }\n")
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("guava/src/com/google/common/base",),
+        limit=10,
+        include_tests=False,
+        strategy="lexical",
+        exclude_paths=("guava/src/com/google/common/base/Platform.java",),
+    )
+
+    assert included in selected
+    assert excluded not in selected
+
+
 def test_compare_baseline_suppresses_deltas_on_metadata_mismatch(tmp_path: Path) -> None:
     """Metadata mismatches (different strategy, include_constructs, etc.) must suppress deltas.
 
