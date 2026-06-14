@@ -778,12 +778,29 @@ def _enum_constant_body_dispatcher(
     if cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(return_type)
     returns = f" -> {return_type}" if cfg.emit_type_hints else ""
+
+    params = _parameter_infos(method, cfg)
+    rendered_params = ["self"]
+    passed_params = ["self"]
+    for param in params:
+        prefix = "*" if param.is_spread else ""
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(param.py_type)
+            rendered_params.append(f"{prefix}{param.py_name}: {param.py_type}")
+        else:
+            rendered_params.append(f"{prefix}{param.py_name}")
+        passed_params.append(f"{prefix}{param.py_name}")
+
     return [
-        f"    def {py_name}(self){returns}:",
+        f"    def {py_name}({', '.join(rendered_params)}){returns}:",
         f"        body_cls = {bodies_map_name}.get(self.name)",
         "        if body_cls is None:",
         "            raise NotImplementedError(self.name)",
-        f"        return body_cls.{py_name}(self)",
+        "        if not hasattr(self, '_j2py_enum_initialized'):",
+        "            if '__init__' in body_cls.__dict__:",
+        "                body_cls.__init__(self)",
+        "            self._j2py_enum_initialized = True",
+        f"        return body_cls.{py_name}({', '.join(passed_params)})",
     ]
 
 

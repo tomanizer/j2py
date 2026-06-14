@@ -227,6 +227,29 @@ def test_enum_constant_class_body_runs_at_runtime() -> None:
     assert enum_cls.COLLECTED.was_evicted() is True
 
 
+def test_enum_constant_class_body_dispatches_method_arguments() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public enum Scored {
+            HIGH {
+                @Override
+                public int score(int base) {
+                    return base + 10;
+                }
+            };
+            public abstract int score(int base);
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def score(self, base: int)" in result.source
+    assert "return body_cls.score(self, base)" in result.source
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated>", "exec"), namespace)
+    assert namespace["Scored"].HIGH.score(5) == 15
+
+
 def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
     result = translate_source_with_diagnostics(
         """
