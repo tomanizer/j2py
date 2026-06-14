@@ -534,7 +534,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return f"{receiver}.get({args})"
 
     if method_name == "equals" and receiver and args:
-        arg_nodes = list(args_node.named_children) if args_node is not None else []
+        if len(arg_nodes) == 2 and raw_receiver.split(".")[-1][:1].isupper():
+            return f"{arg_expressions[0]} == {arg_expressions[1]}"
         if len(arg_nodes) != 1:
             ctx.diagnostics.record(
                 node,
@@ -546,10 +547,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
             return f"{receiver} is None"
         return f"{receiver} == {args}"
 
-    if method_name == "equalsIgnoreCase" and receiver and args:
-        arg_nodes = list(args_node.named_children) if args_node is not None else []
-        if len(arg_nodes) == 1:
-            return f"{receiver}.lower() == {args}.lower()"
+    if method_name == "equalsIgnoreCase" and receiver and args and len(arg_nodes) == 1:
+        return f"{receiver}.lower() == {args}.lower()"
 
     if method_name == "toString" and receiver and not args:
         return f"str({receiver})"
@@ -707,10 +706,14 @@ def _translate_static_method_invocation(
             return f"[{', '.join(args)}]"
         if method_name == "stream" and len(args) == 1:
             return f"iter({args[0]})"
+        if method_name == "equals" and len(args) == 2:
+            return f"{args[0]} == {args[1]}"
 
     if receiver == "Objects":
         if method_name == "requireNonNull" and arg_nodes:
             return args[0]
+        if method_name == "equals" and len(args) == 2:
+            return f"{args[0]} == {args[1]}"
         if method_name == "isNull" and len(args) == 1:
             return f"{args[0]} is None"
         if method_name == "nonNull" and len(args) == 1:

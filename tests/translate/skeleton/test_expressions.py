@@ -1235,7 +1235,74 @@ def test_equals_invocation_translates_to_python_equality() -> None:
     assert_valid_python(python_source)
 
 
+def test_objects_equals_static_two_arg() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.Objects;
 
+        public class Equals {
+            public boolean same(String a, String b) {
+                return Objects.equals(a, b);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return a == b" in python_source
+    assert_valid_python(python_source)
+
+
+def test_arrays_equals_static_two_arg() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.Arrays;
+
+        public class CompoundOrdering {
+            public boolean same(int[] left, int[] right) {
+                return Arrays.equals(left, right);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return left == right" in python_source
+    assert_valid_python(python_source)
+
+
+def test_static_import_equals_two_arg() -> None:
+    python_source, coverage = translate_source(
+        """
+        import static java.util.Objects.equals;
+
+        public class MutableObject {
+            public boolean same(Object left, Object right) {
+                return equals(left, right);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return left == right" in python_source
+    assert_valid_python(python_source)
+
+
+def test_type_utils_equals_static_two_arg() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class TypeLiteral {
+            public boolean same(Object value, Object other) {
+                return org.apache.commons.lang3.reflect.TypeUtils.equals(value, other.value);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return value == other.value" in python_source
+    assert_valid_python(python_source)
 
 
 def test_expression_lambdas_and_method_references_translate() -> None:
