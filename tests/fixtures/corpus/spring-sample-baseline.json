@@ -1305,6 +1305,7 @@
     "corpus_checkout": "0c60266986197a191ff33eb498ebc8bac3dc933f",
     "corpus_ref": "0c60266986197a191ff33eb498ebc8bac3dc933f",
     "corpus_remote": "https://github.com/spring-projects/spring-framework.git",
+    "exclude_paths": [],
     "include_constructs": false,
     "include_tests": false,
     "limit": 100,
