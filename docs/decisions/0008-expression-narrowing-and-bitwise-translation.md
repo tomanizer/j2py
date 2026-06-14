@@ -68,8 +68,10 @@ bits — it only checks assignability at runtime. The `cast` name is auto-import
 `typing` when it appears in generated class output.
 
 Java bitwise operators `&`, `|`, `^`, `<<`, and `>>` translate to the matching Python
-operators. Compound assignment for these operators translates to the matching Python
-compound assignment form.
+operators. Java bitwise complement (`~`) translates to Python `~` for integral
+operands, preserving explicit grouping around lower-precedence operands such as
+`~(left | right)`. Compound assignment for these operators translates to the matching
+Python compound assignment form.
 
 Java unsigned right shift (`>>>`) translates to a masked Python signed shift based on
 the known Java operand width:
