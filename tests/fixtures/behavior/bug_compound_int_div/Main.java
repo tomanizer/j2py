@@ -4,5 +4,8 @@ public class Main {
         int x = 20;
         x /= 6;
         System.out.println(x);
+        int negative = -20;
+        negative /= 6;
+        System.out.println(negative);
     }
 }

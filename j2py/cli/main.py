@@ -154,19 +154,18 @@ def _translate_single(
 
 
 def _emit_runtime_module(output_root: Path, sources: list[str], *, quiet: bool = False) -> None:
-    """Vendor j2py_runtime.py next to translated output when dispatch is used."""
+    """Vendor j2py_runtime.py next to translated output when runtime helpers are used."""
     from j2py.translate.runtime import (
-        RUNTIME_IMPORT_LINE,
         RUNTIME_MODULE_NAME,
         runtime_module_source,
     )
 
-    if not any(RUNTIME_IMPORT_LINE in source for source in sources):
+    if not any(f"from {RUNTIME_MODULE_NAME} import " in source for source in sources):
         return
     runtime_path = output_root / f"{RUNTIME_MODULE_NAME}.py"
     runtime_path.write_text(runtime_module_source())
     if not quiet:
-        console.print(f"[green]Written:[/green] {runtime_path} (overload dispatch runtime)")
+        console.print(f"[green]Written:[/green] {runtime_path} (j2py runtime helpers)")
 
 
 def _translate_dir(

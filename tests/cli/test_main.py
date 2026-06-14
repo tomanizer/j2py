@@ -272,6 +272,35 @@ def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
     assert "class overloaded" in runtime.read_text()
 
 
+def test_cli_translate_emits_vendored_integer_division_runtime(tmp_path: Path) -> None:
+    """Files using truncating integer division get j2py_runtime.py written next to them."""
+    source = tmp_path / "Div.java"
+    source.write_text(
+        """
+        public class Div {
+            public int run() {
+                int value = -20;
+                value /= 6;
+                return value;
+            }
+        }
+        """,
+    )
+    output = tmp_path / "Div.py"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert "from j2py_runtime import _j2py_idiv" in output.read_text()
+    runtime = tmp_path / "j2py_runtime.py"
+    assert runtime.exists()
+    assert "def _j2py_idiv" in runtime.read_text()
+
+
 def test_cli_translate_reports_parse_errors(tmp_path: Path) -> None:
     source = tmp_path / "Broken.java"
     source.write_text("public class Broken { void foo( { }")

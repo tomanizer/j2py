@@ -32,7 +32,7 @@ import weakref
 from collections.abc import Callable
 from typing import Any, ClassVar, NoReturn
 
-__all__ = ["__j2py_todo__", "_j2py_monitor", "overloaded"]
+__all__ = ["__j2py_todo__", "_j2py_idiv", "_j2py_monitor", "overloaded"]
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/
 # ``hashCode``. We therefore key the lock registry on ``id(obj)`` rather than on
@@ -104,6 +104,16 @@ def __j2py_todo__(java_source: str) -> NoReturn:
     translation gap that requires manual attention.
     """
     raise NotImplementedError(f"untranslated Java construct: {java_source!r}")
+
+
+def _j2py_idiv(left: int, right: int) -> int:
+    """Return Java-style integer division truncated toward zero."""
+    if right == 0:
+        raise ZeroDivisionError("integer division by zero")
+    quotient = abs(left) // abs(right)
+    if (left < 0) != (right < 0):
+        return -quotient
+    return quotient
 
 _WILDCARD: Any = object()  # annotation cannot be checked at runtime
 _CALLABLE: Any = object()  # annotation means "any callable"

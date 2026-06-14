@@ -259,7 +259,7 @@ def _range_loop_parts(
         return None
     stop = translate_expression(condition_children[2], ctx)
     if condition_children[1].text == "<=":
-        stop = f"{stop} + 1"
+        stop = f"({stop}) + 1"
     return (
         name_node.text,
         translate_field_name(name_node.text, snake_case=ctx.cfg.snake_case_fields),

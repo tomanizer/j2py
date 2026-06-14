@@ -129,7 +129,7 @@ def test_skeleton_preserves_arithmetic_parens() -> None:
     assert "(a + b) * 2" in src
 
 
-def test_skeleton_uses_int_divide_assign() -> None:
+def test_skeleton_uses_truncating_int_divide_assign() -> None:
     """Regression guard for Java int compound division."""
     src, _ = translate_source("""
     public class Div {
@@ -140,8 +140,10 @@ def test_skeleton_uses_int_divide_assign() -> None:
         }
     }
     """)
-    assert "//=" in src
-    assert "/=" not in src.replace("//=", "")
+    assert "from j2py_runtime import _j2py_idiv" in src
+    assert "x = _j2py_idiv(x, 6)" in src
+    assert "//=" not in src
+    assert "/=" not in src
 
 
 def test_skeleton_keeps_user_add_method_call() -> None:

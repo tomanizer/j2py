@@ -41,6 +41,10 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
             public String callExternal(BuiltinHelper helper) {
                 return helper.list();
             }
+
+            public String callUndeclared(ExternalHelper helper) {
+                return helper.list();
+            }
         }
         """,
     )
@@ -52,8 +56,9 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
     assert "return self.assert_that(value)" in python_source
     assert "return when(value)" in python_source
     assert "return self.when(value)" not in python_source
+    assert "return helper.list_()" in python_source
+    assert "def call_undeclared(self, helper: ExternalHelper) -> str:" in python_source
     assert "return helper.list()" in python_source
-    assert "return helper.list_()" not in python_source
     assert_valid_python(python_source)
 
 
@@ -93,6 +98,5 @@ def test_non_empty_collection_constructor_translates_to_copy() -> None:
     assert "return set(source)" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
 
 

@@ -38,12 +38,24 @@ def test_nested_parenthesized_grouping_preserved() -> None:
     assert "(a - b) * (c + d)" in src
 
 
+def test_right_hand_division_grouping_preserved_under_multiplication() -> None:
+    src, _ = translate_source("""
+    public class Calc {
+        public static int run(int a, int b, int c) {
+            return a * (b / c);
+        }
+    }
+    """)
+    assert "a * (b // c)" in src
+    assert "a * b // c" not in src
+
+
 # ---------------------------------------------------------------------------
-# Bug 2: Compound integer division emits /= (float) instead of //= (int)
+# Bug 2: Compound integer division emits /= (float) instead of truncating int division
 # ---------------------------------------------------------------------------
 
-def test_compound_int_division_uses_floor_divide_assign() -> None:
-    """x /= 6 on a Java int must become x //= 6, not x /= 6."""
+def test_compound_int_division_uses_truncating_helper() -> None:
+    """x /= 6 on a Java int must truncate toward zero, not use Python /= or //=."""
     src, _ = translate_source("""
     public class Div {
         public static int run() {
@@ -53,8 +65,24 @@ def test_compound_int_division_uses_floor_divide_assign() -> None:
         }
     }
     """)
-    assert "//=" in src
-    assert "/=" not in src.replace("//=", "")
+    assert "from j2py_runtime import _j2py_idiv" in src
+    assert "x = _j2py_idiv(x, 6)" in src
+    assert "//=" not in src
+    assert "/=" not in src
+
+
+def test_compound_negative_int_division_uses_truncating_helper() -> None:
+    src, _ = translate_source("""
+    public class Div {
+        public static int run() {
+            int x = -20;
+            x /= 6;
+            return x;
+        }
+    }
+    """)
+    assert "x = -20" in src
+    assert "x = _j2py_idiv(x, 6)" in src
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +103,22 @@ def test_user_defined_add_method_not_lowered_to_append() -> None:
     """)
     assert ".add(5)" in src or ".add(" in src
     assert ".append(5)" not in src
+
+
+def test_list_field_add_still_lowers_to_append() -> None:
+    src, _ = translate_source("""
+    import java.util.ArrayList;
+    import java.util.List;
+
+    public class Names {
+        private List<String> values = new ArrayList<>();
+        public void addName(String value) {
+            values.add(value);
+        }
+    }
+    """)
+    assert "self.values.append(value)" in src
+    assert "self.values.add(value)" not in src
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +146,36 @@ def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
     )
 
 
+def test_builtin_clash_rename_consistent_for_sibling_top_level_class() -> None:
+    src, _ = translate_source("""
+    class Stats {
+        public int sum(int a, int b) { return a + b; }
+    }
+    public class UseStats {
+        public static void main(String[] args) {
+            Stats s = new Stats();
+            System.out.println(s.sum(3, 4));
+        }
+    }
+    """)
+    assert "def sum_(" in src
+    assert ".sum_(3, 4)" in src
+    assert ".sum(3, 4)" not in src
+
+
+def test_builtin_clash_rename_consistent_for_same_class_receiver() -> None:
+    src, _ = translate_source("""
+    public class Stats {
+        public int sum(int a, int b) { return a + b; }
+        public int call(Stats other) {
+            return other.sum(3, 4);
+        }
+    }
+    """)
+    assert "def sum_(" in src
+    assert "return other.sum_(3, 4)" in src
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
@@ -122,6 +196,40 @@ def test_for_loop_le_bound_with_continue_translates_to_range() -> None:
     """)
     assert "for i in range(" in src
     assert "while" not in src
+
+
+def test_for_loop_le_bound_parenthesizes_non_atomic_stop() -> None:
+    src, _ = translate_source("""
+    public class Loop {
+        public static int run(boolean flag) {
+            int total = 0;
+            for (int i = 0; i <= (flag ? 2 : 3); i++) {
+                total += i;
+            }
+            return total;
+        }
+    }
+    """)
+    assert "for i in range(0, (2 if flag else 3) + 1):" in src
+    assert "for i in range(0, 2 if flag else 3 + 1):" not in src
+
+
+def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> None:
+    src, _ = translate_source("""
+    public class Outer {
+        private int base = 2;
+        class Inner {
+            private int value;
+            Inner(int value) { this.value = value; }
+            int total() { return Outer.this.base + value; }
+        }
+        public int run() {
+            Inner inner = new Inner(3);
+            return inner.total();
+        }
+    }
+    """)
+    assert "inner = self.Inner(self, 3)" in src
 
 
 # ---------------------------------------------------------------------------

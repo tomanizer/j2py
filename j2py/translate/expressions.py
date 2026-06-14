@@ -125,14 +125,15 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
             if operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
                 left = translate_expression(left_node, ctx)
                 right = translate_expression(right_node, ctx)
+                ctx.diagnostics.imports.need_idiv()
                 ctx.diagnostics.warn(
                     node,
                     reason=(
-                        "integer compound division translated with floor division assignment; "
+                        "integer compound division translated with truncating division; "
                         "verify truncation semantics"
                     ),
                 )
-                return f"{left} //= {right}"
+                return f"{left} = _j2py_idiv({left}, {right})"
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
             return f"{left} {operator} {right}"
@@ -417,7 +418,11 @@ def _binary_parentheses_change_meaning(
         return True
     if inner_precedence < parent_precedence:
         return True
-    return is_right and inner_precedence == parent_precedence and parent_operator in {"-", "/", "%"}
+    return (
+        is_right
+        and inner_precedence == parent_precedence
+        and (parent_operator in {"-", "/", "%"} or inner_operator in {"/", "%"})
+    )
 
 
 def _remember_cast_comment(type_node: JavaNode, ctx: TranslationContext) -> None:
@@ -709,6 +714,10 @@ def _receiver_is_declared_type(node: JavaNode, ctx: TranslationContext) -> bool:
     if receiver_type is None:
         return False
     simple = receiver_type.rsplit(".", 1)[-1]
+    if ctx.containing_class_name in {simple, receiver_type}:
+        return True
+    # ``declared_type_fields`` is keyed by translated Java type name; values hold
+    # field maps for those types.
     return simple in ctx.declared_type_fields or receiver_type in ctx.declared_type_fields
 
 
