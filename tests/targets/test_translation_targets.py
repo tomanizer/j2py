@@ -12,7 +12,7 @@ from j2py.analyze.symbols import extract_symbols
 from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
-from tests.conftest import CORPUS_CONSTRUCT_FIXTURES, TARGET_FIXTURES
+from tests.conftest import CORPUS_CONSTRUCT_FIXTURES, LLM_FIXTURES, TARGET_FIXTURES
 
 CFG = ConfigLoader().add_defaults().build()
 
@@ -46,7 +46,31 @@ class TranslationTarget:
 #     reason="Example construct is not fully supported",
 #     expected_fragments=("expected_python_fragment()",),
 # )
-FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
+FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
+    TranslationTarget(
+        fixture="AssertProbe.java",
+        fixture_root=LLM_FIXTURES,
+        tracking="llm-harvest-assert",
+        reason="Java assert statements are not translated by the rule layer",
+        expected_fragments=('assert value > 0, "must be positive"',),
+        forbidden_fragments=(
+            "TODO(j2py): unsupported",
+            "__j2py_todo__",
+            "# TODO(j2py): unsupported assert_statement",
+        ),
+    ),
+    TranslationTarget(
+        fixture="MultiDimArray.java",
+        fixture_root=LLM_FIXTURES,
+        tracking="llm-harvest-multi-dim-array",
+        reason="Multidimensional array creation leaves a __j2py_todo__ placeholder",
+        expected_fragments=("[[0] * cols for _ in range(rows)]",),
+        forbidden_fragments=(
+            "TODO(j2py): unsupported",
+            "__j2py_todo__",
+        ),
+    ),
+)
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
     for path in sorted(TARGET_FIXTURES.glob("*.java"))

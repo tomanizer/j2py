@@ -13,6 +13,7 @@ JAVA_FIXTURES = FIXTURES / "java"
 PYTHON_FIXTURES = FIXTURES / "python"
 TARGET_FIXTURES = JAVA_FIXTURES / "targets"
 CORPUS_CONSTRUCT_FIXTURES = FIXTURES / "corpus" / "constructs"
+LLM_FIXTURES = FIXTURES / "llm"
 
 
 @pytest.fixture(scope="session")

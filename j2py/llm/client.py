@@ -17,6 +17,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from j2py.dotenv import load_repo_dotenv
 from j2py.llm.prompts import PROMPT_VERSION
 
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
@@ -42,6 +43,7 @@ class LLMTruncationError(RuntimeError):
 
 def get_client() -> anthropic.Anthropic:
     global _client
+    load_repo_dotenv()
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is required for LLM translation")

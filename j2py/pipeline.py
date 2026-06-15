@@ -109,12 +109,19 @@ def _translate_parsed_file(
     # Ruff lint failures alone do not trigger the LLM — only syntax and type errors do.
     validation_feedback = ""
     should_use_llm = False
+    skeleton_pre_validation: ValidationResult | None = None
     if use_llm and parse_ok:
         if coverage < 1.0:
             should_use_llm = True
+            skeleton_pre_validation = (
+                validate_source(skeleton, path.with_suffix(".py"))
+                if llm_prevalidation == "full"
+                else None
+            )
         else:
             if llm_prevalidation == "full":
                 pre = validate_source(skeleton, path.with_suffix(".py"))
+                skeleton_pre_validation = pre
                 if not (pre.syntax_ok and pre.mypy_ok):
                     should_use_llm = True
                     validation_feedback = "\n".join(pre.syntax_errors + pre.mypy_errors)
@@ -166,6 +173,20 @@ def _translate_parsed_file(
             )
             validation = validate_source(python_source, validation_path) if validate else None
             structural_verification = verify_structure(symbols, python_source)
+        from j2py.llm.harvest import record_llm_repair
+
+        record_llm_repair(
+            source_path=path,
+            java_source=java_source,
+            skeleton=skeleton,
+            final_python=python_source,
+            model=model,
+            coverage=coverage,
+            diagnostics=skeleton_result.diagnostics,
+            pre_validation=skeleton_pre_validation,
+            structural_verification=None,
+            repo_root=_repo_root_for_harvest(path),
+        )
     else:
         python_source = skeleton
         used_llm = False
@@ -573,6 +594,13 @@ def _argument_signature(arg: ast.arg) -> str:
     if arg.annotation is None:
         return arg.arg
     return f"{arg.arg}: {ast.unparse(arg.annotation)}"
+
+
+def _repo_root_for_harvest(source_path: Path) -> Path:
+    for candidate in (source_path, *source_path.parents):
+        if (candidate / "pyproject.toml").is_file():
+            return candidate
+    return Path.cwd()
 
 
 def _diagnostics_context(diagnostics: TranslationDiagnostics) -> str:
