@@ -72,6 +72,10 @@ class ImportSet:
     def need_typing(self, name: str) -> None:
         self.typing_names.add(name)
 
+    def need_line(self, line: str) -> None:
+        if line:
+            self.lines.add(line)
+
     def need_type_annotation(self, annotation: str) -> None:
         if _uses_typing_name(annotation, "Any"):
             self.need_typing("Any")
@@ -95,6 +99,10 @@ class TranslationDiagnostics:
     unhandled: list[TranslationDiagnostic] = field(default_factory=list)
     warnings: list[TranslationDiagnostic] = field(default_factory=list)
     imports: ImportSet = field(default_factory=ImportSet)
+    imported_type_names: dict[str, str] = field(default_factory=dict)
+    imported_type_imports: dict[str, str] = field(default_factory=dict)
+    package_name: str = ""
+    compilation_unit_class_names: set[str] = field(default_factory=set)
 
     def record(
         self,

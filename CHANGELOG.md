@@ -32,6 +32,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Receiverless calls from static methods to sibling static methods now emit
   class-qualified calls instead of bare function names, avoiding runtime `NameError`
   in utility classes (#187).
+- Class references in expression position now retain class-name casing and request
+  generated or configured imports instead of emitting lowercased unbound identifiers
+  (#188).
 - LLM-enabled directory translation now avoids per-file ruff/mypy prevalidation for
   full-coverage rule-layer outputs, relying on syntax-only routing plus batched final
   validation instead (#181).

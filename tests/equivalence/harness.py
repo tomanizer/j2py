@@ -57,8 +57,7 @@ def load_translated_module(
 def array_utils_stub() -> types.SimpleNamespace:
     """Stub for Commons-Lang ``ArrayUtils`` (only ``setAll`` is referenced by CharUtils).
 
-    The translation emits ``array_utils.set_all(arr, fn)`` — see bug #188 — so the stub is
-    injected under the name ``array_utils``.
+    The translation imports this as ``ArrayUtils`` and calls ``ArrayUtils.set_all``.
     """
 
     def set_all(array: list[Any], generator: Any) -> list[Any]:
@@ -67,3 +66,27 @@ def array_utils_stub() -> types.SimpleNamespace:
         return array
 
     return types.SimpleNamespace(set_all=set_all)
+
+
+def install_array_utils_stub_package() -> list[str]:
+    """Install a minimal module chain for ``org.apache.commons.lang3.ArrayUtils``."""
+    module_names = [
+        "org",
+        "org.apache",
+        "org.apache.commons",
+        "org.apache.commons.lang3",
+        "org.apache.commons.lang3.ArrayUtils",
+    ]
+    for name in module_names:
+        module = types.ModuleType(name)
+        if name != module_names[-1]:
+            module.__path__ = []  # type: ignore[attr-defined]
+        sys.modules[name] = module
+
+    for parent_name, child_name in zip(module_names, module_names[1:], strict=False):
+        parent = sys.modules[parent_name]
+        child = sys.modules[child_name]
+        setattr(parent, child_name.rsplit(".", 1)[-1], child)
+
+    sys.modules[module_names[-1]].ArrayUtils = array_utils_stub()  # type: ignore[attr-defined]
+    return module_names

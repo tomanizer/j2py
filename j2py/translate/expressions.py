@@ -226,6 +226,42 @@ def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
         return ctx.static_field_aliases[raw_name]
     py_name = translate_field_name(raw_name, snake_case=ctx.cfg.snake_case_fields)
     if (
+        raw_name in ctx.class_field_types
+        and raw_name not in ctx.param_names
+        and raw_name not in ctx.local_names
+    ):
+        if ctx.in_instance_method and raw_name in ctx.class_fields:
+            return f"self.{py_name}"
+        return py_name
+    if (
+        raw_name in ctx.diagnostics.imported_type_names
+        and raw_name not in ctx.param_names
+        and raw_name not in ctx.local_names
+    ):
+        ctx.diagnostics.imports.need_line(
+            ctx.diagnostics.imported_type_imports.get(raw_name, ""),
+        )
+        return ctx.diagnostics.imported_type_names[raw_name]
+    if (
+        raw_name[:1].isupper()
+        and not raw_name.isupper()
+        and raw_name not in ctx.param_names
+        and raw_name not in ctx.local_names
+    ):
+        class_name = translate_class_name(raw_name)
+        if class_name == ctx.containing_class_name or class_name in ctx.nested_class_names:
+            return class_name
+        if ctx.diagnostics.package_name:
+            ctx.diagnostics.imports.need_line(
+                f"from {ctx.diagnostics.package_name}.{class_name} import {class_name}",
+            )
+            return class_name
+        if class_name in ctx.diagnostics.compilation_unit_class_names:
+            ctx.diagnostics.imports.need_line(
+                f"from {class_name} import {class_name}",
+            )
+            return class_name
+    if (
         ctx.in_instance_method
         and raw_name in ctx.class_fields
         and raw_name not in ctx.param_names
@@ -562,9 +598,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     method_name = method_node.text
     receiver_nodes = named[: args_index - 1]
     raw_receiver = receiver_nodes[0].text if receiver_nodes else ""
-    receiver = translate_expression(receiver_nodes[0], ctx) if receiver_nodes else ""
 
-    if not receiver and method_name in ctx.static_method_imports:
+    if not receiver_nodes and method_name in ctx.static_method_imports:
         static_call = _translate_static_imported_method(
             node,
             imported_name=ctx.static_method_imports[method_name],
@@ -588,6 +623,8 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
     if raw_receiver == "System.out" and method_name == "println":
         return f"print({args})"
+
+    receiver = translate_expression(receiver_nodes[0], ctx) if receiver_nodes else ""
 
     if method_name == "add" and receiver:
         receiver_type = _expression_py_type(receiver_nodes[0], ctx) if receiver_nodes else None
