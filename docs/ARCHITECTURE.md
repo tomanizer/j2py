@@ -34,8 +34,15 @@ Java source file(s)
 │   ├── class_fields.py      Field extraction/emission
 │   ├── class_model.py       Shared dataclasses
 │   ├── name_resolution.py   Deterministic partial name binding
-│   ├── statements.py    Statement emitter              │
-│   └── expressions.py   Expression emitter             │
+│   ├── statements.py        Statement emitter
+│   ├── expressions.py       Expression facade / router
+│   ├── expr_access.py       Identifiers, fields, arrays, casts, instanceof
+│   ├── expr_calls.py        Method calls and Java standard-library shims
+│   ├── expr_lambdas.py      Lambdas and method references
+│   ├── expr_objects.py      Object and anonymous-class creation
+│   ├── expr_ops.py          Operators, assignment, ternary, switch expressions
+│   ├── expr_streams.py      Stream pipelines and collectors
+│   └── expr_types.py        Best-effort expression type helpers
 │                                                       │
 │   Returns source, diagnostics, and coverage           │
 └───────┬───────────────────────────────────────────────┘
@@ -83,14 +90,16 @@ Java source file(s)
   - Also exposes structured diagnostics via `translate_skeleton_with_diagnostics`
 - `classes.py` is the class-declaration facade; `class_enums.py`, `class_interfaces.py`,
   `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
-  hold declaration-kind emitters and shared helpers. `statements.py`, `expressions.py`:
-  direct tree-sitter node visitors for supported Java constructs. The rule layer is
-  intentionally imperative today; a prior unused declarative selector/transform prototype
-  was removed.
+  hold declaration-kind emitters and shared helpers. `statements.py` emits statements.
+  `expressions.py` is a thin expression facade/router; `expr_access.py`,
+  `expr_calls.py`, `expr_lambdas.py`, `expr_objects.py`, `expr_ops.py`,
+  `expr_streams.py`, and `expr_types.py` own focused expression families. The rule layer
+  is intentionally imperative today; a prior unused declarative selector/transform
+  prototype was removed.
 - `name_resolution.py` owns deterministic partial name binding for expression
   identifiers. `skeleton.py` builds file-level `FileNameBindings` from the current
   file, config import maps, package name, compilation-unit types, and static imports;
-  `TranslationContext` carries a `NameResolver`; `expressions.py` asks the resolver
+  `TranslationContext` carries a `NameResolver`; `expr_access.py` asks the resolver
   for each identifier and records required generated imports through
   `TranslationDiagnostics.imports` only when a referenced binding is emitted.
   This is intentionally not a full Java compiler resolver: it does not expand

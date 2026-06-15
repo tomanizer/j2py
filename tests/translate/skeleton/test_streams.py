@@ -13,7 +13,7 @@ from tests.translate.skeleton.helpers import (
 def test_stream_item_name_avoids_bad_singularization() -> None:
     """Regression: _stream_item_name used to produce statu/addres/clas etc."""
     from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
-    from j2py.translate.expressions import _stream_item_name
+    from j2py.translate.expr_streams import _stream_item_name
 
     ctx = TranslationContext(cfg=CFG, diagnostics=TranslationDiagnostics())
 
@@ -578,6 +578,5 @@ def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
     reasons = [u.reason for u in result.diagnostics.unhandled]
     assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
     assert_valid_python(result.source)
-
 
 
