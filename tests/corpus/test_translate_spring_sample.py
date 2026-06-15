@@ -1,4 +1,4 @@
-"""Tests for the Spring corpus scoreboard helpers."""
+"""Tests for the multi-library corpus scoreboard helpers."""
 
 from __future__ import annotations
 

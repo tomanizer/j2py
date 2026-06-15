@@ -145,6 +145,22 @@ See [docs/decisions/](decisions/) for full ADR context.
 | `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
 | Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
 
+## Quality measurement
+
+j2py uses layered gates — none of them alone proves full semantic equivalence on arbitrary
+codebases, but together they cover breadth, triage, and bounded correctness.
+
+| Layer | What it measures | How to run |
+|-------|------------------|------------|
+| Fixture + target tests | Exact expected output for curated Java constructs | `make check`, `make test-targets` |
+| Multi-library corpus baselines | Rule-layer coverage, syntax validity, unhandled nodes on pinned library samples | `make corpus-<name>-check`, `make corpus-hotspots` |
+| Behavior equivalence | stdout/stderr/exit-code match on small hand-written programs | `make test-behavior` (JDK required) |
+| Harvested equivalence (phased) | Method-level Java-vs-Python differential tests with JVM-independent oracles | `tests/equivalence/` (see [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md)) |
+
+Corpus presets and baselines: [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md). CI runs
+`spring-dense` comparison plus a committed-baseline hotspot scorecard; contributors run
+additional library checks locally for rule-layer PRs.
+
 ## Dependency rules
 
 - `parse/` has no imports from other j2py packages

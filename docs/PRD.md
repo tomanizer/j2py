@@ -60,8 +60,11 @@ layered on top of defaults.
 
 ## Non-goals
 
-- **Execution equivalence testing** — j2py does not run both Java and Python and compare
-  outputs. That is the user's responsibility.
+- **Full-library automatic execution equivalence** — j2py does not yet prove that every
+  translated method in a large external checkout matches Java on all upstream tests.
+  Phased equivalence gates (hand-written behavior corpus, harvested differential tests;
+  see [ADR 0014](decisions/0014-equivalence-differential-testing.md)) cover bounded
+  correctness evidence; corpus scoreboards measure rule-layer breadth, not runtime output.
 - **Idiomatic Python rewrite** — the output preserves Java structure. Pythonification
   (replacing getters with properties, removing unnecessary classes) is explicitly out of
   scope to keep the output reviewable against the Java.
@@ -79,3 +82,5 @@ layered on top of defaults.
 3. `mypy` passes on all translated output from the fixture suite.
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
+5. Committed multi-library corpus baselines and the behavior/equivalence suites provide
+   measurable regression signal without requiring live LLM calls in CI.

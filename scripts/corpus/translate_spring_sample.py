@@ -4,8 +4,8 @@
 This is a non-CI corpus harness. It never calls the LLM layer; it measures how far the
 deterministic tree-sitter-based skeleton translator gets on real Java source samples.
 
-Use ``--preset`` for pinned corpora (Spring, Guava, Jackson, etc.) — see
-``scripts/corpus/corpus_presets.py`` or ``--list-presets``.
+Use ``--preset`` for pinned corpora (Guava, Commons Lang, Jackson, Caffeine, Spring,
+etc.) — see ``scripts/corpus/corpus_presets.py`` or ``--list-presets``.
 """
 
 from __future__ import annotations

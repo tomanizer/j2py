@@ -36,9 +36,9 @@ under-covered or challenging for deterministic translation.
 uv run python scripts/corpus/translate_spring_sample.py \
   --preset spring-dense --include-constructs --compare-baseline
 
-# Or use convenience targets
+# Or use convenience targets for presets with committed baselines / exploration
 make corpus-spring-dense-check
-make corpus-spring-broad
+make corpus-spring-broad            # exploratory; no committed baseline
 ```
 
 When adding support for a new construct (e.g. one of the remaining gaps), add at least one new minimal file here and ensure it appears in density-based runs.
