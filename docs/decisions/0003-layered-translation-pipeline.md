@@ -34,9 +34,10 @@ Use a **layered pipeline**:
    Returns `(skeleton_source: str, coverage: float)`.
 
 2. **LLM completion** (`llm/`): when `coverage < 1.0`, pass the Java source + skeleton
-   to Claude with a structured prompt. The LLM sees the partially-translated skeleton
-   as context and fills in what the rule layer left as `# TODO(j2py)` stubs. This is
-   significantly cheaper and more accurate than translating from scratch.
+   to the configured LLM provider with a structured prompt. The LLM sees the
+   partially-translated skeleton as context and fills in what the rule layer left as
+   `# TODO(j2py)` stubs. This is significantly cheaper and more accurate than
+   translating from scratch.
 
 3. **Confidence score**: `TranslationResult.confidence` reflects `coverage`. Files with
    `confidence < 0.8` are flagged in the CLI output for priority human review.

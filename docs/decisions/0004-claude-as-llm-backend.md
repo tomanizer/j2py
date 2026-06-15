@@ -1,7 +1,7 @@
 # ADR 0004 — Use Claude (Anthropic SDK) as LLM backend
 
 **Date:** 2026-06-10
-**Status:** Accepted
+**Status:** Accepted, extended by [ADR 0017](0017-multi-provider-llm-backend.md)
 
 ## Context
 

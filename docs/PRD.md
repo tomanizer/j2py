@@ -46,10 +46,12 @@ Deterministic support includes:
 - Structured diagnostics and explicit `# TODO(j2py): …` for unsupported regions
 
 ### F3 — LLM completion of the remainder
-Pass the skeleton + original Java to Claude when rule-layer coverage < 1.0 or when a
-full-coverage skeleton fails syntax/type pre-validation. Cache responses to avoid
-re-translating unchanged files. Live LLM calls are excluded from normal CI
-([ADR 0004](decisions/0004-claude-as-llm-backend.md)).
+Pass the skeleton + original Java to the configured LLM provider when rule-layer coverage
+< 1.0 or when a full-coverage skeleton fails syntax/type pre-validation. Anthropic is the
+default provider; Gemini can be selected explicitly for Gemini Flash. Cache responses to
+avoid re-translating unchanged files. Live LLM calls are excluded from normal CI
+([ADR 0004](decisions/0004-claude-as-llm-backend.md),
+[ADR 0017](decisions/0017-multi-provider-llm-backend.md)).
 
 ### F4 — Confidence scoring
 Each translated file receives a `confidence: float` (0–1). Low-confidence output is
@@ -74,7 +76,8 @@ supports incremental state (`--incremental`) and parallel workers.
 ### F7 — CLI
 
 ```text
-j2py translate <file|dir> [--output <path>] [--no-llm] [--model <id>]
+j2py translate <file|dir> [--output <path>] [--no-llm]
+                         [--llm-provider <anthropic|gemini>] [--model <id>]
                          [--incremental] [--json] [--dashboard <path>] [--report <path>]
 j2py analyze  <file|dir>          # inventory classes, print dependency graph
 j2py compare  <file>              # side-by-side Java/Python review (VS Code or paths)

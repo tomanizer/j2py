@@ -36,7 +36,7 @@ Java source
               ③ Rules/helpers: name_resolution.py, types, naming, literals
     │
     ▼
-[llm/]        Claude fills what the rule layer couldn't reach
+[llm/]        configured LLM provider fills what the rule layer couldn't reach
               Disk-cached responses; tenacity retry
     │
     ▼
@@ -62,7 +62,9 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 
 - **tree-sitter** for Java parsing ([ADR 0002](docs/decisions/0002-tree-sitter-for-java-parsing.md))
 - **Layered pipeline**: rule → LLM, not LLM-only ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
-- **Claude** as LLM backend ([ADR 0004](docs/decisions/0004-claude-as-llm-backend.md))
+- **Anthropic by default, Gemini optional** as LLM backend
+  ([ADR 0004](docs/decisions/0004-claude-as-llm-backend.md),
+  [ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md))
 - **Python 3.11+** with full type annotations as output target ([ADR 0005](docs/decisions/0005-python-311-target-with-type-hints.md))
 - **Line-level structural correspondence** as the quality bar — same method order, same
   control-flow structure, camelCase→snake_case names ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
@@ -115,11 +117,11 @@ Before approving or merging a PR, verify:
 2. **Tests cover the change** — new translation rules need parametrised fixture tests
 3. **ADR for design changes** — any change to parser, pipeline layering, LLM model/prompt, or
    output format needs either an existing ADR reference or a new ADR
-4. **No live LLM calls in normal tests** — tests must not call the Anthropic API
+4. **No live LLM calls in normal tests** — tests must not call provider APIs
    during `make check`, normal `pytest`, or CI. Use fixtures or stubs by default.
    The only exception is `tests/llm/test_e2e_llm.py`, which must be marked
    `live_llm` and is excluded by pytest configuration unless explicitly run with
-   `pytest -m live_llm` and `ANTHROPIC_API_KEY`. Graduated roadmap fixtures run in
+   `pytest -m live_llm` and the relevant provider API key. Graduated roadmap fixtures run in
    `make check`; future xfail contracts run via `make test-targets`.
 5. **Rule-layer changes have Java fixtures** — `tests/fixtures/java/*.java` + expected `tests/fixtures/python/*.py`
 6. **Confidence score honest** — `TranslationResult.confidence` reflects rule-layer

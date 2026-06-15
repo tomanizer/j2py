@@ -47,7 +47,8 @@ def test_cli_translate_auto_discovery_ignores_python_config(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed_target_python.append(cfg.target_python)
@@ -75,8 +76,79 @@ def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
 
     assert result.exit_code == 0
     assert "LLM model ID" in result.output
+    assert "--llm-provider" in result.output
     assert "ANTHROPIC_API_KEY" not in result.output
     assert "Claude model" not in result.output
+
+
+def test_cli_translate_forwards_llm_provider_and_model(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update(
+            {
+                "use_llm": use_llm,
+                "model": model,
+                "llm_provider": llm_provider,
+                "validate": validate,
+            }
+        )
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--llm-provider",
+            "gemini",
+            "--model",
+            "gemini-test",
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "use_llm": True,
+        "model": "gemini-test",
+        "llm_provider": "gemini",
+        "validate": False,
+    }
+
+
+def test_cli_translate_rejects_unknown_llm_provider(tmp_path: Path) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--llm-provider", "unknown", "--dry-run"],
+    )
+
+    assert result.exit_code != 0
+    assert "unsupported LLM provider" in result.output
 
 
 def test_cli_analyze_prints_record_and_nested_inventory() -> None:
@@ -212,7 +284,8 @@ def test_cli_translate_exits_nonzero_on_structural_failure(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         return pipeline.TranslationResult(
@@ -249,7 +322,8 @@ def test_cli_translate_directory_exits_nonzero_on_structural_failure(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
         workers: int | None = None,
         llm_concurrency: int | None = None,
@@ -587,7 +661,8 @@ def test_cli_compare_auto_discovery_ignores_python_config(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed_target_python.append(cfg.target_python)
@@ -735,7 +810,8 @@ def test_cli_watch_auto_discovery_ignores_python_config(
         output: Path,
         cfg,
         llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> None:
         observed_target_python.append(cfg.target_python)
@@ -782,7 +858,8 @@ def test_cli_compare_uses_config_when_translating_missing_python(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed_string_types.append(cfg.type_map["String"])
@@ -819,7 +896,8 @@ def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(
         *,
         cfg,
         use_llm: bool,
-        model: str,
+        model: str | None,
+        llm_provider: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         return pipeline.TranslationResult(
