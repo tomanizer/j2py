@@ -711,6 +711,8 @@ def test_cli_translate_json_output_is_machine_readable(tmp_path: Path) -> None:
 def test_cli_translate_surfaces_clamped_confidence_consistently(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
+    # int / int is currently translated with a semantic warning because Java truncates
+    # toward zero while Python floor division differs for negative values.
     (source / "Division.java").write_text(
         """
         package com.example;
@@ -746,13 +748,50 @@ def test_cli_translate_surfaces_clamped_confidence_consistently(tmp_path: Path) 
     assert result.exit_code == 0
     payload = json.loads(result.output)
     translated = payload["files"][0]
-    assert translated["confidence"] == 0.99
+    assert translated["confidence"] == pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP
     assert translated["semantic_warnings"]
 
+    expected_percent = f"{pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP:.0%}"
     state = json.loads((output / ".j2py-state.json").read_text())
-    assert state["files"]["Division.java"]["confidence"] == 0.99
-    assert '"confidence": 0.99' in dashboard.read_text()
-    assert ">99%<" in report.read_text()
+    assert state["files"]["Division.java"]["confidence"] == pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP
+    assert f'"confidence": {pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP}' in dashboard.read_text()
+    assert expected_percent in report.read_text()
+
+
+def test_cli_translate_json_clamps_confidence_for_validation_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("public class Broken {}")
+
+    def fake_validate_source(source_text: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            ruff_ok=False,
+            mypy_ok=True,
+            ruff_errors=["Broken.py:1:1: simulated ruff failure"],
+        )
+
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate_source)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["confidence"] == pipeline.REVIEW_REQUIRED_CONFIDENCE_CAP
+    assert payload["validation"]["ok"] is False
 
 
 def test_cli_translate_incremental_reports_skipped_files(tmp_path: Path) -> None:
