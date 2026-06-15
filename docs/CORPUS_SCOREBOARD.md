@@ -10,15 +10,15 @@ baselines live under `tests/fixtures/corpus/`.
 
 ## Multi-library presets
 
-| Preset | Library | Modules (summary) | Baseline | Construct mix |
-|--------|---------|-------------------|----------|---------------|
+| Preset | Library | Modules (summary) | Committed baseline | Construct mix |
+|--------|---------|-------------------|--------------------|---------------|
 | `guava-dense` | Google Guava | `collect`, `base` | `guava-dense-baseline.json` | — |
 | `commons-lang-dense` | Apache Commons Lang | `src/main/java` | `commons-lang-dense-baseline.json` | — |
 | `jackson-dense` | Jackson databind | `src/main/java` | `jackson-dense-baseline.json` | — |
 | `caffeine-dense` | Caffeine | `caffeine/src/main/java` | `caffeine-dense-baseline.json` | — |
 | `spring-dense` | Spring Framework | `spring-core`, `spring-beans` | `spring-dense-baseline.json` | yes (`--include-constructs`) |
-| `spring-broad` | Spring Framework | `spring-context` | `spring-broad-baseline.json` | yes |
 | `spring-lexical` | Spring Framework | `spring-core`, `spring-beans` | `spring-sample-baseline.json` | — (historical lexical sample) |
+| `spring-broad` | Spring Framework | `spring-context` | — (exploratory; no committed baseline) | yes |
 
 Density presets (except `spring-lexical`) use `--strategy density --max-loc 250
 --min-constructs 5` unless noted in the preset definition.
@@ -30,8 +30,30 @@ Density presets (except `spring-lexical`) use `--strategy density --max-loc 250
 | `jackson-dense` | Annotation and bean-introspection patterns |
 | `caffeine-dense` | Concurrent cache code and lambdas |
 | `spring-dense` | Framework-style core/beans Java plus construct fixtures |
-| `spring-broad` | Broader `spring-context` surface plus construct fixtures |
 | `spring-lexical` | Historical lexical Spring sample for continuity with older reports |
+| `spring-broad` | Broader `spring-context` surface plus construct fixtures (local exploration) |
+
+## Committed baseline scorecard
+
+Run the live dashboard from committed JSON (no corpus clones required):
+
+```bash
+make corpus-hotspots
+```
+
+As of the current committed baselines, `make corpus-hotspots` reports approximately:
+
+| Preset | Avg coverage | Syntax OK | Unhandled files | Full-coverage files |
+|--------|-------------|-----------|-----------------|-------------------|
+| `spring-dense` | 100% | 100% | 0/100 | 43/43 |
+| `commons-lang-dense` | ~100% | 100% | 1/100 | 99/100 |
+| `jackson-dense` | ~99.5% | 99% | 6/100 | 83/89 |
+| `caffeine-dense` | ~99.6% | 97% | 8/36 | 25/33 |
+| `guava-dense` | ~98% | 94% | 14/100 | 86/100 |
+| `spring-lexical` | ~100% | 100% | 7/100 | 92/99 |
+
+Re-run `make corpus-hotspots` after refreshing any baseline. The command also prints
+syntax/parse failures and a ranked hotspot backlog for cross-library triage (#152).
 
 ## Curated construct mini-corpus
 
@@ -41,9 +63,9 @@ across large codebases (interface defaults + statics, text blocks, anonymous and
 classes, switch fall-through, advanced enums, enum constant class bodies, sealed types,
 records, and more).
 
-Density presets with `--include-constructs` (notably `spring-dense` and `spring-broad`)
-mix these fixtures into the sampled run. All graduated construct files also run in
-`make check` via `tests/targets/`. See
+Density presets with `--include-constructs` (`spring-dense` and exploratory
+`spring-broad`) mix these fixtures into the sampled run. All graduated construct files
+also run in `make check` via `tests/targets/`. See
 [docs/TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) and
 [tests/fixtures/corpus/constructs/README.md](../tests/fixtures/corpus/constructs/README.md).
 
@@ -66,7 +88,8 @@ make corpus-commons-lang-dense-check
 
 ## Per-preset commands
 
-For any preset `<name>` (e.g. `guava-dense`, `spring-dense`):
+For presets with a **committed baseline** (`guava-dense`, `commons-lang-dense`,
+`jackson-dense`, `caffeine-dense`, `spring-dense`):
 
 ```bash
 make corpus-<name>                  # run without baseline comparison
@@ -81,16 +104,21 @@ make corpus-guava-dense-check
 make corpus-commons-lang-dense-check
 make corpus-jackson-dense-check
 make corpus-caffeine-dense-check
-make corpus-spring-dense-check      # Spring dense + construct fixtures
-make corpus-spring-broad            # broader spring-context sample + constructs
+make corpus-spring-dense-check      # Spring dense + construct fixtures (CI gate)
 ```
 
-Historical Spring-only lexical baseline (continuity with older reports):
+Historical Spring lexical baseline (`spring-lexical` preset):
 
 ```bash
-make corpus-spring                  # compare lexical sample vs spring-sample-baseline.json
+make corpus-spring                  # compare vs spring-sample-baseline.json
 make corpus-spring-smoke            # quick 25-file smoke, no baseline compare
 make corpus-spring-update-baseline  # regenerate lexical baseline intentionally
+```
+
+Exploratory broader Spring sample (`spring-broad`; no committed baseline or `-check`):
+
+```bash
+make corpus-spring-broad
 ```
 
 Low-level entry point (any preset):
@@ -100,7 +128,19 @@ uv run python scripts/corpus/translate_spring_sample.py --preset guava-dense --c
 uv run python scripts/corpus/translate_spring_sample.py --preset spring-dense --compare-baseline
 ```
 
-Generated detailed reports are written under `corpus-reports/` (ignored by git).
+## Reports workflow
+
+| When | Command | Output |
+|------|---------|--------|
+| Rule-layer PR, before push | `make corpus-<name>-check` for Spring dense + a relevant library | stdout diff vs baseline; fails on regression |
+| Cross-library triage / backlog grooming | `make corpus-hotspots` | terminal scorecard + ranked clusters |
+| Deep dive on one preset | `make corpus-<name>` | `corpus-reports/<name>.json` and `.csv` |
+| Structured hotspot export | `uv run python scripts/corpus/aggregate_hotspots.py --json-out corpus-reports/hotspots.json` | JSON backlog for issue filing |
+| Intentional baseline refresh | `make corpus-<name>-update-baseline` after clean `-check` | updates `tests/fixtures/corpus/<name>-baseline.json` |
+
+`corpus-reports/` is gitignored. Attach relevant terminal output or JSON snippets to PRs
+when baseline metrics move. After changing any `*-baseline.json`, run
+`make corpus-hotspots` and include the updated scorecard summary in the PR body.
 
 ## Cross-corpus triage
 
@@ -148,16 +188,26 @@ For translation-rule PRs:
    - one additional library preset relevant to the change (e.g.
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
-3. Use `make corpus-hotspots` when triaging gaps across libraries.
+3. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
+   updates.
 4. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
    regressions in comparison mode.
 
 ## CI and `make check`
 
 The default `make check` gate does not clone external libraries or run the corpus
-harness; this keeps CI fast and deterministic. A separate GitHub Actions workflow
-(`.github/workflows/corpus.yml`) runs the pinned `spring-dense` baseline comparison when
-translation or corpus files change.
+harness; this keeps CI fast and deterministic.
+
+`.github/workflows/corpus.yml` runs two lightweight gates when translation or corpus
+files change:
+
+1. **`spring-dense` baseline comparison** — clones Spring and fails on regression against
+   the construct-mix dense preset (historical CI anchor).
+2. **`corpus-hotspots` scorecard** — reads committed `*-baseline.json` files only; no
+   clones. Surfaces multi-library baseline drift and validates hotspot aggregation.
+
+We do **not** clone every library preset on each PR (clone time). Local rule-layer PRs
+should still run the additional `corpus-*-dense-check` preset relevant to the change.
 
 ## Known parser exclusions
 
@@ -174,7 +224,7 @@ lists remain part of the comparability contract.
 |--------|---------------|------------|
 | `guava-dense` | `guava/src/com/google/common/base/Platform.java` | Jspecify type-use `@Nullable` before varargs (`@Nullable Object @Nullable ... args`) — tree-sitter-java ERROR; skeleton translation reaches full coverage (#160). |
 
-## Reference: `spring-dense` snapshot
+## Reference: `spring-dense` pins
 
 The `spring-dense` preset remains a high-signal scoreboard because it mixes real
 framework Java with the construct mini-corpus. It is pinned to:
@@ -185,13 +235,5 @@ framework Java with the construct mini-corpus. It is pinned to:
 - modules: `spring-core/src/main/java`, `spring-beans/src/main/java`
 - selection: density + `--include-constructs`
 
-Committed baseline metrics (as of last baseline refresh):
-
-- parse success rate: 100.00%
-- generated Python syntax success rate: 98.00%
-- files included in coverage metrics: 43 of 100
-- average skeleton coverage: 100.00%
-- full-coverage files: 43 of 43 coverage-bearing files
-- files with unhandled constructs: 0 of 100
-- files below 80% coverage: 0 of 43 coverage-bearing files
-- all curated construct fixtures are included in the selected sample
+For current metrics, use the [committed baseline scorecard](#committed-baseline-scorecard)
+above rather than a static snapshot in this doc.

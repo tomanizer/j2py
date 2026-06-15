@@ -65,16 +65,16 @@ corpus-spring-smoke:  ## Run a quick 25-file Spring corpus smoke sample without 
 corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
 	$(CORPUS) --preset spring-lexical --update-baseline --compare-baseline
 
-corpus-spring-dense:  ## Run the preferred dense Spring + curated-construct corpus without comparing the baseline
+corpus-spring-dense:  ## Run spring-dense + construct fixtures without baseline comparison
 	$(CORPUS) $(SPRING_DENSE_ARGS)
 
-corpus-spring-dense-check:  ## Compare the preferred dense Spring + curated-construct corpus against its baseline
+corpus-spring-dense-check:  ## Compare spring-dense + construct fixtures against its baseline (CI gate)
 	$(CORPUS) $(SPRING_DENSE_ARGS) --compare-baseline --fail-on-regression
 
-corpus-spring-dense-update-baseline:  ## Regenerate the preferred dense Spring + curated-construct corpus baseline intentionally
+corpus-spring-dense-update-baseline:  ## Regenerate the spring-dense + construct baseline intentionally
 	$(CORPUS) $(SPRING_DENSE_ARGS) --update-baseline
 
-corpus-spring-broad:  ## Broader spring-context sample plus construct fixtures (no baseline compare)
+corpus-spring-broad:  ## Exploratory spring-context sample + constructs (no committed baseline)
 	$(CORPUS) --preset spring-broad
 
 corpus-guava-dense:  ## Run the Guava dense corpus without baseline comparison

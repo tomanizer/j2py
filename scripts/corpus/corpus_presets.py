@@ -108,7 +108,7 @@ PRESETS: dict[str, CorpusPreset] = {
         ),
         _preset(
             "spring-broad",
-            "Broader spring-context sample plus construct fixtures",
+            "Exploratory spring-context sample plus construct fixtures (no committed baseline)",
             remote="https://github.com/spring-projects/spring-framework.git",
             ref="0c60266986197a191ff33eb498ebc8bac3dc933f",
             checkout_dir="spring-framework",
