@@ -593,7 +593,14 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "isEmpty" and receiver and not args:
         return f"not {receiver}"
 
-    if method_name == "contains" and receiver and args:
+    if (
+        method_name == "contains"
+        and receiver
+        and args
+        and len(arg_expressions) == 1
+        and receiver_nodes[0].type != "super"
+        and not raw_receiver.split(".")[-1][:1].isupper()
+    ):
         return f"{args} in {receiver}"
 
     if method_name == "toArray" and receiver:

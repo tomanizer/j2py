@@ -18,8 +18,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import j2py.translate.runtime.j2py_runtime as _j2py_runtime_module
 from j2py.config.loader import ConfigLoader
 from j2py.pipeline import translate_file
+
+# Translated files always emit `from j2py_runtime import overloaded`.
+# Register the module under its expected top-level name so exec() can find it.
+sys.modules.setdefault("j2py_runtime", _j2py_runtime_module)
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "equivalence"
 
