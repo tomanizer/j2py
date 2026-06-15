@@ -26,6 +26,8 @@ emit_type_hints: true
 snake_case_methods: true
 workers: 8
 llm_concurrency: 4
+llm_provider: gemini
+model: gemini-3.5-flash
 
 type_map:
   MyCustomType: my_module.MyCustomType
@@ -51,6 +53,8 @@ Standalone `j2py.toml` may put keys at the top level:
 emit_type_hints = true
 snake_case_methods = true
 workers = 8
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
 
 [type_map]
 MyType = "mymodule.MyType"
@@ -62,6 +66,8 @@ In `pyproject.toml`, use `[tool.j2py]`:
 [tool.j2py]
 emit_type_hints = true
 snake_case_methods = true
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
 
 [tool.j2py.type_map]
 MyType = "mymodule.MyType"
@@ -79,6 +85,8 @@ uv run j2py translate src/main/java --config j2py_config.py
 type_map = {"MyType": "mymodule.MyType"}
 drop_imports = {"java.io.Serializable"}
 target_python = "3.12"
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
 ```
 
 ## Schema
@@ -94,10 +102,13 @@ Scalar options:
 - `target_python`: string
 - `workers`: int
 - `llm_concurrency`: int
+- `llm_provider`: optional string, one of `anthropic` or `gemini`
+- `model`: optional string model ID
 
-LLM provider and model selection are runtime options rather than project translation
-settings. Use `--llm-provider anthropic|gemini` and `--model <id>` on CLI commands that
-invoke LLM completion.
+`llm_provider` and `model` are project defaults for LLM-enabled translation. CLI flags
+still win when present, so `--llm-provider anthropic` or `--model <id>` can override a
+project config default for one command. API keys are runtime secrets and should stay in
+environment variables such as `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`, not config files.
 
 Mapping options:
 

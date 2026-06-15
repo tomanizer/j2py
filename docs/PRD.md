@@ -86,8 +86,9 @@ j2py watch    <dir> [--output <path>]  # incremental re-translate on file change
 
 ### F8 — Layered configuration
 Project-specific type mappings, import remappings, and rule overrides via `j2py.yaml`,
-`j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. See
-[docs/configuration.md](configuration.md).
+`j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. Projects may also
+set default LLM provider/model values there; explicit CLI flags override these defaults.
+See [docs/configuration.md](configuration.md).
 
 ### F9 — Post-LLM structural verification
 After LLM completion, compare Java symbols with the returned Python AST: class and method

@@ -41,6 +41,20 @@ def _normalize_llm_provider(value: str) -> LLMProvider:
     return cast(LLMProvider, normalized)
 
 
+def _resolve_llm_options(
+    cfg: TranslationConfig,
+    llm_provider: str | None,
+    model: str | None,
+) -> tuple[LLMProvider, str | None]:
+    provider = (
+        _normalize_llm_provider(llm_provider)
+        if llm_provider is not None
+        else cfg.llm_provider or "anthropic"
+    )
+    effective_model = model if model is not None else cfg.model
+    return provider, effective_model
+
+
 @app.command()
 def translate(
     source: Path = typer.Argument(..., help="Java file or directory to translate."),
@@ -53,10 +67,10 @@ def translate(
         "--llm/--no-llm",
         help="Use LLM completion for unresolved logic (requires the configured LLM API key).",
     ),
-    llm_provider: str = typer.Option(
-        "anthropic",
+    llm_provider: str | None = typer.Option(
+        None,
         "--llm-provider",
-        help="LLM provider to use for completion: anthropic or gemini.",
+        help="LLM provider to use for completion: anthropic or gemini. Overrides config.",
     ),
     model: str | None = typer.Option(
         None,
@@ -105,7 +119,7 @@ def translate(
 ) -> None:
     """Translate a Java file or directory tree to Python."""
     cfg = _load_config(config, source if source.is_dir() else source.parent)
-    provider = _normalize_llm_provider(llm_provider)
+    provider, effective_model = _resolve_llm_options(cfg, llm_provider, model)
 
     if source.is_dir():
         _translate_dir(
@@ -113,7 +127,7 @@ def translate(
             output or source.parent / (source.name + "_py"),
             cfg,
             llm,
-            model,
+            effective_model,
             provider,
             validate,
             dry_run,
@@ -130,7 +144,7 @@ def translate(
             output,
             cfg,
             llm,
-            model,
+            effective_model,
             provider,
             validate,
             dry_run,
@@ -368,10 +382,10 @@ def watch(
         "--llm/--no-llm",
         help="Use LLM completion for unresolved logic.",
     ),
-    llm_provider: str = typer.Option(
-        "anthropic",
+    llm_provider: str | None = typer.Option(
+        None,
         "--llm-provider",
-        help="LLM provider to use for completion: anthropic or gemini.",
+        help="LLM provider to use for completion: anthropic or gemini. Overrides config.",
     ),
     model: str | None = typer.Option(
         None,
@@ -391,10 +405,10 @@ def watch(
 ) -> None:
     """Watch Java sources and incrementally re-translate changes until interrupted."""
     cfg = _load_config(config, source if source.is_dir() else source.parent)
-    provider = _normalize_llm_provider(llm_provider)
+    provider, effective_model = _resolve_llm_options(cfg, llm_provider, model)
     console.print(f"[bold]Watching[/bold] {source} → {output}")
     seen = _java_hashes(source)
-    _run_watch_translation(source, output, cfg, llm, model, provider, validate)
+    _run_watch_translation(source, output, cfg, llm, effective_model, provider, validate)
     try:
         while True:
             time.sleep(poll_interval)
@@ -407,7 +421,9 @@ def watch(
                     console.print(f"[{timestamp}] Changed {path.name}")
                 for path in removed:
                     console.print(f"[{timestamp}] Removed {path.name}")
-                _run_watch_translation(source, output, cfg, llm, model, provider, validate)
+                _run_watch_translation(
+                    source, output, cfg, llm, effective_model, provider, validate
+                )
                 seen = current
     except KeyboardInterrupt:
         console.print("[yellow]Stopped.[/yellow]")
@@ -519,10 +535,10 @@ def compare(
         "--llm/--no-llm",
         help="Use LLM when translating (default: off for speed).",
     ),
-    llm_provider: str = typer.Option(
-        "anthropic",
+    llm_provider: str | None = typer.Option(
+        None,
         "--llm-provider",
-        help="LLM provider to use for completion: anthropic or gemini.",
+        help="LLM provider to use for completion: anthropic or gemini. Overrides config.",
     ),
     model: str | None = typer.Option(
         None,
@@ -547,7 +563,6 @@ def compare(
     ),
 ) -> None:
     """Open a side-by-side diff of a Java source file and its Python translation."""
-    provider = _normalize_llm_provider(llm_provider)
     if not source.exists():
         console.print(f"[red]Error:[/red] source file not found: {source}")
         raise typer.Exit(code=1)
@@ -566,12 +581,13 @@ def compare(
         from j2py.pipeline import translate_file
 
         cfg = _load_config(config, source.parent)
+        provider, effective_model = _resolve_llm_options(cfg, llm_provider, model)
         console.print(f"[bold]Translating[/bold] {source}")
         result = translate_file(
             source,
             cfg=cfg,
             use_llm=llm,
-            model=model,
+            model=effective_model,
             llm_provider=provider,
             validate=validate,
         )

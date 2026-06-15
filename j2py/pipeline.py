@@ -61,20 +61,21 @@ def translate_file(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str | None = None,
-    llm_provider: LLMProvider = "anthropic",
+    llm_provider: LLMProvider | None = None,
     validate: bool = True,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
     parsed = parse_file(path)
     symbols = extract_symbols(parsed)
+    effective_model, effective_provider = _resolve_llm_runtime(cfg, model, llm_provider)
     return _translate_parsed_file(
         path,
         parsed=parsed,
         symbols=symbols,
         cfg=cfg,
         use_llm=use_llm,
-        model=model,
-        llm_provider=llm_provider,
+        model=effective_model,
+        llm_provider=effective_provider,
         validate=validate,
         validation_path=path.with_suffix(".py"),
     )
@@ -299,13 +300,14 @@ def translate_directory(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str | None = None,
-    llm_provider: LLMProvider = "anthropic",
+    llm_provider: LLMProvider | None = None,
     validate: bool = True,
     workers: int | None = None,
     llm_concurrency: int | None = None,
     incremental: bool = False,
 ) -> DirectoryTranslationResult:
     """Translate a directory using dependency order and package-relative outputs."""
+    effective_model, effective_provider = _resolve_llm_runtime(cfg, model, llm_provider)
     java_files = sorted(source_root.rglob("*.java"))
     parsed_files = [parse_file(path) for path in java_files]
     parsed_by_path = dict(zip(java_files, parsed_files, strict=True))
@@ -362,8 +364,8 @@ def translate_directory(
             parsed_by_path=parsed_by_path,
             cfg=cfg,
             use_llm=use_llm,
-            model=model,
-            llm_provider=llm_provider,
+            model=effective_model,
+            llm_provider=effective_provider,
             sibling_signatures=sibling_signatures,
             workers=effective_workers,
             llm_semaphore=llm_semaphore,
@@ -406,6 +408,16 @@ def translate_directory(
         skipped_count=sum(1 for result in results if result.skipped),
         translated_count=sum(1 for result in results if not result.skipped),
     )
+
+
+def _resolve_llm_runtime(
+    cfg: TranslationConfig,
+    model: str | None,
+    llm_provider: LLMProvider | None,
+) -> tuple[str | None, LLMProvider]:
+    provider = llm_provider or cfg.llm_provider or "anthropic"
+    effective_model = model if model is not None else cfg.model
+    return effective_model, provider
 
 
 def _translate_ready_paths(

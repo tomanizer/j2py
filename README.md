@@ -135,7 +135,8 @@ GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
 ```
 
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
-`pyproject.toml`, or `j2py_config.py`. See
+`pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and
+`model` values there, while CLI flags override them for one command. See
 [docs/configuration.md](docs/configuration.md) for the schema.
 
 ## Quality gates

@@ -35,6 +35,8 @@ def test_config_loader_loads_toml_config(tmp_path: Path) -> None:
         """
 emit_type_hints = false
 drop_imports = ["java.io.Serializable"]
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
 
 [type_map]
 LegacyBean = "dict"
@@ -46,6 +48,8 @@ LegacyBean = "dict"
     assert not cfg.emit_type_hints
     assert cfg.type_map["LegacyBean"] == "dict"
     assert "java.io.Serializable" in cfg.drop_imports
+    assert cfg.llm_provider == "gemini"
+    assert cfg.model == "gemini-3.5-flash"
 
 
 def test_config_loader_loads_pyproject_tool_section(tmp_path: Path) -> None:
@@ -103,6 +107,20 @@ def test_config_loader_rejects_unknown_key_with_suggestion(tmp_path: Path) -> No
     message = str(exc_info.value)
     assert "Unknown config key: 'type_maps'" in message
     assert "Did you mean 'type_map'?" in message
+
+
+def test_config_loader_rejects_unknown_llm_provider(tmp_path: Path) -> None:
+    config_file = tmp_path / "j2py.toml"
+    config_file.write_text('llm_provider = "openai"\n')
+
+    with pytest.raises(ConfigError) as exc_info:
+        ConfigLoader().add_defaults().add_file(config_file).build()
+
+    message = str(exc_info.value)
+    assert "llm_provider" in message
+    assert "unsupported LLM provider" in message
+    assert "anthropic" in message
+    assert "gemini" in message
 
 
 def test_config_loader_auto_discovers_pyproject(tmp_path: Path) -> None:
