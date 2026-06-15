@@ -1,1 +1,1 @@
-"""LLM-assisted translation via Claude."""
+"""LLM-assisted translation via configured providers."""

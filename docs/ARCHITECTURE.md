@@ -53,7 +53,7 @@ Java source file(s)
         │  coverage < 1.0 or syntax/type pre-validation fails
         ▼
 ┌───────────────┐
-│   llm/        │  Claude API (Anthropic SDK)
+│   llm/        │  configured LLM provider (Anthropic or Gemini)
 │               │  prompts.py  → structured system + user messages
 │               │  client.py   → disk-cached, tenacity retry
 └───────┬───────┘
@@ -143,10 +143,10 @@ Java source file(s)
 - `prompts.py`: builds a structured prompt with the Java source, partial skeleton, and
   project context plus rule diagnostics; output is plain Python source (no markdown
   fences)
-- `client.py`: Anthropic SDK wrapper with API-key preflight; disk-cached at
-  `~/.cache/j2py/llm/`; cache keys include prompt version, file hashes, model, config
-  fingerprint, diagnostics, and validation feedback; 3 retries with exponential
-  back-off via `tenacity`
+- `client.py`: provider dispatcher for Anthropic and Gemini SDK calls with API-key
+  preflight; disk-cached at `~/.cache/j2py/llm/`; cache keys include provider, prompt
+  version, file hashes, model, config fingerprint, diagnostics, and validation feedback;
+  3 retries with exponential back-off via `tenacity`
 - `harvest.py`: appends deterministic repair records to `.j2py/harvest/records.jsonl`
   when the LLM runs; see [LLM_HARVEST.md](LLM_HARVEST.md)
 
@@ -167,9 +167,9 @@ Java source file(s)
 - `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`
 
 ### `pipeline.py` — Orchestrator
-- `translate_file(path, cfg, use_llm, model, validate) → TranslationResult`
-- `translate_directory(source_root, output_root, cfg, use_llm, model, validate) →
-  DirectoryTranslationResult`
+- `translate_file(path, cfg, use_llm, model, llm_provider, validate) → TranslationResult`
+- `translate_directory(source_root, output_root, cfg, use_llm, model, llm_provider,
+  validate) → DirectoryTranslationResult`
 - Calls parse → analyze → skeleton → (optionally) LLM with post-LLM verification →
   validation
 - Directory mode builds the dependency graph and translates files in dependency order
@@ -189,7 +189,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 |---|---|
 | tree-sitter for parsing | [ADR 0002](decisions/0002-tree-sitter-for-java-parsing.md) |
 | Layered rule → LLM pipeline | [ADR 0003](decisions/0003-layered-translation-pipeline.md) |
-| Claude (Anthropic) as LLM backend | [ADR 0004](decisions/0004-claude-as-llm-backend.md) |
+| LLM backend provider selection | [ADR 0004](decisions/0004-claude-as-llm-backend.md), [ADR 0017](decisions/0017-multi-provider-llm-backend.md) |
 | Python 3.11+ output with type hints | [ADR 0005](decisions/0005-python-311-target-with-type-hints.md) |
 | Overload translation policy | [ADR 0006](decisions/0006-overload-translation-policy.md), [ADR 0009](decisions/0009-two-tier-overload-translation.md), [ADR 0013](decisions/0013-static-overload-dispatch.md) |
 | Type declaration translation | [ADR 0007](decisions/0007-type-declaration-translation.md) |

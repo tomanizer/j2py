@@ -18,7 +18,8 @@ Java source
 ```
 
 The **rule layer** handles common language constructs deterministically (~70% of typical
-code). Where rules stop, **Claude** (optional) fills gaps using disk-cached prompts.
+code). Where rules stop, an optional configured LLM provider fills gaps using disk-cached
+prompts.
 Every file gets a **confidence** score based on rule-layer coverage and structured
 diagnostics for anything left unhandled.
 
@@ -46,7 +47,7 @@ Deterministic support today includes:
 - configured import emission, naming policy, type maps, exception maps, and comment flags
 - dependency-ordered directory translation
 - structured diagnostics, confidence scoring, validation, post-LLM structural
-  verification, and optional Anthropic completion
+  verification, and optional Anthropic or Gemini completion
 - side-by-side Java/Python review via `j2py compare`
 
 Known gaps include:
@@ -120,10 +121,17 @@ Print compare paths without opening an editor:
 uv run j2py compare tests/fixtures/java/HelloWorld.java --no-open --no-llm
 ```
 
-LLM completion (requires `ANTHROPIC_API_KEY`):
+LLM completion with the default Anthropic provider (requires `ANTHROPIC_API_KEY`):
 
 ```bash
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
+```
+
+LLM completion with Gemini Flash (requires `GEMINI_API_KEY`):
+
+```bash
+GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
+  --llm-provider gemini --model gemini-3.5-flash
 ```
 
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in

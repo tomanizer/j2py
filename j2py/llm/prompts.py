@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from anthropic.types import TextBlockParam
+from typing import Any, NotRequired, TypedDict
 
 PROMPT_VERSION = "j2py-translation-v8"
+
+
+class TextPromptBlock(TypedDict):
+    """Provider-neutral text block used by LLM clients."""
+
+    type: str
+    text: str
+    cache_control: NotRequired[dict[str, str]]
+
 
 SYSTEM_PROMPT = (
     """\
@@ -81,13 +88,13 @@ def build_translation_prompt(
     diagnostics: str = "",
     validation_feedback: str = "",
     previous_python: str = "",
-) -> tuple[list[TextBlockParam], list[dict[str, Any]]]:
+) -> tuple[list[TextPromptBlock], list[dict[str, Any]]]:
     """Build the system prompt and messages list for a translation call.
 
     Returns:
-        (system_prompt_blocks, messages) ready for the Anthropic messages API.
+        (system_prompt_blocks, messages) ready for provider-specific client adapters.
     """
-    system: list[TextBlockParam] = [
+    system: list[TextPromptBlock] = [
         {
             "type": "text",
             "text": SYSTEM_PROMPT,

@@ -1,7 +1,7 @@
 # ADR 0004 — Use Claude (Anthropic SDK) as LLM backend
 
 **Date:** 2026-06-10
-**Status:** Accepted
+**Status:** Accepted, extended by [ADR 0017](0017-multi-provider-llm-backend.md)
 
 ## Context
 
@@ -40,8 +40,8 @@ Default model: `claude-sonnet-4-6` (configurable via `--model` CLI flag and
 + Disk cache makes large-project translation incremental (only changed files re-hit API)
 − Requires `ANTHROPIC_API_KEY` in environment; `j2py --no-llm` skips the LLM layer
   entirely for offline/CI use
-− Switching LLM providers requires a code change to `llm/client.py`; a new ADR would
-  be needed at that point
+− Additional providers beyond Anthropic require explicit ADR coverage and client changes
+  ([ADR 0017](0017-multi-provider-llm-backend.md) adds Gemini)
 
 ## References
 

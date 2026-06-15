@@ -38,6 +38,7 @@ dependencies = [
     "tree-sitter-java>=0.23",
     "networkx>=3.3",
     "anthropic>=0.30",
+    "google-genai>=1.0",
     "pydantic>=2.7",
     "typer>=0.12",
     "rich>=13.7",
@@ -133,7 +134,7 @@ markers = [
     "behavior: Java/Python behavior-equivalence tests that require a local JDK. Excluded from normal test runs; run with: pytest -m behavior tests/behavior",
     "target_translation: strict xfail contracts for future Java-to-Python roadmap targets",
     "equivalence: runtime equivalence gate — rule-layer translation of a vendored real-library class run against literal-oracle assertions ported from its upstream unit tests. Runs in make check (no JDK, no LLM).",
-    "live_llm: end-to-end exploratory tests that make live calls to the Anthropic API. These are excluded from normal test runs and make check. Run on demand with: ANTHROPIC_API_KEY=... pytest -m live_llm tests/llm/test_e2e_llm.py -v -s",
+    "live_llm: end-to-end exploratory tests that make live calls to an LLM provider. These are excluded from normal test runs and make check. Run Anthropic probes on demand with: ANTHROPIC_API_KEY=... pytest -m live_llm tests/llm/test_e2e_llm.py -v -s",
 ]
 
 [tool.coverage.run]

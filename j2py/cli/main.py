@@ -6,7 +6,7 @@ import json
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, cast
 
 import networkx as nx
 import typer
@@ -28,6 +28,17 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+LLMProvider = Literal["anthropic", "gemini"]
+
+
+def _normalize_llm_provider(value: str) -> LLMProvider:
+    normalized = value.lower()
+    if normalized not in {"anthropic", "gemini"}:
+        raise typer.BadParameter(
+            "unsupported LLM provider; choose 'anthropic' or 'gemini'",
+            param_hint="--llm-provider",
+        )
+    return cast(LLMProvider, normalized)
 
 
 @app.command()
@@ -42,7 +53,17 @@ def translate(
         "--llm/--no-llm",
         help="Use LLM completion for unresolved logic (requires the configured LLM API key).",
     ),
-    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model ID to use."),
+    llm_provider: str = typer.Option(
+        "anthropic",
+        "--llm-provider",
+        help="LLM provider to use for completion: anthropic or gemini.",
+    ),
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="LLM model ID to use. Defaults depend on --llm-provider.",
+    ),
     validate: bool = typer.Option(
         True, "--validate/--no-validate", help="Run mypy + ruff on output."
     ),
@@ -84,6 +105,7 @@ def translate(
 ) -> None:
     """Translate a Java file or directory tree to Python."""
     cfg = _load_config(config, source if source.is_dir() else source.parent)
+    provider = _normalize_llm_provider(llm_provider)
 
     if source.is_dir():
         _translate_dir(
@@ -92,6 +114,7 @@ def translate(
             cfg,
             llm,
             model,
+            provider,
             validate,
             dry_run,
             report,
@@ -102,7 +125,18 @@ def translate(
             json_output,
         )
     else:
-        _translate_single(source, output, cfg, llm, model, validate, dry_run, report, json_output)
+        _translate_single(
+            source,
+            output,
+            cfg,
+            llm,
+            model,
+            provider,
+            validate,
+            dry_run,
+            report,
+            json_output,
+        )
 
 
 def _translate_single(
@@ -110,7 +144,8 @@ def _translate_single(
     output: Path | None,
     cfg: TranslationConfig,
     llm: bool,
-    model: str,
+    model: str | None,
+    llm_provider: LLMProvider,
     validate: bool,
     dry_run: bool,
     report: Path | None,
@@ -120,7 +155,14 @@ def _translate_single(
 
     if not json_output:
         console.print(f"[bold]Translating[/bold] {source}")
-    result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
+    result = translate_file(
+        source,
+        cfg=cfg,
+        use_llm=llm,
+        model=model,
+        llm_provider=llm_provider,
+        validate=validate,
+    )
     if json_output:
         console.print(json.dumps(_result_payload(result), indent=2, sort_keys=True))
     else:
@@ -173,7 +215,8 @@ def _translate_dir(
     output: Path,
     cfg: TranslationConfig,
     llm: bool,
-    model: str,
+    model: str | None,
+    llm_provider: LLMProvider,
     validate: bool,
     dry_run: bool,
     report: Path | None,
@@ -196,6 +239,7 @@ def _translate_dir(
         cfg=cfg,
         use_llm=llm,
         model=model,
+        llm_provider=llm_provider,
         validate=validate,
         workers=workers or cfg.workers,
         llm_concurrency=llm_concurrency or cfg.llm_concurrency,
@@ -324,7 +368,17 @@ def watch(
         "--llm/--no-llm",
         help="Use LLM completion for unresolved logic.",
     ),
-    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model ID to use."),
+    llm_provider: str = typer.Option(
+        "anthropic",
+        "--llm-provider",
+        help="LLM provider to use for completion: anthropic or gemini.",
+    ),
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="LLM model ID to use. Defaults depend on --llm-provider.",
+    ),
     validate: bool = typer.Option(
         True, "--validate/--no-validate", help="Run mypy + ruff on output."
     ),
@@ -337,9 +391,10 @@ def watch(
 ) -> None:
     """Watch Java sources and incrementally re-translate changes until interrupted."""
     cfg = _load_config(config, source if source.is_dir() else source.parent)
+    provider = _normalize_llm_provider(llm_provider)
     console.print(f"[bold]Watching[/bold] {source} → {output}")
     seen = _java_hashes(source)
-    _run_watch_translation(source, output, cfg, llm, model, validate)
+    _run_watch_translation(source, output, cfg, llm, model, provider, validate)
     try:
         while True:
             time.sleep(poll_interval)
@@ -352,7 +407,7 @@ def watch(
                     console.print(f"[{timestamp}] Changed {path.name}")
                 for path in removed:
                     console.print(f"[{timestamp}] Removed {path.name}")
-                _run_watch_translation(source, output, cfg, llm, model, validate)
+                _run_watch_translation(source, output, cfg, llm, model, provider, validate)
                 seen = current
     except KeyboardInterrupt:
         console.print("[yellow]Stopped.[/yellow]")
@@ -464,7 +519,17 @@ def compare(
         "--llm/--no-llm",
         help="Use LLM when translating (default: off for speed).",
     ),
-    model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model ID to use."),
+    llm_provider: str = typer.Option(
+        "anthropic",
+        "--llm-provider",
+        help="LLM provider to use for completion: anthropic or gemini.",
+    ),
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="LLM model ID to use. Defaults depend on --llm-provider.",
+    ),
     editor: str = typer.Option(
         "code",
         "--editor",
@@ -482,6 +547,7 @@ def compare(
     ),
 ) -> None:
     """Open a side-by-side diff of a Java source file and its Python translation."""
+    provider = _normalize_llm_provider(llm_provider)
     if not source.exists():
         console.print(f"[red]Error:[/red] source file not found: {source}")
         raise typer.Exit(code=1)
@@ -501,7 +567,14 @@ def compare(
 
         cfg = _load_config(config, source.parent)
         console.print(f"[bold]Translating[/bold] {source}")
-        result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
+        result = translate_file(
+            source,
+            cfg=cfg,
+            use_llm=llm,
+            model=model,
+            llm_provider=provider,
+            validate=validate,
+        )
         _print_result_summary(result)
         py_path.parent.mkdir(parents=True, exist_ok=True)
         py_path.write_text(result.python_source)
@@ -646,7 +719,8 @@ def _run_watch_translation(
     output: Path,
     cfg: TranslationConfig,
     llm: bool,
-    model: str,
+    model: str | None,
+    llm_provider: LLMProvider,
     validate: bool,
 ) -> None:
     from j2py.pipeline import translate_directory, translate_file
@@ -658,6 +732,7 @@ def _run_watch_translation(
             cfg=cfg,
             use_llm=llm,
             model=model,
+            llm_provider=llm_provider,
             validate=validate,
             incremental=True,
             workers=cfg.workers,
@@ -694,7 +769,14 @@ def _run_watch_translation(
         )
         return
 
-    result = translate_file(source, cfg=cfg, use_llm=llm, model=model, validate=validate)
+    result = translate_file(
+        source,
+        cfg=cfg,
+        use_llm=llm,
+        model=model,
+        llm_provider=llm_provider,
+        validate=validate,
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(result.python_source)
     _emit_runtime_module(output.parent, [result.python_source])

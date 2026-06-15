@@ -63,7 +63,8 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         validation_feedback: str,
         previous_python: str,
         config_fingerprint: str,
-        model: str,
+        model: str | None,
+        provider: str,
     ) -> str:
         assert "public class PartialUnsupported" in java_source
         assert "__j2py_todo__('new int[rows][cols]')" in partial_python
@@ -73,6 +74,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         assert previous_python == ""
         assert config_fingerprint
         assert model == "claude-test"
+        assert provider == "anthropic"
         return PARTIAL_LLM_OUTPUT
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
@@ -90,6 +92,28 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     assert result.structural_verification is not None
     assert result.structural_verification.ok
     assert result.python_source == PARTIAL_LLM_OUTPUT
+
+
+def test_translate_file_forwards_gemini_provider_to_llm(monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        observed.update(kwargs)
+        return PARTIAL_LLM_OUTPUT
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_file(
+        PARTIAL_FIXTURE,
+        cfg=CFG,
+        use_llm=True,
+        model="gemini-test",
+        llm_provider="gemini",
+    )
+
+    assert result.used_llm
+    assert observed["provider"] == "gemini"
+    assert observed["model"] == "gemini-test"
 
 
 def test_translate_file_uses_full_prevalidation_for_invalid_full_coverage_skeleton(

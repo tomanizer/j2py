@@ -32,7 +32,7 @@
 | Document | Description |
 |----------|-------------|
 | [decisions/0001-record-architecture-decisions.md](decisions/0001-record-architecture-decisions.md) | ADR process template |
-| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0017 (parser, pipeline, LLM, overloads, equivalence, harvest, ...) |
+| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0018 (parser, pipeline, LLM providers, overloads, equivalence, harvest, ...) |
 | [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Dated maturity and gap audit snapshot |
 | [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Prior rule-layer breadth snapshot |
 

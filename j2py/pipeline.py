@@ -27,6 +27,7 @@ from j2py.verify.structure import StructuralVerificationResult, verify_structure
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
+LLMProvider = Literal["anthropic", "gemini"]
 
 
 @dataclass
@@ -59,7 +60,8 @@ def translate_file(
     *,
     cfg: TranslationConfig,
     use_llm: bool = True,
-    model: str = "claude-sonnet-4-6",
+    model: str | None = None,
+    llm_provider: LLMProvider = "anthropic",
     validate: bool = True,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
@@ -72,6 +74,7 @@ def translate_file(
         cfg=cfg,
         use_llm=use_llm,
         model=model,
+        llm_provider=llm_provider,
         validate=validate,
         validation_path=path.with_suffix(".py"),
     )
@@ -84,7 +87,8 @@ def _translate_parsed_file(
     symbols: FileSymbols,
     cfg: TranslationConfig,
     use_llm: bool,
-    model: str,
+    model: str | None,
+    llm_provider: LLMProvider,
     validate: bool,
     validation_path: Path,
     sibling_signatures: dict[str, str] | None = None,
@@ -105,7 +109,7 @@ def _translate_parsed_file(
     # Coverage < 1.0 means the rule layer left gaps; coverage == 1.0 means it translated
     # every construct but may still have produced semantically invalid output (e.g. undefined
     # names from Java constructs the rules don't fully understand).  We pre-validate and
-    # thread any errors into the LLM call as validation_feedback so Claude can fix them.
+    # thread any errors into the LLM call as validation_feedback so the provider can fix them.
     # Ruff lint failures alone do not trigger the LLM — only syntax and type errors do.
     validation_feedback = ""
     should_use_llm = False
@@ -132,7 +136,7 @@ def _translate_parsed_file(
                     validation_feedback = "\n".join(syntax_errors)
 
     if should_use_llm:
-        from j2py.llm.client import translate_with_llm
+        from j2py.llm.client import resolve_model, translate_with_llm
 
         java_source = path.read_text()
         context = _project_context(symbols, sibling_signatures=sibling_signatures)
@@ -150,6 +154,7 @@ def _translate_parsed_file(
             previous_python="",
             config_fingerprint=config_fingerprint,
             model=model,
+            provider=llm_provider,
         )
         used_llm = True
         validation = validate_source(python_source, validation_path) if validate else None
@@ -170,6 +175,7 @@ def _translate_parsed_file(
                 previous_python=previous_python,
                 config_fingerprint=config_fingerprint,
                 model=model,
+                provider=llm_provider,
             )
             validation = validate_source(python_source, validation_path) if validate else None
             structural_verification = verify_structure(symbols, python_source)
@@ -180,7 +186,7 @@ def _translate_parsed_file(
             java_source=java_source,
             skeleton=skeleton,
             final_python=python_source,
-            model=model,
+            model=resolve_model(llm_provider, model),
             coverage=coverage,
             diagnostics=skeleton_result.diagnostics,
             pre_validation=skeleton_pre_validation,
@@ -292,7 +298,8 @@ def translate_directory(
     *,
     cfg: TranslationConfig,
     use_llm: bool = True,
-    model: str = "claude-sonnet-4-6",
+    model: str | None = None,
+    llm_provider: LLMProvider = "anthropic",
     validate: bool = True,
     workers: int | None = None,
     llm_concurrency: int | None = None,
@@ -356,6 +363,7 @@ def translate_directory(
             cfg=cfg,
             use_llm=use_llm,
             model=model,
+            llm_provider=llm_provider,
             sibling_signatures=sibling_signatures,
             workers=effective_workers,
             llm_semaphore=llm_semaphore,
@@ -410,7 +418,8 @@ def _translate_ready_paths(
     parsed_by_path: dict[Path, ParsedFile],
     cfg: TranslationConfig,
     use_llm: bool,
-    model: str,
+    model: str | None,
+    llm_provider: LLMProvider,
     sibling_signatures: dict[str, dict[str, str]],
     workers: int,
     llm_semaphore: threading.Semaphore,
@@ -447,6 +456,7 @@ def _translate_ready_paths(
             cfg=cfg,
             use_llm=use_llm,
             model=model,
+            llm_provider=llm_provider,
             validate=False,
             validation_path=output_path,
             sibling_signatures=direct_sibling_signatures,
