@@ -1,5 +1,6 @@
 """CLI smoke tests."""
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -705,6 +706,53 @@ def test_cli_translate_json_output_is_machine_readable(tmp_path: Path) -> None:
     assert '"confidence": 1.0' in result.output
     assert '"todos": []' in result.output
     assert "Translating" not in result.output
+
+
+def test_cli_translate_surfaces_clamped_confidence_consistently(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Division.java").write_text(
+        """
+        package com.example;
+        public class Division {
+            public int half(int value) {
+                return value / 2;
+            }
+        }
+        """,
+    )
+    output = tmp_path / "out"
+    dashboard = tmp_path / "dashboard.html"
+    report = tmp_path / "report.html"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--output",
+            str(output),
+            "--dashboard",
+            str(dashboard),
+            "--report",
+            str(report),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    translated = payload["files"][0]
+    assert translated["confidence"] == 0.99
+    assert translated["semantic_warnings"]
+
+    state = json.loads((output / ".j2py-state.json").read_text())
+    assert state["files"]["Division.java"]["confidence"] == 0.99
+    assert '"confidence": 0.99' in dashboard.read_text()
+    assert ">99%<" in report.read_text()
 
 
 def test_cli_translate_incremental_reports_skipped_files(tmp_path: Path) -> None:
