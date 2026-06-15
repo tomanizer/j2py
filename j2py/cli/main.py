@@ -690,6 +690,17 @@ def _result_payload(result: TranslationResult) -> dict[str, object]:
             "errors": structural.errors,
         },
         "todos": _todo_lines(result.python_source),
+        "semantic_warnings": []
+        if diagnostics is None
+        else [
+            {
+                "line": item.line,
+                "node_type": item.node_type,
+                "reason": item.reason,
+                "text": item.text,
+            }
+            for item in diagnostics.warnings
+        ],
         "unhandled": []
         if diagnostics is None
         else [
@@ -807,10 +818,12 @@ def _print_result_summary(result: TranslationResult) -> None:
     diagnostics = result.diagnostics
     handled = len(diagnostics.handled) if diagnostics is not None else 0
     unhandled = len(diagnostics.unhandled) if diagnostics is not None else 0
+    warnings = diagnostics.semantic_warning_count if diagnostics is not None else 0
     parse_note = "" if result.parse_ok else ", parse_ok=False"
     console.print(
         f"[dim]{result.source_path.name}: confidence={result.confidence:.2f}, "
-        f"handled={handled}, unhandled={unhandled}, llm={result.used_llm}{parse_note}[/dim]",
+        f"handled={handled}, unhandled={unhandled}, warnings={warnings}, "
+        f"llm={result.used_llm}{parse_note}[/dim]",
     )
     if not result.parse_ok:
         console.print(f"[yellow]Warning:[/yellow] {PARSE_ERROR_LLM_SKIP_MSG}")

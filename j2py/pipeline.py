@@ -28,6 +28,8 @@ PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini"]
+SEMANTIC_WARNING_CONFIDENCE_CAP = 0.99
+REVIEW_REQUIRED_CONFIDENCE_CAP = 0.79
 
 
 @dataclass
@@ -35,7 +37,7 @@ class TranslationResult:
     source_path: Path
     python_source: str
     used_llm: bool = False
-    confidence: float = 1.0  # rule-layer coverage (0.0–1.0); not updated after LLM completion
+    confidence: float = 1.0  # user-facing review confidence; raw coverage is diagnostics.coverage
     parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
@@ -200,7 +202,13 @@ def _translate_parsed_file(
         validation = validate_source(python_source, validation_path) if validate else None
         structural_verification = None
 
-    confidence = 0.0 if not parse_ok else coverage
+    confidence = _surface_confidence(
+        rule_coverage=coverage,
+        parse_ok=parse_ok,
+        diagnostics=skeleton_result.diagnostics,
+        validation=validation,
+        structural_verification=structural_verification,
+    )
 
     return TranslationResult(
         source_path=path,
@@ -224,6 +232,42 @@ def _call_llm(
         return translate_with_llm(**kwargs)
     with llm_semaphore:
         return translate_with_llm(**kwargs)
+
+
+def _surface_confidence(
+    *,
+    rule_coverage: float,
+    parse_ok: bool,
+    diagnostics: TranslationDiagnostics,
+    validation: ValidationResult | None,
+    structural_verification: StructuralVerificationResult | None,
+) -> float:
+    """Return the user-facing trust score, keeping raw node coverage on diagnostics."""
+    if not parse_ok:
+        return 0.0
+    confidence = rule_coverage
+    if diagnostics.semantic_warning_count:
+        # Semantic warnings preserve raw coverage ordering, but they must never present
+        # as perfect trust.
+        confidence = min(confidence, SEMANTIC_WARNING_CONFIDENCE_CAP)
+    if validation is not None and not validation.ok:
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
+    if structural_verification is not None and not structural_verification.ok:
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
+    return confidence
+
+
+def _refresh_result_confidence(result: TranslationResult) -> None:
+    """Recompute surfaced confidence after late validation or verification updates."""
+    if result.diagnostics is None:
+        return
+    result.confidence = _surface_confidence(
+        rule_coverage=result.diagnostics.coverage,
+        parse_ok=result.parse_ok,
+        diagnostics=result.diagnostics,
+        validation=result.validation,
+        structural_verification=result.structural_verification,
+    )
 
 
 def _syntax_errors(source: str, filename: str = "<string>") -> list[str]:
@@ -391,6 +435,7 @@ def translate_directory(
         for result in results:
             if result.output_path is not None and result.output_path in validation_results:
                 result.validation = validation_results[result.output_path]
+                _refresh_result_confidence(result)
 
     graph_warnings = [str(warning.message) for warning in caught]
     parse_warnings = [

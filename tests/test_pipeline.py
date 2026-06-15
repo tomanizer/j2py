@@ -14,7 +14,7 @@ from j2py.pipeline import (
     translate_file,
 )
 from j2py.state import entry_from_result, save_state, source_key
-from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.diagnostics import TranslationDiagnostic, TranslationDiagnostics
 from j2py.translate.skeleton import SkeletonTranslation
 from j2py.validate.checks import ValidationResult
 
@@ -51,6 +51,74 @@ def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
     assert result.validation is not None
     assert "__j2py_todo__('new int[rows][cols]')" in result.python_source
     ast.parse(result.python_source)
+
+
+def test_translate_file_clamps_confidence_for_semantic_warnings(tmp_path: Path) -> None:
+    source = tmp_path / "Division.java"
+    source.write_text(
+        """
+        public class Division {
+            public int half(int value) {
+                return value / 2;
+            }
+        }
+        """,
+    )
+
+    result = translate_file(source, cfg=CFG, use_llm=False, validate=True)
+
+    assert result.diagnostics is not None
+    assert result.diagnostics.coverage == 1.0
+    assert result.diagnostics.semantic_warning_count > 0
+    assert result.validation is not None
+    assert result.validation.ok
+    assert result.confidence == 0.99
+
+
+def test_translate_file_clamps_confidence_for_validation_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("public class Broken {}")
+
+    def fake_skeleton(*args, **kwargs) -> SkeletonTranslation:
+        diagnostics = TranslationDiagnostics()
+        diagnostics.handled.append(
+            TranslationDiagnostic(
+                node_type="class_declaration",
+                line=1,
+                text="public class Broken {}",
+                reason="fake full coverage",
+            )
+        )
+        return SkeletonTranslation(
+            source="def broken(:\n",
+            coverage=1.0,
+            diagnostics=diagnostics,
+        )
+
+    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=False,
+            syntax_errors=["SyntaxError: invalid syntax"],
+        )
+
+    monkeypatch.setattr(
+        skeleton_module,
+        "translate_skeleton_with_diagnostics",
+        fake_skeleton,
+    )
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+
+    result = translate_file(source, cfg=CFG, use_llm=False, validate=True)
+
+    assert result.diagnostics is not None
+    assert result.diagnostics.coverage == 1.0
+    assert result.validation is not None
+    assert not result.validation.ok
+    assert result.confidence == 0.79
 
 
 def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> None:
@@ -594,6 +662,39 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
     assert list(calls[0]) == [output / "com" / "example" / "A.py"]
     assert result.files[0].validation is not None
     assert result.files[0].validation.ok
+
+
+def test_translate_directory_clamps_confidence_after_batched_validation_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "A.java").write_text("package com.example; public class A {}")
+
+    def fake_validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
+        return {
+            path: ValidationResult(
+                path=path,
+                syntax_ok=True,
+                ruff_ok=True,
+                mypy_ok=False,
+                mypy_errors=["A.py:1: error: simulated failure"],
+            )
+            for path in files
+        }
+
+    monkeypatch.setattr(pipeline, "validate_directory", fake_validate_directory)
+
+    result = translate_directory(source, output, cfg=CFG, use_llm=False, validate=True)
+
+    translated = result.files[0]
+    assert translated.diagnostics is not None
+    assert translated.diagnostics.coverage == 1.0
+    assert translated.validation is not None
+    assert not translated.validation.ok
+    assert translated.confidence == pipeline.REVIEW_REQUIRED_CONFIDENCE_CAP
 
 
 def test_translate_directory_batches_full_coverage_llm_prevalidation(
