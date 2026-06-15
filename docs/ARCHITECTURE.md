@@ -119,9 +119,9 @@ Java source file(s)
   facade (`translate_statement` / `translate_expression`) so callers have one stable
   entry point and diagnostics/import side effects remain centralized. Add implementation
   helpers to the focused `stmt_*` or `expr_*` module that owns the construct family.
-  Direct imports of private helpers from split modules should stay inside the facade
-  routers or closely related sibling helpers where needed to avoid circular imports; new
-  pipeline, class, and test code should call the facades.
+  Function-level (lazy) imports of private helpers from split modules should be used inside
+  the facade routers to avoid circular imports; new pipeline, class, and test code should
+  always call the facades.
 - The rule layer is intentionally imperative today; a prior unused declarative
   selector/transform prototype was removed.
 - `name_resolution.py` owns deterministic partial name binding for expression
