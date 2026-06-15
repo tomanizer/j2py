@@ -1846,6 +1846,29 @@ def test_ternary_and_object_creation_type_inference_keep_float_and_int_division_
     assert_valid_python(result.source)
 
 
+def test_nested_parentheses_around_division_operands_preserve_grouping() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public double halfChoice(boolean flag) {
+                return ((flag ? 1 : 2.0)) / 2;
+            }
+
+            public double halfSwitch(int value) {
+                return ((switch (value) { case 0 -> 4.0; default -> 8.0; })) / 2.0;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (1 if flag else 2.0) / 2" in result.source
+    assert "return 1 if flag else 2.0 / 2" not in result.source
+    assert "return (4.0 if value == 0 else 8.0) / 2.0" in result.source
+    assert "return 4.0 if value == 0 else 8.0 / 2.0" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_switch_expression_division_operand_preserves_grouping() -> None:
     result = translate_source_with_diagnostics(
         """
