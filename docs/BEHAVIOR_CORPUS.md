@@ -52,7 +52,8 @@ layer improves, widen this list and add cases.
 - Inheritance via top-level `extends`/`implements`, `super.method()`, abstract classes,
   interfaces, polymorphism through `List<Iface>`.
 - Output of **ints and Strings only**.
-- Arithmetic with `+ - * %` and bitwise `& | ^`. Comparisons, `&&`/`||`/`!`, ternaries.
+- Arithmetic with `+ - * %`, Java-style integer `/` and `/=`, parenthesized grouping, and
+  bitwise `& | ^`. Comparisons, `&&`/`||`/`!`, ternaries.
 - `if`/`else if`/`else`, `while`, `do/while`, counted `for (int i = 0; i < N; i++)`,
   ascending/descending, nested loops, `break`, `continue`, `switch` (in a method).
 - Strings: `length`, `toUpperCase`, `toLowerCase`, `replace`, `trim`, `isEmpty`,
@@ -60,20 +61,18 @@ layer improves, widen this list and add cases.
 - Arrays (`int[]`, `String[]`, `int[][]`): literals, indexing, `.length`, enhanced-for.
 - `List<T>` via simple import: `add`, `get`, `size`, `contains`, enhanced-for,
   `Collections.sort`. `Math.max/min/abs`, `Integer.parseInt`.
+- Static helper methods calling sibling static methods; methods whose names collide with
+  Python builtins, as long as calls stay within the translated class/module.
 - `throw new …Exception("msg")`, `try/catch/finally` printing a literal.
 
 **Avoid (known rule-layer gaps — these belong to the LLM layer, not this gate)**
 
 - Printing raw `boolean` (`true`≠`True`), `null` (`null`≠`None`), `float`, or a `char`.
-- Parenthesised arithmetic grouping such as `(a + b) * c` — see the precedence note below;
-  use a temporary variable instead.
-- Integer `/` and `/=` (the rule layer defers mixed integer division to the LLM).
 - `String.charAt` / `substring` / `indexOf`; `StringBuilder`; `Map` / `.put`; enums.
 - Nested classes referenced from a `static main`, static fields/constants read from code,
-  static helper methods calling sibling statics (references are not class-qualified).
+  or classpath-dependent static imports.
 - A field and a method with the same name (Java namespaces them; Python does not).
-- `string = string + int` outside `println`; method names equal to Python builtins
-  (e.g. `sum`); `++`/`--` used as a sub-expression.
+- `string = string + int` outside `println`; `++`/`--` used as a sub-expression.
 
 These avoidances are not arbitrary style rules — each one is a construct where rule-layer
 output currently diverges from Java at runtime. They are tracked as rule-layer improvement

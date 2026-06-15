@@ -95,8 +95,8 @@ presence plus declaration order. Structural failures feed a single LLM repair re
 Provide measurable quality signal without live LLM in normal CI:
 
 - **Graduated fixtures** — Java/Python pairs and roadmap targets in `make check`
-- **Equivalence gate** — literal-oracle differential tests and strict-xfail blockers on
-  harvested library code (`tests/equivalence/`, Phase 1 partial)
+- **Equivalence gate** — literal-oracle differential tests on harvested library code
+  (`tests/equivalence/`, Phase 1 active)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
   (`make test-behavior`, separate CI workflow)
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
@@ -128,9 +128,10 @@ Provide measurable quality signal without live LLM in normal CI:
    200-class project in under 10 seconds.
 5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior` and
    `live_llm`) — currently **2,000+** tests including graduated constructs, the
-   CharUtils active equivalence gate, and the NumberUtils strict-xfail gate.
-6. Committed multi-library corpus baselines provide regression signal; `spring-dense` is
-   CI-gated against baseline drift.
+   CharUtils and NumberUtils literal-oracle equivalence gates.
+6. Committed multi-library corpus baselines provide regression signal; CI gates every
+   committed dense baseline (`spring-dense`, `guava-dense`, `commons-lang-dense`,
+   `jackson-dense`, and `caffeine-dense`) against baseline drift.
 7. Behavior and equivalence suites provide bounded runtime-correctness signal without
    requiring live LLM calls in normal CI.
 
