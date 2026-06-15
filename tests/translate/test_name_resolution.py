@@ -1,11 +1,16 @@
 """Direct tests for deterministic Java name binding."""
 
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_source
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.name_resolution import (
     FileNameBindings,
     NameResolver,
     NameScope,
     TypeBinding,
+    build_file_name_bindings,
 )
+from tests.translate.skeleton.helpers import CFG
 
 
 def resolve(
@@ -265,3 +270,67 @@ def test_unknown_identifier_respects_disabled_field_snake_case() -> None:
 
     assert resolved.kind == "unknown"
     assert resolved.python_name == "displayName"
+
+
+def test_build_file_name_bindings_captures_current_skeleton_inputs() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "drop_imports": {*CFG.drop_imports, "com.example.Dropped"},
+            "import_map": {
+                **CFG.import_map,
+                "com.example.ExternalThing": "from ext import ExternalThing as Thing",
+            },
+        },
+    )
+    parsed = parse_source(
+        """
+        package com.example;
+
+        import com.example.ExternalThing;
+        import com.example.Dropped;
+        import com.example.Plain;
+        import static java.lang.Math.PI;
+
+        public class UsesNames {}
+        """,
+    )
+    symbols = extract_symbols(parsed)
+
+    bindings = build_file_name_bindings(
+        parsed,
+        symbols,
+        cfg,
+        static_field_aliases={"PI": "math.pi"},
+        static_method_imports={"requireNonNull": "java.util.Objects.requireNonNull"},
+    )
+
+    assert bindings.package_name == "com.example"
+    assert bindings.compilation_unit_types == {"UsesNames"}
+    assert bindings.static_field_aliases == {"PI": "math.pi"}
+    assert bindings.static_method_imports == {
+        "requireNonNull": "java.util.Objects.requireNonNull",
+    }
+    assert bindings.imported_types["ExternalThing"] == TypeBinding(
+        raw_name="ExternalThing",
+        python_name="Thing",
+        source="import_map",
+    )
+    assert bindings.imported_types["Dropped"] == TypeBinding(
+        raw_name="Dropped",
+        python_name="Dropped",
+        source="drop_import",
+    )
+    assert bindings.imported_types["Plain"] == TypeBinding(
+        raw_name="Plain",
+        python_name="Plain",
+        import_line="from com.example.Plain import Plain",
+    )
+
+
+def test_translation_context_has_empty_name_resolver_by_default() -> None:
+    ctx = TranslationContext(cfg=CFG, diagnostics=TranslationDiagnostics())
+
+    resolved = ctx.name_resolver.resolve_identifier("externalThing", NameScope())
+
+    assert resolved.kind == "unknown"
+    assert resolved.python_name == "external_thing"

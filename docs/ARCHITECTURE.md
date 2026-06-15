@@ -24,7 +24,15 @@ Java source file(s)
 │   ├── rules/types.py   Java type → Python type hint   │
 │   ├── rules/naming.py  camelCase → snake_case          │
 │   ├── rules/literals.py null/true/false/chars         │
-│   ├── classes.py       Class/type declaration emitter │
+│   ├── classes.py           Class declaration facade / router
+│   ├── class_enums.py       Enum emission
+│   ├── class_interfaces.py  Protocol (interface) emission
+│   ├── class_annotations.py Annotation type emission
+│   ├── class_members.py     Member index, Javadoc, static dispatch
+│   ├── class_methods.py     Method/constructor emission
+│   ├── class_nested.py      Nested type emission
+│   ├── class_fields.py      Field extraction/emission
+│   ├── class_model.py       Shared dataclasses
 │   ├── statements.py    Statement emitter              │
 │   └── expressions.py   Expression emitter             │
 │                                                       │
@@ -72,9 +80,12 @@ Java source file(s)
 - `skeleton.py`: orchestrates the rule layer; returns source, diagnostics, and coverage
   - `coverage = 1.0` means the rule layer handled everything; LLM is skipped
   - Also exposes structured diagnostics via `translate_skeleton_with_diagnostics`
-- `classes.py`, `statements.py`, `expressions.py`: direct tree-sitter node visitors for
-  supported Java constructs. The rule layer is intentionally imperative today; a prior
-  unused declarative selector/transform prototype was removed.
+- `classes.py` is the class-declaration facade; `class_enums.py`, `class_interfaces.py`,
+  `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
+  hold declaration-kind emitters and shared helpers. `statements.py`, `expressions.py`:
+  direct tree-sitter node visitors for supported Java constructs. The rule layer is
+  intentionally imperative today; a prior unused declarative selector/transform prototype
+  was removed.
 - Class references in expression position are resolved through import/package bindings
   before normal identifier snake-casing. `skeleton.py` records explicit-import,
   import-map, and package context on `TranslationDiagnostics`; `expressions.py` consumes

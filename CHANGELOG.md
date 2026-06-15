@@ -8,6 +8,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Changed
+- Split `j2py/translate/classes.py` into focused `class_*` modules (`class_enums`,
+  `class_interfaces`, `class_annotations`, `class_members`, `class_methods`,
+  `class_nested`) with `classes.py` as the public facade; behavior-neutral refactor.
 - Documentation reframes the benchmark corpus as a multi-library measurement harness
   (Guava, Commons Lang, Jackson, Caffeine, Spring, and construct fixtures) instead of
   centering Spring Framework as the primary scoreboard (#201).
