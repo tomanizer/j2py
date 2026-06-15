@@ -109,7 +109,7 @@ make corpus-guava-dense-check
 make corpus-commons-lang-dense-check
 make corpus-jackson-dense-check
 make corpus-caffeine-dense-check
-make corpus-spring-dense-check      # Spring dense + construct fixtures (CI gate)
+make corpus-spring-dense-check      # Spring dense preset + construct fixtures
 ```
 
 Historical Spring lexical baseline (`spring-lexical` preset):
@@ -129,8 +129,8 @@ make corpus-spring-broad
 Low-level entry point (any preset):
 
 ```bash
-uv run python scripts/corpus/translate_spring_sample.py --preset guava-dense --clone
-uv run python scripts/corpus/translate_spring_sample.py --preset spring-dense --compare-baseline
+uv run python scripts/corpus/translate_corpus.py --preset guava-dense --clone
+uv run python scripts/corpus/translate_corpus.py --preset spring-dense --compare-baseline
 ```
 
 ## Reports workflow

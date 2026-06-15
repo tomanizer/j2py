@@ -23,9 +23,10 @@ from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import parse_source
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from scripts.corpus.corpus_presets import corpus_checkout_root
 
 REPO_ROOT = Path(__file__).parents[2]
-SPRING_CORPUS = REPO_ROOT / ".corpus" / "spring-framework"
+SPRING_CORPUS = corpus_checkout_root() / "spring-framework"
 NEEDS_API_KEY = pytest.mark.skipif(
     not os.environ.get("ANTHROPIC_API_KEY"),
     reason="ANTHROPIC_API_KEY not set",
@@ -126,8 +127,7 @@ def _format_diagnostics(diagnostics: TranslationDiagnostics) -> str:
     if not diagnostics.unhandled:
         return "No unresolved constructs from the rule layer."
     return "\n".join(
-        f"- line {item.line}: {item.node_type} - {item.reason}"
-        for item in diagnostics.unhandled
+        f"- line {item.line}: {item.node_type} - {item.reason}" for item in diagnostics.unhandled
     )
 
 

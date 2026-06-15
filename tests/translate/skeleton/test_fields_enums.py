@@ -1,10 +1,11 @@
 """Skeleton translator tests — fields, enums, and type declarations."""
 
-
+from pathlib import Path
 
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from scripts.corpus.corpus_presets import corpus_checkout_root
 from tests.translate.skeleton.helpers import (
     CFG,
     FIXTURES,
@@ -20,9 +21,6 @@ def test_field_without_constructor_assignment_uses_java_default() -> None:
     assert coverage == 1.0
     assert "self.count: int = 0" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_uninitialized_field_defaults_use_java_semantics() -> None:
@@ -54,9 +52,6 @@ def test_uninitialized_field_defaults_use_java_semantics() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_instance_field_initializer_can_reference_another_field() -> None:
     python_source, coverage = translate_source(
         """
@@ -72,9 +67,6 @@ def test_instance_field_initializer_can_reference_another_field() -> None:
     assert "self.copy: int = self.base" in python_source
     assert "self.copy: int = base" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
@@ -289,9 +281,6 @@ def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_enum_interface_names_skip_generic_type_arguments() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -304,9 +293,6 @@ def test_enum_interface_names_skip_generic_type_arguments() -> None:
     assert "# implements Comparable, Labelled" in result.source
     assert "# implements Comparable, Mode, Labelled" not in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_super_constructor_invocation_and_base_class_translate() -> None:
@@ -324,9 +310,6 @@ def test_super_constructor_invocation_and_base_class_translate() -> None:
     assert "class Child(Parent):" in python_source
     assert "super().__init__(name)" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
@@ -348,9 +331,6 @@ def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
         "self.mapper: Function[str, str] = _j2py_lambda_1",
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_grouping_by_in_field_initializer_emits_local_helper_in_init() -> None:
@@ -375,9 +355,6 @@ def test_grouping_by_in_field_initializer_emits_local_helper_in_init() -> None:
         "self.groups: dict[str, list[str]] = _j2py_groupby_1(items)",
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_interface_declaration_translates_to_protocol() -> None:
@@ -416,8 +393,7 @@ def test_sealed_interface_preserves_permits_and_nested_permitted_types() -> None
     assert "class ExtendedPending(Pending):" in result.source
     assert "# non-sealed" in result.source
     assert (
-        "SealedClassesPermitted = Success | Failure | Pending"
-        "  # sealed permitted subclasses"
+        "SealedClassesPermitted = Success | Failure | Pending  # sealed permitted subclasses"
     ) in result.source
     assert_valid_python(result.source)
 
@@ -440,9 +416,6 @@ def test_anonymous_class_captures_qualified_outer_this() -> None:
         warning.reason for warning in result.diagnostics.warnings
     }
     assert_valid_python(result.source)
-
-
-
 
 
 def test_annotation_type_declaration_translates_marker_to_dataclass() -> None:
@@ -577,12 +550,23 @@ def test_annotation_element_with_alias_for_modifiers_translates_default() -> Non
     assert_valid_python(result.source)
 
 
-def test_spring_stereotype_annotations_reach_full_coverage() -> None:
-    corpus_root = FIXTURES.parent.parent / ".corpus" / "spring-framework"
-    if not corpus_root.is_dir():
-        import pytest
+def _spring_corpus_root() -> Path:
+    return corpus_checkout_root() / "spring-framework"
 
-        pytest.skip("Spring corpus clone not available")
+
+def _skip_missing_spring_corpus(corpus_root: Path) -> None:
+    import pytest
+
+    pytest.skip(
+        "Spring corpus clone not available at "
+        f"{corpus_root}; run make corpus-clone-all or set J2PY_CORPUS_ROOT"
+    )
+
+
+def test_spring_stereotype_annotations_reach_full_coverage() -> None:
+    corpus_root = _spring_corpus_root()
+    if not corpus_root.is_dir():
+        _skip_missing_spring_corpus(corpus_root)
 
     for relative in (
         "spring-context/src/main/java/org/springframework/stereotype/Controller.java",
@@ -596,11 +580,9 @@ def test_spring_stereotype_annotations_reach_full_coverage() -> None:
 
 
 def test_spring_managed_resource_alias_for_elements_translate() -> None:
-    corpus_root = FIXTURES.parent.parent / ".corpus" / "spring-framework"
+    corpus_root = _spring_corpus_root()
     if not corpus_root.is_dir():
-        import pytest
-
-        pytest.skip("Spring corpus clone not available")
+        _skip_missing_spring_corpus(corpus_root)
 
     path = corpus_root / (
         "spring-context/src/main/java/org/springframework/jmx/export/annotation/"

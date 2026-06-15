@@ -12,8 +12,8 @@ import pytest
 
 
 def _load_script() -> ModuleType:
-    path = Path(__file__).parents[2] / "scripts" / "corpus" / "translate_spring_sample.py"
-    spec = importlib.util.spec_from_file_location("translate_spring_sample", path)
+    path = Path(__file__).parents[2] / "scripts" / "corpus" / "translate_corpus.py"
+    spec = importlib.util.spec_from_file_location("translate_corpus", path)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -123,6 +123,51 @@ def test_compare_baseline_reports_per_file_regressions(tmp_path: Path) -> None:
 
     payload = json.loads(baseline_path.read_text())
     assert payload["files"][0]["path"] == "A.java"
+
+
+def test_compare_baseline_missing_file_exits_with_clear_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    source_dir = repo / "src" / "main" / "java"
+    source_dir.mkdir(parents=True)
+    (source_dir / "A.java").write_text(
+        "public class A { private int count; }\n",
+        encoding="utf-8",
+    )
+    missing_baseline = tmp_path / "missing-baseline.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "translate_corpus.py",
+            "--repo",
+            str(repo),
+            "--remote",
+            "local",
+            "--ref",
+            "local",
+            "--module",
+            "src/main/java",
+            "--limit",
+            "1",
+            "--json-out",
+            str(tmp_path / "out.json"),
+            "--csv-out",
+            str(tmp_path / "out.csv"),
+            "--baseline",
+            str(missing_baseline),
+            "--compare-baseline",
+        ],
+    )
+
+    assert corpus.main() == 2
+    captured = capsys.readouterr()
+    assert f"Baseline file not found: {missing_baseline}" in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_measure_file_falls_back_for_paths_outside_spring_repo() -> None:
