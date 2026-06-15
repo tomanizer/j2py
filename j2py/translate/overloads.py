@@ -7,21 +7,22 @@ from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.class_model import ParameterInfo, _modifiers
-
-# Imported from classes.py instead of a broader method-helper split to keep this
-# extraction behavior-neutral and localized.
-from j2py.translate.classes import (
+from j2py.translate.class_members import member_python_name
+from j2py.translate.class_methods import (
     _IMMUTABLE_LITERAL_NODES,
-    _member_python_name,
-    _method_body,
-    _parameter_infos,
-    _record_annotation_diagnostics,
-    _register_param,
-    _return_type,
-    _signature,
-    _translate_method,
+    method_body,
+    parameter_infos,
+    record_annotation_diagnostics,
+    register_param,
+    translate_method,
 )
+from j2py.translate.class_methods import (
+    return_type as method_return_type,
+)
+from j2py.translate.class_methods import (
+    signature as render_method_signature,
+)
+from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.diagnostics import (
     ClassTranslationState,
     TranslationContext,
@@ -57,9 +58,9 @@ def translate_overloaded_members(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
 ) -> list[str]:
-    name = _member_python_name(members[0])
+    name = member_python_name(members[0])
     for member in members:
-        _record_annotation_diagnostics(member, cfg, diagnostics)
+        record_annotation_diagnostics(member, cfg, diagnostics)
 
     field_types = class_field_types or {f: "object" for f in class_fields}
     field_java_types = class_field_java_types or {}
@@ -241,7 +242,7 @@ def _merged_constructor_overload(
     nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
     forwards = [
-        _OverloadForward(member, _parameter_infos(member, cfg), _constructor_forward_args(member))
+        _OverloadForward(member, parameter_infos(member, cfg), _constructor_forward_args(member))
         for member in members
     ]
     merged = _resolve_overload_defaults(
@@ -294,7 +295,7 @@ def _merged_constructor_overload(
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = True
     for param in impl.params:
-        _register_param(ctx, param)
+        register_param(ctx, param)
 
     signature_params, defaults, sentinel_lines = _defaulted_parameters(
         impl.params,
@@ -304,7 +305,7 @@ def _merged_constructor_overload(
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
     lines = _overload_stubs(members, cfg, diagnostics)
-    signature = _signature(
+    signature = render_method_signature(
         "__init__",
         signature_params,
         return_type="None",
@@ -313,7 +314,7 @@ def _merged_constructor_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    body = _method_body(impl.member)
+    body = method_body(impl.member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -363,7 +364,7 @@ def _merged_forwarding_method_overload(
         return None
 
     forwards = [
-        _OverloadForward(member, _parameter_infos(member, cfg), _method_forward_args(member))
+        _OverloadForward(member, parameter_infos(member, cfg), _method_forward_args(member))
         for member in members
     ]
     merged = _resolve_overload_defaults(
@@ -383,7 +384,7 @@ def _merged_forwarding_method_overload(
         pass_through_forwarding = True
     else:
         impl, defaults_by_position, throwaway_diagnostics = merged
-    if _method_body(impl.member) is None:
+    if method_body(impl.member) is None:
         return None
     diagnostics.handled.extend(throwaway_diagnostics.handled)
     diagnostics.unhandled.extend(throwaway_diagnostics.unhandled)
@@ -428,21 +429,21 @@ def _merged_forwarding_method_overload(
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
     for param in impl.params:
-        _register_param(ctx, param)
+        register_param(ctx, param)
 
     signature_params, defaults, sentinel_lines = _defaulted_parameters(
         impl.params,
         defaults_by_position,
     )
-    return_type = _union_types(_return_type(member, cfg) for member in members)
+    return_type = _union_types(method_return_type(member, cfg) for member in members)
 
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
     lines = _overload_stubs(members, cfg, diagnostics)
     if is_static:
         lines.append("    @staticmethod")
-    signature = _signature(
-        _member_python_name(impl.member),
+    signature = render_method_signature(
+        member_python_name(impl.member),
         signature_params,
         return_type=return_type,
         include_self=not is_static,
@@ -450,7 +451,7 @@ def _merged_forwarding_method_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    body = _method_body(impl.member)
+    body = method_body(impl.member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -726,12 +727,12 @@ def _merged_method_overload(
         return None
     body_texts: set[str] = set()
     for member in members:
-        body = _method_body(member)
+        body = method_body(member)
         body_texts.add(body.text if body is not None else "")
     if len(body_texts) != 1:
         return None
 
-    param_sets = [_parameter_infos(member, cfg) for member in members]
+    param_sets = [parameter_infos(member, cfg) for member in members]
     if len({len(params) for params in param_sets}) != 1:
         return None
     if len(param_sets[0]) == 0:
@@ -741,7 +742,7 @@ def _merged_method_overload(
     if any([param.raw_name for param in params] != raw_names for params in param_sets):
         return None
 
-    name = _member_python_name(members[0])
+    name = member_python_name(members[0])
     is_static = "static" in _modifiers(members[0])
     if any(("static" in _modifiers(member)) != is_static for member in members):
         return None
@@ -756,7 +757,7 @@ def _merged_method_overload(
         )
         for index in range(len(param_sets[0]))
     ]
-    return_type = _union_types(_return_type(member, cfg) for member in members)
+    return_type = _union_types(method_return_type(member, cfg) for member in members)
 
     for member in members:
         diagnostics.record(member, supported=True, reason="translated overloaded method")
@@ -784,12 +785,12 @@ def _merged_method_overload(
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
     for param in merged_params:
-        _register_param(ctx, param)
+        register_param(ctx, param)
 
     lines = _overload_stubs(members, cfg, diagnostics)
     if is_static:
         lines.append("    @staticmethod")
-    signature = _signature(
+    signature = render_method_signature(
         name,
         merged_params,
         return_type=return_type,
@@ -797,7 +798,7 @@ def _merged_method_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    body = _method_body(members[0])
+    body = method_body(members[0])
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -816,7 +817,7 @@ def _merged_method_overload(
 
 def _constructor_forward_args(member: JavaNode) -> list[JavaNode] | None:
     """Return the argument nodes of a pure this(...) delegating constructor."""
-    body = _method_body(member)
+    body = method_body(member)
     if body is None:
         return None
     children = body.named_children
@@ -835,7 +836,7 @@ def _method_forward_args(member: JavaNode) -> list[JavaNode] | None:
     name_node = member.child_by_field("name")
     if name_node is None:
         return None
-    body = _method_body(member)
+    body = method_body(member)
     if body is None:
         return None
     children = body.named_children
@@ -953,7 +954,7 @@ def _dispatch_overload_members(
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []
         )
         lines.extend(
-            _translate_method(
+            translate_method(
                 member,
                 ctx,
                 pre_body_lines=member_pre_body,
@@ -969,7 +970,7 @@ def _dispatch_overload_members(
 def _erased_overload_signature(member: JavaNode, cfg: TranslationConfig) -> tuple[str, ...]:
     return tuple(
         ("*" if param.is_spread else "") + _erase_py_type(param.py_type)
-        for param in _parameter_infos(member, cfg)
+        for param in parameter_infos(member, cfg)
     )
 
 
@@ -1017,13 +1018,13 @@ def _union_types(types: Iterable[str]) -> str:
 def _readable_signature(member: JavaNode, cfg: TranslationConfig) -> str:
     params = ", ".join(
         f"{'*' if param.is_spread else ''}{param.py_name}: {param.py_type}"
-        for param in _parameter_infos(member, cfg)
+        for param in parameter_infos(member, cfg)
     )
-    return f"{_member_python_name(member)}({params})"
+    return f"{member_python_name(member)}({params})"
 
 
 def _has_this_delegation(member: JavaNode) -> bool:
-    body = _method_body(member)
+    body = method_body(member)
     if body is None:
         return False
     for invocation in body.find_all("explicit_constructor_invocation"):
@@ -1045,16 +1046,16 @@ def _overload_stubs(
         if is_static:
             lines.append("    @staticmethod")
         lines.append("    @overload")
-        params = _parameter_infos(member, cfg)
+        params = parameter_infos(member, cfg)
         return_type = (
-            "None" if member.type == "constructor_declaration" else _return_type(member, cfg)
+            "None" if member.type == "constructor_declaration" else method_return_type(member, cfg)
         )
         if cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(return_type)
             for param in params:
                 diagnostics.imports.need_type_annotation(param.py_type)
-        signature = _signature(
-            _member_python_name(member),
+        signature = render_method_signature(
+            member_python_name(member),
             params,
             return_type=return_type,
             include_self=not is_static,
