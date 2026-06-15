@@ -177,9 +177,11 @@ See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md),
 On-demand live LLM evaluation and harvest (excluded from `make check`):
 
 ```bash
-make test-llm-e2e          # exploratory live probes
-make harvest-pipeline      # batch harvest → triage → target drafts → prune
-make harvest-triage        # summarize local .j2py/harvest/records.jsonl
+make test-llm-e2e            # Anthropic live probes; requires ANTHROPIC_API_KEY
+make test-llm-gemini-e2e     # Gemini live probe; requires GEMINI_API_KEY
+make harvest-pipeline        # batch harvest → triage → target drafts → prune
+make harvest-triage          # summarize local .j2py/harvest/records.jsonl
+# or: GEMINI_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -k gemini -v -s
 ```
 
 See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for the full harvest workflow and

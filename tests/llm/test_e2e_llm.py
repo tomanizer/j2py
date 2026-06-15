@@ -3,18 +3,22 @@
 These tests exercise the real layered pipeline (tree-sitter parse -> rule-based
 skeleton -> LLM completion) against small probe fixtures or real Spring code.
 
-They deliberately make live calls to the Anthropic API. They are excluded from
+They deliberately make live calls to configured LLM provider APIs. They are excluded from
 normal pytest runs, make check, and CI by the live_llm marker in pyproject.toml.
 
 Typical usage:
     export ANTHROPIC_API_KEY=sk-...
     make test-llm-e2e
 
+    export GEMINI_API_KEY=...
+    make test-llm-gemini-e2e
+
 Or create a local ``.env`` from ``.env.example`` — ``make test-llm-e2e`` loads it
 automatically when the variable is not already exported.
 
 Direct pytest:
     ANTHROPIC_API_KEY=sk-... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
+    GEMINI_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -k gemini -v -s
 """
 
 from __future__ import annotations
@@ -32,7 +36,7 @@ from j2py.dotenv import load_repo_dotenv
 from j2py.parse.java_ast import parse_source
 from j2py.pipeline import translate_file
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from j2py.translate.skeleton import SkeletonTranslation, translate_skeleton_with_diagnostics
 from scripts.corpus.corpus_presets import corpus_checkout_root
 from tests.conftest import LLM_FIXTURES
 
@@ -43,6 +47,10 @@ SPRING_CORPUS = corpus_checkout_root() / "spring-framework"
 NEEDS_API_KEY = pytest.mark.skipif(
     not os.environ.get("ANTHROPIC_API_KEY"),
     reason="ANTHROPIC_API_KEY not set",
+)
+NEEDS_GEMINI_API_KEY = pytest.mark.skipif(
+    not os.environ.get("GEMINI_API_KEY"),
+    reason="GEMINI_API_KEY not set",
 )
 NEEDS_SPRING = pytest.mark.skipif(
     not SPRING_CORPUS.exists(),
@@ -133,6 +141,58 @@ def test_llm_completes_skeleton_from_tree_sitter() -> None:
     """A tiny synthetic Java class goes through skeleton generation before the LLM."""
     from j2py.llm.client import translate_with_llm
 
+    java, skeleton_result = _synthetic_greeter_skeleton()
+
+    print("\n=== RULE SKELETON ===")
+    print(skeleton_result.source)
+    print("=== DIAGNOSTICS ===")
+    print("coverage:", skeleton_result.coverage)
+    print("unhandled:", [d.reason for d in skeleton_result.diagnostics.unhandled])
+
+    result = translate_with_llm(
+        java_source=java,
+        partial_python=skeleton_result.source,
+        diagnostics=_format_diagnostics(skeleton_result.diagnostics),
+        use_cache=False,
+    )
+
+    print("\n=== FINAL LLM OUTPUT ===")
+    print(result)
+
+    _assert_greeter_translation(result)
+
+
+@NEEDS_GEMINI_API_KEY
+@LIVE_LLM
+def test_gemini_llm_completes_skeleton_from_tree_sitter() -> None:
+    """A tiny synthetic Java class goes through skeleton generation before Gemini."""
+    from j2py.llm.client import translate_with_llm
+
+    java, skeleton_result = _synthetic_greeter_skeleton()
+    model = os.environ.get("J2PY_LIVE_GEMINI_MODEL", "gemini-3.5-flash")
+
+    print("\n=== GEMINI RULE SKELETON ===")
+    print(skeleton_result.source)
+    print("=== GEMINI DIAGNOSTICS ===")
+    print("coverage:", skeleton_result.coverage)
+    print("unhandled:", [d.reason for d in skeleton_result.diagnostics.unhandled])
+
+    result = translate_with_llm(
+        java_source=java,
+        partial_python=skeleton_result.source,
+        diagnostics=_format_diagnostics(skeleton_result.diagnostics),
+        model=model,
+        provider="gemini",
+        use_cache=False,
+    )
+
+    print("\n=== FINAL GEMINI LLM OUTPUT ===")
+    print(result)
+
+    _assert_greeter_translation(result)
+
+
+def _synthetic_greeter_skeleton() -> tuple[str, SkeletonTranslation]:
     java = """\
 package com.example;
 
@@ -153,23 +213,10 @@ public class Greeter {
     symbols = extract_symbols(parsed)
     cfg = ConfigLoader().add_defaults().build()
     skeleton_result = translate_skeleton_with_diagnostics(parsed, symbols, cfg)
+    return java, skeleton_result
 
-    print("\n=== RULE SKELETON ===")
-    print(skeleton_result.source)
-    print("=== DIAGNOSTICS ===")
-    print("coverage:", skeleton_result.coverage)
-    print("unhandled:", [d.reason for d in skeleton_result.diagnostics.unhandled])
 
-    result = translate_with_llm(
-        java_source=java,
-        partial_python=skeleton_result.source,
-        diagnostics=_format_diagnostics(skeleton_result.diagnostics),
-        use_cache=False,
-    )
-
-    print("\n=== FINAL LLM OUTPUT ===")
-    print(result)
-
+def _assert_greeter_translation(result: str) -> None:
     ast.parse(result)
     assert "class Greeter" in result or "class greeter" in result.lower()
     assert "greet" in result
