@@ -8,6 +8,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Changed
+- Refresh [docs/PRD.md](docs/PRD.md) — confidence semantics, expanded CLI, `verify/` stage,
+  regression suites (F9–F10), updated success criteria.
+- Add [docs/decisions/AUDIT-2026-06-15.md](docs/decisions/AUDIT-2026-06-15.md) maturity
+  audit and [docs/README.md](docs/README.md) documentation index.
 - Split `j2py/translate/classes.py` into focused `class_*` modules (`class_enums`,
   `class_interfaces`, `class_annotations`, `class_members`, `class_methods`,
   `class_nested`) with `classes.py` as the public facade; behavior-neutral refactor.

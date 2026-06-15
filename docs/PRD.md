@@ -14,6 +14,14 @@ the logic from scratch.
 - **Secondary:** Reviewers (team members, auditors) who need to verify the translated
   output is correct without being Java experts.
 
+## Status
+
+**Alpha** (`0.3.0a1` on PyPI as `j2py-converter`). The deterministic rule layer achieves
+near-complete **node coverage** on pinned multi-library dense samples (see
+[docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
+library scale is still early — see [ADR 0014](decisions/0014-equivalence-differential-testing.md)
+and [docs/EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md).
+
 ## Functional requirements
 
 ### F1 — Parse any modern Java source
@@ -21,42 +29,78 @@ Accept Java 8–21 source files. Handle: generics, lambdas, streams, records, se
 classes, text blocks, annotations, inner classes.
 
 ### F2 — Rule-based skeleton generation
-Mechanically translate ~70% of a typical class without LLM involvement:
+Mechanically translate common Java constructs without LLM involvement. The original design
+target was ~70% of a typical class; on pinned dense corpus samples the rule layer now
+reaches **98–100% average node coverage** (see [AUDIT-2026-06-15](decisions/AUDIT-2026-06-15.md)).
+
+Deterministic support includes:
+
 - Type annotations (Java primitives/boxed/collection types → Python type hints)
 - Identifier naming (camelCase → snake_case, reserved word safety)
 - Literal substitution (null→None, true→True, false→False, char literals)
 - Import translation and elision
-- Class/interface/enum structure
+- Class/interface/enum/record structure, nested types, overload dispatch (ADR 0009)
 - Method signatures with return types and parameter annotations
-- Control flow skeleton (if/for/while/try blocks, brace→indent)
+- Control flow (if/for/while/try/switch), streams, lambdas, synchronized blocks
 - Access modifier removal
+- Structured diagnostics and explicit `# TODO(j2py): …` for unsupported regions
 
 ### F3 — LLM completion of the remainder
-Pass the skeleton + original Java to Claude for logic completion. Cache responses to
-avoid re-translating unchanged files.
+Pass the skeleton + original Java to Claude when rule-layer coverage &lt; 1.0 or when a
+full-coverage skeleton fails syntax/type pre-validation. Cache responses to avoid
+re-translating unchanged files. Live LLM calls are excluded from normal CI
+([ADR 0004](decisions/0004-claude-as-llm-backend.md)).
 
 ### F4 — Confidence scoring
 Each translated file receives a `confidence: float` (0–1). Low-confidence output is
-flagged for human review. Confidence reflects the fraction translated by the rule layer
-vs. LLM.
+flagged for human review.
+
+**Confidence reflects rule-layer node coverage only** (`diagnostics.coverage` — fraction of
+AST nodes handled deterministically). It does **not** decrease when semantic warnings are
+emitted; those are tracked separately via `diagnostics.semantic_warning_count`. LLM
+completion does not change the confidence score after the rule layer runs
+([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
 
 ### F5 — Validation pipeline
-Each translated file is checked: syntax (ast.parse), lint (ruff), type correctness
-(mypy). Errors are reported without blocking output.
+Each translated file is checked: syntax (`ast.parse`), lint (ruff), type correctness
+(mypy). Errors are reported on `TranslationResult`; callers may pass `validate=False`.
+Post-translation checks use intentionally looser rules than dev-time `make check`.
 
 ### F6 — Dependency-ordered translation
 Translate leaf classes before classes that depend on them (topological sort via
-networkx). Reduces forward-reference issues in type annotations.
+networkx). Reduces forward-reference issues in type annotations. Directory translation
+supports incremental state (`--incremental`) and parallel workers.
 
 ### F7 — CLI
-```
+
+```text
 j2py translate <file|dir> [--output <path>] [--no-llm] [--model <id>]
+                         [--incremental] [--json] [--dashboard <path>] [--report <path>]
 j2py analyze  <file|dir>          # inventory classes, print dependency graph
+j2py compare  <file>              # side-by-side Java/Python review (VS Code or paths)
+j2py watch    <dir> [--output <path>]  # incremental re-translate on file changes
 ```
 
 ### F8 — Layered configuration
-Project-specific type mappings, import remappings, and rule overrides via config files
-layered on top of defaults.
+Project-specific type mappings, import remappings, and rule overrides via `j2py.yaml`,
+`j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. See
+[docs/configuration.md](configuration.md).
+
+### F9 — Post-LLM structural verification
+After LLM completion, compare Java symbols with the returned Python AST: class and method
+presence plus declaration order. Structural failures feed a single LLM repair retry
+([ADR 0010](decisions/0010-post-llm-structural-verification.md)).
+
+### F10 — Regression and measurement suites
+Provide measurable quality signal without live LLM in normal CI:
+
+- **Graduated fixtures** — Java/Python pairs and roadmap targets in `make check`
+- **Equivalence gate** — literal-oracle differential tests on harvested library code
+  (`tests/equivalence/`, Phase 1 partial)
+- **Behavior corpus** — JDK stdout/exit-code parity on curated programs
+  (`make test-behavior`, separate CI workflow)
+- **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
+  Commons Lang, Jackson, Caffeine (`make corpus-*-check`, `make corpus-hotspots`)
 
 ## Non-goals
 
@@ -82,5 +126,18 @@ layered on top of defaults.
 3. `mypy` passes on all translated output from the fixture suite.
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
-5. Committed multi-library corpus baselines and the behavior/equivalence suites provide
-   measurable regression signal without requiring live LLM calls in CI.
+5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior` and
+   `live_llm`) — currently **2,000+** tests including graduated constructs and the
+   CharUtils equivalence gate.
+6. Committed multi-library corpus baselines provide regression signal; `spring-dense` is
+   CI-gated against baseline drift.
+7. Behavior and equivalence suites provide bounded runtime-correctness signal without
+   requiring live LLM calls in normal CI.
+
+## References
+
+- [Architecture](ARCHITECTURE.md)
+- [Audit 2026-06-15](decisions/AUDIT-2026-06-15.md)
+- [Translation targets](TRANSLATION_TARGETS.md)
+- [Corpus scoreboard](CORPUS_SCOREBOARD.md)
+- [Equivalence testing design](EQUIVALENCE_TESTING.md)
