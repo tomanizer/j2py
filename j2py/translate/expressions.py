@@ -56,6 +56,11 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
     if node.type in {"boolean_type", "integral_type", "floating_point_type", "void_type"}:
         return translate_type(node.text, ctx.cfg)
 
+    if node.type == "array_type":
+        from j2py.translate.expr_types import translate_array_type_expression
+
+        return translate_array_type_expression(node, ctx)
+
     if node.type == "this":
         return "self"
 
