@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.harvest import harvest_equivalence_tests as harvester
 
 
@@ -286,6 +288,86 @@ def test_reserved_target_class_generates_valid_python_draft(tmp_path: Path) -> N
     assert "def class_(class__source: str):" in draft
     assert "def test_value(class_) -> None:" in draft
     compile(draft, "<harvest-draft>", "exec")
+
+
+def test_reserved_target_class_draft_executes_against_tmp_fixture(tmp_path: Path) -> None:
+    source = _write_java(
+        tmp_path,
+        """
+        class ClassTest {
+            public void testValue() {
+                assertEquals(1, Class.value());
+            }
+        }
+        """,
+    )
+    fixture = tmp_path / "Class.java"
+    fixture.write_text(
+        """
+        public final class Class {
+            public static int value() { return 1; }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = harvester.harvest_file(
+        source,
+        target_class="Class",
+        java_fixture=str(fixture),
+    )
+    namespace: dict[str, object] = {}
+    exec(compile(harvester.render_pytest_draft(result), "<harvest-draft>", "exec"), namespace)
+
+    source_fixture = namespace["class__source"].__wrapped__
+    class_fixture = namespace["class_"].__wrapped__
+    class_source = source_fixture()
+    fixture_generator = class_fixture(class_source)
+    class_under_test = next(fixture_generator)
+
+    namespace["test_value"](class_under_test)
+    with pytest.raises(StopIteration):
+        next(fixture_generator)
+
+
+def test_disambiguates_java_tests_with_same_python_name(tmp_path: Path) -> None:
+    source = _write_java(
+        tmp_path,
+        """
+        class TargetTest {
+            public void testValue() {
+                assertEquals(1, Target.one());
+            }
+
+            public void test_value() {
+                assertEquals(2, Target.two());
+            }
+        }
+        """,
+    )
+    fixture = tmp_path / "Target.java"
+    fixture.write_text(
+        """
+        public final class Target {
+            public static int one() { return 1; }
+            public static int two() { return 2; }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = harvester.harvest_file(
+        source,
+        target_class="Target",
+        java_fixture=str(fixture),
+    )
+    draft = harvester.render_pytest_draft(result)
+
+    assert result.harvested_count == 2
+    assert "def test_value(target) -> None:" in draft
+    assert "def test_value_2(target) -> None:" in draft
+    assert "assert target.one() == 1" in draft
+    assert "assert target.two() == 2" in draft
 
 
 def test_skips_overloaded_target_methods_from_java_fixture(tmp_path: Path) -> None:
