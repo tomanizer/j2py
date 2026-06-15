@@ -165,9 +165,9 @@ Java source file(s)
 - `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`
 
 ### `pipeline.py` — Orchestrator
-- `translate_file(path, cfg, use_llm, model, validate) → TranslationResult`
-- `translate_directory(source_root, output_root, cfg, use_llm, model, validate) →
-  DirectoryTranslationResult`
+- `translate_file(path, cfg, use_llm, model, llm_provider, validate) → TranslationResult`
+- `translate_directory(source_root, output_root, cfg, use_llm, model, llm_provider,
+  validate) → DirectoryTranslationResult`
 - Calls parse → analyze → skeleton → (optionally) LLM with post-LLM verification →
   validation
 - Directory mode builds the dependency graph and translates files in dependency order
