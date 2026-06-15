@@ -75,6 +75,10 @@ Java source file(s)
 - `classes.py`, `statements.py`, `expressions.py`: direct tree-sitter node visitors for
   supported Java constructs. The rule layer is intentionally imperative today; a prior
   unused declarative selector/transform prototype was removed.
+- Class references in expression position are resolved through import/package bindings
+  before normal identifier snake-casing. `skeleton.py` records explicit-import,
+  import-map, and package context on `TranslationDiagnostics`; `expressions.py` consumes
+  that context only when an unshadowed type name is actually emitted. See ADR 0016.
 - `rules/`: mapping tables and stateless translation functions
   - `types.py`: recursive generic type translation (`List<Map<K,V>>` → `dict[K, V]`)
   - `naming.py`: `camel_to_snake`, `safe_identifier`, reserved-word collision handling
@@ -139,6 +143,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Sealed type metadata | [ADR 0012](decisions/0012-sealed-type-metadata.md) |
 | Equivalence verification (differential testing) | [ADR 0014](decisions/0014-equivalence-differential-testing.md) |
 | `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
+| Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
 
 ## Dependency rules
 
