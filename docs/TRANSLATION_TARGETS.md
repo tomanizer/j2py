@@ -47,7 +47,6 @@ Current future corpus-construct backlog:
 
 | Fixture | Tracking | Rule-layer gap |
 |---|---|---|
-| `tests/fixtures/llm/AssertProbe.java` | `llm-harvest-assert` | `assert_statement` → `# TODO(j2py): unsupported` |
 | `tests/fixtures/llm/MultiDimArray.java` | `llm-harvest-multi-dim-array` | `new int[rows][cols]` → `__j2py_todo__` |
 
 Harvest-only mypy-repair cases (e.g. `InterfaceDefaults`, overload dispatch) stay in
