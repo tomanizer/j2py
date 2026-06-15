@@ -46,7 +46,8 @@ test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPI
 	uv run --extra dev pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
 
 test-cov:  ## Run tests with coverage report
-	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml
+	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
