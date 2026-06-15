@@ -3,15 +3,16 @@
 Status: **Active — Phase 1 (complete)** (decision recorded in [ADR 0014](decisions/0014-equivalence-differential-testing.md)).
 
 **What is running now.** `tests/equivalence/` is live and runs in `make check` (no JDK,
-no LLM). The current surface covers two Commons-Lang fixtures: `CharUtils` (1,622
-assertions — all non-overloaded static predicates with exhaustive [0, 196) range sweeps)
-and `NumberUtils` (7 assertions — structural + `to_int`/`to_long`/`to_double` behavioral
-tests). Total: **1,629 literal-oracle assertions**. The harness infrastructure lives in
-`tests/equivalence/harness.py` (translate → load → stub) and
-`tests/equivalence/comparator.py` (normalisation spec — float approximation, integer
-overflow semantics, exception mapping). Overloaded methods are explicitly excluded
-(same-arity Java `char`/`Character` overloads both erase to Python `str`, making dispatch
-ambiguous at the rule layer). Run alone with:
+no LLM). The current surface covers Commons-Lang fixtures (`CharUtils`, `NumberUtils`,
+and focused `StringUtils` literal-oracle checks) plus a Guava-style
+`GuavaPrecedenceMath` fixture that exercises the Phase-1 operator-precedence exit
+criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
+(translate -> load -> stub) and `tests/equivalence/comparator.py` (normalisation spec:
+float approximation, integer overflow semantics, exception mapping). Overloaded methods
+are explicitly excluded (same-arity Java `char`/`Character` overloads both erase to
+Python `str`, making dispatch ambiguous at the rule layer). `make test-equivalence`
+currently selects **1,641 equivalence tests**: 1,639 passing tests plus two documented
+`StringUtils` strict-xfail contracts. Run alone with:
 
 ```bash
 make test-equivalence         # just the equivalence gate
@@ -153,16 +154,15 @@ math**.
 - ✅ Generalised dependency stubber: `install_stub_class(fqn, name, stub)` replaces the
   hardcoded `install_array_utils_stub_package`; `install_java_lang_stubs()` covers the
   10 module chains needed by `NumberUtils`
-- ✅ `NumberUtils` fixture + 1,629 total literal-oracle assertions (structural + behavioral)
+- ✅ `NumberUtils` fixture with structural and behavioral literal-oracle assertions
 - ✅ Comparator normalization module (`tests/equivalence/comparator.py`): integer overflow
   spec, float approximation helpers, exception mapping helper — independently unit-tested
+- ✅ Guava-style operator-precedence fixture: `GuavaPrecedenceMath` catches the
+  `(a+b)*c -> a+b*c` regression at the equivalence level with literal-oracle assertions
 
 **Remaining:**
 - Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
   — Phase 2 prerequisite; not blocking current gate
-- **Exit criterion:** the Guava precedence bug (`(a+b)*c → a+b*c`) caught automatically
-  by the equivalence gate (requires an arithmetic fixture whose literal-oracle tests
-  exercise operator-precedence-sensitive expressions)
 
 ### Phase 2 — Measure and decide on folding
 - Add Java method-coverage capture to the oracle pass.
