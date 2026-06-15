@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-behavior test-targets test-llm-e2e test-cov \
+.PHONY: check lint format typecheck test test-equivalence test-behavior test-targets test-llm-e2e test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -29,6 +29,9 @@ typecheck:  ## Type-check with mypy (strict)
 
 test:  ## Run test suite
 	uv run --extra dev pytest -m "not behavior and not live_llm"
+
+test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
+	uv run --extra dev pytest tests/equivalence -m equivalence -v
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run --extra dev pytest tests/behavior -m behavior
