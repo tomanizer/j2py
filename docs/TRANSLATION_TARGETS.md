@@ -27,8 +27,10 @@ The suite has three lanes:
 - **Graduated corpus constructs**: Java fixtures under
   `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
   (`AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`,
-  `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`,
-  `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check`.
+  `CorpusArrayTypeMapProbe`, `CorpusAssertStatementProbe`,
+  `CorpusMalformedTernaryProbe`, `EnumConstantClassBody`, `InterfaceDefaults`,
+  `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword`).
+  These also run in `make check`.
 - **Graduated harvest fixtures**: selected Java fixtures under `tests/fixtures/llm/`
   that were promoted out of future targets and now translate deterministically
   (`MultiDimArray`). These run in `make check`.
@@ -53,7 +55,10 @@ When a new construct gap is identified and deferred, add a fixture here and regi
 
 Current future corpus-construct backlog:
 
-The future target lane is intentional while no deferred concrete construct gap has been selected. Add a strict `TranslationTarget` entry when deferring a new gap.
+| Fixture | Tracking | Missing rule-layer support |
+|---|---|---|
+| `tests/fixtures/corpus/constructs/IteratorPostIncrementSubscript.java` | `issue-252/jackson-arrayiterator-invalid-python-output` | Split Java post-increment expressions used inside array subscripts into a value read plus a following increment so generated Python parses and preserves old-index semantics. |
+| `tests/fixtures/corpus/constructs/StaticImportEnumConstants.java` | `issue-252/guava-elementtype-static-imports` | Resolve `java.lang.annotation.ElementType` static enum imports used in annotations instead of surfacing unknown static-import TODOs. |
 
 Current graduated harvest fixtures:
 
