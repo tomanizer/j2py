@@ -49,7 +49,7 @@ import builtins
 import contextlib
 import functools
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -132,10 +132,11 @@ def assert_raises_mapped(java_exception: str) -> Iterator[pytest.ExceptionInfo[E
         raise KeyError(
             f"{java_exception!r} not in EXCEPTION_MAP — add it or use pytest.raises directly"
         )
-    py_exc = getattr(builtins, py_exc_name, None)
-    if py_exc is None:
-        raise AttributeError(
-            f"Python exception class {py_exc_name!r} not found in builtins"
-        )
+    py_exc_obj = getattr(builtins, py_exc_name, None)
+    if py_exc_obj is None:
+        raise AttributeError(f"Python exception class {py_exc_name!r} not found in builtins")
+    if not isinstance(py_exc_obj, type) or not issubclass(py_exc_obj, Exception):
+        raise TypeError(f"Python exception class {py_exc_name!r} is not an Exception subclass")
+    py_exc = cast(type[Exception], py_exc_obj)
     with pytest.raises(py_exc) as exc_info:
         yield exc_info

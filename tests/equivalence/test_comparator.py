@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+import tests.equivalence.comparator as comparator
 from tests.equivalence.comparator import (
     BYTE_MAX,
     BYTE_MIN,
@@ -136,6 +137,23 @@ def test_assert_raises_mapped_unknown_exception_raises_key_error() -> None:
         pass
 
 
+def test_assert_raises_mapped_missing_python_exception_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        comparator,
+        "_get_exception_map",
+        lambda: {"CustomJavaException": "MissingPythonException"},
+    )
+
+    with pytest.raises(AttributeError, match="MissingPythonException"), assert_raises_mapped(
+        "CustomJavaException"
+    ):
+        pass
+
+
 def test_assert_raises_mapped_wrong_exception_fails() -> None:
-    with pytest.raises(TypeError), assert_raises_mapped("NumberFormatException"):
+    with pytest.raises(TypeError, match="wrong type"), assert_raises_mapped(
+        "NumberFormatException"
+    ):
         raise TypeError("wrong type")  # not ValueError
