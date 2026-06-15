@@ -8,7 +8,7 @@
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
 	clean clean-dist ci-local-pr ci-local-governance build sdist-hygiene-check dist-check release-check
 
-CORPUS := uv run python scripts/corpus/translate_spring_sample.py
+CORPUS := uv run python scripts/corpus/translate_corpus.py
 
 # Legacy alias kept for docs/CI that still reference explicit args.
 SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
@@ -59,19 +59,19 @@ corpus-clone-all:  ## Clone or refresh all pinned corpus preset checkouts under 
 	done
 	@echo "Done. Checkouts are under .corpus/ (or \$$J2PY_CORPUS_ROOT/.corpus/ when set)."
 
-corpus-spring:  ## Compare the Spring corpus sample against the committed baseline
+corpus-spring:  ## Compare the legacy Spring lexical preset against its committed baseline
 	$(CORPUS) --preset spring-lexical --compare-baseline
 
-corpus-spring-smoke:  ## Run a quick 25-file Spring corpus smoke sample without baseline comparison
+corpus-spring-smoke:  ## Run a quick 25-file legacy Spring lexical smoke sample
 	$(CORPUS) --limit 25
 
-corpus-spring-update-baseline:  ## Regenerate the committed Spring corpus baseline intentionally
+corpus-spring-update-baseline:  ## Regenerate the legacy Spring lexical baseline intentionally
 	$(CORPUS) --preset spring-lexical --update-baseline --compare-baseline
 
 corpus-spring-dense:  ## Run spring-dense + construct fixtures without baseline comparison
 	$(CORPUS) $(SPRING_DENSE_ARGS)
 
-corpus-spring-dense-check:  ## Compare spring-dense + construct fixtures against its baseline (CI gate)
+corpus-spring-dense-check:  ## Compare spring-dense + construct fixtures against its baseline
 	$(CORPUS) $(SPRING_DENSE_ARGS) --compare-baseline --fail-on-regression
 
 corpus-spring-dense-update-baseline:  ## Regenerate the spring-dense + construct baseline intentionally

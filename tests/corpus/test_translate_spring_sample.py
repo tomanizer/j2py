@@ -12,8 +12,8 @@ import pytest
 
 
 def _load_script() -> ModuleType:
-    path = Path(__file__).parents[2] / "scripts" / "corpus" / "translate_spring_sample.py"
-    spec = importlib.util.spec_from_file_location("translate_spring_sample", path)
+    path = Path(__file__).parents[2] / "scripts" / "corpus" / "translate_corpus.py"
+    spec = importlib.util.spec_from_file_location("translate_corpus", path)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)

@@ -103,8 +103,8 @@ then compare against committed baselines. Run the most relevant local checks bef
 pushing for fast feedback:
 
 ```bash
-make corpus-spring-dense-check        # Spring dense + construct fixtures
-make corpus-guava-dense-check         # or another library preset relevant to the change
+make corpus-<name>-dense-check        # choose the library preset relevant to the change
+make corpus-spring-dense-check        # additionally when construct-mix behavior may shift
 make corpus-hotspots                  # optional: cross-library gap triage
 ```
 

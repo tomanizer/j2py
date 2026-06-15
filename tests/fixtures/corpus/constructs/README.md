@@ -33,7 +33,7 @@ under-covered or challenging for deterministic translation.
 ## Usage in Corpus Harness
 ```bash
 # Include these high-signal minimal examples in a density preset run
-uv run python scripts/corpus/translate_spring_sample.py \
+uv run python scripts/corpus/translate_corpus.py \
   --preset spring-dense --include-constructs --compare-baseline
 
 # Or use convenience targets for presets with committed baselines / exploration

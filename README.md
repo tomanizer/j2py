@@ -153,7 +153,7 @@ make corpus-guava-dense-check         # Guava collect/base vs baseline
 make corpus-commons-lang-dense-check  # Commons Lang utilities vs baseline
 make corpus-jackson-dense-check       # Jackson databind vs baseline
 make corpus-caffeine-dense-check      # Caffeine cache code vs baseline
-make corpus-spring-dense-check        # Spring dense sample + construct fixtures
+make corpus-spring-dense-check        # Spring dense preset + construct fixtures
 make corpus-hotspots                  # rank gaps across all committed baselines
 ```
 
@@ -178,8 +178,9 @@ make test-llm-e2e
 1. Add or update a Java/Python fixture pair under `tests/fixtures/`.
 2. Implement the smallest deterministic rule in `j2py/translate/`.
 3. Graduate the behavior into normal tests once it passes.
-4. Run `make check` and relevant corpus checks (e.g. `make corpus-spring-dense-check` and
-   `make corpus-guava-dense-check` when behavior may generalize).
+4. Run `make check` and relevant corpus checks, such as `make corpus-guava-dense-check`
+   for generics/collections or `make corpus-spring-dense-check` when construct-mix
+   behavior may shift.
 5. Update a corpus baseline only when comparison shows no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.

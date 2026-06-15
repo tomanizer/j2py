@@ -1,7 +1,7 @@
 """Pinned external Java corpora for j2py rule-layer scoreboards.
 
 Each preset defines a git remote/ref, source modules, sampling parameters, and baseline
-path. Use with ``translate_spring_sample.py --preset <name>``.
+path. Use with ``translate_corpus.py --preset <name>``.
 
 External git checkouts live under ``<J2PY_CORPUS_ROOT or repo root>/.corpus/<name>/``.
 Set ``J2PY_CORPUS_ROOT`` to the main j2py checkout when working in a git worktree so
