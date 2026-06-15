@@ -107,6 +107,55 @@ def test_same_package_class_references_emit_import_without_importing_static_fiel
     assert_valid_python(python_source)
 
 
+def test_dropped_imports_keep_class_casing_without_emitting_import() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "drop_imports": {*CFG.drop_imports, "com.example.Dropped"},
+        },
+    )
+    python_source, coverage = translate_source(
+        """
+        import com.example.Dropped;
+
+        public class UsesDropped {
+            public Object make() {
+                return Dropped.create();
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert coverage == 1.0
+    assert "return Dropped.create()" in python_source
+    assert "from com.example.Dropped import Dropped" not in python_source
+    assert "dropped.create()" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_default_package_class_references_emit_absolute_import() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Peer {
+            public static void fill(String[] values) {
+            }
+        }
+
+        public class UsesPeer {
+            public static void run() {
+                Peer.fill(new String[1]);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "from Peer import Peer" in python_source
+    assert "Peer.fill(" in python_source
+    assert "peer.fill(" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_imported_class_references_use_configured_import_binding() -> None:
     cfg = CFG.model_copy(
         update={

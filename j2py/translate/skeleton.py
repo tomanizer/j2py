@@ -62,6 +62,9 @@ def translate_skeleton_with_diagnostics(
     diagnostics.imported_type_names.update(imported_type_names)
     diagnostics.imported_type_imports.update(imported_type_imports)
     diagnostics.package_name = symbols.package
+    diagnostics.compilation_unit_class_names = {
+        translate_class_name(cls.name) for cls in symbols.classes
+    }
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
@@ -181,9 +184,12 @@ def _imported_type_bindings(
         if _is_static_import(java_import):
             continue
         imported_name = _java_import_name(java_import)
-        if not imported_name or imported_name in cfg.drop_imports:
+        if not imported_name:
             continue
         raw_name = imported_name.rsplit(".", 1)[-1]
+        if imported_name in cfg.drop_imports:
+            names[raw_name] = translate_class_name(raw_name)
+            continue
         mapped = cfg.import_map.get(imported_name)
         if mapped is not None:
             binding = _python_binding_from_import_map(mapped)

@@ -244,6 +244,7 @@ def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
         return ctx.diagnostics.imported_type_names[raw_name]
     if (
         raw_name[:1].isupper()
+        and not raw_name.isupper()
         and raw_name not in ctx.param_names
         and raw_name not in ctx.local_names
     ):
@@ -253,6 +254,11 @@ def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
         if ctx.diagnostics.package_name:
             ctx.diagnostics.imports.need_line(
                 f"from {ctx.diagnostics.package_name}.{class_name} import {class_name}",
+            )
+            return class_name
+        if class_name in ctx.diagnostics.compilation_unit_class_names:
+            ctx.diagnostics.imports.need_line(
+                f"from {class_name} import {class_name}",
             )
             return class_name
     if (
