@@ -62,8 +62,8 @@ completion does not change the confidence score after the rule layer runs
 ([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
 
 ### F5 — Validation pipeline
-Each translated file is checked: syntax (`ast.parse`), lint (ruff), type correctness
-(mypy). Errors are reported on `TranslationResult`; callers may pass `validate=False`.
+Each translated file is checked: syntax (`ast.parse`), lint (`ruff`), type correctness
+(`mypy`). Errors are reported on `TranslationResult`; callers may pass `validate=False`.
 Post-translation checks use intentionally looser rules than dev-time `make check`.
 
 ### F6 — Dependency-ordered translation
