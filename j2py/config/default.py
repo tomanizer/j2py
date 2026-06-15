@@ -74,7 +74,7 @@ COLLECTION_MAP: dict[str, str] = {
 
 EXCEPTION_MAP: dict[str, str] = {
     "Exception": "Exception",
-    "RuntimeException": "RuntimeError",
+    "RuntimeException": "Exception",
     "IllegalArgumentException": "ValueError",
     "IllegalStateException": "RuntimeError",
     "NullPointerException": "AttributeError",
