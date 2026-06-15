@@ -49,24 +49,38 @@ are checked before imported types so static constants such as `VALUES` remain
 fields, not same-package class imports. The containing class and nested classes
 are also preserved without requesting a module import for themselves.
 
-The skeleton layer owns the file-level import scan and records the result on
-`TranslationDiagnostics`:
+The skeleton layer owns the file-level import scan and builds the binding inputs
+for expression translation:
 
-- `imported_type_names`: Java simple type name -> Python binding in expression
-  position.
-- `imported_type_imports`: Java simple type name -> Python import line to request
-  when that type is used in an expression.
-- `package_name`: current Java package for same-package fallback imports.
+- Java simple type name -> Python binding in expression position.
+- Java simple type name -> generated import line to request when that type is used
+  in an expression.
+- Current Java package for same-package fallback imports.
 
-The expression layer consumes those bindings while translating identifiers. It
-requests the import line only when the type is actually referenced in expression
+The expression layer consumes resolved bindings while translating identifiers. It
+requests generated import lines only when a type is actually referenced in expression
 output, which avoids importing unused Java types. Configured import-map lines are
-still emitted by the normal import emission path; expression translation only
-uses the Python binding name extracted from the mapped import.
+still emitted by the normal import emission path; expression translation uses the
+Python binding name extracted from the mapped import.
 
 Method invocation receivers are translated after static-import and known-static
 special cases. That avoids asking the type-reference path to import a receiver
 that a more specific rule will translate differently.
+
+## Implementation note
+
+The behavior policy above is still current. The original PR used
+`TranslationDiagnostics` as a narrow carrier for file-level type/package binding
+state while the rule layer lacked a dedicated resolver boundary. That implementation
+detail has since been superseded by `j2py/translate/name_resolution.py`:
+`skeleton.py` builds `FileNameBindings`, `TranslationContext` carries a
+`NameResolver`, and `expressions.py` requests generated imports through
+`TranslationDiagnostics.imports` only when a resolved binding is emitted.
+
+The resolver remains deliberately partial and deterministic. It uses current-file
+imports, config import maps, package fallback, compilation-unit types, nested types,
+containing type, static import aliases, locals, parameters, and class fields. It does
+not expand wildcard imports, inspect project-wide symbols, or resolve classpaths.
 
 ## Examples
 
@@ -133,12 +147,13 @@ Peer.fill(values)
 - Same-package fallback is heuristic. Without a full classpath resolver, an
   uppercase unshadowed identifier in a package can be treated as a peer class
   even if Java would resolve it differently.
-- Import binding state now crosses the skeleton/expression boundary through
-  diagnostics. That keeps the implementation narrow, but future full symbol
-  resolution may deserve a dedicated name-resolution object.
+- The original diagnostics carrier kept the first implementation narrow, but the
+  current implementation uses a dedicated name-resolution object for the same
+  behavior. Future full symbol resolution would still need a broader design.
 
 ## References
 
 - [Issue #188](https://github.com/tomanizer/j2py/issues/188)
+- [Issue #196](https://github.com/tomanizer/j2py/issues/196)
 - [ADR 0003](0003-layered-translation-pipeline.md)
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) material-change ADR rule
