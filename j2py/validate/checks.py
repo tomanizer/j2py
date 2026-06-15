@@ -48,8 +48,10 @@ def validate_source(source: str, path: Path | None = None) -> ValidationResult:
         tmp = Path(f.name)
 
     try:
-        result.ruff_ok, result.ruff_errors = _run_ruff(tmp)
-        result.mypy_ok, result.mypy_errors = _run_mypy(tmp)
+        result.ruff_ok, ruff_errors = _run_ruff(tmp)
+        result.mypy_ok, mypy_errors = _run_mypy(tmp)
+        result.ruff_errors = [err.replace(str(tmp), str(p)) for err in ruff_errors]
+        result.mypy_errors = [err.replace(str(tmp), str(p)) for err in mypy_errors]
     finally:
         tmp.unlink(missing_ok=True)
 

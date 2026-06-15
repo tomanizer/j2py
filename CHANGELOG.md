@@ -29,6 +29,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Fixed
 - Auto-discovery now ignores executable `j2py_config.py` files; Python config remains
   available only through explicit trusted `--config j2py_config.py` use (#180).
+- LLM-enabled directory translation now avoids per-file ruff/mypy prevalidation for
+  full-coverage rule-layer outputs, relying on syntax-only routing plus batched final
+  validation instead (#181).
 - Guava dense corpus excludes `Platform.java` because tree-sitter-java leaves ERROR nodes
   on Jspecify type-use `@Nullable` annotations before varargs; the file still translates
   at full coverage but would otherwise be the sole `parse_ok=false` entry (#160).

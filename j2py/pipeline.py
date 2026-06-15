@@ -11,6 +11,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import networkx as nx
 
@@ -25,6 +26,7 @@ from j2py.verify.structure import StructuralVerificationResult, verify_structure
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 LLM_REPAIR_RETRY_LIMIT = 2
+LlmPrevalidationMode = Literal["full", "syntax"]
 
 
 @dataclass
@@ -87,6 +89,7 @@ def _translate_parsed_file(
     validation_path: Path,
     sibling_signatures: dict[str, str] | None = None,
     llm_semaphore: threading.Semaphore | None = None,
+    llm_prevalidation: LlmPrevalidationMode = "full",
 ) -> TranslationResult:
     """Translate a file using already-parsed AST and symbols."""
     parse_ok = not parsed.has_errors
@@ -110,10 +113,16 @@ def _translate_parsed_file(
         if coverage < 1.0:
             should_use_llm = True
         else:
-            pre = validate_source(skeleton, path.with_suffix(".py"))
-            if not (pre.syntax_ok and pre.mypy_ok):
-                should_use_llm = True
-                validation_feedback = "\n".join(pre.syntax_errors + pre.mypy_errors)
+            if llm_prevalidation == "full":
+                pre = validate_source(skeleton, path.with_suffix(".py"))
+                if not (pre.syntax_ok and pre.mypy_ok):
+                    should_use_llm = True
+                    validation_feedback = "\n".join(pre.syntax_errors + pre.mypy_errors)
+            else:
+                syntax_errors = _syntax_errors(skeleton, filename=validation_path.name)
+                if syntax_errors:
+                    should_use_llm = True
+                    validation_feedback = "\n".join(syntax_errors)
 
     if should_use_llm:
         from j2py.llm.client import translate_with_llm
@@ -187,6 +196,14 @@ def _call_llm(
         return translate_with_llm(**kwargs)
     with llm_semaphore:
         return translate_with_llm(**kwargs)
+
+
+def _syntax_errors(source: str, filename: str = "<string>") -> list[str]:
+    try:
+        ast.parse(source, filename=filename)
+    except SyntaxError as error:
+        return [f"SyntaxError: {error}"]
+    return []
 
 
 def _post_llm_feedback(
@@ -413,6 +430,7 @@ def _translate_ready_paths(
             validation_path=output_path,
             sibling_signatures=direct_sibling_signatures,
             llm_semaphore=llm_semaphore,
+            llm_prevalidation="syntax",
         )
         result.output_path = output_path
         return result

@@ -128,6 +128,24 @@ def test_error_mapping_does_not_match_prefix_paths() -> None:
     assert results[prefixed] == [f"{prefixed}:1: error: bad type"]
 
 
+def test_validate_source_replaces_temp_paths_in_tool_errors(monkeypatch) -> None:
+    target = Path("com/example/Widget.py")
+
+    def fake_ruff(path: Path) -> tuple[bool, list[str]]:
+        return False, [f"{path}:1:1: F821 Undefined name `x`"]
+
+    def fake_mypy(path: Path) -> tuple[bool, list[str]]:
+        return False, [f"{path}:1: error: bad type"]
+
+    monkeypatch.setattr(checks, "_run_ruff", fake_ruff)
+    monkeypatch.setattr(checks, "_run_mypy", fake_mypy)
+
+    result = validate_source("x\n", target)
+
+    assert result.ruff_errors == [f"{target}:1:1: F821 Undefined name `x`"]
+    assert result.mypy_errors == [f"{target}:1: error: bad type"]
+
+
 def test_validate_directory_does_not_run_tools_for_syntax_errors(monkeypatch) -> None:
     monkeypatch.setattr(checks, "_run_ruff", lambda path: (_ for _ in ()).throw(AssertionError))
     monkeypatch.setattr(checks, "_run_mypy", lambda path: (_ for _ in ()).throw(AssertionError))

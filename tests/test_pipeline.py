@@ -5,6 +5,7 @@ from pathlib import Path
 
 import j2py.llm.client as llm_client
 import j2py.pipeline as pipeline
+import j2py.translate.skeleton as skeleton_module
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import ConfigLoader
 from j2py.pipeline import (
@@ -13,6 +14,8 @@ from j2py.pipeline import (
     translate_file,
 )
 from j2py.state import entry_from_result, save_state, source_key
+from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.skeleton import SkeletonTranslation
 from j2py.validate.checks import ValidationResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -87,6 +90,58 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     assert result.structural_verification is not None
     assert result.structural_verification.ok
     assert result.python_source == PARTIAL_LLM_OUTPUT
+
+
+def test_translate_file_uses_full_prevalidation_for_invalid_full_coverage_skeleton(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("package com.example; public class Broken {}")
+    validation_calls: list[str] = []
+    llm_feedback: list[str] = []
+
+    def fake_skeleton(*args, **kwargs) -> SkeletonTranslation:
+        return SkeletonTranslation(
+            source="def broken(:\n",
+            coverage=1.0,
+            diagnostics=TranslationDiagnostics(),
+        )
+
+    def fake_validate(source_text: str, path: Path | None = None) -> ValidationResult:
+        validation_calls.append(source_text)
+        if source_text.startswith("def broken"):
+            return ValidationResult(
+                path=path or Path("<string>"),
+                syntax_ok=False,
+                syntax_errors=["SyntaxError: invalid syntax"],
+            )
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            mypy_ok=True,
+            ruff_ok=True,
+        )
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        llm_feedback.append(kwargs["validation_feedback"])
+        return "class Broken:\n    pass\n"
+
+    monkeypatch.setattr(
+        skeleton_module,
+        "translate_skeleton_with_diagnostics",
+        fake_skeleton,
+    )
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate)
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_file(source, cfg=CFG, use_llm=True, validate=True)
+
+    assert result.used_llm
+    assert validation_calls == ["def broken(:\n", "class Broken:\n    pass\n"]
+    assert llm_feedback == ["SyntaxError: invalid syntax"]
+    assert result.validation is not None
+    assert result.validation.ok
 
 
 def test_translate_file_skips_llm_when_java_parse_has_errors(monkeypatch, tmp_path) -> None:
@@ -493,6 +548,52 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
     assert list(calls[0]) == [output / "com" / "example" / "A.py"]
     assert result.files[0].validation is not None
     assert result.files[0].validation.ok
+
+
+def test_translate_directory_batches_full_coverage_llm_prevalidation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    for name in ["A", "B", "C"]:
+        (source / f"{name}.java").write_text(
+            f"package com.example; public class {name} {{}}",
+        )
+    validate_source_calls: list[str] = []
+    validate_directory_calls: list[dict[Path, str]] = []
+
+    def fake_validate_source(source_text: str, path: Path | None = None) -> ValidationResult:
+        validate_source_calls.append(source_text)
+        raise AssertionError("directory translation should use batched validation")
+
+    def fake_validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
+        validate_directory_calls.append(files)
+        return {
+            path: ValidationResult(
+                path=path,
+                syntax_ok=True,
+                mypy_ok=True,
+                ruff_ok=True,
+            )
+            for path in files
+        }
+
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate_source)
+    monkeypatch.setattr(pipeline, "validate_directory", fake_validate_directory)
+
+    result = translate_directory(source, output, cfg=CFG, use_llm=True, validate=True)
+
+    assert validate_source_calls == []
+    assert len(validate_directory_calls) == 1
+    assert sorted(path.name for path in validate_directory_calls[0]) == [
+        "A.py",
+        "B.py",
+        "C.py",
+    ]
+    assert not any(file.used_llm for file in result.files)
+    assert all(file.validation is not None and file.validation.ok for file in result.files)
 
 
 def test_translate_directory_passes_direct_sibling_signatures_to_llm(
