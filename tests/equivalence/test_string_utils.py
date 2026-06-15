@@ -12,6 +12,8 @@ import sys
 import pytest
 
 from tests.equivalence.harness import (
+    char_sequence_utils_stub,
+    character_stub,
     install_string_utils_stubs,
     load_translated_module,
     translate_rule_layer,
@@ -83,6 +85,19 @@ def test_contains_char_sequence_equivalence(string_utils) -> None:
     assert string_utils.contains("abc", "c") is True
     assert string_utils.contains("abc", "abc") is True
     assert string_utils.contains("abc", "z") is False
+
+
+@pytest.mark.equivalence
+def test_string_utils_dependency_stubs_match_java_edge_cases() -> None:
+    char_sequences = char_sequence_utils_stub()
+    character = character_stub()
+
+    assert char_sequences.index_of("abc", "a", -5) == 0
+    assert char_sequences.region_matches("abc", False, 4, "", 0, 0) is False
+    assert char_sequences.region_matches("abc", False, 3, "", 0, 0) is True
+    assert character.is_whitespace(32) is True
+    assert character.is_whitespace(" ") is True
+    assert character.is_whitespace("x") is False
 
 
 @pytest.mark.equivalence

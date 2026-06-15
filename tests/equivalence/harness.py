@@ -227,7 +227,7 @@ def char_sequence_utils_stub() -> types.SimpleNamespace:
     """
 
     def index_of(seq: Any, search_seq: Any, start: int) -> int:
-        return str(seq).find(str(search_seq), start)
+        return str(seq).find(str(search_seq), max(0, start))
 
     def region_matches(
         seq: Any,
@@ -239,8 +239,12 @@ def char_sequence_utils_stub() -> types.SimpleNamespace:
     ) -> bool:
         if this_start < 0 or start < 0 or length < 0:
             return False
-        left = str(seq)[this_start : this_start + length]
-        right = str(substring)[start : start + length]
+        s_seq = str(seq)
+        s_sub = str(substring)
+        if this_start > len(s_seq) or start > len(s_sub):
+            return False
+        left = s_seq[this_start : this_start + length]
+        right = s_sub[start : start + length]
         if len(left) != length or len(right) != length:
             return False
         if ignore_case:
@@ -253,7 +257,10 @@ def char_sequence_utils_stub() -> types.SimpleNamespace:
 def character_stub() -> types.SimpleNamespace:
     """Stub for Java ``Character`` methods used by StringUtils."""
 
-    return types.SimpleNamespace(is_whitespace=lambda ch: str(ch).isspace())
+    def is_whitespace(ch: Any) -> bool:
+        return chr(ch).isspace() if isinstance(ch, int) else str(ch).isspace()
+
+    return types.SimpleNamespace(is_whitespace=is_whitespace)
 
 
 def install_string_utils_stubs() -> list[str]:
