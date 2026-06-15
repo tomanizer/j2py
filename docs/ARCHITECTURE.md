@@ -33,6 +33,7 @@ Java source file(s)
 │   ├── class_nested.py      Nested type emission
 │   ├── class_fields.py      Field extraction/emission
 │   ├── class_model.py       Shared dataclasses
+│   ├── name_resolution.py   Deterministic partial name binding
 │   ├── statements.py    Statement emitter              │
 │   └── expressions.py   Expression emitter             │
 │                                                       │
@@ -86,10 +87,14 @@ Java source file(s)
   direct tree-sitter node visitors for supported Java constructs. The rule layer is
   intentionally imperative today; a prior unused declarative selector/transform prototype
   was removed.
-- Class references in expression position are resolved through import/package bindings
-  before normal identifier snake-casing. `skeleton.py` records explicit-import,
-  import-map, and package context on `TranslationDiagnostics`; `expressions.py` consumes
-  that context only when an unshadowed type name is actually emitted. See ADR 0016.
+- `name_resolution.py` owns deterministic partial name binding for expression
+  identifiers. `skeleton.py` builds file-level `FileNameBindings` from the current
+  file, config import maps, package name, compilation-unit types, and static imports;
+  `TranslationContext` carries a `NameResolver`; `expressions.py` asks the resolver
+  for each identifier and records required generated imports through
+  `TranslationDiagnostics.imports` only when a referenced binding is emitted.
+  This is intentionally not a full Java compiler resolver: it does not expand
+  wildcard imports, inspect project-wide symbols, or resolve classpaths. See ADR 0016.
 - `rules/`: mapping tables and stateless translation functions
   - `types.py`: recursive generic type translation (`List<Map<K,V>>` → `dict[K, V]`)
   - `naming.py`: `camel_to_snake`, `safe_identifier`, reserved-word collision handling

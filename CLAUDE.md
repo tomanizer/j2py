@@ -31,8 +31,9 @@ Java source
     │
     ▼
 [translate/]  ① Rule-based skeleton (translate/skeleton.py) — target ~70% coverage
-              ② Direct visitors: classes.py, statements.py, expressions.py
-              ③ Rules sub-package: types, naming, literals
+              ② Direct visitors: classes.py facade, class_* modules, statements.py,
+                 expressions.py
+              ③ Rules/helpers: name_resolution.py, types, naming, literals
     │
     ▼
 [llm/]        Claude fills what the rule layer couldn't reach
@@ -46,9 +47,11 @@ Python output
 ```
 
 The rule layer (`translate/skeleton.py`) is implemented and handles many common Java
-structures, but it remains incomplete. New deterministic translation work belongs in
-`classes.py`, `statements.py`, `expressions.py`, or pure helpers under
-`translate/rules/`. The earlier selector/transform prototype has been removed. See
+structures, but it remains incomplete. New deterministic translation work belongs in the
+split class modules (`class_members.py`, `class_methods.py`, `class_enums.py`, etc.),
+`statements.py`, `expressions.py`, or pure helpers under `translate/rules/`.
+Deterministic name-binding work belongs in `translate/name_resolution.py`. The earlier
+selector/transform prototype has been removed. See
 [ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).
 
 ## Settled design decisions
