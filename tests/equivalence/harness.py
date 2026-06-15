@@ -200,6 +200,9 @@ def install_java_lang_stubs() -> list[str]:
         "StringUtils",
         types.SimpleNamespace(
             contains=lambda s, sub: (sub in s) if s is not None else False,
+            is_blank=lambda s: s is None or str(s).strip() == "",
+            is_empty=lambda s: s is None or s == "",
+            is_numeric=lambda s: s is not None and str(s).isdecimal(),
         ),
     )
     installed += install_stub_class(
@@ -275,3 +278,18 @@ def install_string_utils_stubs() -> list[str]:
         character_stub(),
     )
     return installed
+
+
+_FIXTURE_STUB_INSTALLERS = {
+    "CharUtils.java": install_array_utils_stub_package,
+    "NumberUtils.java": install_java_lang_stubs,
+    "StringUtils.java": install_string_utils_stubs,
+}
+
+
+def install_fixture_stubs(java_name: str) -> list[str]:
+    """Install dependency stubs needed to load a translated equivalence fixture."""
+    installer = _FIXTURE_STUB_INSTALLERS.get(java_name)
+    if installer is None:
+        return []
+    return installer()
