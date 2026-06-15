@@ -9,16 +9,18 @@ import sys
 
 from j2py.config.loader import ConfigLoader
 from j2py.dotenv import load_repo_dotenv
+from j2py.llm.client import DEFAULT_MODELS, LLMProvider
 from j2py.llm.harvest import harvest_records_path, llm_harvest_enabled
 from j2py.pipeline import translate_file
 from scripts.harvest.harvest_presets import DEFAULT_HARVEST_PRESET, HARVEST_PRESETS
 
 
-def _require_api_key() -> None:
+def _require_api_key(provider: LLMProvider) -> None:
     load_repo_dotenv()
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    env_var = "GEMINI_API_KEY" if provider == "gemini" else "ANTHROPIC_API_KEY"
+    if os.environ.get(env_var):
         return
-    print("ERROR: ANTHROPIC_API_KEY is not set.", file=sys.stderr)
+    print(f"ERROR: {env_var} is not set.", file=sys.stderr)
     print("  Use .env, export in shell, or source ~/.zshrc", file=sys.stderr)
     raise SystemExit(2)
 
@@ -33,8 +35,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--model",
-        default="claude-sonnet-4-6",
-        help="Claude model for LLM completion",
+        default=None,
+        help="Model for LLM completion (default depends on --llm-provider)",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        choices=("anthropic", "gemini"),
+        default="anthropic",
+        help="LLM provider for completion",
     )
     parser.add_argument(
         "--limit",
@@ -53,7 +61,10 @@ def main() -> int:
         print("ERROR: J2PY_LLM_HARVEST=0 — recording disabled.", file=sys.stderr)
         return 2
 
-    _require_api_key()
+    provider = args.llm_provider
+    model = args.model or DEFAULT_MODELS[provider]
+
+    _require_api_key(provider)
 
     paths = list(HARVEST_PRESETS[args.preset])
     if args.limit > 0:
@@ -75,7 +86,8 @@ def main() -> int:
             path,
             cfg=cfg,
             use_llm=True,
-            model=args.model,
+            model=model,
+            llm_provider=provider,
             validate=not args.no_validate,
         )
         if result.used_llm:
