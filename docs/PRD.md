@@ -61,8 +61,11 @@ is flagged for human review.
 remains available as `diagnostics.coverage`, but surfaced confidence is clamped below
 1.00 when parse errors occur, post-validation fails, structural verification fails, or
 the deterministic rule layer emits semantic warnings via
-`diagnostics.semantic_warning_count`. LLM completion does not increase confidence after
-the rule layer runs ([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
+`diagnostics.semantic_warning_count`. Semantic warnings cap surfaced confidence at 0.99
+to preserve coverage ordering while avoiding a perfect-trust signal; validation or
+structural failures cap it below the low-confidence review threshold at 0.79. LLM
+completion does not increase confidence after the rule layer runs
+([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
 
 ### F5 — Validation pipeline
 Each translated file is checked: syntax (`ast.parse`), lint (`ruff`), type correctness

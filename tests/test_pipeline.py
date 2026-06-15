@@ -664,6 +664,39 @@ def test_translate_directory_validates_each_result(tmp_path: Path, monkeypatch) 
     assert result.files[0].validation.ok
 
 
+def test_translate_directory_clamps_confidence_after_batched_validation_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    output = tmp_path / "out"
+    source.mkdir()
+    (source / "A.java").write_text("package com.example; public class A {}")
+
+    def fake_validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
+        return {
+            path: ValidationResult(
+                path=path,
+                syntax_ok=True,
+                ruff_ok=True,
+                mypy_ok=False,
+                mypy_errors=["A.py:1: error: simulated failure"],
+            )
+            for path in files
+        }
+
+    monkeypatch.setattr(pipeline, "validate_directory", fake_validate_directory)
+
+    result = translate_directory(source, output, cfg=CFG, use_llm=False, validate=True)
+
+    translated = result.files[0]
+    assert translated.diagnostics is not None
+    assert translated.diagnostics.coverage == 1.0
+    assert translated.validation is not None
+    assert not translated.validation.ok
+    assert translated.confidence == pipeline.REVIEW_REQUIRED_CONFIDENCE_CAP
+
+
 def test_translate_directory_batches_full_coverage_llm_prevalidation(
     tmp_path: Path,
     monkeypatch,

@@ -28,6 +28,8 @@ PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini"]
+SEMANTIC_WARNING_CONFIDENCE_CAP = 0.99
+REVIEW_REQUIRED_CONFIDENCE_CAP = 0.79
 
 
 @dataclass
@@ -245,12 +247,27 @@ def _surface_confidence(
         return 0.0
     confidence = rule_coverage
     if diagnostics.semantic_warning_count:
-        confidence = min(confidence, 0.99)
+        # Semantic warnings preserve raw coverage ordering, but they must never present
+        # as perfect trust.
+        confidence = min(confidence, SEMANTIC_WARNING_CONFIDENCE_CAP)
     if validation is not None and not validation.ok:
-        confidence = min(confidence, 0.79)
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
     if structural_verification is not None and not structural_verification.ok:
-        confidence = min(confidence, 0.79)
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
     return confidence
+
+
+def _refresh_result_confidence(result: TranslationResult) -> None:
+    """Recompute surfaced confidence after late validation or verification updates."""
+    if result.diagnostics is None:
+        return
+    result.confidence = _surface_confidence(
+        rule_coverage=result.diagnostics.coverage,
+        parse_ok=result.parse_ok,
+        diagnostics=result.diagnostics,
+        validation=result.validation,
+        structural_verification=result.structural_verification,
+    )
 
 
 def _syntax_errors(source: str, filename: str = "<string>") -> list[str]:
@@ -418,6 +435,7 @@ def translate_directory(
         for result in results:
             if result.output_path is not None and result.output_path in validation_results:
                 result.validation = validation_results[result.output_path]
+                _refresh_result_confidence(result)
 
     graph_warnings = [str(warning.message) for warning in caught]
     parse_warnings = [

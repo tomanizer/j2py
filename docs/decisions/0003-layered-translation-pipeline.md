@@ -42,8 +42,10 @@ Use a **layered pipeline**:
 3. **Confidence score**: `TranslationResult.confidence` is the surfaced review-trust
    score. Raw node coverage remains available as `diagnostics.coverage`, but confidence
    is clamped below 1.00 when parse errors, post-validation failures, structural
-   verification failures, or semantic warnings make full trust dishonest. Files with
-   `confidence < 0.8` are flagged in the CLI output for priority human review.
+   verification failures, or semantic warnings make full trust dishonest. Semantic
+   warnings cap confidence at 0.99; validation and structural failures cap it at 0.79,
+   below the low-confidence threshold. Files with `confidence < 0.8` are flagged in the
+   CLI output for priority human review.
 
 **Structural correspondence is a first-class requirement**, not a nice-to-have:
 - Preserve Java method order
