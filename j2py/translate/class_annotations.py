@@ -285,15 +285,6 @@ def _annotation_scalar_default(
             return "object"
         return mapped
 
-    if node.type == "unary_expression":
-        ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
-        ctx.static_field_aliases = dict(static_field_aliases)
-        ctx.static_method_imports = dict(static_method_imports)
-        translated = translate_expression(node, ctx)
-        if translated.startswith("__j2py_todo__"):
-            return None
-        return translated
-
     ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
     ctx.static_field_aliases = dict(static_field_aliases)
     ctx.static_method_imports = dict(static_method_imports)
