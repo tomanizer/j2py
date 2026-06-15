@@ -499,6 +499,8 @@ def _translate_binary_operand(
 
     inner = node.named_children[0]
     expression = translate_expression(inner, ctx)
+    if inner.type in {"switch_expression", "ternary_expression"}:
+        return f"({expression})"
     if inner.type != "binary_expression" or len(inner.children) < 3:
         return expression
 
@@ -697,8 +699,8 @@ def _translate_division(
 ) -> str:
     left_type = _expression_py_type(left_node, ctx)
     right_type = _expression_py_type(right_node, ctx)
-    left = translate_expression(left_node, ctx)
-    right = translate_expression(right_node, ctx)
+    left = _translate_binary_operand(left_node, "/", ctx, is_right=False)
+    right = _translate_binary_operand(right_node, "/", ctx, is_right=True)
 
     if left_type == "int" and right_type == "int":
         # Java int division truncates; we emit correct floor division.
