@@ -1,6 +1,6 @@
 """Skeleton translator tests — control flow and exception handling."""
 
-
+import pytest
 
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file, parse_source
@@ -512,6 +512,8 @@ def test_switch_statement_arrow_rules_translate_expression_and_throw_bodies() ->
     assert switch.pick(1) == 10
     assert switch.pick(2) == -1
     assert switch.fail(2) == 0
+    with pytest.raises(ValueError):
+        switch.fail(1)
 
 
 def test_switch_statement_default_before_final_case_reports_explicit_diagnostic() -> None:
