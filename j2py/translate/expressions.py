@@ -60,9 +60,7 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
         return translate_type(node.text, ctx.cfg)
 
     if node.type == "array_type":
-        from j2py.translate.expr_types import translate_array_type_expression
-
-        return translate_array_type_expression(node, ctx)
+        return translate_type(node.text, ctx.cfg)
 
     if node.type == "this":
         return "self"
