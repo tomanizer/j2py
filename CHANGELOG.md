@@ -25,6 +25,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Corpus scoreboard docs, CI, and PR template now treat `make corpus-hotspots` as the
   multi-library dashboard; `spring-broad` is documented as exploratory without a
   committed baseline (#205).
+- Future translation target guidance now documents the intentionally empty state and the
+  manual triage responsibility for adding strict xfail contracts (#253).
 
 ### Added
 - YAML/TOML/`pyproject.toml` configuration loading with strict schema validation,
