@@ -42,7 +42,9 @@ No model-generated metadata.
 | `java_sha256` | Content hash — detect stale replays |
 | `model`, `prompt_version` | Repro context |
 | `trigger` | Why LLM ran: `coverage_gap`, `mypy_repair`, `syntax_repair`, `structural_repair`, or combinations |
-| `rule_gaps` | Rule-layer unhandled diagnostics + pre-LLM mypy/syntax/structural errors |
+| `trigger.unhandled` | Rule-layer unhandled diagnostics |
+| `trigger.pre_validation_errors` | Pre-LLM mypy/syntax messages from the skeleton |
+| `trigger.structural_errors` | Pre-LLM structural verification failures (reserved; not populated in v1) |
 | `repair_signals` | Heuristic tags inferred from skeleton→final diff (e.g. `protocol-stub`, `overload-dispatch`) |
 | `final_todos` | Remaining `TODO(j2py)` / `__j2py_todo__` in LLM output — explicit backlog |
 | `diff_excerpt` | Truncated unified diff for human review |
@@ -65,7 +67,7 @@ Heuristics live in `j2py/llm/harvest.py` and are unit-tested.
 
 1. **Record** — automatic on every `translate_file(..., use_llm=True)` (`J2PY_LLM_HARVEST=1`, default on).
 2. **Batch collect** — `make harvest-run` (or `--preset constructs` for mypy probes).
-3. **Aggregate** — `make harvest-triage` ranks clusters by `repair_signals` and `rule_gaps`.
+3. **Aggregate** — `make harvest-triage` ranks clusters by `repair_signals` and trigger kinds / validation buckets.
 4. **Draft targets** — `make harvest-suggest-targets` prints `FUTURE_TARGETS` snippets for
    coverage-gap records; `--write` saves to `scripts/harvest/drafts/`.
 5. **One-shot** — `make harvest-pipeline` runs steps 2–4 and **prune**.
