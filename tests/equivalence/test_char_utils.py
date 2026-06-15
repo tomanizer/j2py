@@ -59,7 +59,10 @@ def test_constants_values(char_utils):
     assert char_utils.nul == "\0"  # CharUtils.java:60
 
 
-@pytest.mark.xfail(strict=True, reason="rule layer lowercases CONSTANT_CASE fields; should be LF/CR/NUL per PEP 8")
+@pytest.mark.xfail(
+    strict=True,
+    reason="rule layer lowercases CONSTANT_CASE fields; should be LF/CR/NUL per PEP 8",
+)
 def test_constants_names_are_upper(char_utils):
     # When the naming bug is fixed, this xfail becomes an error and must be removed.
     assert hasattr(char_utils, "LF") and hasattr(char_utils, "CR") and hasattr(char_utils, "NUL")
@@ -352,3 +355,4 @@ def test_is_ascii_printable_range_false(char_utils, i):
 def test_class_reference_qualified(char_utils_source: str):
     assert "from org.apache.commons.lang3.ArrayUtils import ArrayUtils" in char_utils_source
     assert "ArrayUtils.set_all" in char_utils_source
+    assert "array_utils.set_all" not in char_utils_source
