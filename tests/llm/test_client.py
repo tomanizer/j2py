@@ -120,6 +120,14 @@ def test_get_gemini_client_requires_api_key(monkeypatch) -> None:
         client_mod.get_gemini_client()
 
 
+def test_get_gemini_client_rejects_gcloud_oauth_token(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "ya29.oauth-token")
+    monkeypatch.setattr(client_mod, "_gemini_client", None)
+
+    with pytest.raises(RuntimeError, match="OAuth access token"):
+        client_mod.get_gemini_client()
+
+
 def test_resolve_model_defaults_by_provider() -> None:
     assert client_mod.resolve_model("anthropic", None) == "claude-sonnet-4-6"
     assert client_mod.resolve_model("gemini", None) == "gemini-3.5-flash"

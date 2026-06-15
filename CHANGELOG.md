@@ -8,6 +8,15 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- LLM harvest **promotion pipeline**: `make harvest-promote`, `harvest-promote-issues`,
+  and `harvest-promote-dry` orchestrate queue build, Gemini batch harvest, prune,
+  triage, and pattern-family GitHub issue drafts (`scripts/harvest/run_harvest_promotion.py`,
+  `promote_harvest_signals.py`, `signal_patterns.py`).
+- Tier-A **queue builder** (`make harvest-queue`, `scripts/harvest/build_harvest_queue.py`)
+  from `corpus-reports/*.json` (coverage == 1.0, syntax fail, no unhandled nodes).
+- Harvest **content cache** skips re-translating unchanged sources (`java_sha256` match in
+  `records.jsonl`); promotion state in `.j2py/harvest/state.json`.
+- Cursor agent skill `.cursor/skills/harvest-promote/SKILL.md` for the promotion workflow.
 - Gemini Flash LLM provider support via `--llm-provider gemini` and `GEMINI_API_KEY`
   ([ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md), #275); Anthropic
   remains the default.

@@ -178,17 +178,21 @@ See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md),
 On-demand live LLM evaluation and harvest (excluded from `make check`):
 
 ```bash
-make test-llm-e2e            # Anthropic live probes; requires ANTHROPIC_API_KEY
-make test-llm-gemini-e2e     # Gemini live probe; requires GEMINI_API_KEY
-make harvest-pipeline        # local probe harvest → triage → target drafts → prune
-make harvest-gemini          # batch Gemini harvest from .j2py/harvest/queue.txt
-make harvest-triage          # summarize local .j2py/harvest/records.jsonl
-# harvest-gemini vars: OFFSET=0 LIMIT=10 SLEEP=6 FILE_LIST=.j2py/harvest/queue.txt
-# or: GEMINI_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -k gemini -v -s
+make test-llm-e2e              # Anthropic live probes; requires ANTHROPIC_API_KEY
+make test-llm-gemini-e2e       # Gemini live probe; requires GEMINI_API_KEY
+make harvest-promote-dry        # triage + draft pattern-family issues; no LLM
+make harvest-promote            # queue → Gemini batch → triage → draft issues
+make harvest-promote-issues     # same + gh issue create
+make harvest-queue REFRESH=1    # rebuild Tier-A queue from corpus-reports/
+make harvest-pipeline           # local probe harvest → triage → FUTURE_TARGETS drafts
+make harvest-gemini             # batch Gemini harvest from .j2py/harvest/queue.txt
+make harvest-triage             # summarize local .j2py/harvest/records.jsonl
+# promote vars: LIMIT=2 ISSUES=3; harvest-gemini: OFFSET=0 LIMIT=10 SLEEP=6 FILE_LIST=...
 ```
 
-See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for the full harvest workflow and
-maintenance guide.
+Worktrees: set `J2PY_CORPUS_ROOT` to the main checkout so `.env`, queue, cache, and
+`.j2py/harvest/` resolve correctly. See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for
+queue tiers, content cache, state files, and the harvest-promote agent skill.
 
 ## Adding translation rules
 

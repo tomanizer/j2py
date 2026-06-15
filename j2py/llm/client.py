@@ -69,12 +69,28 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 
+def gemini_api_key_problem(key: str | None) -> str | None:
+    """Return a human hint when ``key`` looks like the wrong credential type."""
+    if not key or not key.strip():
+        return "GEMINI_API_KEY is not set"
+    stripped = key.strip()
+    if stripped.startswith("ya29."):
+        return (
+            "GEMINI_API_KEY looks like a gcloud OAuth access token (ya29...), "
+            "not a Google AI Studio API key"
+        )
+    if stripped.startswith("Bearer "):
+        return "GEMINI_API_KEY must be the raw key value, not a Bearer header"
+    return None
+
+
 def get_gemini_client() -> GeminiClient:
     global _gemini_client
     load_repo_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is required for Gemini LLM translation")
+    problem = gemini_api_key_problem(api_key)
+    if problem:
+        raise RuntimeError(f"{problem}. Create a key at https://aistudio.google.com/apikey.")
     if _gemini_client is None:
         from google import genai
 

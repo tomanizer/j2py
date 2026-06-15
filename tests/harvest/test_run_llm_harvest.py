@@ -148,6 +148,15 @@ def test_is_gemini_quota_error_detects_client_error() -> None:
     assert not harvest.is_gemini_quota_error(ValueError("nope"))
 
 
+def test_is_gemini_auth_error_detects_unauthenticated() -> None:
+    class Fake401(Exception):
+        status_code = 401
+
+    assert harvest.is_gemini_auth_error(Fake401("401 UNAUTHENTICATED"))
+    assert harvest.is_gemini_auth_error(ValueError("ACCESS_TOKEN_TYPE_UNSUPPORTED"))
+    assert not harvest.is_gemini_auth_error(ValueError("nope"))
+
+
 def test_run_harvest_exits_cleanly_on_gemini_quota(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -261,3 +270,15 @@ def test_require_api_key_exits_when_gemini_key_missing(
         harvest.require_api_key("gemini")
     assert exc.value.code == 2
     assert "GEMINI_API_KEY" in capsys.readouterr().err
+
+
+def test_require_api_key_exits_when_gemini_key_is_oauth_token(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "ya29.oauth-token")
+    monkeypatch.setattr(harvest, "load_repo_dotenv", lambda: None)
+    with pytest.raises(SystemExit) as exc:
+        harvest.require_api_key("gemini")
+    assert exc.value.code == 2
+    assert "OAuth access token" in capsys.readouterr().err

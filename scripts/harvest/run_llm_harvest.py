@@ -13,7 +13,7 @@ from tenacity import RetryError
 
 from j2py.config.loader import ConfigLoader
 from j2py.dotenv import load_repo_dotenv
-from j2py.llm.client import LLMProvider, resolve_model
+from j2py.llm.client import LLMProvider, gemini_api_key_problem, resolve_model
 from j2py.llm.harvest import harvest_records_path, llm_harvest_enabled
 from j2py.llm.usage import (
     begin_usage_session,
@@ -26,6 +26,7 @@ from j2py.llm.usage import (
 )
 from j2py.pipeline import translate_file
 from scripts.harvest.harvest_presets import DEFAULT_HARVEST_PRESET, HARVEST_PRESETS
+from scripts.harvest.harvest_cache import load_harvest_cache, should_skip_harvest
 
 TEMP_PATH_MARKERS = ("/pytest-", "/tmp/pytest", "/var/folders/")
 
@@ -97,11 +98,24 @@ def select_paths(
 def require_api_key(provider: LLMProvider) -> None:
     load_repo_dotenv()
     env_var = "GEMINI_API_KEY" if provider == "gemini" else "ANTHROPIC_API_KEY"
-    if os.environ.get(env_var):
-        return
-    print(f"ERROR: {env_var} is not set.", file=sys.stderr)
-    print("  Use .env, export in shell, or source ~/.zshrc", file=sys.stderr)
-    raise SystemExit(2)
+    value = os.environ.get(env_var)
+    if not value:
+        print(f"ERROR: {env_var} is not set.", file=sys.stderr)
+        print(
+            "  Use .env in this checkout, set J2PY_CORPUS_ROOT to a checkout with .env, "
+            "or export in shell",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    if provider == "gemini":
+        problem = gemini_api_key_problem(value)
+        if problem:
+            print(f"ERROR: {problem}.", file=sys.stderr)
+            print(
+                "  Create a key at https://aistudio.google.com/apikey.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
 
 
 def resolve_harvest_paths(
@@ -152,6 +166,27 @@ def format_gemini_quota_message(exc: BaseException) -> str:
     return "Gemini API quota exceeded (429 RESOURCE_EXHAUSTED)."
 
 
+def is_gemini_auth_error(exc: BaseException) -> bool:
+    """Return True when Gemini rejected credentials (401 / wrong token type)."""
+    current: BaseException | None = exc
+    while current is not None:
+        status_code = getattr(current, "status_code", None)
+        if status_code == 401:
+            return True
+        text = str(current)
+        if "UNAUTHENTICATED" in text or "ACCESS_TOKEN_TYPE_UNSUPPORTED" in text:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def format_gemini_auth_message() -> str:
+    return (
+        "Gemini authentication failed (401 UNAUTHENTICATED). "
+        "Use a Google AI Studio API key, not gcloud OAuth output (ya29...)."
+    )
+
+
 def run_harvest(
     paths: list[Path],
     *,
@@ -159,6 +194,8 @@ def run_harvest(
     model: str | None,
     validate: bool,
     sleep_seconds: float,
+    skip_cached: bool = True,
+    force: bool = False,
 ) -> tuple[int, int]:
     """Translate paths and return (used_llm_count, skipped_count)."""
     cfg = ConfigLoader().add_defaults().build()
@@ -166,11 +203,17 @@ def run_harvest(
     skipped = 0
     resolved_model = resolve_model(provider, model)
     begin_usage_session()
+    cache = load_harvest_cache() if skip_cached else {}
 
     for index, path in enumerate(paths):
         if not path.is_file():
             print(f"ERROR: missing file: {path}", file=sys.stderr)
             raise SystemExit(2)
+
+        if skip_cached and should_skip_harvest(path, cache, force=force):
+            skipped += 1
+            print(f"  cache {path.name} (unchanged harvest record)")
+            continue
 
         usage_start = session_record_count()
         try:
@@ -184,6 +227,18 @@ def run_harvest(
             )
         except RetryError as exc:
             cause = exc.last_attempt.exception() if exc.last_attempt else exc
+            if provider == "gemini" and cause is not None and is_gemini_auth_error(cause):
+                print(f"\n{format_gemini_auth_message()}", file=sys.stderr)
+                print(
+                    "  Create or verify your key: https://aistudio.google.com/apikey",
+                    file=sys.stderr,
+                )
+                print(
+                    "  In worktrees: export J2PY_CORPUS_ROOT=/path/to/main/j2py "
+                    "or copy .env into this checkout.",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2) from exc
             if provider == "gemini" and cause is not None and is_gemini_quota_error(cause):
                 processed = used_llm + skipped
                 resume_offset_hint = processed
@@ -282,6 +337,16 @@ def main() -> int:
         action="store_true",
         help="Skip post-translation validation (faster, less signal in records)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-harvest even when records.jsonl has the same java_sha256",
+    )
+    parser.add_argument(
+        "--no-skip-cached",
+        action="store_true",
+        help="Translate every path even if already recorded at the same content hash",
+    )
     args = parser.parse_args()
 
     if not llm_harvest_enabled():
@@ -318,6 +383,8 @@ def main() -> int:
         model=args.model,
         validate=not args.no_validate,
         sleep_seconds=args.sleep_seconds,
+        skip_cached=not args.no_skip_cached,
+        force=args.force,
     )
 
     out = harvest_records_path()

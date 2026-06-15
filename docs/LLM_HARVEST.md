@@ -89,34 +89,81 @@ Tags are **approximate** — always read the diff before implementing a rule.
 
 ### Prerequisites
 
-- `GEMINI_API_KEY` for `make harvest-run`, `make harvest-gemini`, and
-  `make test-llm-gemini-e2e`
+- `GEMINI_API_KEY` for batch harvest and promotion (`make harvest-run`, `make harvest-gemini`,
+  `make harvest-promote`, `make test-llm-gemini-e2e`)
 - `ANTHROPIC_API_KEY` for `make test-llm-e2e` (Anthropic probes)
+- Optional: `gh` CLI authenticated for `make harvest-promote-issues`
 - See [README](../README.md) live LLM section for key setup
 
-### One-shot pipeline
+Makefile targets load `.env` from the checkout, then `$J2PY_CORPUS_ROOT/.env` (for git
+worktrees), then the login shell (`LOAD_GEMINI_ENV` in the Makefile).
+
+### Recommended workflows
+
+| Goal | Command |
+|------|---------|
+| Triage existing records + draft pattern issues (no LLM) | `make harvest-promote-dry ISSUES=3` |
+| Full promotion slice (queue → harvest → triage → drafts) | `make harvest-promote LIMIT=2 ISSUES=3` |
+| Same + create GitHub issues | `make harvest-promote-issues` |
+| Local probe harvest + FUTURE_TARGETS drafts | `make harvest-pipeline` |
+| Rebuild Tier-A corpus queue | `make harvest-queue REFRESH=1` |
+| Manual batch harvest only | `make harvest-gemini OFFSET=0 LIMIT=10` |
+| Triage report only | `make harvest-triage` |
+
+Variables: `LIMIT` (Gemini files per promote run, default `2`), `ISSUES` (pattern issues
+per run, default `3`), `OFFSET` / `SLEEP` / `FILE_LIST` for `harvest-gemini`.
+
+### Makefile reference
+
+| Target | What it does |
+|--------|----------------|
+| `harvest-promote` | Queue refresh → local probes → Gemini batch → prune → triage → draft issues |
+| `harvest-promote-issues` | Same + `gh issue create` for each draft |
+| `harvest-promote-dry` | Prune → triage → draft issues only (`--skip-harvest --skip-local`) |
+| `harvest-queue` | Build `.j2py/harvest/queue.txt` from `corpus-reports/*.json` (Tier A) |
+| `harvest-queue REFRESH=1` | Force queue rebuild |
+| `harvest-run` | LLM-translate `tests/fixtures/llm/*.java` (Gemini) |
+| `harvest-gemini` | Batch harvest from queue file |
+| `harvest-triage` | Ranked triage report (alias: `harvest-llm`) |
+| `harvest-suggest-targets` | Draft `FUTURE_TARGETS` snippets for coverage-gap rows |
+| `harvest-prune` | Dedupe jsonl (latest row per source; drop resolved) |
+| `harvest-pipeline` | `harvest-run` → triage → suggest-targets → prune |
+| `test-llm-e2e` | Anthropic live pytest probes (also records) |
+| `test-llm-gemini-e2e` | Gemini live probe |
+
+Agent skill for promotion: [`.cursor/skills/harvest-promote/SKILL.md`](../.cursor/skills/harvest-promote/SKILL.md).
+
+### Local state files (gitignored)
+
+All under `.j2py/harvest/` unless overridden:
+
+| File | Purpose |
+|------|---------|
+| `records.jsonl` | One harvest record per LLM translation (`J2PY_LLM_HARVEST_PATH`) |
+| `usage.jsonl` | Gemini token usage and estimated cost (`J2PY_LLM_USAGE_PATH`) |
+| `queue.txt` | Tier-A corpus paths for batch harvest |
+| `state.json` | Promotion progress: `harvest_offset`, `filed_signals`, timestamps |
+
+### Git worktrees
+
+Harvest state and API keys normally live on the **main** checkout. In a worktree:
+
+```bash
+export J2PY_CORPUS_ROOT=/path/to/main/j2py
+make harvest-promote-dry ISSUES=2
+```
+
+This reuses `$J2PY_CORPUS_ROOT/.env`, `.j2py/harvest/`, and corpus checkouts under
+`.corpus/`.
+
+### One-shot local probe pipeline
 
 ```bash
 make harvest-pipeline
 ```
 
-Runs, in order:
-
-1. `harvest-run` — LLM-translate probe files
-2. `harvest-triage` — ranked report
-3. `harvest-suggest-targets` — draft `FUTURE_TARGETS` snippets
-4. `harvest-prune` — compact the jsonl
-
-### Individual commands
-
-```bash
-make harvest-run              # translate tests/fixtures/llm/*.java with LLM (Gemini)
-make harvest-gemini           # batch harvest from corpus queue (see below)
-make harvest-triage           # print triage report (alias: harvest-llm)
-make harvest-suggest-targets  # suggest FUTURE_TARGETS for coverage-gap rows
-make harvest-prune            # dedupe jsonl
-make test-llm-e2e             # full live pytest probes (also records)
-```
+Runs: `harvest-run` → `harvest-triage` → `harvest-suggest-targets` → `harvest-prune`.
+Use this for cheap construct probes, not corpus-scale promotion (use `harvest-promote`).
 
 Presets for small probe runs (`scripts/harvest/harvest_presets.py`):
 
@@ -144,7 +191,16 @@ uv run python scripts/corpus/translate_corpus.py \
   --json-out corpus-reports/spring-scan.json
 ```
 
-**2. Build the queue** — keep files with real gaps; drop `package-info.java` descriptors:
+**2. Build the queue** — Tier A: `coverage == 1.0`, `syntax_ok == false`,
+`unhandled_count == 0` (mypy/syntax gaps the LLM can repair):
+
+```bash
+make harvest-queue              # build if missing or corpus reports are newer
+make harvest-queue REFRESH=1    # force rebuild
+# or: uv run python scripts/harvest/build_harvest_queue.py --force
+```
+
+Manual filter (any gap class):
 
 ```bash
 mkdir -p .j2py/harvest
@@ -160,11 +216,16 @@ jq -r '.files[] | select(
 ```bash
 make harvest-gemini OFFSET=0 LIMIT=10
 make harvest-gemini OFFSET=10 LIMIT=10   # resume next slice
+make harvest-promote LIMIT=2             # orchestrated slice + triage + issue drafts
 make harvest-triage
 ```
 
 Makefile variables: `FILE_LIST` (default `.j2py/harvest/queue.txt`), `OFFSET`, `LIMIT`,
 `SLEEP`. Each Java file may trigger 1–3 LLM calls (initial + mypy repair retries).
+
+**Content cache:** paths already in `records.jsonl` at the same `java_sha256` are skipped
+(`cache Foo.java (unchanged harvest record)`). Re-run with `--force` or
+`--no-skip-cached` on the promotion or batch scripts.
 
 On **429 quota**, the runner exits with code 3 and prints a resume hint. Monitor rate
 limits at [ai.dev/rate-limit](https://ai.dev/rate-limit); token spend is logged to
@@ -237,6 +298,142 @@ grep InterfaceDefaults .j2py/harvest/records.jsonl | python -m json.tool \
 
 Reference the JSON in the PR that implements the deterministic rule.
 
+### Promoting harvest → GitHub issues (pattern families)
+
+Triage lists **example files per repair signal**. A signal is almost always a **pattern
+family** (AST node, diagnostic reason, registry gap) — not a bug in one Java file.
+
+**Do not** file issues anchored on a single example (`Fix AssertProbe.java`). Agents will
+implement point fixes: one xfail passes, one LLM diff is copied, the general diagnostic
+remains.
+
+File issues anchored on the **pattern**, with examples as evidence only.
+
+#### Workflow
+
+1. **Prune and triage**
+
+   ```bash
+   make harvest-prune && make harvest-triage
+   ```
+
+2. **Group by signal + diagnostic**, not by first example file
+
+   Pick a repair signal (e.g. `unsupported-stmt-removed`, `protocol-stub`,
+   `jdk-import-removed`). Collect every clean source path for that signal — exclude pytest
+   temp dirs (`/pytest-`, `/var/folders/`).
+
+   ```bash
+   uv run python -c "
+   import json
+   from collections import defaultdict
+   from pathlib import Path
+   from j2py.llm.harvest import latest_harvest_records, load_harvest_records
+
+   records = latest_harvest_records(load_harvest_records(Path('.j2py/harvest/records.jsonl')))
+   by_sig = defaultdict(set)
+   for r in records:
+       p = str(r.get('source_path', ''))
+       if '/pytest-' in p or '/var/folders/' in p:
+           continue
+       for s in r.get('repair_signals') or []:
+           by_sig[s].add(p)
+   for sig in sorted(by_sig, key=lambda s: -len(by_sig[s])):
+       print(f'{len(by_sig[sig]):3} {sig}')
+       for path in sorted(by_sig[sig])[:8]:
+           print(f'     {path}')
+   "
+   ```
+
+3. **Choose roles for sources**
+
+   | Role | Purpose |
+   |------|---------|
+   | Minimal fixture | Smallest file to develop the rule (often under `tests/fixtures/llm/`) |
+   | Regression peers | Other harvest hits that must improve with the same rule |
+   | Corpus evidence | Large `.corpus/` files — cite in issue; extract minimal repro into `tests/fixtures/` when implementing |
+
+4. **Open issue using the template**
+
+   - GitHub UI: **New issue → Rule layer pattern (from harvest)**
+   - Template file: [`.github/ISSUE_TEMPLATE/rule-layer-pattern.md`](../.github/ISSUE_TEMPLATE/rule-layer-pattern.md)
+   - Draft copy: [`.github/issue-drafts/harvest-pattern-issue-template.md`](../.github/issue-drafts/harvest-pattern-issue-template.md)
+
+   ```bash
+   gh issue create --title "Rule layer: … (harvest: …)" \
+     --label "enhancement,rule-layer" \
+     --body-file .github/issue-drafts/harvest-pattern-issue-template.md
+   ```
+
+5. **Wire tracking**
+
+   - Coverage gaps: add/update `FUTURE_TARGETS` with `tracking="issue-NNN"` (minimal fixture only — acceptance still pattern-level)
+   - Mypy repair: optional harvest JSON under `tests/fixtures/llm/harvest/`
+   - Link related issues when patterns overlap (e.g. `#298` import registry vs `#296` Comparator types)
+
+#### Issue body checklist
+
+Every harvest-promoted issue should include:
+
+| Section | Content |
+|---------|---------|
+| **Pattern family** | AST node, diagnostic, harvest signal — explicit “not a single-file fix” |
+| **Mechanism** | Translator module / registry; general mapping rule |
+| **Evidence table** | All clean harvest sources; mark minimal fixture vs peer |
+| **Pattern-level acceptance** | Parametrised tests, multiple files, signal drop on re-harvest |
+| **Anti-patterns** | Ban filename checks, one-diff copy-paste, single-xfail fixes |
+| **Verify** | `make check`, `make test-targets`, targeted pytest, re-harvest |
+
+#### Promotion lanes (unchanged)
+
+| Gap type | Harvest signal | GitHub issue focus | Repo artifact |
+|---|---|---|---|
+| Coverage gap | `coverage_gap`, `unsupported-stmt-removed`, `todo-placeholder-removed` | Statement/expression **visitor rule** | `FUTURE_TARGETS` + fixtures |
+| Mypy repair | `protocol-stub`, `generic-typevar`, `jdk-import-removed`, … | **Type registry** + emission policy | Harvest JSON + construct fixtures |
+| Overload | `overload-dispatch`, `overload-runtime-to-typing` | **`overloads.py` tier** (distinguish instance vs static groups) | Overload probe fixtures |
+| Adapter / factory | `adapter-class-introduced` | Interface static factory → concrete adapter | Construct fixtures |
+
+#### Example titles (good vs bad)
+
+| Bad (point fix) | Good (pattern family) |
+|-----------------|-------------------------|
+| Fix AssertProbe.java | Rule layer: Java assert statements (harvest: unsupported-stmt-removed) |
+| ObjectNameManager mypy | Rule layer: static JDK overload groups + platform stubs (harvest: overload-runtime-to-typing) |
+| AnonymousComparator Protocol | Rule layer: JDK Comparator + anonymous class typing (harvest: protocol-stub) |
+
+#### Automated promotion pipeline
+
+One command runs queue refresh → Gemini batch → prune → triage → pattern-family issue
+drafts (or GitHub create). Progress is tracked in `.j2py/harvest/state.json`.
+
+```bash
+make harvest-promote              # LIMIT=2 ISSUES=3; drafts issues to stdout
+make harvest-promote-issues       # same + gh issue create
+make harvest-promote-dry          # no LLM — prune, triage, draft only
+make harvest-queue                # rebuild Tier A queue from corpus-reports/
+make harvest-queue REFRESH=1      # force queue rebuild
+```
+
+| Step | Script / target |
+|------|-----------------|
+| Build Tier A queue | `scripts/harvest/build_harvest_queue.py` |
+| Orchestrator | `scripts/harvest/run_harvest_promotion.py` |
+| Issue bodies | `scripts/harvest/promote_harvest_signals.py` + `signal_patterns.py` |
+| Agent skill | `.cursor/skills/harvest-promote/SKILL.md` |
+
+Queue is rebuilt when missing or when any `corpus-reports/*.json` is newer than
+`queue.txt`. Gemini batch advances `state.harvest_offset` until the queue is exhausted
+(then `--refresh-queue` after new corpus scans).
+
+**Duplicate-issue guards:** pattern families already in `state.filed_signals` are skipped.
+Before filing, the promoter also checks for open GitHub issues matching
+`harvest: <signal>` via `gh issue list`. Use `make harvest-promote-dry` to preview drafts
+without creating issues.
+
+**Content cache:** paths already in `records.jsonl` at the same `java_sha256` are skipped
+automatically. Queue offset syncs past cached entries on each promote run. Re-run with
+`--force` or `--no-skip-cached`.
+
 ## Live LLM tests
 
 Exploratory pytest probes (excluded from `make check`):
@@ -272,7 +469,10 @@ Three mechanisms:
    row per `source_path`.
 2. **Skip identical re-appends** — same file + same `java_sha256` + same
    `repair_signals` is not written again.
-3. **`make harvest-prune`** — rewrites jsonl to one row per source; drops
+3. **Content cache (batch runs)** — `run_llm_harvest.py` and `run_harvest_promotion.py`
+   skip files whose `java_sha256` already appears in `records.jsonl` unless `--force` or
+   `--no-skip-cached`.
+4. **`make harvest-prune`** — rewrites jsonl to one row per source; drops
    `status=resolved`.
 
 ```bash
@@ -323,8 +523,9 @@ print(len(lines), 'lines,', len(paths), 'unique sources')
 | `J2PY_LLM_HARVEST_PATH` | `.j2py/harvest/records.jsonl` | Alternate log path |
 | `J2PY_LLM_USAGE` | `1` | Set to `0` to disable token usage logging |
 | `J2PY_LLM_USAGE_PATH` | `.j2py/harvest/usage.jsonl` | Alternate usage log path |
-| `ANTHROPIC_API_KEY` | — | Required for `harvest-run` / `test-llm-e2e` |
-| `GEMINI_API_KEY` | — | Required for `make harvest-gemini` |
+| `J2PY_CORPUS_ROOT` | — | Main checkout path for worktrees (`.env`, `.j2py/harvest/`, `.corpus/`) |
+| `ANTHROPIC_API_KEY` | — | Required for `test-llm-e2e` |
+| `GEMINI_API_KEY` | — | Required for `harvest-run`, `harvest-gemini`, `harvest-promote` |
 
 ## Token usage logging (Gemini)
 
@@ -358,11 +559,21 @@ Implementation: `j2py/llm/usage.py` (client hook + harvest runner summary).
 | Record builder + heuristics | `j2py/llm/harvest.py` |
 | Token usage logging | `j2py/llm/usage.py` |
 | Pipeline hook | `j2py/pipeline.py` (`record_llm_repair`) |
+| Worktree `.env` fallback | `j2py/dotenv.py` |
 | Batch runner | `scripts/harvest/run_llm_harvest.py` |
+| Promotion orchestrator | `scripts/harvest/run_harvest_promotion.py` |
+| Pattern-family issue drafts | `scripts/harvest/promote_harvest_signals.py` |
+| Signal → pattern metadata | `scripts/harvest/signal_patterns.py` |
+| Tier-A queue builder | `scripts/harvest/build_harvest_queue.py` |
+| Content cache | `scripts/harvest/harvest_cache.py` |
+| Promotion state | `scripts/harvest/harvest_state.py` |
+| Triage helpers | `scripts/harvest/triage_lib.py` |
 | Triage report | `scripts/harvest/aggregate_llm_harvest.py` |
 | FUTURE_TARGETS drafts | `scripts/harvest/suggest_future_targets.py` |
 | Prune / compact | `scripts/harvest/prune_llm_harvest.py` |
 | Probe presets | `scripts/harvest/harvest_presets.py` |
+| Agent skill | `.cursor/skills/harvest-promote/SKILL.md` |
+| GitHub issue template | `.github/ISSUE_TEMPLATE/rule-layer-pattern.md` |
 | Unit tests | `tests/llm/test_harvest.py`, `tests/harvest/` |
 
 ## Related docs
