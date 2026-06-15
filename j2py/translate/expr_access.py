@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
@@ -69,7 +70,10 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
 
 
 def _translate_array_initializer(node: JavaNode, ctx: TranslationContext) -> str:
-    return f"[{', '.join(translate_expression(child, ctx) for child in node.named_children)}]"
+    values = [
+        translate_expression(child, ctx) for child in node.named_children if not is_comment(child)
+    ]
+    return f"[{', '.join(values)}]"
 
 
 def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
@@ -77,27 +81,42 @@ def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
     if initializer is not None:
         return translate_expression(initializer, ctx)
     dimensions = [child for child in node.named_children if child.type == "dimensions_expr"]
-    if len(dimensions) == 1 and dimensions[0].named_children:
-        type_node = next(
-            (child for child in node.named_children if child.type != "dimensions_expr"),
-            None,
-        )
-        default = java_default_value(type_node.text if type_node is not None else "Object")
-        size = translate_expression(dimensions[0].named_children[0], ctx)
-        return f"[{default}] * {size}"
-    if len(dimensions) > 1:
+    if any(child.type == "dimensions" for child in node.named_children):
         ctx.diagnostics.record(
             node,
             supported=False,
-            reason="multidimensional array creation requires nested allocation handling",
+            reason="array creation with unsized dimensions requires allocation handling",
         )
         return f"__j2py_todo__({node.text!r})"
+    if dimensions and all(dimension.named_children for dimension in dimensions):
+        type_node = _array_creation_type_node(node)
+        default = java_default_value(type_node.text if type_node is not None else "Object")
+        sizes = [translate_expression(dimension.named_children[0], ctx) for dimension in dimensions]
+        return _sized_array_allocation(default, sizes)
     ctx.diagnostics.record(
         node,
         supported=False,
         reason="array creation without initializer requires size handling",
     )
     return f"__j2py_todo__({node.text!r})"
+
+
+def _array_creation_type_node(node: JavaNode) -> JavaNode | None:
+    return next(
+        (
+            child
+            for child in node.named_children
+            if child.type not in {"array_initializer", "dimensions", "dimensions_expr"}
+        ),
+        None,
+    )
+
+
+def _sized_array_allocation(default: str, sizes: list[str]) -> str:
+    allocation = f"[{default}] * {sizes[-1]}"
+    for size in reversed(sizes[:-1]):
+        allocation = f"[{allocation} for _ in range({size})]"
+    return allocation
 
 
 def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:

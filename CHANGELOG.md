@@ -8,10 +8,36 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- LLM harvest **promotion pipeline**: `make harvest-promote`, `harvest-promote-issues`,
+  and `harvest-promote-dry` orchestrate queue build, Gemini batch harvest, prune,
+  triage, and pattern-family GitHub issue drafts (`scripts/harvest/run_harvest_promotion.py`,
+  `promote_harvest_signals.py`, `signal_patterns.py`).
+- Tier-A **queue builder** (`make harvest-queue`, `scripts/harvest/build_harvest_queue.py`)
+  from `corpus-reports/*.json` (coverage == 1.0, syntax fail, no unhandled nodes).
+- Harvest **content cache** skips re-translating unchanged sources (`java_sha256` match in
+  `records.jsonl`); promotion state in `.j2py/harvest/state.json`.
+- Cursor agent skill `.cursor/skills/harvest-promote/SKILL.md` for the promotion workflow.
 - Gemini Flash LLM provider support via `--llm-provider gemini` and `GEMINI_API_KEY`
   ([ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md), #275); Anthropic
   remains the default.
 - Live Gemini Flash e2e probe via `make test-llm-gemini-e2e` (#276).
+- Project config defaults for LLM provider/model selection via `llm_provider` and `model`,
+  with explicit CLI flags taking precedence (#279).
+- Gemini LLM completion now streams responses for large translation prompts while
+  preserving cache keys, retries, fence stripping, and truncation detection (#280).
+- Gemini batch harvest via `make harvest-gemini`: queue file (`--file-list`),
+  `--offset` / `--limit` resume, `--skip-package-info`, throttling, and graceful 429
+  quota handling in `scripts/harvest/run_llm_harvest.py`.
+- Gemini token usage logging to `.j2py/harvest/usage.jsonl` with per-file and session
+  summaries (`j2py/llm/usage.py`); disable with `J2PY_LLM_USAGE=0`.
+- Surfaced confidence now stays below 1.00 when validation fails, structural checks fail,
+  parse errors occur, or semantic warnings require review (#271).
+
+### Fixed
+- Line comments inside expression lists now translate without unsupported-expression
+  diagnostics or `__j2py_todo__` placeholders (#286).
+- `Calendar.get(...)` now stays a Java API method call instead of being reported as an
+  ambiguous collection `.get(...)` invocation (#288).
 
 ## 0.4.0a1 - 2026-06-15
 

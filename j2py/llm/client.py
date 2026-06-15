@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
@@ -32,7 +32,7 @@ MAX_OUTPUT_TOKENS = 32000
 
 
 class GeminiModels(Protocol):
-    def generate_content(self, **kwargs: object) -> object: ...
+    def generate_content_stream(self, **kwargs: object) -> Iterator[object]: ...
 
 
 class GeminiClient(Protocol):
@@ -69,12 +69,28 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 
+def gemini_api_key_problem(key: str | None) -> str | None:
+    """Return a human hint when ``key`` looks like the wrong credential type."""
+    if not key or not key.strip():
+        return "GEMINI_API_KEY is not set"
+    stripped = key.strip()
+    if stripped.startswith("ya29."):
+        return (
+            "GEMINI_API_KEY looks like a gcloud OAuth access token (ya29...), "
+            "not a Google AI Studio API key"
+        )
+    if stripped.startswith("Bearer "):
+        return "GEMINI_API_KEY must be the raw key value, not a Bearer header"
+    return None
+
+
 def get_gemini_client() -> GeminiClient:
     global _gemini_client
     load_repo_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is required for Gemini LLM translation")
+    problem = gemini_api_key_problem(api_key)
+    if problem:
+        raise RuntimeError(f"{problem}. Create a key at https://aistudio.google.com/apikey.")
     if _gemini_client is None:
         from google import genai
 
@@ -185,6 +201,10 @@ def translate_with_llm(
     if use_cache:
         cached: str | None = _cache.get(key)
         if cached is not None:
+            if provider == "gemini":
+                from j2py.llm.usage import record_gemini_cache_hit
+
+                record_gemini_cache_hit(model=resolved_model)
             return cached
 
     if provider == "anthropic":
@@ -241,7 +261,11 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
     from google.genai import types
 
     client = get_gemini_client()
-    response = client.models.generate_content(
+    # Use the streaming endpoint for parity with Anthropic at the 32K output-token
+    # budget. Large class translations can run long enough that one-shot provider calls
+    # are more likely to hit SDK/client timeout guards, while the streaming response still
+    # exposes chunk text and final finish reasons for truncation detection.
+    chunks = client.models.generate_content_stream(
         model=model,
         contents=contents,
         config=types.GenerateContentConfig(
@@ -249,15 +273,26 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
             system_instruction=system_text,
         ),
     )
-    if _gemini_hit_max_tokens(response):
-        raise LLMTruncationError(
-            "Gemini response hit the max_output_tokens limit; the translation is truncated "
-            "and would emit broken Python. Split the class into smaller units before retrying."
-        )
-    text = getattr(response, "text", None)
-    if not isinstance(text, str):
+    parts: list[str] = []
+    last_chunk: object | None = None
+    for chunk in chunks:
+        last_chunk = chunk
+        if _gemini_hit_max_tokens(chunk):
+            raise LLMTruncationError(
+                "Gemini response hit the max_output_tokens limit; the translation is "
+                "truncated and would emit broken Python. Split the class into smaller "
+                "units before retrying."
+            )
+        text = getattr(chunk, "text", None)
+        if isinstance(text, str):
+            parts.append(text)
+    if not parts:
         raise RuntimeError("Gemini response did not include text output")
-    return _strip_fences(text)
+    from j2py.llm.usage import record_gemini_api_usage
+
+    if last_chunk is not None:
+        record_gemini_api_usage(model=model, response=last_chunk)
+    return _strip_fences("".join(parts))
 
 
 def _message_text(messages: list[dict[str, object]]) -> str:

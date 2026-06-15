@@ -1,6 +1,8 @@
 """Tests for LLM client wrappers without live API calls."""
 
+import json
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 
@@ -118,6 +120,14 @@ def test_get_gemini_client_requires_api_key(monkeypatch) -> None:
         client_mod.get_gemini_client()
 
 
+def test_get_gemini_client_rejects_gcloud_oauth_token(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "ya29.oauth-token")
+    monkeypatch.setattr(client_mod, "_gemini_client", None)
+
+    with pytest.raises(RuntimeError, match="OAuth access token"):
+        client_mod.get_gemini_client()
+
+
 def test_resolve_model_defaults_by_provider() -> None:
     assert client_mod.resolve_model("anthropic", None) == "claude-sonnet-4-6"
     assert client_mod.resolve_model("gemini", None) == "gemini-3.5-flash"
@@ -158,8 +168,8 @@ def test_translate_with_llm_cache_key_includes_provider(monkeypatch) -> None:
             return FakeStream(_message("anthropic python"))
 
     class Models:
-        def generate_content(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(text="gemini python", candidates=[])
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
+            return [SimpleNamespace(text="gemini python", candidates=[])]
 
     _install_fake_google_genai_types(monkeypatch)
     monkeypatch.setattr(client_mod, "_cache", cache)
@@ -266,9 +276,20 @@ def test_translate_with_llm_calls_gemini_and_writes_cache(monkeypatch) -> None:
     observed: dict[str, Any] = {}
 
     class Models:
-        def generate_content(self, **kwargs: Any) -> SimpleNamespace:
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
             observed.update(kwargs)
-            return SimpleNamespace(text="translated python", candidates=[])
+            return [
+                SimpleNamespace(text="translated ", candidates=[]),
+                SimpleNamespace(
+                    text="python",
+                    candidates=[],
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=10,
+                        candidates_token_count=20,
+                        total_token_count=30,
+                    ),
+                ),
+            ]
 
     _install_fake_google_genai_types(monkeypatch)
     monkeypatch.setattr(client_mod, "_cache", cache)
@@ -290,12 +311,55 @@ def test_translate_with_llm_calls_gemini_and_writes_cache(monkeypatch) -> None:
     assert list(cache.written.values()) == ["translated python"]
 
 
+def test_translate_with_llm_gemini_records_usage(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cache = FakeCache()
+    log_path = tmp_path / "usage.jsonl"
+    monkeypatch.setenv("J2PY_LLM_USAGE_PATH", str(log_path))
+
+    class Models:
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
+            return [
+                SimpleNamespace(text="translated python", candidates=[]),
+                SimpleNamespace(
+                    text="",
+                    candidates=[],
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=100,
+                        candidates_token_count=50,
+                        total_token_count=150,
+                    ),
+                ),
+            ]
+
+    _install_fake_google_genai_types(monkeypatch)
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_gemini_client", lambda: SimpleNamespace(models=Models()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        provider="gemini",
+        model="gemini-3.5-flash",
+    )
+
+    payload = json.loads(log_path.read_text(encoding="utf-8").strip())
+    assert payload["kind"] == "api_call"
+    assert payload["prompt_tokens"] == 100
+    assert payload["candidates_tokens"] == 50
+
+
 def test_translate_with_llm_strips_gemini_fenced_response(monkeypatch: Any) -> None:
     cache = FakeCache()
 
     class Models:
-        def generate_content(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(text="```python\ntranslated python\n```", candidates=[])
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
+            return [
+                SimpleNamespace(text="```python\ntranslated ", candidates=[]),
+                SimpleNamespace(text="python\n```", candidates=[]),
+            ]
 
     _install_fake_google_genai_types(monkeypatch)
     monkeypatch.setattr(client_mod, "_cache", cache)
@@ -316,11 +380,11 @@ def test_translate_with_llm_retries_transient_gemini_failure(monkeypatch) -> Non
     calls = {"count": 0}
 
     class Models:
-        def generate_content(self, **kwargs: Any) -> SimpleNamespace:
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
             calls["count"] += 1
             if calls["count"] == 1:
                 raise RuntimeError("transient")
-            return SimpleNamespace(text="translated after retry", candidates=[])
+            return [SimpleNamespace(text="translated after retry", candidates=[])]
 
     _install_fake_google_genai_types(monkeypatch)
     monkeypatch.setattr(client_mod, "get_gemini_client", lambda: SimpleNamespace(models=Models()))
@@ -367,13 +431,16 @@ def test_translate_with_llm_raises_on_gemini_truncation(monkeypatch) -> None:
     calls = {"count": 0}
 
     class Models:
-        def generate_content(self, **kwargs: Any) -> SimpleNamespace:
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
             calls["count"] += 1
             reason = SimpleNamespace(name="MAX_TOKENS")
-            return SimpleNamespace(
-                text="truncated parti",
-                candidates=[SimpleNamespace(finish_reason=reason)],
-            )
+            return [
+                SimpleNamespace(text="truncated parti", candidates=[]),
+                SimpleNamespace(
+                    text="",
+                    candidates=[SimpleNamespace(finish_reason=reason)],
+                ),
+            ]
 
     _install_fake_google_genai_types(monkeypatch)
     monkeypatch.setattr(client_mod, "_cache", cache)

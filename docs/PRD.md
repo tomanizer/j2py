@@ -54,13 +54,17 @@ avoid re-translating unchanged files. Live LLM calls are excluded from normal CI
 [ADR 0017](decisions/0017-multi-provider-llm-backend.md)).
 
 ### F4 — Confidence scoring
-Each translated file receives a `confidence: float` (0–1). Low-confidence output is
-flagged for human review.
+Each translated file receives a surfaced `confidence: float` (0–1). Low-confidence output
+is flagged for human review.
 
-**Confidence reflects rule-layer node coverage only** (`diagnostics.coverage` — fraction of
-AST nodes handled deterministically). It does **not** decrease when semantic warnings are
-emitted; those are tracked separately via `diagnostics.semantic_warning_count`. LLM
-completion does not change the confidence score after the rule layer runs
+**Confidence is a review trust signal, not raw node coverage.** Raw rule-layer coverage
+remains available as `diagnostics.coverage`, but surfaced confidence is clamped below
+1.00 when parse errors occur, post-validation fails, structural verification fails, or
+the deterministic rule layer emits semantic warnings via
+`diagnostics.semantic_warning_count`. Semantic warnings cap surfaced confidence at 0.99
+to preserve coverage ordering while avoiding a perfect-trust signal; validation or
+structural failures cap it below the low-confidence review threshold at 0.79. LLM
+completion does not increase confidence after the rule layer runs
 ([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
 
 ### F5 — Validation pipeline
@@ -86,8 +90,9 @@ j2py watch    <dir> [--output <path>]  # incremental re-translate on file change
 
 ### F8 — Layered configuration
 Project-specific type mappings, import remappings, and rule overrides via `j2py.yaml`,
-`j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. See
-[docs/configuration.md](configuration.md).
+`j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. Projects may also
+set default LLM provider/model values there; explicit CLI flags override these defaults.
+See [docs/configuration.md](configuration.md).
 
 ### F9 — Post-LLM structural verification
 After LLM completion, compare Java symbols with the returned Python AST: class and method
@@ -97,7 +102,7 @@ presence plus declaration order. Structural failures feed a single LLM repair re
 ### F10 — Regression and measurement suites
 Provide measurable quality signal without live LLM in normal CI:
 
-- **Graduated fixtures** — Java/Python pairs and roadmap targets in `make check`
+- **Graduated fixtures** — Java/Python pairs and graduated roadmap targets in `make check`
 - **Equivalence gate** — literal-oracle differential tests on harvested library code
   (`tests/equivalence/`, Phase 1 active)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
@@ -129,8 +134,9 @@ Provide measurable quality signal without live LLM in normal CI:
 3. `mypy` passes on all translated output from the fixture suite.
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
-5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior` and
-   `live_llm`) — currently **2,000+** tests including graduated constructs, the
+5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior`,
+   `live_llm`, and future `target_translation` xfails) — currently **2,000+** tests
+   including graduated constructs, the
    CharUtils and NumberUtils literal-oracle equivalence gates.
 6. Committed multi-library corpus baselines provide regression signal; CI gates every
    committed dense baseline (`spring-dense`, `guava-dense`, `commons-lang-dense`,

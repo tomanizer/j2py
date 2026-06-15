@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -20,20 +20,25 @@ SPRING_DENSE_ARGS := --preset spring-dense
 check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
 
 lint:  ## Lint with ruff (includes format check)
-	uv run --extra dev ruff check j2py/ tests/
-	uv run --extra dev ruff format --check j2py/ tests/ --exclude tests/fixtures/python
+	uv run --extra dev ruff check j2py/ tests/ scripts/equivalence/
+	uv run --extra dev ruff format --check j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 format:  ## Format with ruff
-	uv run --extra dev ruff format j2py/ tests/ --exclude tests/fixtures/python
+	uv run --extra dev ruff format j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 typecheck:  ## Type-check with mypy (strict)
 	uv run --extra dev mypy j2py/
 
 test:  ## Run test suite
-	uv run --extra dev pytest -m "not behavior and not live_llm"
+	uv run --extra dev pytest -m "not behavior and not live_llm and not target_translation"
 
 test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
 	uv run --extra dev pytest tests/equivalence -m equivalence -v
+
+equivalence-report:  ## Run equivalence gate and print the verified-surface metric table
+	mkdir -p corpus-reports
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra dev pytest tests/equivalence -m equivalence -q
+	uv run --extra dev python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run --extra dev pytest tests/behavior -m behavior
@@ -82,33 +87,54 @@ harvest-llm:  ## Summarize local LLM harvest records for rule-layer triage
 
 harvest-triage: harvest-llm  ## Alias for harvest-llm
 
-harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
-	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$GEMINI_API_KEY" ]; then \
+# Prefer checkout .env, then $J2PY_CORPUS_ROOT/.env (git worktrees), then login shell.
+LOAD_GEMINI_ENV = \
+	if [ -f .env ]; then set -a; . ./.env; set +a; \
+	elif [ -n "$$J2PY_CORPUS_ROOT" ] && [ -f "$$J2PY_CORPUS_ROOT/.env" ]; then set -a; . "$$J2PY_CORPUS_ROOT/.env"; set +a; \
+	elif [ -z "$$GEMINI_API_KEY" ]; then \
 		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
-		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
-	fi; \
+		[ -n "$$_key" ] && export GEMINI_API_KEY="$$_key"; \
+	fi
+
+harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
+	@$(LOAD_GEMINI_ENV); \
 	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
 
-harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini free tier; OFFSET/LIMIT optional)
-	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$GEMINI_API_KEY" ]; then \
-		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
-		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
-	fi; \
+harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini; default LIMIT=10, use LIMIT=2 on free tier)
+	@$(LOAD_GEMINI_ENV); \
 	uv run python scripts/harvest/run_llm_harvest.py \
 		--llm-provider gemini \
 		--file-list $(or $(FILE_LIST),.j2py/harvest/queue.txt) \
 		--offset $(or $(OFFSET),0) \
 		--limit $(or $(LIMIT),10) \
 		--sleep-seconds $(or $(SLEEP),6) \
-		--skip-temp-paths
+		--skip-temp-paths \
+		--skip-package-info
 
 harvest-suggest-targets:  ## Draft FUTURE_TARGETS snippets from coverage-gap harvest records
 	uv run python scripts/harvest/suggest_future_targets.py
 
 harvest-prune:  ## Dedupe harvest jsonl (latest row per source; drop resolved)
 	uv run python scripts/harvest/prune_llm_harvest.py
+
+harvest-queue:  ## Build/refresh Tier A queue from corpus-reports/ (coverage==1.0, syntax fail)
+	uv run python scripts/harvest/build_harvest_queue.py $(if $(REFRESH),--force,)
+
+harvest-promote:  ## Queue + Gemini batch + prune + triage + draft top pattern issues (LIMIT=2)
+	@$(LOAD_GEMINI_ENV); \
+	uv run python scripts/harvest/run_harvest_promotion.py \
+		--limit $(or $(LIMIT),2) \
+		--issues $(or $(ISSUES),3)
+
+harvest-promote-issues:  ## Same as harvest-promote but create GitHub issues via gh
+	@$(LOAD_GEMINI_ENV); \
+	uv run python scripts/harvest/run_harvest_promotion.py \
+		--limit $(or $(LIMIT),2) \
+		--issues $(or $(ISSUES),3) \
+		--create-issues
+
+harvest-promote-dry:  ## Prune, triage, and draft issues only (no LLM calls)
+	uv run python scripts/harvest/run_harvest_promotion.py --skip-harvest --skip-local --issues $(or $(ISSUES),3)
 
 harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draft suggestions
 	$(MAKE) harvest-run

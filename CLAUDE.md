@@ -15,7 +15,7 @@ against the original Java class-by-class, method-by-method.
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product goals, user stories, non-goals, success criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
-| [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest backlog, triage, pruning, promotion to FUTURE_TARGETS |
+| [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion pipeline, GitHub issues |
 | [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch workflow, PR rules, commit style, changelog |
 
@@ -85,8 +85,9 @@ make check                  # lint + typecheck + test (run before every commit)
 make ci-local-pr            # full local PR check — must pass before pushing
 ```
 
-All `make` targets must pass locally before pushing. CI gates are identical to local
-presets; a red CI means `make check` was not run.
+All relevant `make` targets must pass locally before pushing. CI gates are identical to
+local presets; a red CI means the corresponding local target was not run, or the PR
+introduced corpus baseline drift that needs an intentional baseline refresh.
 
 ## Benchmark corpus checkouts
 
@@ -109,6 +110,19 @@ make corpus-hotspots                   # rank gaps across all committed baseline
 
 Do not re-clone in every worktree unless you intend to. See
 [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md).
+
+## LLM harvest (worktrees)
+
+Harvest state (`.j2py/harvest/`) and API keys live on the **main** checkout. In a git
+worktree, point at the main tree so queue, cache, and `.env` resolve correctly:
+
+```bash
+export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py   # main checkout
+make harvest-promote-dry ISSUES=2                   # dry-run promotion pipeline
+```
+
+Operator guide: [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md). Cursor agents can use
+`.cursor/skills/harvest-promote/SKILL.md` for the promotion workflow.
 
 ## Code review focus areas
 

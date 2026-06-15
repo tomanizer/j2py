@@ -48,29 +48,35 @@ class TranslationTarget:
 # )
 FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
-        fixture="AssertProbe.java",
-        fixture_root=LLM_FIXTURES,
-        tracking="llm-harvest-assert",
-        reason="Java assert statements are not translated by the rule layer",
-        expected_fragments=('assert value > 0, "must be positive"',),
-        forbidden_fragments=(
-            "TODO(j2py): unsupported",
-            "__j2py_todo__",
-            "# TODO(j2py): unsupported assert_statement",
+        fixture="IteratorPostIncrementSubscript.java",
+        fixture_root=TARGET_FIXTURES,
+        tracking="issue-252/jackson-arrayiterator-invalid-python-output",
+        reason=(
+            "Jackson ArrayIterator-style post-increment inside an array subscript "
+            "currently emits invalid Python"
         ),
+        expected_fragments=(
+            "value = self.values[self.index]",
+            "self.index += 1",
+            "return value",
+        ),
+        forbidden_fragments=("self.values[self.index += 1]", "__j2py_todo__"),
     ),
     TranslationTarget(
-        fixture="MultiDimArray.java",
-        fixture_root=LLM_FIXTURES,
-        tracking="llm-harvest-multi-dim-array",
-        reason="Multidimensional array creation leaves a __j2py_todo__ placeholder",
-        expected_fragments=("[[0] * cols for _ in range(rows)]",),
-        forbidden_fragments=(
-            "TODO(j2py): unsupported",
-            "__j2py_todo__",
+        fixture="StaticImportEnumConstants.java",
+        fixture_root=TARGET_FIXTURES,
+        tracking="issue-252/guava-elementtype-static-imports",
+        reason=(
+            "Guava IgnoreJRERequirement-style ElementType static imports are still "
+            "reported as unknown static imports"
         ),
+        expected_fragments=(
+            "# @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE})",
+        ),
+        forbidden_fragments=("TODO(j2py): static import", "__j2py_todo__"),
     ),
 )
+GRADUATED_LLM_FIXTURES = ("MultiDimArray.java",)
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
     for path in sorted(TARGET_FIXTURES.glob("*.java"))
@@ -97,6 +103,22 @@ def test_target_java_fixtures_parse_without_errors() -> None:
 def test_graduated_target_fixture_translates_cleanly(fixture_name: str) -> None:
     """Previously-targeted fixtures now translate deterministically and stay green."""
     parsed = parse_file(TARGET_FIXTURES / fixture_name)
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "TODO(j2py): unsupported" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
+@pytest.mark.parametrize(
+    "fixture_name",
+    GRADUATED_LLM_FIXTURES,
+)
+def test_graduated_llm_fixture_translates_cleanly(fixture_name: str) -> None:
+    """Harvest fixtures promoted from future targets stay deterministic."""
+    parsed = parse_file(LLM_FIXTURES / fixture_name)
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
     ast.parse(result.source)

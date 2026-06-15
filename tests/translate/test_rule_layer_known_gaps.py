@@ -9,7 +9,19 @@ These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite
 
 from __future__ import annotations
 
-from tests.translate.skeleton.helpers import translate_source, translate_source_with_diagnostics
+import ast
+from pathlib import Path
+
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from tests.translate.skeleton.helpers import (
+    CFG,
+    translate_source,
+    translate_source_with_diagnostics,
+)
+
+CFG_FIXTURES = Path(__file__).parents[1] / "fixtures"
 
 # ---------------------------------------------------------------------------
 # Bug 1: Parentheses dropped in arithmetic expressions
@@ -180,6 +192,35 @@ def test_builtin_clash_rename_consistent_for_same_class_receiver() -> None:
     assert "return other.sum_(3, 4)" in src
 
 
+def test_LineCommentInExpression_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "LineCommentInExpression.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return [0, 1, 2]" in result.source
+    assert 'return ["alpha", "beta"]' in result.source
+    assert "# nop" not in result.source
+    assert "# first" not in result.source
+    assert "unsupported expression line_comment" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
+def test_AmbiguousGetProbe_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "AmbiguousGetProbe.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return calendar.get(Calendar.DAY_OF_MONTH)" in result.source
+    assert "return values[index]" in result.source
+    assert "return values.get(key)" in result.source
+    assert "ambiguous get invocation requires receiver collection type" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
@@ -238,21 +279,20 @@ def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> Non
 
 
 # ---------------------------------------------------------------------------
-# Diagnostic accuracy: rule layer emits a warning when it cannot handle a construct
+# Diagnostic accuracy: graduated assert statements are handled by the rule layer
 # ---------------------------------------------------------------------------
 
 
-def test_unhandled_construct_records_diagnostic() -> None:
-    """When the rule layer cannot translate a construct it must record an unhandled diagnostic."""
+def test_assert_statement_translates_without_unhandled_diagnostic() -> None:
     result = translate_source_with_diagnostics("""
     public class Probe {
         public void run() {
             assert 1 == 1 : "unreachable";
+            assert true;
         }
     }
     """)
-    unhandled_reasons = [d.reason for d in result.diagnostics.unhandled]
-    assert any("assert" in r for r in unhandled_reasons), (
-        f"expected an assert_statement diagnostic in: {unhandled_reasons}"
-    )
-    assert result.coverage < 1.0
+    assert 'assert 1 == 1, "unreachable"' in result.source
+    assert "assert True" in result.source
+    assert not any(d.node_type == "assert_statement" for d in result.diagnostics.unhandled)
+    assert result.coverage == 1.0

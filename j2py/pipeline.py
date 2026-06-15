@@ -28,6 +28,8 @@ PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini"]
+SEMANTIC_WARNING_CONFIDENCE_CAP = 0.99
+REVIEW_REQUIRED_CONFIDENCE_CAP = 0.79
 
 
 @dataclass
@@ -35,7 +37,7 @@ class TranslationResult:
     source_path: Path
     python_source: str
     used_llm: bool = False
-    confidence: float = 1.0  # rule-layer coverage (0.0–1.0); not updated after LLM completion
+    confidence: float = 1.0  # user-facing review confidence; raw coverage is diagnostics.coverage
     parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
@@ -61,20 +63,21 @@ def translate_file(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str | None = None,
-    llm_provider: LLMProvider = "anthropic",
+    llm_provider: LLMProvider | None = None,
     validate: bool = True,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
     parsed = parse_file(path)
     symbols = extract_symbols(parsed)
+    effective_model, effective_provider = _resolve_llm_runtime(cfg, model, llm_provider)
     return _translate_parsed_file(
         path,
         parsed=parsed,
         symbols=symbols,
         cfg=cfg,
         use_llm=use_llm,
-        model=model,
-        llm_provider=llm_provider,
+        model=effective_model,
+        llm_provider=effective_provider,
         validate=validate,
         validation_path=path.with_suffix(".py"),
     )
@@ -137,33 +140,15 @@ def _translate_parsed_file(
 
     if should_use_llm:
         from j2py.llm.client import resolve_model, translate_with_llm
+        from j2py.llm.usage import bind_usage_source_path, reset_usage_source_path
 
         java_source = path.read_text()
         context = _project_context(symbols, sibling_signatures=sibling_signatures)
         diagnostics_context = _diagnostics_context(skeleton_result.diagnostics)
         config_fingerprint = _config_fingerprint(cfg)
 
-        python_source = _call_llm(
-            translate_with_llm,
-            llm_semaphore=llm_semaphore,
-            java_source=java_source,
-            partial_python=skeleton,
-            context=context,
-            diagnostics=diagnostics_context,
-            validation_feedback=validation_feedback,
-            previous_python="",
-            config_fingerprint=config_fingerprint,
-            model=model,
-            provider=llm_provider,
-        )
-        used_llm = True
-        validation = validate_source(python_source, validation_path) if validate else None
-        structural_verification = verify_structure(symbols, python_source)
-        for _ in range(LLM_REPAIR_RETRY_LIMIT):
-            feedback = _post_llm_feedback(validation, structural_verification)
-            if not feedback:
-                break
-            previous_python = python_source
+        usage_token = bind_usage_source_path(path)
+        try:
             python_source = _call_llm(
                 translate_with_llm,
                 llm_semaphore=llm_semaphore,
@@ -171,14 +156,37 @@ def _translate_parsed_file(
                 partial_python=skeleton,
                 context=context,
                 diagnostics=diagnostics_context,
-                validation_feedback=feedback,
-                previous_python=previous_python,
+                validation_feedback=validation_feedback,
+                previous_python="",
                 config_fingerprint=config_fingerprint,
                 model=model,
                 provider=llm_provider,
             )
+            used_llm = True
             validation = validate_source(python_source, validation_path) if validate else None
             structural_verification = verify_structure(symbols, python_source)
+            for _ in range(LLM_REPAIR_RETRY_LIMIT):
+                feedback = _post_llm_feedback(validation, structural_verification)
+                if not feedback:
+                    break
+                previous_python = python_source
+                python_source = _call_llm(
+                    translate_with_llm,
+                    llm_semaphore=llm_semaphore,
+                    java_source=java_source,
+                    partial_python=skeleton,
+                    context=context,
+                    diagnostics=diagnostics_context,
+                    validation_feedback=feedback,
+                    previous_python=previous_python,
+                    config_fingerprint=config_fingerprint,
+                    model=model,
+                    provider=llm_provider,
+                )
+                validation = validate_source(python_source, validation_path) if validate else None
+                structural_verification = verify_structure(symbols, python_source)
+        finally:
+            reset_usage_source_path(usage_token)
         from j2py.llm.harvest import record_llm_repair
 
         record_llm_repair(
@@ -199,7 +207,13 @@ def _translate_parsed_file(
         validation = validate_source(python_source, validation_path) if validate else None
         structural_verification = None
 
-    confidence = 0.0 if not parse_ok else coverage
+    confidence = _surface_confidence(
+        rule_coverage=coverage,
+        parse_ok=parse_ok,
+        diagnostics=skeleton_result.diagnostics,
+        validation=validation,
+        structural_verification=structural_verification,
+    )
 
     return TranslationResult(
         source_path=path,
@@ -223,6 +237,42 @@ def _call_llm(
         return translate_with_llm(**kwargs)
     with llm_semaphore:
         return translate_with_llm(**kwargs)
+
+
+def _surface_confidence(
+    *,
+    rule_coverage: float,
+    parse_ok: bool,
+    diagnostics: TranslationDiagnostics,
+    validation: ValidationResult | None,
+    structural_verification: StructuralVerificationResult | None,
+) -> float:
+    """Return the user-facing trust score, keeping raw node coverage on diagnostics."""
+    if not parse_ok:
+        return 0.0
+    confidence = rule_coverage
+    if diagnostics.semantic_warning_count:
+        # Semantic warnings preserve raw coverage ordering, but they must never present
+        # as perfect trust.
+        confidence = min(confidence, SEMANTIC_WARNING_CONFIDENCE_CAP)
+    if validation is not None and not validation.ok:
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
+    if structural_verification is not None and not structural_verification.ok:
+        confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
+    return confidence
+
+
+def _refresh_result_confidence(result: TranslationResult) -> None:
+    """Recompute surfaced confidence after late validation or verification updates."""
+    if result.diagnostics is None:
+        return
+    result.confidence = _surface_confidence(
+        rule_coverage=result.diagnostics.coverage,
+        parse_ok=result.parse_ok,
+        diagnostics=result.diagnostics,
+        validation=result.validation,
+        structural_verification=result.structural_verification,
+    )
 
 
 def _syntax_errors(source: str, filename: str = "<string>") -> list[str]:
@@ -299,13 +349,14 @@ def translate_directory(
     cfg: TranslationConfig,
     use_llm: bool = True,
     model: str | None = None,
-    llm_provider: LLMProvider = "anthropic",
+    llm_provider: LLMProvider | None = None,
     validate: bool = True,
     workers: int | None = None,
     llm_concurrency: int | None = None,
     incremental: bool = False,
 ) -> DirectoryTranslationResult:
     """Translate a directory using dependency order and package-relative outputs."""
+    effective_model, effective_provider = _resolve_llm_runtime(cfg, model, llm_provider)
     java_files = sorted(source_root.rglob("*.java"))
     parsed_files = [parse_file(path) for path in java_files]
     parsed_by_path = dict(zip(java_files, parsed_files, strict=True))
@@ -362,8 +413,8 @@ def translate_directory(
             parsed_by_path=parsed_by_path,
             cfg=cfg,
             use_llm=use_llm,
-            model=model,
-            llm_provider=llm_provider,
+            model=effective_model,
+            llm_provider=effective_provider,
             sibling_signatures=sibling_signatures,
             workers=effective_workers,
             llm_semaphore=llm_semaphore,
@@ -389,6 +440,7 @@ def translate_directory(
         for result in results:
             if result.output_path is not None and result.output_path in validation_results:
                 result.validation = validation_results[result.output_path]
+                _refresh_result_confidence(result)
 
     graph_warnings = [str(warning.message) for warning in caught]
     parse_warnings = [
@@ -406,6 +458,16 @@ def translate_directory(
         skipped_count=sum(1 for result in results if result.skipped),
         translated_count=sum(1 for result in results if not result.skipped),
     )
+
+
+def _resolve_llm_runtime(
+    cfg: TranslationConfig,
+    model: str | None,
+    llm_provider: LLMProvider | None,
+) -> tuple[str | None, LLMProvider]:
+    provider = llm_provider or cfg.llm_provider or "anthropic"
+    effective_model = model if model is not None else cfg.model
+    return effective_model, provider
 
 
 def _translate_ready_paths(

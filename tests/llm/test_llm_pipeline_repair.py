@@ -46,22 +46,20 @@ def test_pipeline_invokes_llm_for_unhandled_constructs(tmp_path: Path) -> None:
     """translate_file with use_llm=True calls translate_with_llm when coverage < 1.0."""
     java = """\
 public class Probe {
-    public void run() {
-        assert 1 == 1 : "should hold";
-        System.out.println("done");
+    public int value() {
+        done:
+        return 1;
     }
 }
 """
     path = _write_java(tmp_path, java)
 
-    cassette = (
-        "class Probe:\n    def run(self) -> None:\n        assert 1 == 1\n        print('done')\n"
-    )
+    cassette = "class Probe:\n    def value(self) -> int:\n        return 1\n"
 
     with patch("j2py.llm.client.translate_with_llm", return_value=cassette) as mock_llm:
         result = translate_file(path, cfg=CFG, use_llm=True, validate=False)
 
-    assert result.used_llm, "LLM should have been invoked for assert_statement"
+    assert result.used_llm, "LLM should have been invoked for labeled_statement"
     mock_llm.assert_called_once()
     assert result.python_source == cassette
 
@@ -69,9 +67,10 @@ public class Probe {
 def test_pipeline_passes_skeleton_to_llm(tmp_path: Path) -> None:
     """translate_with_llm receives the rule-layer skeleton and diagnostics."""
     java = """\
-public class Asserted {
-    public void run() {
-        assert 2 > 1 : "math broken";
+public class Matrix {
+    public int value() {
+        done:
+        return 1;
     }
 }
 """
@@ -80,16 +79,16 @@ public class Asserted {
 
     def capture(**kwargs: str) -> str:
         captured.update(kwargs)
-        return "class Asserted:\n    def run(self) -> None:\n        assert 2 > 1\n"
+        return "class Matrix:\n    def value(self) -> int:\n        return 1\n"
 
     with patch("j2py.llm.client.translate_with_llm", side_effect=capture):
         translate_file(path, cfg=CFG, use_llm=True, validate=False)
 
     assert "partial_python" in captured
-    assert "Asserted" in captured["partial_python"], "skeleton should contain the class name"
+    assert "Matrix" in captured["partial_python"], "skeleton should contain the class name"
     assert "diagnostics" in captured
-    assert "assert" in captured["diagnostics"].lower(), (
-        "diagnostics should mention the unhandled assert_statement construct"
+    assert "labeled_statement" in captured["diagnostics"], (
+        "diagnostics should mention the unhandled labeled statement construct"
     )
 
 
@@ -171,8 +170,9 @@ def test_skeleton_keeps_user_add_method_call() -> None:
 def test_diagnostics_report_coverage_below_one_for_unhandled_construct() -> None:
     result = translate_source_with_diagnostics("""
     public class Unsup {
-        public void run() {
-            assert 1 == 1 : "should hold";
+        public int value() {
+            done:
+            return 1;
         }
     }
     """)

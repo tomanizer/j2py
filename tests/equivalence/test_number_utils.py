@@ -28,6 +28,7 @@ from tests.equivalence.harness import (
 )
 
 JAVA_CLASS = "NumberUtils.java"
+surface = pytest.mark.equivalence_surface
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
@@ -94,6 +95,8 @@ def test_module_compiles(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.toInt(String)")
+@surface(JAVA_CLASS, "NumberUtils.toInt(String,int)")
 def test_to_int_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toInt")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
@@ -110,6 +113,8 @@ def test_to_int_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.toLong(String)")
+@surface(JAVA_CLASS, "NumberUtils.toLong(String,long)")
 def test_to_long_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toLong")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
@@ -128,6 +133,8 @@ def test_to_long_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.toDouble(String)")
+@surface(JAVA_CLASS, "NumberUtils.toDouble(String,double)")
 def test_to_double_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toDouble")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]

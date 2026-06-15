@@ -314,16 +314,6 @@ def test_pipeline_output_has_no_markdown_fences() -> None:
 LLM_GAP_PROBE_CASES = [
     pytest.param(
         LlmProbeCase(
-            path=LLM_FIXTURES / "AssertProbe.java",
-            trigger="coverage_gap",
-            forbidden_fragments=("TODO(j2py): unsupported assert_statement",),
-            expected_fragments=("assert value > 0",),
-            require_mypy=True,
-        ),
-        id="assert-probe",
-    ),
-    pytest.param(
-        LlmProbeCase(
             path=LLM_FIXTURES / "MultiDimArray.java",
             trigger="coverage_gap",
             forbidden_fragments=("return __j2py_todo__",),

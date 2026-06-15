@@ -1,5 +1,6 @@
 """CLI smoke tests."""
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -142,6 +143,103 @@ def test_cli_translate_forwards_llm_provider_and_model(
     }
 
 
+def test_cli_translate_uses_configured_llm_defaults(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py.toml").write_text(
+        """
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
+""",
+    )
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update({"model": model, "llm_provider": llm_provider})
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-validate", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "model": "gemini-3.5-flash",
+        "llm_provider": "gemini",
+    }
+
+
+def test_cli_translate_llm_flags_override_config_defaults(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py.toml").write_text(
+        """
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
+""",
+    )
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update({"model": model, "llm_provider": llm_provider})
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--llm-provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "model": "claude-test",
+        "llm_provider": "anthropic",
+    }
+
+
 def test_cli_translate_rejects_unknown_llm_provider(tmp_path: Path) -> None:
     source = tmp_path / "Sample.java"
     source.write_text("public class Sample {}")
@@ -245,6 +343,71 @@ def test_cli_translate_directory_reports_dependency_order(tmp_path: Path) -> Non
     assert "Translation order:" in result.output
     assert "1. Base.java" in result.output
     assert "2. Child.java" in result.output
+
+
+def test_cli_translate_directory_uses_configured_llm_defaults(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text("public class Sample {}")
+    (source / "j2py.toml").write_text(
+        """
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
+""",
+    )
+    output = tmp_path / "out"
+    observed: dict[str, object] = {}
+
+    def fake_translate_directory(
+        source_root: Path,
+        output_root: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+        workers: int | None = None,
+        llm_concurrency: int | None = None,
+        incremental: bool = False,
+    ) -> pipeline.DirectoryTranslationResult:
+        observed.update({"model": model, "llm_provider": llm_provider})
+        result = pipeline.TranslationResult(
+            source_path=source_root / "Sample.java",
+            python_source="class Sample:\n    pass\n",
+            output_path=output_root / "Sample.py",
+        )
+        return pipeline.DirectoryTranslationResult(
+            source_root=source_root,
+            output_root=output_root,
+            files=[result],
+            order=[source_root / "Sample.java"],
+            warnings=[],
+        )
+
+    monkeypatch.setattr(pipeline, "translate_directory", fake_translate_directory)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--output",
+            str(output),
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "model": "gemini-3.5-flash",
+        "llm_provider": "gemini",
+    }
 
 
 def test_cli_translate_exits_nonzero_on_validation_failure(
@@ -543,6 +706,92 @@ def test_cli_translate_json_output_is_machine_readable(tmp_path: Path) -> None:
     assert '"confidence": 1.0' in result.output
     assert '"todos": []' in result.output
     assert "Translating" not in result.output
+
+
+def test_cli_translate_surfaces_clamped_confidence_consistently(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    # int / int is currently translated with a semantic warning because Java truncates
+    # toward zero while Python floor division differs for negative values.
+    (source / "Division.java").write_text(
+        """
+        package com.example;
+        public class Division {
+            public int half(int value) {
+                return value / 2;
+            }
+        }
+        """,
+    )
+    output = tmp_path / "out"
+    dashboard = tmp_path / "dashboard.html"
+    report = tmp_path / "report.html"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--no-validate",
+            "--output",
+            str(output),
+            "--dashboard",
+            str(dashboard),
+            "--report",
+            str(report),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    translated = payload["files"][0]
+    assert translated["confidence"] == pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP
+    assert translated["semantic_warnings"]
+
+    expected_percent = f"{pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP:.0%}"
+    state = json.loads((output / ".j2py-state.json").read_text())
+    assert state["files"]["Division.java"]["confidence"] == pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP
+    assert f'"confidence": {pipeline.SEMANTIC_WARNING_CONFIDENCE_CAP}' in dashboard.read_text()
+    assert expected_percent in report.read_text()
+
+
+def test_cli_translate_json_clamps_confidence_for_validation_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("public class Broken {}")
+
+    def fake_validate_source(source_text: str, path: Path | None = None) -> ValidationResult:
+        return ValidationResult(
+            path=path or Path("<string>"),
+            syntax_ok=True,
+            ruff_ok=False,
+            mypy_ok=True,
+            ruff_errors=["Broken.py:1:1: simulated ruff failure"],
+        )
+
+    monkeypatch.setattr(pipeline, "validate_source", fake_validate_source)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["confidence"] == pipeline.REVIEW_REQUIRED_CONFIDENCE_CAP
+    assert payload["validation"]["ok"] is False
 
 
 def test_cli_translate_incremental_reports_skipped_files(tmp_path: Path) -> None:
@@ -846,6 +1095,56 @@ def test_cli_watch_auto_discovery_ignores_python_config(
     assert observed_target_python == ["3.11"]
 
 
+def test_cli_watch_uses_configured_llm_defaults(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    output = tmp_path / "Sample.py"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py.toml").write_text(
+        """
+llm_provider = "gemini"
+model = "gemini-3.5-flash"
+""",
+    )
+    observed: list[tuple[str | None, str]] = []
+
+    def fake_run_watch_translation(
+        source: Path,
+        output: Path,
+        cfg,
+        llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> None:
+        observed.append((model, llm_provider))
+
+    def stop_after_first_poll(interval: float) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("j2py.cli.main._run_watch_translation", fake_run_watch_translation)
+    monkeypatch.setattr("j2py.cli.main.time.sleep", stop_after_first_poll)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "watch",
+            str(source),
+            "--output",
+            str(output),
+            "--no-validate",
+            "--poll-interval",
+            "0.1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed == [("gemini-3.5-flash", "gemini")]
+
+
 def test_cli_compare_uses_config_when_translating_missing_python(
     tmp_path: Path,
     monkeypatch,
@@ -854,9 +1153,18 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     python = tmp_path / "Sample.py"
     config = tmp_path / "j2py_config.py"
     java.write_text("public class Sample {}")
-    config.write_text("type_map = {'String': 'Text'}\n")
+    config.write_text(
+        "\n".join(
+            [
+                "type_map = {'String': 'Text'}",
+                "llm_provider = 'gemini'",
+                "model = 'gemini-3.5-flash'",
+            ],
+        ),
+    )
     observed_string_types: list[str] = []
     observed_validate: list[bool] = []
+    observed_llm: list[tuple[str | None, str]] = []
 
     def fake_translate_file(
         path: Path,
@@ -869,6 +1177,7 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     ) -> pipeline.TranslationResult:
         observed_string_types.append(cfg.type_map["String"])
         observed_validate.append(validate)
+        observed_llm.append((model, llm_provider))
         return pipeline.TranslationResult(
             source_path=path,
             python_source="class Sample:\n    pass\n",
@@ -886,6 +1195,7 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     assert python.exists()
     assert observed_string_types == ["Text"]
     assert observed_validate == [True]
+    assert observed_llm == [("gemini-3.5-flash", "gemini")]
 
 
 def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(

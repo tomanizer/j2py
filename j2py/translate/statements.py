@@ -123,6 +123,9 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
             )
         ]
 
+    if node.type == "assert_statement":
+        return _translate_assert_statement(node, ctx, indent=indent)
+
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
 
@@ -185,6 +188,28 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported statement {node.type}")
     return [f"{indent}# TODO(j2py): unsupported {node.type}", f"{indent}pass"]
+
+
+def _translate_assert_statement(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    if not node.named_children:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="unsupported assert statement without condition",
+        )
+        return [f"{indent}# TODO(j2py): unsupported assert_statement", f"{indent}pass"]
+
+    ctx.diagnostics.record(node, supported=True, reason="translated assert statement")
+    condition = translate_expression(node.named_children[0], ctx)
+    if len(node.named_children) > 1:
+        message = translate_expression(node.named_children[1], ctx)
+        return [_with_expression_comments(f"{indent}assert {condition}, {message}", ctx)]
+    return [_with_expression_comments(f"{indent}assert {condition}", ctx)]
 
 
 def _translate_local_variable_declaration(

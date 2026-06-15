@@ -20,8 +20,8 @@ Java source
 The **rule layer** handles common language constructs deterministically (~70% of typical
 code). Where rules stop, an optional configured LLM provider fills gaps using disk-cached
 prompts.
-Every file gets a **confidence** score based on rule-layer coverage and structured
-diagnostics for anything left unhandled.
+Every file gets a **confidence** score based on rule-layer coverage, validation status,
+and semantic warnings, plus structured diagnostics for anything left unhandled.
 
 ## Status
 
@@ -135,15 +135,16 @@ GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
 ```
 
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
-`pyproject.toml`, or `j2py_config.py`. See
+`pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and
+`model` values there, while CLI flags override them for one command. See
 [docs/configuration.md](docs/configuration.md) for the schema.
 
 ## Quality gates
 
 ```bash
-make check         # ruff + mypy strict + pytest (excludes behavior, live_llm)
+make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
-make test-targets  # future xfail roadmap targets (empty while all targets graduated)
+make test-targets  # future strict-xfail roadmap targets
 make release-check # alpha release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```
 
@@ -153,6 +154,8 @@ Translation quality is measured against a **multi-library corpus**: pinned check
 Spring Framework, Guava, Apache Commons Lang, Jackson, and Caffeine, plus small curated
 construct fixtures under `tests/fixtures/corpus/`. These libraries are open-source stress
 tests for the deterministic rule layer — not product scope or target runtime.
+Corpus-derived fast fixtures that should not affect committed baselines live under
+`tests/fixtures/java/targets/` instead.
 
 ```bash
 make corpus-list-presets              # show all pinned presets
@@ -177,15 +180,21 @@ See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md),
 On-demand live LLM evaluation and harvest (excluded from `make check`):
 
 ```bash
-make test-llm-e2e            # Anthropic live probes; requires ANTHROPIC_API_KEY
-make test-llm-gemini-e2e     # Gemini live probe; requires GEMINI_API_KEY
-make harvest-pipeline        # batch harvest → triage → target drafts → prune
-make harvest-triage          # summarize local .j2py/harvest/records.jsonl
-# or: GEMINI_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -k gemini -v -s
+make test-llm-e2e              # Anthropic live probes; requires ANTHROPIC_API_KEY
+make test-llm-gemini-e2e       # Gemini live probe; requires GEMINI_API_KEY
+make harvest-promote-dry        # triage + draft pattern-family issues; no LLM
+make harvest-promote            # queue → Gemini batch → triage → draft issues
+make harvest-promote-issues     # same + gh issue create
+make harvest-queue REFRESH=1    # rebuild Tier-A queue from corpus-reports/
+make harvest-pipeline           # local probe harvest → triage → FUTURE_TARGETS drafts
+make harvest-gemini             # batch Gemini harvest from .j2py/harvest/queue.txt
+make harvest-triage             # summarize local .j2py/harvest/records.jsonl
+# promote vars: LIMIT=2 ISSUES=3; harvest-gemini: OFFSET=0 LIMIT=10 SLEEP=6 FILE_LIST=...
 ```
 
-See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for the full harvest workflow and
-maintenance guide.
+Worktrees: set `J2PY_CORPUS_ROOT` to the main checkout so `.env`, queue, cache, and
+`.j2py/harvest/` resolve correctly. See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for
+queue tiers, content cache, state files, and the harvest-promote agent skill.
 
 ## Adding translation rules
 

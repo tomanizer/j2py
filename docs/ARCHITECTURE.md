@@ -148,7 +148,8 @@ Java source file(s)
   version, file hashes, model, config fingerprint, diagnostics, and validation feedback;
   3 retries with exponential back-off via `tenacity`
 - `harvest.py`: appends deterministic repair records to `.j2py/harvest/records.jsonl`
-  when the LLM runs; see [LLM_HARVEST.md](LLM_HARVEST.md)
+  when the LLM runs; batch orchestration, content cache, and promotion live under
+  `scripts/harvest/` — see [LLM_HARVEST.md](LLM_HARVEST.md)
 
 ### `verify/` — Structural verification
 - Runs after LLM completion and compares Java symbols with the returned Python AST
@@ -164,7 +165,9 @@ Java source file(s)
 - `default.py`: canonical type, collection, exception, import, and literal maps
 - `loader.py`: `ConfigLoader` stacks multiple config files (later layers override earlier
   ones for scalars; dicts and sets are merged)
-- `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`
+- `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`.
+  Optional `llm_provider` and `model` values act as project defaults for LLM-enabled
+  translation; explicit runtime arguments override them.
 
 ### `pipeline.py` — Orchestrator
 - `translate_file(path, cfg, use_llm, model, llm_provider, validate) → TranslationResult`
@@ -212,7 +215,7 @@ codebases, but together they cover breadth, triage, and bounded correctness.
 | Multi-library corpus baselines | Rule-layer coverage, syntax validity, unhandled nodes on pinned library samples | `make corpus-<name>-check`, `make corpus-hotspots` |
 | Behavior equivalence | stdout/stderr/exit-code match on small hand-written programs | `make test-behavior` (JDK required) |
 | Harvested equivalence (phased) | Method-level Java-vs-Python differential tests with JVM-independent oracles | `tests/equivalence/` (see [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md)) |
-| LLM harvest log | Local backlog of LLM repairs for future rule-layer work | `make harvest-pipeline`, `make harvest-triage` (see [LLM_HARVEST.md](LLM_HARVEST.md)) |
+| LLM harvest log | Local backlog of LLM repairs; triage, cache, promotion to targets/issues | `make harvest-promote-dry`, `make harvest-triage` (see [LLM_HARVEST.md](LLM_HARVEST.md)) |
 
 Corpus presets and baselines: [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md). CI runs a
 dense-baseline matrix for every committed dense preset plus a committed-baseline hotspot

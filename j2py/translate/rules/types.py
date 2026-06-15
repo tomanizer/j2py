@@ -36,7 +36,7 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
     # Generic: RawType<...>
     generic_match = re.match(r"^([\w.]+)\s*<(.+)>$", java_type)
     if generic_match:
-        raw = generic_match.group(1)
+        raw = _normalize_java_lang_type(generic_match.group(1))
         params_str = generic_match.group(2)
         params = _split_type_params(params_str)
 
@@ -61,6 +61,8 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
 
     if java_type.startswith("? super "):
         return translate_type(java_type[len("? super ") :], cfg)
+
+    java_type = _normalize_java_lang_type(java_type)
 
     # Collection raw types
     if java_type in cfg.collection_map:
@@ -121,6 +123,13 @@ def _normalize_type_text(java_type: str) -> str:
     return re.sub(r"\s+", " ", java_type).strip()
 
 
+def _normalize_java_lang_type(java_type: str) -> str:
+    """Map fully-qualified java.lang aliases to the simple names in default maps."""
+    if java_type.startswith("java.lang."):
+        return java_type.removeprefix("java.lang.")
+    return java_type
+
+
 def is_var_type(java_type: str) -> bool:
     """Return True when a Java declaration uses local type inference (`var`)."""
     return _strip_type_annotations(java_type.strip()) == "var"
@@ -154,6 +163,7 @@ MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
 # Receivers whose `.get(...)` is an API call (reflection, futures), not indexing.
 API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
     {
+        "Calendar",
         "CompletableFuture",
         "Field",
         "ForkJoinTask",

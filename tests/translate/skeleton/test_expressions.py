@@ -780,6 +780,55 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     assert_valid_python(python_source)
 
 
+def test_array_type_class_literals_translate_to_runtime_comparable_types() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ArrayTypeClassLiteral {
+            public Class<?> primitive() {
+                return boolean[].class;
+            }
+
+            public boolean isPrimitiveBooleanArray(Class<?> candidate) {
+                return candidate == boolean[].class;
+            }
+
+            public boolean isStringArray(Class<?> candidate) {
+                return candidate == String[].class;
+            }
+
+            public boolean isQualifiedStringArray(Class<?> candidate) {
+                return candidate == java.lang.String[].class;
+            }
+
+            public boolean isPrimitiveIntMatrix(Class<?> candidate) {
+                return candidate == int[][].class;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return list[bool]" in result.source
+    assert "return candidate == list[bool]" in result.source
+    assert "return candidate == list[str]" in result.source
+    assert "return candidate == list[list[int]]" in result.source
+    assert "java.lang.String" not in result.source
+    assert not result.diagnostics.unhandled
+    assert "__j2py_todo__" not in result.source
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    translated_class = namespace["ArrayTypeClassLiteral"]
+    instance = translated_class()
+    assert instance.primitive() == list[bool]
+    assert instance.is_primitive_boolean_array(list[bool]) is True
+    assert instance.is_primitive_boolean_array(list[int]) is False
+    assert instance.is_string_array(list[str]) is True
+    assert instance.is_qualified_string_array(list[str]) is True
+    assert instance.is_primitive_int_matrix(list[list[int]]) is True
+
+
 def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
     python_source, coverage = translate_source(
         '''
@@ -832,24 +881,51 @@ def test_sized_array_creation_uses_java_default_values() -> None:
     assert_valid_python(python_source)
 
 
-def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
+def test_multidimensional_array_creation_uses_nested_allocations() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Arrays {
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
             }
+
+            public boolean[][] flags(int rows, int cols) {
+                return new boolean[rows][cols];
+            }
+
+            public int[][][] cube(int planes, int rows, int cols) {
+                return new int[planes][rows][cols];
+            }
+
+            public String[][] names(int rows, int cols) {
+                return new String[rows][cols];
+            }
         }
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "__j2py_todo__('new int[rows][cols]')" in result.source
-    assert "from j2py_runtime import __j2py_todo__" in result.source
-    assert [diagnostic.reason for diagnostic in result.diagnostics.unhandled] == [
-        "multidimensional array creation requires nested allocation handling"
-    ]
+    assert result.coverage == 1.0
+    assert "return [[0] * cols for _ in range(rows)]" in result.source
+    assert "return [[False] * cols for _ in range(rows)]" in result.source
+    assert "return [[[0] * cols for _ in range(rows)] for _ in range(planes)]" in (result.source)
+    assert "return [[None] * cols for _ in range(rows)]" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    instance = namespace["Arrays"]()
+    matrix = instance.matrix(2, 3)
+    cube = instance.cube(2, 2, 3)
+    assert matrix == [[0, 0, 0], [0, 0, 0]]
+    assert matrix[0] is not matrix[1]
+    assert cube == [
+        [[0, 0, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, 0, 0]],
+    ]
+    assert cube[0] is not cube[1]
+    assert cube[0][0] is not cube[0][1]
 
 
 def test_common_spring_expression_shapes_translate() -> None:
@@ -998,6 +1074,27 @@ def test_annotation_attributes_get_is_map_like() -> None:
     assert coverage == 1.0
     assert 'return candidate.get("mode")' in python_source
     assert_valid_python(python_source)
+
+
+def test_calendar_get_is_api_call() -> None:
+    """Calendar.get(field) is an API method, not ambiguous collection access."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Calendar;
+
+        public class Calls {
+            public int day(Calendar calendar) {
+                return calendar.get(Calendar.DAY_OF_MONTH);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return calendar.get(Calendar.DAY_OF_MONTH)" in result.source
+    assert "calendar[" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
 
 
 def test_multi_value_map_get_is_map_like() -> None:
@@ -1925,7 +2022,7 @@ def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
     assert_valid_python(python_source)
 
 
-def test_partial_translation_reports_structured_diagnostics() -> None:
+def test_multidimensional_array_creation_reports_full_coverage() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Arrays {
@@ -1936,15 +2033,29 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert result.diagnostics.unhandled
-    diagnostic = result.diagnostics.unhandled[0]
-    assert diagnostic.node_type == "array_creation_expression"
-    assert diagnostic.line == 4
-    assert diagnostic.text == "new int[rows][cols]"
-    assert (
-        diagnostic.reason == "multidimensional array creation requires nested allocation handling"
+    assert result.coverage == 1.0
+    assert result.source.count("__j2py_todo__") == 0
+    assert result.source.count("[[0] * cols for _ in range(rows)]") == 1
+    assert not result.diagnostics.unhandled
+
+
+def test_partially_unsized_array_creation_stays_unsupported() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Arrays {
+            public int[][] jagged(int rows) {
+                return new int[rows][];
+            }
+        }
+        """,
     )
+
+    assert result.coverage < 1.0
+    assert "__j2py_todo__('new int[rows][]')" in result.source
+    assert result.diagnostics.unhandled[0].reason == (
+        "array creation with unsized dimensions requires allocation handling"
+    )
+    assert_valid_python(result.source)
 
 
 def test_interface_default_and_static_methods_translate_to_protocol_bodies() -> None:

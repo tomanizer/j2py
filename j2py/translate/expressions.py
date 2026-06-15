@@ -29,6 +29,9 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
     if node is None:
         return "None"
 
+    if is_comment(node):
+        return ""
+
     if node.type in {
         "decimal_integer_literal",
         "hex_integer_literal",
@@ -54,6 +57,9 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
         return translate_class_name(node.text)
 
     if node.type in {"boolean_type", "integral_type", "floating_point_type", "void_type"}:
+        return translate_type(node.text, ctx.cfg)
+
+    if node.type == "array_type":
         return translate_type(node.text, ctx.cfg)
 
     if node.type == "this":

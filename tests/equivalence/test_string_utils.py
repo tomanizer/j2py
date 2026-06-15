@@ -20,6 +20,7 @@ from tests.equivalence.harness import (
 )
 
 JAVA_CLASS = "StringUtils.java"
+surface = pytest.mark.equivalence_surface
 
 
 @pytest.fixture(scope="module")
@@ -44,6 +45,7 @@ def string_utils(string_utils_source: str):
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.isEmpty(CharSequence)")
 def test_is_empty_equivalence(string_utils) -> None:
     # StringUtilsEmptyBlankTest.java:128-133
     assert string_utils.is_empty(None) is True
@@ -70,6 +72,7 @@ def test_is_blank_equivalence(string_utils) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.contains(CharSequence,CharSequence)")
 def test_contains_char_sequence_equivalence(string_utils) -> None:
     # StringUtilsContainsTest.java:50-60
     assert string_utils.contains(None, None) is False
@@ -99,6 +102,7 @@ def test_string_utils_dependency_stubs_match_java_edge_cases() -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.startsWith(CharSequence,CharSequence)")
 def test_starts_with_equivalence(string_utils) -> None:
     # StringUtilsStartsEndsWithTest.java:136-152 and StringUtils.java Javadoc.
     assert string_utils.starts_with(None, None) is True
@@ -118,6 +122,7 @@ def test_starts_with_equivalence(string_utils) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.endsWith(CharSequence,CharSequence)")
 def test_ends_with_equivalence(string_utils) -> None:
     # StringUtilsStartsEndsWithTest.java:40-56 and StringUtils.java Javadoc.
     assert string_utils.ends_with(None, None) is True
@@ -137,6 +142,7 @@ def test_ends_with_equivalence(string_utils) -> None:
 
 
 @pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.trim(String)")
 def test_trim_equivalence(string_utils) -> None:
     # StringUtilsTrimStripTest literal cases and StringUtils.java Javadoc.
     assert string_utils.trim(None) is None

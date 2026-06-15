@@ -7,6 +7,7 @@ from scripts.harvest.suggest_future_targets import (
     _draft_from_record,
     _eligible,
     _infer_expected_fragments,
+    _tracking_slug,
 )
 
 
@@ -30,15 +31,20 @@ def test_infer_expected_fragments_from_diff() -> None:
 
 def test_draft_from_record_builds_tracking_id() -> None:
     record = {
-        "source_path": str(LLM_FIXTURES / "AssertProbe.java"),
+        "source_path": str(LLM_FIXTURES / "MultiDimArray.java"),
         "trigger": {
             "kinds": ["coverage_gap"],
-            "unhandled": [{"reason": "unsupported statement assert_statement"}],
+            "unhandled": [{"reason": "unsupported expression array_creation_expression"}],
         },
-        "diff_excerpt": '+        assert value > 0, "must be positive"',
-        "repair_signals": ["unsupported-stmt-removed"],
+        "diff_excerpt": "+        return [[0] * cols for _ in range(rows)]",
+        "repair_signals": ["todo-placeholder-removed"],
     }
     draft = _draft_from_record(record)
     assert draft is not None
-    assert draft.tracking == "llm-harvest-assertprobe"
+    assert draft.tracking == "llm-harvest-multi-dim-array"
     assert draft.fixture_root_var == "LLM_FIXTURES"
+
+
+def test_tracking_slug_splits_camel_case() -> None:
+    assert _tracking_slug("AssertProbe") == "assert-probe"
+    assert _tracking_slug("MultiDimArray") == "multi-dim-array"

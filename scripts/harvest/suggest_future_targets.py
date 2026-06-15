@@ -104,7 +104,7 @@ def _draft_from_record(record: dict[str, object]) -> FutureTargetDraft | None:
     expected = _infer_expected_fragments(record)
     if not expected:
         return None
-    tracking = f"llm-harvest-{path.stem.lower().replace('_', '-')}"
+    tracking = f"llm-harvest-{_tracking_slug(path.stem)}"
     return FutureTargetDraft(
         fixture=path.name,
         fixture_root_var=_fixture_root_var(source_path),
@@ -113,6 +113,11 @@ def _draft_from_record(record: dict[str, object]) -> FutureTargetDraft | None:
         expected_fragments=expected,
         source_path=source_path,
     )
+
+
+def _tracking_slug(stem: str) -> str:
+    split_camel = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", stem)
+    return split_camel.lower().replace("_", "-")
 
 
 def _render_draft(draft: FutureTargetDraft) -> str:
