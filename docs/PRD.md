@@ -46,7 +46,7 @@ Deterministic support includes:
 - Structured diagnostics and explicit `# TODO(j2py): …` for unsupported regions
 
 ### F3 — LLM completion of the remainder
-Pass the skeleton + original Java to Claude when rule-layer coverage &lt; 1.0 or when a
+Pass the skeleton + original Java to Claude when rule-layer coverage < 1.0 or when a
 full-coverage skeleton fails syntax/type pre-validation. Cache responses to avoid
 re-translating unchanged files. Live LLM calls are excluded from normal CI
 ([ADR 0004](decisions/0004-claude-as-llm-backend.md)).
@@ -95,8 +95,8 @@ presence plus declaration order. Structural failures feed a single LLM repair re
 Provide measurable quality signal without live LLM in normal CI:
 
 - **Graduated fixtures** — Java/Python pairs and roadmap targets in `make check`
-- **Equivalence gate** — literal-oracle differential tests on harvested library code
-  (`tests/equivalence/`, Phase 1 partial)
+- **Equivalence gate** — literal-oracle differential tests and strict-xfail blockers on
+  harvested library code (`tests/equivalence/`, Phase 1 partial)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
   (`make test-behavior`, separate CI workflow)
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
@@ -127,8 +127,8 @@ Provide measurable quality signal without live LLM in normal CI:
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
 5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior` and
-   `live_llm`) — currently **2,000+** tests including graduated constructs and the
-   CharUtils equivalence gate.
+   `live_llm`) — currently **2,000+** tests including graduated constructs, the
+   CharUtils active equivalence gate, and the NumberUtils strict-xfail gate.
 6. Committed multi-library corpus baselines provide regression signal; `spring-dense` is
    CI-gated against baseline drift.
 7. Behavior and equivalence suites provide bounded runtime-correctness signal without

@@ -14,7 +14,7 @@
 |----------|-------------|
 | [TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) | Graduated vs future xfail construct workflow |
 | [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) | Multi-library corpus presets, baselines, hotspots |
-| [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design (Phase 1 partial) |
+| [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design (Phase 1 partial; CharUtils active, NumberUtils gate) |
 | [BEHAVIOR_CORPUS.md](BEHAVIOR_CORPUS.md) | JDK-backed stdout/exit-code behavior suite |
 
 ## Process and release
@@ -31,7 +31,7 @@
 | Document | Description |
 |----------|-------------|
 | [decisions/0001-record-architecture-decisions.md](decisions/0001-record-architecture-decisions.md) | ADR process template |
-| [decisions/](decisions/) | ADRs 0002–0016 (parser, pipeline, LLM, overloads, equivalence, …) |
+| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0016 (parser, pipeline, LLM, overloads, equivalence, ...) |
 | [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | **Current** maturity and gap audit |
 | [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Prior rule-layer breadth snapshot |
 
