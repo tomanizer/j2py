@@ -1736,6 +1736,215 @@ def test_ambiguous_division_drops_coverage() -> None:
 
 
 
+def test_field_compound_integer_division_uses_truncating_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            private int count;
+
+            public void shrink() {
+                this.count /= 2;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "from j2py_runtime import _j2py_idiv" in result.source
+    assert "self.count = _j2py_idiv(self.count, 2)" in result.source
+    assert "self.count /=" not in result.source
+    assert any(
+        "integer compound division translated with truncating division" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_field_type_inference_preserves_nested_integer_division_and_long_shift() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            static class Box {
+                int count;
+                long wide;
+            }
+
+            private Box box;
+
+            public int halfBoxCount() {
+                return box.count / 2;
+            }
+
+            public long shiftBoxWide() {
+                return box.wide >>> 4;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.box.count // 2" in result.source
+    assert "return (self.box.wide & 0xFFFFFFFFFFFFFFFF) >> (4 & 0x3F)" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_division_type_inference_reaches_method_and_function_returns() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.function.Function;
+
+        public class MathOps {
+            private Function<String, Integer> parser;
+
+            public int localHalf() {
+                return value() / 2;
+            }
+
+            public int parsedHalf(String text) {
+                return parser.apply(text) / 2;
+            }
+
+            private int value() {
+                return 6;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.value() // 2" in result.source
+    assert "return self.parser.apply(text) // 2" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_ternary_and_object_creation_type_inference_keep_float_and_int_division_distinct() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            static class Box {
+                int count;
+            }
+
+            public int halfNewBoxCount() {
+                return new Box().count / 2;
+            }
+
+            public double halfChoice(boolean flag) {
+                return (flag ? 1 : 2.0) / 2;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return MathOps.Box().count // 2" in result.source
+    assert "return (1 if flag else 2.0) / 2" in result.source
+    assert "return (1 if flag else 2.0) // 2" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_nested_parentheses_around_division_operands_preserve_grouping() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public double halfChoice(boolean flag) {
+                return ((flag ? 1 : 2.0)) / 2;
+            }
+
+            public double halfSwitch(int value) {
+                return ((switch (value) { case 0 -> 4.0; default -> 8.0; })) / 2.0;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (1 if flag else 2.0) / 2" in result.source
+    assert "return 1 if flag else 2.0 / 2" not in result.source
+    assert "return (4.0 if value == 0 else 8.0) / 2.0" in result.source
+    assert "return 4.0 if value == 0 else 8.0 / 2.0" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_switch_expression_division_operand_preserves_grouping() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public double halfSwitch(int value) {
+                return (switch (value) { case 0 -> 4.0; default -> 8.0; }) / 2.0;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (4.0 if value == 0 else 8.0) / 2.0" in result.source
+    assert "return 4.0 if value == 0 else 8.0 / 2.0" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_doubly_parenthesized_ternary_division_keeps_grouping() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public double halfChoice(boolean flag) {
+                return ((flag ? 1 : 2.0)) / 2;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (1 if flag else 2.0) / 2" in result.source
+    assert_valid_python(result.source)
+
+
+def test_unsigned_right_shift_variants_keep_masks_and_warnings_visible() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Shifts {
+            private long bits;
+            private int[] values;
+
+            public long shiftLong(long input) {
+                return input >>> 3;
+            }
+
+            public int shiftUnknown(Object input) {
+                return input >>> 1;
+            }
+
+            public void shiftField() {
+                this.bits >>>= 2;
+            }
+
+            public void shiftArray() {
+                values[0] >>>= 1;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (input_ & 0xFFFFFFFFFFFFFFFF) >> (3 & 0x3F)" in result.source
+    assert "return (input_ & 0xFFFFFFFF) >> (1 & 0x1F)" in result.source
+    assert (
+        "_j2py_val = self.bits; self.bits = (_j2py_val & 0xFFFFFFFFFFFFFFFF) >> (2 & 0x3F)"
+    ) in result.source
+    assert (
+        "_j2py_idx = 0; self.values[_j2py_idx] = "
+        "(self.values[_j2py_idx] & 0xFFFFFFFF) >> (1 & 0x1F)"
+    ) in result.source
+    assert any(
+        warning.reason == "unsigned right shift assumed 32-bit int width; verify operand type"
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
 def test_null_comparison_uses_python_identity_operators() -> None:
     python_source, coverage = translate_source(
         """

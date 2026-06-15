@@ -46,6 +46,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   array factories, and `Objects.isNull/nonNull` (#113).
 
 ### Fixed
+- Parenthesized ternary and switch expressions used as division operands now retain
+  grouping, avoiding Python precedence drift in generated output (#249).
 - Auto-discovery now ignores executable `j2py_config.py` files; Python config remains
   available only through explicit trusted `--config j2py_config.py` use (#180).
 - Receiverless calls from static methods to sibling static methods now emit
