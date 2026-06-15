@@ -105,6 +105,7 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
     [
         ("Field", True),
         ("BeanPropertyWriter", True),
+        ("Calendar", True),
         ("java.lang.reflect.Field", True),
         ("ScheduledFuture", True),
         ("Future", True),
