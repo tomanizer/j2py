@@ -1,18 +1,18 @@
 # Curated Constructs Mini-Corpus
 
 Small, focused `.java` files that exercise specific Java language constructs for the
-j2py rule layer. They are mixed into the external **Spring Framework benchmark corpus**
-via `--include-constructs` — Spring is the stress-test checkout, not the product scope.
+j2py rule layer. Density corpus presets mix them in via `--include-constructs` (see
+`spring-dense` and `spring-broad` in `scripts/corpus/corpus_presets.py`). External
+library checkouts are measurement harnesses only — not product scope.
 
-These files target constructs that are common in large Java codebases (including
-enterprise frameworks) but historically under-covered or challenging for deterministic
-translation.
+These files target constructs that are common in large Java codebases but historically
+under-covered or challenging for deterministic translation.
 
 ## Goals
 - **Minimal size**: Each file is intentionally small (typically < 60 LOC) and self-contained.
 - **Broad coverage**: Target constructs from the audit gaps and followup roadmap (#47 and children).
 - **High signal**: Each file focuses on 1–3 constructs so that `--include-constructs` + density sampling can guarantee progress on them.
-- Used by `make corpus-spring-broad` / `--include-constructs` and as regression targets when implementing new rules.
+- Used by density presets with `--include-constructs` and as regression targets when implementing new rules.
 
 ## Current Files (as of latest expansion)
 
@@ -32,10 +32,12 @@ translation.
 
 ## Usage in Corpus Harness
 ```bash
-# Include these high-signal minimal examples
-uv run python scripts/corpus/translate_spring_sample.py --include-constructs --strategy density ...
+# Include these high-signal minimal examples in a density preset run
+uv run python scripts/corpus/translate_spring_sample.py \
+  --preset spring-dense --include-constructs --compare-baseline
 
-# Or use the convenience target
+# Or use convenience targets
+make corpus-spring-dense-check
 make corpus-spring-broad
 ```
 

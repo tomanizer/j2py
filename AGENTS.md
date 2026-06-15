@@ -82,8 +82,10 @@ presets; a red CI means `make check` was not run.
 
 ## Benchmark corpus checkouts
 
-Corpus harness presets live in `scripts/corpus/corpus_presets.py`. External Java repos are
-**not** in git — they live under `.corpus/<name>/` (gitignored).
+Corpus harness presets live in `scripts/corpus/corpus_presets.py`. Pinned libraries
+include Guava, Apache Commons Lang, Jackson, Caffeine, and Spring Framework (one preset
+among several). External Java repos are **not** in git — they live under
+`.corpus/<checkout-dir>/` (gitignored).
 
 **Before running corpus scoreboards** (`make corpus-*-dense-check`):
 
@@ -93,7 +95,8 @@ Corpus harness presets live in `scripts/corpus/corpus_presets.py`. External Java
 
 ```bash
 export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py
-make corpus-guava-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/guava
+make corpus-commons-lang-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/commons-lang
+make corpus-hotspots                   # rank gaps across all committed baselines
 ```
 
 Do not re-clone in every worktree unless you intend to. See
