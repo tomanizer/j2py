@@ -64,19 +64,15 @@ def test_is_ascii_numeric(char_utils, ch, expected):
     assert char_utils.is_ascii_numeric(ch) is expected
 
 
-# --- Known divergences, tracked as strict xfails. --------------------------------
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="#187: sibling static methods called as bare unqualified names -> NameError",
-)
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [("a", True), ("A", True), ("3", False)],  # CharUtilsTest:75-77
 )
 def test_is_ascii_alpha(char_utils, ch, expected):
     assert char_utils.is_ascii_alpha(ch) is expected
+
+
+# --- Known divergences, tracked as strict xfails. --------------------------------
 
 
 @pytest.mark.xfail(
