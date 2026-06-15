@@ -2,8 +2,9 @@
 
 **j2py** is a Java-to-Python source translator. It converts Java classes to Python that
 preserves line-level structural correspondence — same method order, same control flow,
-camelCase→snake_case naming — so reviewers can audit output against the original Java
+camelCase -> snake_case naming — so reviewers can audit output against the original Java
 side by side. The goal is reviewable equivalence, not a fully idiomatic rewrite.
+After deterministic conversion a file can be passed to an LLM for an additional conversion attempt.
 
 ## How it works
 
@@ -125,9 +126,8 @@ LLM completion (requires `ANTHROPIC_API_KEY`):
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```
 
-Auto-discovered configuration can live in `j2py.yaml`, `j2py.yml`, `j2py.toml`, or
-`[tool.j2py]` in `pyproject.toml`. Trusted Python config remains supported via
-explicit `--config j2py_config.py`. See
+Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
+`pyproject.toml`, or `j2py_config.py`. See
 [docs/configuration.md](docs/configuration.md) for the schema.
 
 ## Quality gates
@@ -141,29 +141,28 @@ make release-check # alpha release gate: check + targets + behavior + dist check
 
 ### Benchmark corpus
 
-Translation quality is measured against an external **Spring Framework** checkout plus
-a curated set of small Java construct fixtures under `tests/fixtures/corpus/`. Spring
-is used as a realistic, open-source stress test — not as a product scope or target
-runtime.
+Translation quality is measured against a **multi-library corpus**: pinned checkouts of
+Spring Framework, Guava, Apache Commons Lang, Jackson, and Caffeine, plus small curated
+construct fixtures under `tests/fixtures/corpus/`. These libraries are open-source stress
+tests for the deterministic rule layer — not product scope or target runtime.
 
 ```bash
-make corpus-list-presets       # show pinned presets (Spring, Guava, Jackson, …)
-make corpus-clone-all          # one-time: clone all preset checkouts into .corpus/
-make corpus-spring-dense-check  # preferred: density sample + construct fixtures vs baseline
-make corpus-spring-dense      # run without baseline comparison
-make corpus-spring-broad      # larger spring-context sample + constructs
-make corpus-guava-dense-check # Guava collect/base dense sample vs baseline
-make corpus-spring            # historical lexical Spring-only baseline
+make corpus-list-presets              # show all pinned presets
+make corpus-clone-all                 # one-time: clone all checkouts into .corpus/
+make corpus-guava-dense-check         # Guava collect/base vs baseline
+make corpus-commons-lang-dense-check  # Commons Lang utilities vs baseline
+make corpus-jackson-dense-check       # Jackson databind vs baseline
+make corpus-caffeine-dense-check      # Caffeine cache code vs baseline
+make corpus-spring-dense-check        # Spring dense sample + construct fixtures
+make corpus-hotspots                  # rank gaps across all committed baselines
 ```
 
-Presets live in `scripts/corpus/corpus_presets.py`. Clone all checkouts once with
-`make corpus-clone-all`, or a single preset with `--clone`. In git worktrees, set
-`J2PY_CORPUS_ROOT` to your main checkout so scripts reuse `$J2PY_CORPUS_ROOT/.corpus/`.
-Regenerate a baseline with `make corpus-<preset>-update-baseline` after confirming no
-regressions.
+Presets and baselines live in `scripts/corpus/corpus_presets.py` and
+`tests/fixtures/corpus/`. In git worktrees, set `J2PY_CORPUS_ROOT` to your main checkout
+so scripts reuse `$J2PY_CORPUS_ROOT/.corpus/`. Regenerate a baseline with
+`make corpus-<preset>-update-baseline` only after comparison shows no regressions.
 
-Baseline: `tests/fixtures/corpus/spring-dense-baseline.json`. See
-[docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and
+See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and
 [docs/TRANSLATION_TARGETS.md](docs/TRANSLATION_TARGETS.md).
 
 On-demand live LLM evaluation (excluded from `make check`):
@@ -178,8 +177,9 @@ make test-llm-e2e
 1. Add or update a Java/Python fixture pair under `tests/fixtures/`.
 2. Implement the smallest deterministic rule in `j2py/translate/`.
 3. Graduate the behavior into normal tests once it passes.
-4. Run `make check` and `make corpus-spring-dense-check`.
-5. Update the dense corpus baseline only when the comparison shows no regressions.
+4. Run `make check` and relevant corpus checks (e.g. `make corpus-spring-dense-check` and
+   `make corpus-guava-dense-check` when behavior may generalize).
+5. Update a corpus baseline only when comparison shows no regressions.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.
 

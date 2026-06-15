@@ -57,7 +57,8 @@ When implementing a translation rule:
    `tests/fixtures/java/` and `tests/fixtures/python/`.
 4. Move the target from `FUTURE_TARGETS` into the graduated fixture check, or delete it
    if the normal fixture fully covers it.
-5. Run `make check` and `make test-targets`.
+5. Run `make check` and `make test-targets`. For rule-layer changes, also run relevant
+   corpus baseline checks (see [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)).
 
 This gives us two signals:
 
