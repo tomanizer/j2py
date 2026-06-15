@@ -147,7 +147,7 @@ def install_java_lang_stubs() -> list[str]:
     At class-body definition time NumberUtils calls::
 
         Long.value_of(0), Short.value_of(...), Byte.value_of(...),
-        Double.value_of(0.0), Float.value_of(0.0), Integer.min_value
+        Double.value_of(0.0), Float.value_of(0.0), Integer.MIN_VALUE, Integer.MAX_VALUE
 
     — all imported from ``org.apache.commons.lang3.math.*`` (the rule layer maps Java
     boxed types to sibling fqns).  Method bodies also reference ``StringUtils.contains``,
@@ -188,8 +188,8 @@ def install_java_lang_stubs() -> list[str]:
         "Integer",
         types.SimpleNamespace(
             value_of=_id,
-            min_value=-(2**31),
-            max_value=2**31 - 1,
+            MIN_VALUE=-(2**31),
+            MAX_VALUE=2**31 - 1,
         ),
     )
     installed += install_stub_class(

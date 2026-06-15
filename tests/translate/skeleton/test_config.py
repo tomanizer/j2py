@@ -163,7 +163,7 @@ def test_same_package_class_references_emit_import_without_importing_static_fiel
     assert coverage == 1.0
     assert "from com.example.Peer import Peer" in python_source
     assert "from com.example.VALUES import VALUES" not in python_source
-    assert "Peer.fill(values)" in python_source
+    assert "Peer.fill(VALUES)" in python_source
     assert "peer.fill" not in python_source
     assert_valid_python(python_source)
 

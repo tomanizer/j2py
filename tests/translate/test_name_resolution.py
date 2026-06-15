@@ -129,7 +129,7 @@ def test_static_context_field_uses_field_name_without_self() -> None:
     )
 
     assert resolved.kind == "field"
-    assert resolved.python_name == "values"
+    assert resolved.python_name == "VALUES"
     assert resolved.import_line is None
 
 
@@ -250,7 +250,7 @@ def test_all_caps_identifier_does_not_use_type_fallback() -> None:
     )
 
     assert resolved.kind == "unknown"
-    assert resolved.python_name == "values"
+    assert resolved.python_name == "VALUES"
     assert resolved.import_line is None
 
 

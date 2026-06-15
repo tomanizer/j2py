@@ -121,7 +121,12 @@ def translate_attribute_method_name(name: str, *, snake_case: bool = True) -> st
     return safe_attribute_name(camel_to_snake(name) if snake_case else name)
 
 
+_CONSTANT_CASE_RE: re.Pattern[str] = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
 def translate_field_name(name: str, *, snake_case: bool = True) -> str:
+    if snake_case and _CONSTANT_CASE_RE.match(name):
+        return safe_identifier(name)
     return safe_identifier(camel_to_snake(name) if snake_case else name)
 
 

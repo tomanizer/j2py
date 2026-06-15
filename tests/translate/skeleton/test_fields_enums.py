@@ -152,9 +152,9 @@ def test_static_field_anonymous_class_translates_with_local_helper() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "class _J2pyAnonymous1(Ticker):" in result.source
-    assert "system_ticker: Ticker = _J2pyAnonymous1()" in result.source
+    assert "SYSTEM_TICKER: Ticker = _J2pyAnonymous1()" in result.source
     assert result.source.index("class _J2pyAnonymous1(Ticker):") < result.source.index(
-        "system_ticker: Ticker = _J2pyAnonymous1()",
+        "SYSTEM_TICKER: Ticker = _J2pyAnonymous1()",
     )
     assert_valid_python(result.source)
 

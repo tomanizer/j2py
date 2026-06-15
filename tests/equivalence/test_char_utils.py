@@ -45,26 +45,16 @@ def char_utils(char_utils_source: str):
 
 # ---------------------------------------------------------------------------
 # Constants (LF, CR, NUL) — CharUtils.java:44,52,60
-#
-# The rule layer emits Java CONSTANT_CASE fields as lowercase Python attributes
-# (lf, cr, nul). Python convention (PEP 8) wants UPPER_CASE — this is a
-# known naming-rule bug; tracked separately. Test the actual emitted names so
-# that values are verified even while the naming issue is open.
 # ---------------------------------------------------------------------------
 
 
 def test_constants_values(char_utils):
-    assert char_utils.lf == "\n"  # CharUtils.java:44
-    assert char_utils.cr == "\r"  # CharUtils.java:52
-    assert char_utils.nul == "\0"  # CharUtils.java:60
+    assert char_utils.LF == "\n"  # CharUtils.java:44
+    assert char_utils.CR == "\r"  # CharUtils.java:52
+    assert char_utils.NUL == "\0"  # CharUtils.java:60
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="rule layer lowercases CONSTANT_CASE fields; should be LF/CR/NUL per PEP 8",
-)
 def test_constants_names_are_upper(char_utils):
-    # When the naming bug is fixed, this xfail becomes an error and must be removed.
     assert hasattr(char_utils, "LF") and hasattr(char_utils, "CR") and hasattr(char_utils, "NUL")
 
 

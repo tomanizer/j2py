@@ -461,9 +461,9 @@ def test_static_field_alias_currently_precedes_local_shadowing() -> None:
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "pi = 1.0" in result.source
+    assert "PI = 1.0" in result.source
     assert "return math.pi" in result.source
-    assert "return pi" not in result.source
+    assert "return PI" not in result.source
     assert_valid_python(result.source)
 
 
