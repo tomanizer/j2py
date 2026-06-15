@@ -9,8 +9,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ### Added
 - Gemini Flash LLM provider support via `--llm-provider gemini` and `GEMINI_API_KEY`
-  ([ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md)); Anthropic remains the
-  default.
+  ([ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md), #275); Anthropic
+  remains the default.
 
 ## 0.4.0a1 - 2026-06-15
 

@@ -70,15 +70,20 @@ def test_cli_translate_auto_discovery_ignores_python_config(
 
 
 def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
-    runner = CliRunner()
+    from typer.main import get_command
 
-    result = runner.invoke(app, ["translate", "--help"])
+    translate_cmd = get_command(app).commands["translate"]
+    option_help = {
+        opt: param.help or ""
+        for param in translate_cmd.params
+        for opt in getattr(param, "opts", ())
+    }
 
-    assert result.exit_code == 0
-    assert "LLM model ID" in result.output
-    assert "--llm-provider" in result.output
-    assert "ANTHROPIC_API_KEY" not in result.output
-    assert "Claude model" not in result.output
+    assert "--llm-provider" in option_help
+    assert "anthropic or gemini" in option_help["--llm-provider"]
+    assert "LLM model ID" in option_help["--model"]
+    assert "ANTHROPIC_API_KEY" not in option_help["--llm"]
+    assert "Claude model" not in option_help["--model"]
 
 
 def test_cli_translate_forwards_llm_provider_and_model(
