@@ -125,8 +125,9 @@ LLM completion (requires `ANTHROPIC_API_KEY`):
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```
 
-Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
-`pyproject.toml`, or `j2py_config.py`. See
+Auto-discovered configuration can live in `j2py.yaml`, `j2py.yml`, `j2py.toml`, or
+`[tool.j2py]` in `pyproject.toml`. Trusted Python config remains supported via
+explicit `--config j2py_config.py`. See
 [docs/configuration.md](docs/configuration.md) for the schema.
 
 ## Quality gates

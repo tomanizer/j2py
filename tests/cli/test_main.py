@@ -31,6 +31,43 @@ def test_cli_translate_dry_run_without_llm() -> None:
     assert "def get_name" in result.output
 
 
+def test_cli_translate_auto_discovery_ignores_python_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py_config.py").write_text(
+        "raise RuntimeError('auto-discovered Python config executed')\n",
+    )
+    observed_target_python: list[str] = []
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed_target_python.append(cfg.target_python)
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-llm", "--no-validate", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert observed_target_python == ["3.11"]
+
+
 def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
     runner = CliRunner()
 
@@ -533,6 +570,42 @@ def test_cli_compare_missing_python_translates_without_llm_and_opens_diff(
     assert calls == [["code", "--diff", str(java), str(python)]]
 
 
+def test_cli_compare_auto_discovery_ignores_python_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    (tmp_path / "j2py_config.py").write_text(
+        "raise RuntimeError('auto-discovered Python config executed')\n",
+    )
+    observed_target_python: list[str] = []
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed_target_python.append(cfg.target_python)
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--no-open", "--no-validate"])
+
+    assert result.exit_code == 0
+    assert python.exists()
+    assert observed_target_python == ["3.11"]
+
+
 def test_cli_compare_no_open_prints_paths_without_opening_editor(
     tmp_path: Path,
     monkeypatch,
@@ -643,6 +716,53 @@ def test_cli_compare_generic_editor_omits_vscode_diff_flag(
 
     assert result.exit_code == 0
     assert calls == [["vimdiff", str(java), str(python)]]
+
+
+def test_cli_watch_auto_discovery_ignores_python_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    output = tmp_path / "Sample.py"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py_config.py").write_text(
+        "raise RuntimeError('auto-discovered Python config executed')\n",
+    )
+    observed_target_python: list[str] = []
+
+    def fake_run_watch_translation(
+        source: Path,
+        output: Path,
+        cfg,
+        llm: bool,
+        model: str,
+        validate: bool,
+    ) -> None:
+        observed_target_python.append(cfg.target_python)
+
+    def stop_after_first_poll(interval: float) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("j2py.cli.main._run_watch_translation", fake_run_watch_translation)
+    monkeypatch.setattr("j2py.cli.main.time.sleep", stop_after_first_poll)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "watch",
+            str(source),
+            "--output",
+            str(output),
+            "--no-llm",
+            "--no-validate",
+            "--poll-interval",
+            "0.1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed_target_python == ["3.11"]
 
 
 def test_cli_compare_uses_config_when_translating_missing_python(
