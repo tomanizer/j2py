@@ -16,6 +16,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   with explicit CLI flags taking precedence (#279).
 - Gemini LLM completion now streams responses for large translation prompts while
   preserving cache keys, retries, fence stripping, and truncation detection (#280).
+- Surfaced confidence now stays below 1.00 when validation fails, structural checks fail,
+  parse errors occur, or semantic warnings require review (#271).
 
 ## 0.4.0a1 - 2026-06-15
 

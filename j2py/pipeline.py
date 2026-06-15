@@ -35,7 +35,7 @@ class TranslationResult:
     source_path: Path
     python_source: str
     used_llm: bool = False
-    confidence: float = 1.0  # rule-layer coverage (0.0–1.0); not updated after LLM completion
+    confidence: float = 1.0  # user-facing review confidence; raw coverage is diagnostics.coverage
     parse_ok: bool = True
     output_path: Path | None = None
     diagnostics: TranslationDiagnostics | None = None
@@ -200,7 +200,13 @@ def _translate_parsed_file(
         validation = validate_source(python_source, validation_path) if validate else None
         structural_verification = None
 
-    confidence = 0.0 if not parse_ok else coverage
+    confidence = _surface_confidence(
+        rule_coverage=coverage,
+        parse_ok=parse_ok,
+        diagnostics=skeleton_result.diagnostics,
+        validation=validation,
+        structural_verification=structural_verification,
+    )
 
     return TranslationResult(
         source_path=path,
@@ -224,6 +230,27 @@ def _call_llm(
         return translate_with_llm(**kwargs)
     with llm_semaphore:
         return translate_with_llm(**kwargs)
+
+
+def _surface_confidence(
+    *,
+    rule_coverage: float,
+    parse_ok: bool,
+    diagnostics: TranslationDiagnostics,
+    validation: ValidationResult | None,
+    structural_verification: StructuralVerificationResult | None,
+) -> float:
+    """Return the user-facing trust score, keeping raw node coverage on diagnostics."""
+    if not parse_ok:
+        return 0.0
+    confidence = rule_coverage
+    if diagnostics.semantic_warning_count:
+        confidence = min(confidence, 0.99)
+    if validation is not None and not validation.ok:
+        confidence = min(confidence, 0.79)
+    if structural_verification is not None and not structural_verification.ok:
+        confidence = min(confidence, 0.79)
+    return confidence
 
 
 def _syntax_errors(source: str, filename: str = "<string>") -> list[str]:

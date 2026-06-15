@@ -39,7 +39,10 @@ Use a **layered pipeline**:
    `# TODO(j2py)` stubs. This is significantly cheaper and more accurate than
    translating from scratch.
 
-3. **Confidence score**: `TranslationResult.confidence` reflects `coverage`. Files with
+3. **Confidence score**: `TranslationResult.confidence` is the surfaced review-trust
+   score. Raw node coverage remains available as `diagnostics.coverage`, but confidence
+   is clamped below 1.00 when parse errors, post-validation failures, structural
+   verification failures, or semantic warnings make full trust dishonest. Files with
    `confidence < 0.8` are flagged in the CLI output for priority human review.
 
 **Structural correspondence is a first-class requirement**, not a nice-to-have:

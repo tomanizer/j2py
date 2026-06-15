@@ -54,14 +54,15 @@ avoid re-translating unchanged files. Live LLM calls are excluded from normal CI
 [ADR 0017](decisions/0017-multi-provider-llm-backend.md)).
 
 ### F4 — Confidence scoring
-Each translated file receives a `confidence: float` (0–1). Low-confidence output is
-flagged for human review.
+Each translated file receives a surfaced `confidence: float` (0–1). Low-confidence output
+is flagged for human review.
 
-**Confidence reflects rule-layer node coverage only** (`diagnostics.coverage` — fraction of
-AST nodes handled deterministically). It does **not** decrease when semantic warnings are
-emitted; those are tracked separately via `diagnostics.semantic_warning_count`. LLM
-completion does not change the confidence score after the rule layer runs
-([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
+**Confidence is a review trust signal, not raw node coverage.** Raw rule-layer coverage
+remains available as `diagnostics.coverage`, but surfaced confidence is clamped below
+1.00 when parse errors occur, post-validation fails, structural verification fails, or
+the deterministic rule layer emits semantic warnings via
+`diagnostics.semantic_warning_count`. LLM completion does not increase confidence after
+the rule layer runs ([ADR 0003](decisions/0003-layered-translation-pipeline.md)).
 
 ### F5 — Validation pipeline
 Each translated file is checked: syntax (`ast.parse`), lint (`ruff`), type correctness

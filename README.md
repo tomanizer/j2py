@@ -20,8 +20,8 @@ Java source
 The **rule layer** handles common language constructs deterministically (~70% of typical
 code). Where rules stop, an optional configured LLM provider fills gaps using disk-cached
 prompts.
-Every file gets a **confidence** score based on rule-layer coverage and structured
-diagnostics for anything left unhandled.
+Every file gets a **confidence** score based on rule-layer coverage, validation status,
+and semantic warnings, plus structured diagnostics for anything left unhandled.
 
 ## Status
 
