@@ -287,6 +287,14 @@ def main() -> int:
         print_preset_catalog()
         return 0
 
+    if args.compare_baseline and not args.update_baseline and not args.baseline.exists():
+        print(
+            f"Baseline file not found: {args.baseline}. "
+            "Run with --update-baseline first to create it.",
+            file=sys.stderr,
+        )
+        return 2
+
     repo = args.repo.resolve()
 
     if args.clone:

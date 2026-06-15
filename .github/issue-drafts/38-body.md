@@ -1,4 +1,9 @@
-## Audit summary
+## Historical audit summary
+
+> Historical draft from 2026-06-13. This file preserves the closing note for the
+> original deterministic rule-layer roadmap issue. It predates the current
+> multi-library dense corpus matrix; use `docs/CORPUS_SCOREBOARD.md` for live
+> corpus commands and current baseline status.
 
 Audit refresh performed against local `main` at **`589eadb`** on **2026-06-13** (final deterministic-rule-layer pass).
 
