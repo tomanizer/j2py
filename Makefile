@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -20,11 +20,11 @@ SPRING_DENSE_ARGS := --preset spring-dense
 check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
 
 lint:  ## Lint with ruff (includes format check)
-	uv run --extra dev ruff check j2py/ tests/
-	uv run --extra dev ruff format --check j2py/ tests/ --exclude tests/fixtures/python
+	uv run --extra dev ruff check j2py/ tests/ scripts/equivalence/
+	uv run --extra dev ruff format --check j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 format:  ## Format with ruff
-	uv run --extra dev ruff format j2py/ tests/ --exclude tests/fixtures/python
+	uv run --extra dev ruff format j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 typecheck:  ## Type-check with mypy (strict)
 	uv run --extra dev mypy j2py/
@@ -34,6 +34,11 @@ test:  ## Run test suite
 
 test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
 	uv run --extra dev pytest tests/equivalence -m equivalence -v
+
+equivalence-report:  ## Run equivalence gate and print the verified-surface metric table
+	mkdir -p corpus-reports
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra dev pytest tests/equivalence -m equivalence -q
+	uv run --extra dev python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run --extra dev pytest tests/behavior -m behavior

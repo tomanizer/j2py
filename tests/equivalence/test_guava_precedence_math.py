@@ -13,6 +13,7 @@ import pytest
 from tests.equivalence.harness import load_translated_module, translate_rule_layer
 
 JAVA_CLASS = "GuavaPrecedenceMath.java"
+surface = pytest.mark.equivalence_surface
 
 pytestmark = pytest.mark.equivalence
 
@@ -39,12 +40,14 @@ def test_parenthesized_additive_operand_remains_grouped(
     assert "return (left + right) * scale" in guava_precedence_source
 
 
+@surface(JAVA_CLASS, "GuavaPrecedenceMath.expandedCapacity(int)")
 def test_expanded_capacity_literal_oracles(guava_precedence_math) -> None:
     # A buggy ``old_capacity + 1 * 2`` translation would return 12 for the first case.
     assert guava_precedence_math.expanded_capacity(10) == 22
     assert guava_precedence_math.expanded_capacity(5) == 12
 
 
+@surface(JAVA_CLASS, "GuavaPrecedenceMath.scaledSum(int,int,int)")
 def test_scaled_sum_literal_oracles(guava_precedence_math) -> None:
     # A buggy ``left + right * scale`` translation would return 17 for the first case.
     assert guava_precedence_math.scaled_sum(5, 6, 2) == 22

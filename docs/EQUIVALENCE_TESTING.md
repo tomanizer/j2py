@@ -7,7 +7,7 @@ no LLM). The current surface covers Commons-Lang fixtures (`CharUtils`, `NumberU
 and focused `StringUtils` literal-oracle checks) plus a Guava-style
 `GuavaPrecedenceMath` fixture that exercises the Phase-1 operator-precedence exit
 criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
-(translate -> load -> stub) and `tests/equivalence/comparator.py` (normalisation spec:
+(translate → load → stub) and `tests/equivalence/comparator.py` (normalisation spec —
 float approximation, integer overflow semantics, exception mapping). Overloaded methods
 are explicitly excluded (same-arity Java `char`/`Character` overloads both erase to
 Python `str`, making dispatch ambiguous at the rule layer). `make test-equivalence`
@@ -16,6 +16,7 @@ currently selects **1,641 equivalence tests**: 1,639 passing tests plus two docu
 
 ```bash
 make test-equivalence         # just the equivalence gate
+make equivalence-report       # equivalence gate + verified-surface JSON/table
 make check                    # includes equivalence (along with all other tests)
 ```
 
@@ -165,8 +166,8 @@ math**.
   — Phase 2 prerequisite; not blocking current gate
 
 ### Phase 2 — Measure and decide on folding
-- Add Java method-coverage capture to the oracle pass.
-- Report equivalence-verified surface % per library and size the untestable bucket.
+- ✅ Add Java method-coverage capture to the oracle pass.
+- ✅ Report equivalence-verified surface % per library and size the untestable bucket.
 - **Decision gate:** if coverage shows important methods unverified *because* their tests
   were expression-oracle, build the JVM constant-folding step. Otherwise, don't.
 
@@ -225,6 +226,40 @@ Per library, per run:
 - **Untestable bucket** — count and reasons (reflection / threads / time / random / I/O).
 - **Inputs per verified method** — confidence grows with volume.
 - **Divergences** — the gold; each opens a bug ticket. Trend to zero.
+
+The implemented report publishes both denominators:
+
+- **Verified public surface %** — public Java method signatures with ≥1 passing
+  literal-oracle pytest item ÷ all public Java method signatures in the fixture.
+- **Verified testable surface %** — the same numerator ÷ public signatures minus the
+  explicitly untestable bucket.
+
+Run `make equivalence-report` to generate `corpus-reports/equivalence-surface.json` and
+print the per-fixture table. CI writes and uploads the same JSON artifact from the Python
+3.11 test job. Tests opt into the numerator with
+`@pytest.mark.equivalence_surface("<Fixture>.java", "<Class.method(Signature)>")`; the
+pytest hook records only markers from passing test items, so strict xfail divergences and
+failed assertions do not inflate the metric.
+
+Current snapshot:
+
+By library:
+
+| Library | Verified / public | Public surface | Verified / testable | Untestable |
+|---|---:|---:|---:|---:|
+| `commons-lang` | 20/95 | 21.1% | 20/81 (24.7%) | 14 |
+| `guava` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
+| **Total** | 22/97 | 22.7% | 22/83 (26.5%) | 14 |
+
+By fixture:
+
+| Fixture | Verified / public | Public surface | Verified / testable | Untestable |
+|---|---:|---:|---:|---:|
+| `CharUtils.java` | 9/23 | 39.1% | 9/9 (100.0%) | 14 |
+| `GuavaPrecedenceMath.java` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
+| `NumberUtils.java` | 6/61 | 9.8% | 6/61 (9.8%) | 0 |
+| `StringUtils.java` | 5/11 | 45.5% | 5/11 (45.5%) | 0 |
+| **Total** | 22/97 | 22.7% | 22/83 (26.5%) | 14 |
 
 ## 10. Open questions
 

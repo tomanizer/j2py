@@ -134,6 +134,7 @@ markers = [
     "behavior: Java/Python behavior-equivalence tests that require a local JDK. Excluded from normal test runs; run with: pytest -m behavior tests/behavior",
     "target_translation: strict xfail contracts for future Java-to-Python roadmap targets",
     "equivalence: runtime equivalence gate — rule-layer translation of a vendored real-library class run against literal-oracle assertions ported from its upstream unit tests. Runs in make check (no JDK, no LLM).",
+    "equivalence_surface(fixture, signature): Java method signature verified by a passing literal-oracle equivalence test item.",
     "live_llm: end-to-end exploratory tests that make live calls to an LLM provider. These are excluded from normal test runs and make check. Run Anthropic probes with `make test-llm-e2e` and Gemini probes with `make test-llm-gemini-e2e`.",
 ]
 

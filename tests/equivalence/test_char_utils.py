@@ -24,6 +24,7 @@ from tests.equivalence.harness import (
 )
 
 pytestmark = pytest.mark.equivalence
+surface = pytest.mark.equivalence_surface
 
 
 @pytest.fixture(scope="module")
@@ -63,14 +64,17 @@ def test_constants_names_are_upper(char_utils):
 # ---------------------------------------------------------------------------
 
 
+@surface("CharUtils.java", "CharUtils.compare(char,char)")
 def test_compare_less(char_utils):
     assert char_utils.compare("a", "b") < 0  # CharUtilsTest:44
 
 
+@surface("CharUtils.java", "CharUtils.compare(char,char)")
 def test_compare_equal(char_utils):
     assert char_utils.compare("c", "c") == 0  # CharUtilsTest:45
 
 
+@surface("CharUtils.java", "CharUtils.compare(char,char)")
 def test_compare_greater(char_utils):
     assert char_utils.compare("c", "a") > 0  # CharUtilsTest:46
 
@@ -91,16 +95,19 @@ def test_compare_greater(char_utils):
         ("©", False),  # CharUtilsTest:63 CHAR_COPY (non-ASCII)
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAscii(char)")
 def test_is_ascii(char_utils, ch, expected):
     assert char_utils.is_ascii(ch) is expected
 
 
 @pytest.mark.parametrize("i", range(128))
+@surface("CharUtils.java", "CharUtils.isAscii(char)")
 def test_is_ascii_range_true(char_utils, i):
     assert char_utils.is_ascii(chr(i)) is True  # CharUtilsTest:65-67
 
 
 @pytest.mark.parametrize("i", range(128, 196))
+@surface("CharUtils.java", "CharUtils.isAscii(char)")
 def test_is_ascii_range_false(char_utils, i):
     assert char_utils.is_ascii(chr(i)) is False  # CharUtilsTest:65-67
 
@@ -121,6 +128,7 @@ def test_is_ascii_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:79
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlpha(char)")
 def test_is_ascii_alpha(char_utils, ch, expected):
     assert char_utils.is_ascii_alpha(ch) is expected
 
@@ -129,6 +137,7 @@ def test_is_ascii_alpha(char_utils, ch, expected):
     "i",
     [i for i in range(196) if ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z")],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlpha(char)")
 def test_is_ascii_alpha_range_true(char_utils, i):
     assert char_utils.is_ascii_alpha(chr(i)) is True  # CharUtilsTest:81-87
 
@@ -137,6 +146,7 @@ def test_is_ascii_alpha_range_true(char_utils, i):
     "i",
     [i for i in range(196) if not (ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z"))],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlpha(char)")
 def test_is_ascii_alpha_range_false(char_utils, i):
     assert char_utils.is_ascii_alpha(chr(i)) is False  # CharUtilsTest:81-87
 
@@ -157,16 +167,19 @@ def test_is_ascii_alpha_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:96
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaLower(char)")
 def test_is_ascii_alpha_lower(char_utils, ch, expected):
     assert char_utils.is_ascii_alpha_lower(ch) is expected
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if ord("a") <= i <= ord("z")])
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaLower(char)")
 def test_is_ascii_alpha_lower_range_true(char_utils, i):
     assert char_utils.is_ascii_alpha_lower(chr(i)) is True  # CharUtilsTest:98-104
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if not (ord("a") <= i <= ord("z"))])
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaLower(char)")
 def test_is_ascii_alpha_lower_range_false(char_utils, i):
     assert char_utils.is_ascii_alpha_lower(chr(i)) is False  # CharUtilsTest:98-104
 
@@ -187,16 +200,19 @@ def test_is_ascii_alpha_lower_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:113
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaUpper(char)")
 def test_is_ascii_alpha_upper(char_utils, ch, expected):
     assert char_utils.is_ascii_alpha_upper(ch) is expected
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if ord("A") <= i <= ord("Z")])
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaUpper(char)")
 def test_is_ascii_alpha_upper_range_true(char_utils, i):
     assert char_utils.is_ascii_alpha_upper(chr(i)) is True  # CharUtilsTest:115-121
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if not (ord("A") <= i <= ord("Z"))])
+@surface("CharUtils.java", "CharUtils.isAsciiAlphaUpper(char)")
 def test_is_ascii_alpha_upper_range_false(char_utils, i):
     assert char_utils.is_ascii_alpha_upper(chr(i)) is False  # CharUtilsTest:115-121
 
@@ -217,6 +233,7 @@ def test_is_ascii_alpha_upper_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:130
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlphanumeric(char)")
 def test_is_ascii_alphanumeric(char_utils, ch, expected):
     assert char_utils.is_ascii_alphanumeric(ch) is expected
 
@@ -229,6 +246,7 @@ def test_is_ascii_alphanumeric(char_utils, ch, expected):
         if ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z") or ord("0") <= i <= ord("9")
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlphanumeric(char)")
 def test_is_ascii_alphanumeric_range_true(char_utils, i):
     assert char_utils.is_ascii_alphanumeric(chr(i)) is True  # CharUtilsTest:132-138
 
@@ -241,6 +259,7 @@ def test_is_ascii_alphanumeric_range_true(char_utils, i):
         if not (ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z") or ord("0") <= i <= ord("9"))
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiAlphanumeric(char)")
 def test_is_ascii_alphanumeric_range_false(char_utils, i):
     assert char_utils.is_ascii_alphanumeric(chr(i)) is False  # CharUtilsTest:132-138
 
@@ -261,16 +280,19 @@ def test_is_ascii_alphanumeric_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:147
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiControl(char)")
 def test_is_ascii_control(char_utils, ch, expected):
     assert char_utils.is_ascii_control(ch) is expected
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if i < 32 or i == 127])
+@surface("CharUtils.java", "CharUtils.isAsciiControl(char)")
 def test_is_ascii_control_range_true(char_utils, i):
     assert char_utils.is_ascii_control(chr(i)) is True  # CharUtilsTest:149-155
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if not (i < 32 or i == 127)])
+@surface("CharUtils.java", "CharUtils.isAsciiControl(char)")
 def test_is_ascii_control_range_false(char_utils, i):
     assert char_utils.is_ascii_control(chr(i)) is False  # CharUtilsTest:149-155
 
@@ -291,16 +313,19 @@ def test_is_ascii_control_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:184
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiNumeric(char)")
 def test_is_ascii_numeric(char_utils, ch, expected):
     assert char_utils.is_ascii_numeric(ch) is expected
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if ord("0") <= i <= ord("9")])
+@surface("CharUtils.java", "CharUtils.isAsciiNumeric(char)")
 def test_is_ascii_numeric_range_true(char_utils, i):
     assert char_utils.is_ascii_numeric(chr(i)) is True  # CharUtilsTest:186-188
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if not (ord("0") <= i <= ord("9"))])
+@surface("CharUtils.java", "CharUtils.isAsciiNumeric(char)")
 def test_is_ascii_numeric_range_false(char_utils, i):
     assert char_utils.is_ascii_numeric(chr(i)) is False  # CharUtilsTest:186-188
 
@@ -321,16 +346,19 @@ def test_is_ascii_numeric_range_false(char_utils, i):
         ("©", False),  # CharUtilsTest:164
     ],
 )
+@surface("CharUtils.java", "CharUtils.isAsciiPrintable(char)")
 def test_is_ascii_printable(char_utils, ch, expected):
     assert char_utils.is_ascii_printable(ch) is expected
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if 32 <= i <= 126])
+@surface("CharUtils.java", "CharUtils.isAsciiPrintable(char)")
 def test_is_ascii_printable_range_true(char_utils, i):
     assert char_utils.is_ascii_printable(chr(i)) is True  # CharUtilsTest:166-172
 
 
 @pytest.mark.parametrize("i", [i for i in range(196) if not (32 <= i <= 126)])
+@surface("CharUtils.java", "CharUtils.isAsciiPrintable(char)")
 def test_is_ascii_printable_range_false(char_utils, i):
     assert char_utils.is_ascii_printable(chr(i)) is False  # CharUtilsTest:166-172
 
