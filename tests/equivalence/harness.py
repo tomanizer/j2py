@@ -29,9 +29,7 @@ _CFG = ConfigLoader().add_defaults().build()
 
 def translate_rule_layer(java_name: str) -> str:
     """Return the rule-layer-only Python translation of a vendored Java fixture."""
-    result = translate_file(
-        FIXTURES / java_name, cfg=_CFG, use_llm=False, validate=False
-    )
+    result = translate_file(FIXTURES / java_name, cfg=_CFG, use_llm=False, validate=False)
     return result.python_source
 
 

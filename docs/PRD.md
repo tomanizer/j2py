@@ -16,7 +16,7 @@ the logic from scratch.
 
 ## Status
 
-**Alpha** (`0.3.0a1` on PyPI as `j2py-converter`). The deterministic rule layer achieves
+**Alpha** (`0.4.0a1` on PyPI as `j2py-converter`). The deterministic rule layer achieves
 near-complete **node coverage** on pinned multi-library dense samples (see
 [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
 library scale is still early — see [ADR 0014](decisions/0014-equivalence-differential-testing.md)

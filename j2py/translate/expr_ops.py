@@ -4,12 +4,106 @@ from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.expr_types import _expression_py_type
+from j2py.translate.expr_types import (
+    _expression_py_type,
+    _is_integral_java_type,
+    _java_type_of_value,
+)
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import java_string_literal_value
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
+
+
+def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    children = node.children
+    if len(children) >= 3:
+        left_node = children[0]
+        operator = children[1].text
+        right_node = children[-1]
+        supported_operators = {
+            "=",
+            "+=",
+            "-=",
+            "*=",
+            "/=",
+            "%=",
+            "&=",
+            "|=",
+            "^=",
+            "<<=",
+            ">>=",
+            ">>>=",
+        }
+        if operator not in supported_operators:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason=f"unsupported assignment operator {operator}",
+            )
+            return f"__j2py_todo__({node.text!r})"
+        if operator == ">>>=":
+            return _translate_unsigned_right_shift_assign(node, left_node, right_node, ctx)
+        if operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
+            left = translate_expression(left_node, ctx)
+            right = translate_expression(right_node, ctx)
+            ctx.diagnostics.imports.need_idiv()
+            ctx.diagnostics.warn(
+                node,
+                reason=(
+                    "integer compound division translated with truncating division; "
+                    "verify truncation semantics"
+                ),
+            )
+            return f"{left} = _j2py_idiv({left}, {right})"
+        left = translate_expression(left_node, ctx)
+        right = translate_expression(right_node, ctx)
+        return f"{left} {operator} {right}"
+
+    ctx.diagnostics.record(node, supported=False, reason="malformed assignment expression")
+    return f"__j2py_todo__({node.text!r})"
+
+
+def _translate_binary_expression(node: JavaNode, ctx: TranslationContext) -> str:
+    f_string = _translate_string_concat(node, ctx)
+    if f_string is not None:
+        return f_string
+    children = node.children
+    if len(children) >= 3:
+        operator_text = children[1].text
+        if operator_text == "/":
+            return _translate_division(node, children[0], children[2], ctx)
+        if operator_text == ">>>":
+            return _translate_unsigned_right_shift(node, children[0], children[2], ctx)
+        char_arithmetic = _translate_char_arithmetic(
+            node, children[0], children[2], operator_text, ctx
+        )
+        if char_arithmetic is not None:
+            return char_arithmetic
+        binary_operator: str | None
+        binary_operator = _translate_binary_operator(operator_text)
+        if binary_operator is None:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason=f"unsupported binary operator {children[1].text}",
+            )
+            return f"__j2py_todo__({node.text!r})"
+        null_comparison = _translate_null_comparison(
+            children[0],
+            children[2],
+            binary_operator,
+            ctx,
+        )
+        if null_comparison is not None:
+            return null_comparison
+        left = _translate_binary_operand(children[0], operator_text, ctx, is_right=False)
+        right = _translate_binary_operand(children[2], operator_text, ctx, is_right=True)
+        return f"{left} {binary_operator} {right}"
+
+    ctx.diagnostics.record(node, supported=False, reason="malformed binary expression")
+    return f"__j2py_todo__({node.text!r})"
 
 
 def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
@@ -366,6 +460,73 @@ def _translate_binary_operator(operator: str) -> str | None:
     return operators.get(operator)
 
 
+_BINARY_PRECEDENCE: dict[str, int] = {
+    "||": 1,
+    "&&": 2,
+    "|": 3,
+    "^": 4,
+    "&": 5,
+    "==": 6,
+    "!=": 6,
+    "<": 7,
+    "<=": 7,
+    ">": 7,
+    ">=": 7,
+    "<<": 8,
+    ">>": 8,
+    ">>>": 8,
+    "+": 9,
+    "-": 9,
+    "*": 10,
+    "/": 10,
+    "%": 10,
+}
+
+
+def _translate_binary_operand(
+    node: JavaNode,
+    parent_operator: str,
+    ctx: TranslationContext,
+    *,
+    is_right: bool,
+) -> str:
+    if node.type != "parenthesized_expression" or len(node.named_children) != 1:
+        return translate_expression(node, ctx)
+
+    inner = node.named_children[0]
+    expression = translate_expression(inner, ctx)
+    if inner.type != "binary_expression" or len(inner.children) < 3:
+        return expression
+
+    inner_operator = inner.children[1].text
+    if _binary_parentheses_change_meaning(
+        parent_operator,
+        inner_operator,
+        is_right=is_right,
+    ):
+        return f"({expression})"
+    return expression
+
+
+def _binary_parentheses_change_meaning(
+    parent_operator: str,
+    inner_operator: str,
+    *,
+    is_right: bool,
+) -> bool:
+    parent_precedence = _BINARY_PRECEDENCE.get(parent_operator)
+    inner_precedence = _BINARY_PRECEDENCE.get(inner_operator)
+    if parent_precedence is None or inner_precedence is None:
+        return True
+    if inner_precedence < parent_precedence:
+        return True
+    return (
+        is_right
+        and inner_precedence == parent_precedence
+        and (parent_operator in {"-", "/", "%"} or inner_operator in {"/", "%"})
+    )
+
+
 def _translate_unsigned_right_shift(
     node: JavaNode,
     left_node: JavaNode,
@@ -417,8 +578,7 @@ def _translate_unsigned_right_shift_assign(
         index = translate_expression(index_node, ctx)
         distance = _masked_shift_distance(right, width)
         return (
-            f"_j2py_idx = {index}; "
-            f"{array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {distance}"
+            f"_j2py_idx = {index}; {array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {distance}"
         )
 
     if left_node.type == "field_access" and len(left_node.named_children) == 2:
@@ -428,8 +588,7 @@ def _translate_unsigned_right_shift_assign(
         field = translate_field_name(left_node.named_children[1].text)
         distance = _masked_shift_distance(right, width)
         return (
-            f"_j2py_val = {target}.{field}; "
-            f"{target}.{field} = (_j2py_val & {mask}) >> {distance}"
+            f"_j2py_val = {target}.{field}; {target}.{field} = (_j2py_val & {mask}) >> {distance}"
         )
 
     left = translate_expression(left_node, ctx)
@@ -613,8 +772,7 @@ def _translate_char_arithmetic(
         ctx.diagnostics.warn(
             node,
             reason=(
-                "char arithmetic translated with ord(); "
-                "wrap result in chr() if a char is expected"
+                "char arithmetic translated with ord(); wrap result in chr() if a char is expected"
             ),
         )
     return f"{left} {operator} {right}"

@@ -7,6 +7,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.4.0a1 - 2026-06-15
+
 ### Changed
 - Refresh [docs/PRD.md](docs/PRD.md) — confidence semantics, expanded CLI, `verify/` stage,
   regression suites (F9–F10), updated success criteria.

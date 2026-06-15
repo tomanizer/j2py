@@ -117,8 +117,7 @@ def _javadoc_docstring_body(text: str) -> list[str]:
             body.append("")
         body.append("Args:")
         body.extend(
-            f"    {name}: {detail}" if detail else f"    {name}:"
-            for name, detail in params
+            f"    {name}: {detail}" if detail else f"    {name}:" for name, detail in params
         )
     if returns:
         if body and body[-1] != "":

@@ -158,9 +158,7 @@ def _collect_declared_type_field_maps(
         name_node = type_node.child_by_field("name")
         if name_node is None:
             return
-        by_type[name_node.text] = {
-            field.name: field for field in _class_fields(type_node, cfg)
-        }
+        by_type[name_node.text] = {field.name: field for field in _class_fields(type_node, cfg)}
         body = type_node.child_by_field("body")
         if body is None:
             return
@@ -315,7 +313,7 @@ def _translate_fields(
 
 
 def _javadoc_is_consumed_by_declaration(children: list[JavaNode], index: int) -> bool:
-    for child in children[index + 1:]:
+    for child in children[index + 1 :]:
         if is_comment(child):
             continue
         return child.type in {

@@ -126,8 +126,7 @@ def _format_diagnostics(diagnostics: TranslationDiagnostics) -> str:
     if not diagnostics.unhandled:
         return "No unresolved constructs from the rule layer."
     return "\n".join(
-        f"- line {item.line}: {item.node_type} - {item.reason}"
-        for item in diagnostics.unhandled
+        f"- line {item.line}: {item.node_type} - {item.reason}" for item in diagnostics.unhandled
     )
 
 

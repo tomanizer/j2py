@@ -54,8 +54,8 @@ def char_utils(char_utils_source: str):
 
 
 def test_constants_values(char_utils):
-    assert char_utils.lf == "\n"   # CharUtils.java:44
-    assert char_utils.cr == "\r"   # CharUtils.java:52
+    assert char_utils.lf == "\n"  # CharUtils.java:44
+    assert char_utils.cr == "\r"  # CharUtils.java:52
     assert char_utils.nul == "\0"  # CharUtils.java:60
 
 
@@ -74,7 +74,7 @@ def test_constants_names_are_upper(char_utils):
 
 
 def test_compare_less(char_utils):
-    assert char_utils.compare("a", "b") < 0   # CharUtilsTest:44
+    assert char_utils.compare("a", "b") < 0  # CharUtilsTest:44
 
 
 def test_compare_equal(char_utils):
@@ -82,7 +82,7 @@ def test_compare_equal(char_utils):
 
 
 def test_compare_greater(char_utils):
-    assert char_utils.compare("c", "a") > 0   # CharUtilsTest:46
+    assert char_utils.compare("c", "a") > 0  # CharUtilsTest:46
 
 
 # ---------------------------------------------------------------------------
@@ -93,11 +93,11 @@ def test_compare_greater(char_utils):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", True),    # CharUtilsTest:58
-        ("A", True),    # CharUtilsTest:59
-        ("3", True),    # CharUtilsTest:60
-        ("-", True),    # CharUtilsTest:61
-        ("\n", True),   # CharUtilsTest:62
+        ("a", True),  # CharUtilsTest:58
+        ("A", True),  # CharUtilsTest:59
+        ("3", True),  # CharUtilsTest:60
+        ("-", True),  # CharUtilsTest:61
+        ("\n", True),  # CharUtilsTest:62
         ("©", False),  # CharUtilsTest:63 CHAR_COPY (non-ASCII)
     ],
 )
@@ -123,12 +123,12 @@ def test_is_ascii_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", True),         # CharUtilsTest:74
-        ("A", True),         # CharUtilsTest:75
-        ("3", False),        # CharUtilsTest:76
-        ("-", False),        # CharUtilsTest:77
-        ("\n", False),       # CharUtilsTest:78
-        ("©", False),   # CharUtilsTest:79
+        ("a", True),  # CharUtilsTest:74
+        ("A", True),  # CharUtilsTest:75
+        ("3", False),  # CharUtilsTest:76
+        ("-", False),  # CharUtilsTest:77
+        ("\n", False),  # CharUtilsTest:78
+        ("©", False),  # CharUtilsTest:79
     ],
 )
 def test_is_ascii_alpha(char_utils, ch, expected):
@@ -159,12 +159,12 @@ def test_is_ascii_alpha_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", True),         # CharUtilsTest:91
-        ("A", False),        # CharUtilsTest:92
-        ("3", False),        # CharUtilsTest:93
-        ("-", False),        # CharUtilsTest:94
-        ("\n", False),       # CharUtilsTest:95
-        ("©", False),   # CharUtilsTest:96
+        ("a", True),  # CharUtilsTest:91
+        ("A", False),  # CharUtilsTest:92
+        ("3", False),  # CharUtilsTest:93
+        ("-", False),  # CharUtilsTest:94
+        ("\n", False),  # CharUtilsTest:95
+        ("©", False),  # CharUtilsTest:96
     ],
 )
 def test_is_ascii_alpha_lower(char_utils, ch, expected):
@@ -189,12 +189,12 @@ def test_is_ascii_alpha_lower_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", False),        # CharUtilsTest:108
-        ("A", True),         # CharUtilsTest:109
-        ("3", False),        # CharUtilsTest:110
-        ("-", False),        # CharUtilsTest:111
-        ("\n", False),       # CharUtilsTest:112
-        ("©", False),   # CharUtilsTest:113
+        ("a", False),  # CharUtilsTest:108
+        ("A", True),  # CharUtilsTest:109
+        ("3", False),  # CharUtilsTest:110
+        ("-", False),  # CharUtilsTest:111
+        ("\n", False),  # CharUtilsTest:112
+        ("©", False),  # CharUtilsTest:113
     ],
 )
 def test_is_ascii_alpha_upper(char_utils, ch, expected):
@@ -219,12 +219,12 @@ def test_is_ascii_alpha_upper_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", True),         # CharUtilsTest:125
-        ("A", True),         # CharUtilsTest:126
-        ("3", True),         # CharUtilsTest:127
-        ("-", False),        # CharUtilsTest:128
-        ("\n", False),       # CharUtilsTest:129
-        ("©", False),   # CharUtilsTest:130
+        ("a", True),  # CharUtilsTest:125
+        ("A", True),  # CharUtilsTest:126
+        ("3", True),  # CharUtilsTest:127
+        ("-", False),  # CharUtilsTest:128
+        ("\n", False),  # CharUtilsTest:129
+        ("©", False),  # CharUtilsTest:130
     ],
 )
 def test_is_ascii_alphanumeric(char_utils, ch, expected):
@@ -248,9 +248,7 @@ def test_is_ascii_alphanumeric_range_true(char_utils, i):
     [
         i
         for i in range(196)
-        if not (
-            ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z") or ord("0") <= i <= ord("9")
-        )
+        if not (ord("A") <= i <= ord("Z") or ord("a") <= i <= ord("z") or ord("0") <= i <= ord("9"))
     ],
 )
 def test_is_ascii_alphanumeric_range_false(char_utils, i):
@@ -265,12 +263,12 @@ def test_is_ascii_alphanumeric_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", False),        # CharUtilsTest:142
-        ("A", False),        # CharUtilsTest:143
-        ("3", False),        # CharUtilsTest:144
-        ("-", False),        # CharUtilsTest:145
-        ("\n", True),        # CharUtilsTest:146
-        ("©", False),   # CharUtilsTest:147
+        ("a", False),  # CharUtilsTest:142
+        ("A", False),  # CharUtilsTest:143
+        ("3", False),  # CharUtilsTest:144
+        ("-", False),  # CharUtilsTest:145
+        ("\n", True),  # CharUtilsTest:146
+        ("©", False),  # CharUtilsTest:147
     ],
 )
 def test_is_ascii_control(char_utils, ch, expected):
@@ -295,12 +293,12 @@ def test_is_ascii_control_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("3", True),         # CharUtilsTest:181
-        ("a", False),        # CharUtilsTest:179
-        ("A", False),        # CharUtilsTest:180
-        ("-", False),        # CharUtilsTest:182
-        ("\n", False),       # CharUtilsTest:183
-        ("©", False),   # CharUtilsTest:184
+        ("3", True),  # CharUtilsTest:181
+        ("a", False),  # CharUtilsTest:179
+        ("A", False),  # CharUtilsTest:180
+        ("-", False),  # CharUtilsTest:182
+        ("\n", False),  # CharUtilsTest:183
+        ("©", False),  # CharUtilsTest:184
     ],
 )
 def test_is_ascii_numeric(char_utils, ch, expected):
@@ -325,12 +323,12 @@ def test_is_ascii_numeric_range_false(char_utils, i):
 @pytest.mark.parametrize(
     ("ch", "expected"),
     [
-        ("a", True),         # CharUtilsTest:159
-        ("A", True),         # CharUtilsTest:160
-        ("3", True),         # CharUtilsTest:161
-        ("-", True),         # CharUtilsTest:162
-        ("\n", False),       # CharUtilsTest:163
-        ("©", False),   # CharUtilsTest:164
+        ("a", True),  # CharUtilsTest:159
+        ("A", True),  # CharUtilsTest:160
+        ("3", True),  # CharUtilsTest:161
+        ("-", True),  # CharUtilsTest:162
+        ("\n", False),  # CharUtilsTest:163
+        ("©", False),  # CharUtilsTest:164
     ],
 )
 def test_is_ascii_printable(char_utils, ch, expected):

@@ -33,13 +33,19 @@ name is already owned by an unrelated Jupyter notebook converter.
 
 `make release-check` runs:
 
-- lint
+- lock file consistency (`uv lock --check`)
+- lint (ruff check + format check)
 - strict type check
 - normal pytest suite
 - future target xfail suite
 - Java/Python behavior-equivalence tests
+- version consistency (`pyproject.toml` vs `j2py.__version__`)
+- import and CLI smoke test
 - fresh `dist/` cleanup before building release artifacts
 - wheel and sdist build
 - sdist hygiene guard that rejects local agent state, caches, corpus clones, reports,
   VS Code build output, VSIX files, and `node_modules`
 - `twine check dist/*.whl dist/*.tar.gz`
+
+The publish workflow runs `make release-test` on Python 3.11 and 3.12, then builds
+and validates distributions once on Python 3.11.

@@ -62,7 +62,7 @@ COLLECTION_MAP: dict[str, str] = {
     "Deque": "collections.deque",
     "ArrayDeque": "collections.deque",
     "Stack": "list",
-    "Optional": "Optional",   # Optional[T] — needs special handling
+    "Optional": "Optional",  # Optional[T] — needs special handling
     "Iterator": "Iterator",
     "Iterable": "Iterable",
     "Collection": "list",
@@ -110,8 +110,18 @@ LITERAL_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 STRIP_MODIFIERS: frozenset[str] = frozenset(
-    {"public", "private", "protected", "static", "final",
-     "abstract", "native", "volatile", "transient", "strictfp"}
+    {
+        "public",
+        "private",
+        "protected",
+        "static",
+        "final",
+        "abstract",
+        "native",
+        "volatile",
+        "transient",
+        "strictfp",
+    }
 )
 
 # ---------------------------------------------------------------------------
@@ -119,8 +129,7 @@ STRIP_MODIFIERS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 DROP_ANNOTATIONS: frozenset[str] = frozenset(
-    {"Override", "SuppressWarnings", "SafeVarargs", "FunctionalInterface",
-     "Deprecated"}
+    {"Override", "SuppressWarnings", "SafeVarargs", "FunctionalInterface", "Deprecated"}
 )
 
 # ---------------------------------------------------------------------------
@@ -129,14 +138,28 @@ DROP_ANNOTATIONS: frozenset[str] = frozenset(
 
 DROP_IMPORTS: frozenset[str] = frozenset(
     {
-        "java.lang.String", "java.lang.Integer", "java.lang.Long",
-        "java.lang.Double", "java.lang.Float", "java.lang.Boolean",
-        "java.lang.Object", "java.lang.Math", "java.lang.System",
-        "java.lang.StringBuilder", "java.lang.StringBuffer",
-        "java.util.List", "java.util.ArrayList", "java.util.LinkedList",
-        "java.util.Map", "java.util.HashMap", "java.util.LinkedHashMap",
-        "java.util.Set", "java.util.HashSet", "java.util.TreeSet",
-        "java.util.Arrays", "java.util.Collections",
+        "java.lang.String",
+        "java.lang.Integer",
+        "java.lang.Long",
+        "java.lang.Double",
+        "java.lang.Float",
+        "java.lang.Boolean",
+        "java.lang.Object",
+        "java.lang.Math",
+        "java.lang.System",
+        "java.lang.StringBuilder",
+        "java.lang.StringBuffer",
+        "java.util.List",
+        "java.util.ArrayList",
+        "java.util.LinkedList",
+        "java.util.Map",
+        "java.util.HashMap",
+        "java.util.LinkedHashMap",
+        "java.util.Set",
+        "java.util.HashSet",
+        "java.util.TreeSet",
+        "java.util.Arrays",
+        "java.util.Collections",
         "java.util.Optional",
     }
 )
@@ -147,8 +170,8 @@ IMPORT_MAP: dict[str, str] = {
     "java.util.function.Predicate": "from typing import Callable",
     "java.util.function.Consumer": "from typing import Callable",
     "java.util.function.Supplier": "from typing import Callable",
-    "java.util.stream.Collectors": "",   # handled inline
-    "java.io.IOException": "",           # maps to OSError (builtin)
+    "java.util.stream.Collectors": "",  # handled inline
+    "java.io.IOException": "",  # maps to OSError (builtin)
     "java.io.InputStream": "from typing import IO",
     "java.io.OutputStream": "from typing import IO",
     "java.io.BufferedReader": "import io",
@@ -157,5 +180,5 @@ IMPORT_MAP: dict[str, str] = {
     "java.nio.file.Paths": "from pathlib import Path",
     "java.nio.file.Files": "import pathlib",
     "java.math.BigDecimal": "from decimal import Decimal",
-    "java.math.BigInteger": "",          # int handles arbitrary precision
+    "java.math.BigInteger": "",  # int handles arbitrary precision
 }

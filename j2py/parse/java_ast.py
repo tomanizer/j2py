@@ -18,8 +18,8 @@ JAVA_LANGUAGE = Language(ts_java.language())
 
 @dataclass(frozen=True)
 class SourceLocation:
-    line: int        # 1-based
-    column: int      # 0-based
+    line: int  # 1-based
+    column: int  # 0-based
     end_line: int
     end_column: int
 
@@ -37,7 +37,7 @@ class JavaNode:
 
     @property
     def text(self) -> str:
-        return self.source[self.node.start_byte:self.node.end_byte].decode("utf-8")
+        return self.source[self.node.start_byte : self.node.end_byte].decode("utf-8")
 
     @property
     def location(self) -> SourceLocation:

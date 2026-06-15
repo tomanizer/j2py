@@ -348,4 +348,3 @@ def _switch_condition(subject: str, labels: list[str]) -> str:
     if len(labels) == 1:
         return f"{subject} == {labels[0]}"
     return f"{subject} in ({', '.join(labels)})"
-

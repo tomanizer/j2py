@@ -83,6 +83,37 @@ make ci-local-pr            # full local PR check — must pass before pushing
 All `make` targets must pass locally before pushing. CI gates are identical to local
 presets; a red CI means `make check` was not run.
 
+## Shared worktree environment
+
+The main checkout owns the canonical local environment. Feature worktrees should reuse
+that environment instead of creating their own `.venv` unless they intentionally need an
+isolated dependency experiment.
+
+On this machine, the main checkout is:
+
+```bash
+/Users/thomas/Documents/Projects/j2py
+```
+
+From a secondary worktree, either call tools directly from that environment:
+
+```bash
+/Users/thomas/Documents/Projects/j2py/.venv/bin/python -m pytest
+/Users/thomas/Documents/Projects/j2py/.venv/bin/mypy j2py/
+/Users/thomas/Documents/Projects/j2py/.venv/bin/ruff check j2py/ tests/
+```
+
+or link the worktree-local `.venv` to the main checkout:
+
+```bash
+ln -s /Users/thomas/Documents/Projects/j2py/.venv .venv
+```
+
+Do not run dependency-mutating commands such as `uv sync` or `uv add` from a feature
+worktree against the shared environment unless the dependency change is the explicit
+task. Make dependency changes from the main checkout or a deliberately isolated virtual
+environment, then commit `pyproject.toml` and `uv.lock` together.
+
 ## Benchmark corpus checkouts
 
 Corpus harness presets live in `scripts/corpus/corpus_presets.py`. Pinned libraries

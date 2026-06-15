@@ -1,7 +1,5 @@
 """Skeleton translator tests — stream pipeline rewrites."""
 
-
-
 from tests.translate.skeleton.helpers import (
     CFG,
     assert_valid_python,
@@ -13,7 +11,7 @@ from tests.translate.skeleton.helpers import (
 def test_stream_item_name_avoids_bad_singularization() -> None:
     """Regression: _stream_item_name used to produce statu/addres/clas etc."""
     from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
-    from j2py.translate.expressions import _stream_item_name
+    from j2py.translate.expr_streams import _stream_item_name
 
     ctx = TranslationContext(cfg=CFG, diagnostics=TranslationDiagnostics())
 
@@ -31,9 +29,6 @@ def test_stream_item_name_avoids_bad_singularization() -> None:
         # tolerate "item_" style safety suffix from naming
         ok = got == want or got == want + "_" or got.endswith(want) or got.endswith(want + "_")
         assert ok, f"{src_name} -> {got} (wanted ~{want})"
-
-
-
 
 
 def test_stream_pipeline_produces_sensible_loop_var_for_statuses() -> None:
@@ -64,9 +59,6 @@ def test_stream_pipeline_produces_sensible_loop_var_for_statuses() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_pipeline_to_set_rewrite() -> None:
     """Phase 1: toSet collector now rewrites to set comprehension."""
     python_source, coverage = translate_source(
@@ -89,9 +81,6 @@ def test_stream_pipeline_to_set_rewrite() -> None:
     assert "for status in statuses" in python_source or "for status_ in statuses" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_joining_basic() -> None:
@@ -117,9 +106,6 @@ def test_stream_pipeline_joining_basic() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_source_call_uses_valid_loop_target_for_collection_values() -> None:
     python_source, coverage = translate_source(
         """
@@ -143,9 +129,6 @@ def test_stream_source_call_uses_valid_loop_target_for_collection_values() -> No
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_source_getter_call_uses_valid_loop_target_for_joining() -> None:
     python_source, coverage = translate_source(
         """
@@ -166,9 +149,6 @@ def test_stream_source_getter_call_uses_valid_loop_target_for_joining() -> None:
     assert "for interface in left.get_proxied_interfaces()" in python_source
     assert "interface.get_canonical_name()" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_sorted_and_distinct() -> None:
@@ -199,9 +179,6 @@ def test_stream_pipeline_sorted_and_distinct() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_pipeline_sorted_with_key() -> None:
     """Phase 2: .sorted(Comparator) with simple method ref key."""
     python_source, coverage = translate_source(
@@ -224,9 +201,6 @@ def test_stream_pipeline_sorted_with_key() -> None:
     assert "key=lambda " in python_source  # or similar
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_sorted_before_map_falls_back_to_preserve_order() -> None:
@@ -255,9 +229,6 @@ def test_stream_sorted_before_map_falls_back_to_preserve_order() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_stream_distinct_before_map_falls_back_to_preserve_order() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -284,9 +255,6 @@ def test_stream_distinct_before_map_falls_back_to_preserve_order() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_joining_with_prefix_suffix_falls_back() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -307,9 +275,6 @@ def test_joining_with_prefix_suffix_falls_back() -> None:
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_stream_pipeline_grouping_by_basic() -> None:
@@ -336,9 +301,6 @@ def test_stream_pipeline_grouping_by_basic() -> None:
     assert "groups[key].append" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_grouping_by_mapping_to_list() -> None:
@@ -401,9 +363,6 @@ def test_stream_pipeline_grouping_by_non_identity_mapping_falls_back() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_stream_pipeline_to_map_basic() -> None:
     """Phase 3: basic toMap produces helper with dict accumulation."""
     python_source, coverage = translate_source(
@@ -428,9 +387,6 @@ def test_stream_pipeline_to_map_basic() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_to_map_with_merge_function_falls_back() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -452,9 +408,6 @@ def test_to_map_with_merge_function_falls_back() -> None:
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_stream_flatmap_list_stream_to_list_rewrite() -> None:
@@ -578,6 +531,3 @@ def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
     reasons = [u.reason for u in result.diagnostics.unhandled]
     assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
     assert_valid_python(result.source)
-
-
-

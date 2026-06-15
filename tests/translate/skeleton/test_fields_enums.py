@@ -1,7 +1,5 @@
 """Skeleton translator tests — fields, enums, and type declarations."""
 
-
-
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
@@ -20,9 +18,6 @@ def test_field_without_constructor_assignment_uses_java_default() -> None:
     assert coverage == 1.0
     assert "self.count: int = 0" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_uninitialized_field_defaults_use_java_semantics() -> None:
@@ -54,9 +49,6 @@ def test_uninitialized_field_defaults_use_java_semantics() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_instance_field_initializer_can_reference_another_field() -> None:
     python_source, coverage = translate_source(
         """
@@ -72,9 +64,6 @@ def test_instance_field_initializer_can_reference_another_field() -> None:
     assert "self.copy: int = self.base" in python_source
     assert "self.copy: int = base" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
@@ -289,9 +278,6 @@ def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_enum_interface_names_skip_generic_type_arguments() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -304,9 +290,6 @@ def test_enum_interface_names_skip_generic_type_arguments() -> None:
     assert "# implements Comparable, Labelled" in result.source
     assert "# implements Comparable, Mode, Labelled" not in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_super_constructor_invocation_and_base_class_translate() -> None:
@@ -324,9 +307,6 @@ def test_super_constructor_invocation_and_base_class_translate() -> None:
     assert "class Child(Parent):" in python_source
     assert "super().__init__(name)" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
@@ -348,9 +328,6 @@ def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
         "self.mapper: Function[str, str] = _j2py_lambda_1",
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_grouping_by_in_field_initializer_emits_local_helper_in_init() -> None:
@@ -375,9 +352,6 @@ def test_grouping_by_in_field_initializer_emits_local_helper_in_init() -> None:
         "self.groups: dict[str, list[str]] = _j2py_groupby_1(items)",
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_interface_declaration_translates_to_protocol() -> None:
@@ -416,8 +390,7 @@ def test_sealed_interface_preserves_permits_and_nested_permitted_types() -> None
     assert "class ExtendedPending(Pending):" in result.source
     assert "# non-sealed" in result.source
     assert (
-        "SealedClassesPermitted = Success | Failure | Pending"
-        "  # sealed permitted subclasses"
+        "SealedClassesPermitted = Success | Failure | Pending  # sealed permitted subclasses"
     ) in result.source
     assert_valid_python(result.source)
 
@@ -440,9 +413,6 @@ def test_anonymous_class_captures_qualified_outer_this() -> None:
         warning.reason for warning in result.diagnostics.warnings
     }
     assert_valid_python(result.source)
-
-
-
 
 
 def test_annotation_type_declaration_translates_marker_to_dataclass() -> None:

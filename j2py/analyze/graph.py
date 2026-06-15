@@ -26,9 +26,7 @@ def build_dependency_graph(all_symbols: list[FileSymbols]) -> nx.DiGraph:
             simple_names[cls.name].append(fqn)
 
     unambiguous_short_names = {
-        name: fqns[0]
-        for name, fqns in simple_names.items()
-        if len(fqns) == 1
+        name: fqns[0] for name, fqns in simple_names.items() if len(fqns) == 1
     }
 
     graph: nx.DiGraph = nx.DiGraph()
@@ -117,6 +115,7 @@ def translation_order(graph: nx.DiGraph) -> list[str]:
         cycle_nodes = {n for cycle in cycles for n in cycle}
         if cycle_nodes:
             import warnings
+
             warnings.warn(
                 f"Circular dependencies detected between: {cycle_nodes}. "
                 "Translation order within these classes may be incorrect.",

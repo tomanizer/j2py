@@ -330,11 +330,7 @@ def _stream_flatmap_binding(
     if arg.type != "method_reference":
         return None
     named = arg.named_children
-    if (
-        len(named) >= 2
-        and named[-1].text == "stream"
-        and named[0].text[:1].isupper()
-    ):
+    if len(named) >= 2 and named[-1].text == "stream" and named[0].text[:1].isupper():
         inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
         inner_iterable = current_expr if current_expr != outer_item_name else outer_item_name
         return inner_name, inner_iterable
@@ -348,9 +344,7 @@ def _apply_stream_post_ops(
 ) -> str:
     for operation, key in post_ops:
         if operation == "sorted":
-            base = (
-                f"sorted({base}, key=lambda {item_name}: {key})" if key else f"sorted({base})"
-            )
+            base = f"sorted({base}, key=lambda {item_name}: {key})" if key else f"sorted({base})"
         elif operation == "distinct":
             base = f"list(dict.fromkeys({base}))"
     return base
@@ -468,11 +462,7 @@ def _is_function_identity(arg: JavaNode) -> bool:
         )
     if arg.type == "method_reference":
         named = arg.named_children
-        return (
-            len(named) >= 2
-            and named[0].text == "Function"
-            and named[-1].text == "identity"
-        )
+        return len(named) >= 2 and named[0].text == "Function" and named[-1].text == "identity"
     return False
 
 

@@ -173,3 +173,37 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
 
 def _is_list_type(py_type: str) -> bool:
     return is_list_like_type(py_type)
+
+
+def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
+    """Return the Java type string for simple identifier/field expressions, or None."""
+    if node.type == "identifier":
+        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
+    if node.type == "field_access" and len(node.named_children) == 2:
+        obj, field = node.named_children
+        if obj.type == "this":
+            return ctx.class_field_java_types.get(field.text)
+    return None
+
+
+def _is_integral_java_type(java_type: str | None) -> bool:
+    if java_type is None:
+        return False
+    simple = java_type.strip()
+    if "<" in simple:
+        simple = simple.split("<", 1)[0]
+    if "." in simple:
+        simple = simple.rsplit(".", 1)[-1]
+    simple = simple.rstrip("[]")
+    return simple in {
+        "Byte",
+        "Character",
+        "Integer",
+        "Long",
+        "Short",
+        "byte",
+        "char",
+        "int",
+        "long",
+        "short",
+    }

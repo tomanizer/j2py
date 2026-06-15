@@ -47,9 +47,6 @@ def test_comments_and_dropped_annotations_do_not_reduce_coverage() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -68,9 +65,6 @@ def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
     ]
     assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
-
-
-
 
 
 def test_char_arithmetic_wraps_operands_in_ord() -> None:
@@ -493,7 +487,7 @@ def test_static_field_alias_currently_precedes_local_shadowing() -> None:
         ),
         (
             "import static com.google.common.base.Preconditions.checkState;",
-            "checkState(canRemove, \"message\");",
+            'checkState(canRemove, "message");',
             'assert can_remove, "message"',
         ),
         (
@@ -685,9 +679,6 @@ def test_compound_assignment_translates() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_prefix_and_postfix_updates_translate() -> None:
     python_source, coverage = translate_source(
         """
@@ -710,9 +701,6 @@ def test_prefix_and_postfix_updates_translate() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_update_expression_operator_search_ignores_comment_tokens() -> None:
     python_source, coverage = translate_source(
         """
@@ -732,9 +720,6 @@ def test_update_expression_operator_search_ignores_comment_tokens() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_varargs_parameter_with_inline_comment_keeps_element_type() -> None:
     python_source, coverage = translate_source(
         """
@@ -750,9 +735,6 @@ def test_varargs_parameter_with_inline_comment_keeps_element_type() -> None:
     assert "def names(self, *labels: str) -> None:" in python_source
     assert "block_comment" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_hex_literals_inline_argument_comments_and_primitive_class_literals_translate() -> None:
@@ -798,9 +780,6 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     assert_valid_python(python_source)
 
 
-
-
-
 def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
     python_source, coverage = translate_source(
         '''
@@ -820,9 +799,6 @@ def test_text_block_string_literal_translates_to_python_triple_quoted_string() -
     assert 'return """alpha \nbetagamma\n"""' in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_sized_array_creation_uses_java_default_values() -> None:
@@ -856,9 +832,6 @@ def test_sized_array_creation_uses_java_default_values() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -873,13 +846,10 @@ def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
     assert result.coverage < 1.0
     assert "__j2py_todo__('new int[rows][cols]')" in result.source
     assert "from j2py_runtime import __j2py_todo__" in result.source
-    assert [
-        diagnostic.reason for diagnostic in result.diagnostics.unhandled
-    ] == ["multidimensional array creation requires nested allocation handling"]
+    assert [diagnostic.reason for diagnostic in result.diagnostics.unhandled] == [
+        "multidimensional array creation requires nested allocation handling"
+    ]
     assert_valid_python(result.source)
-
-
-
 
 
 def test_common_spring_expression_shapes_translate() -> None:
@@ -922,9 +892,6 @@ def test_common_spring_expression_shapes_translate() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_map_get_preserves_missing_key_semantics() -> None:
     python_source, coverage = translate_source(
         """
@@ -942,9 +909,6 @@ def test_map_get_preserves_missing_key_semantics() -> None:
     assert 'return values.get("missing")' in python_source
     assert 'return values["missing"]' not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_list_get_uses_local_variable_type() -> None:
@@ -1087,7 +1051,7 @@ def test_delegate_multimap_get_is_map_like() -> None:
     )
 
     assert coverage == 1.0
-    assert 'return self.delegate().get(key)' in python_source
+    assert "return self.delegate().get(key)" in python_source
     assert_valid_python(python_source)
 
 
@@ -1106,7 +1070,7 @@ def test_require_non_null_field_get_is_api_call() -> None:
     )
 
     assert coverage == 1.0
-    assert '.get(obj)' in python_source
+    assert ".get(obj)" in python_source
     assert_valid_python(python_source)
 
 
@@ -1268,7 +1232,6 @@ def test_scheduled_future_get_is_api_call() -> None:
     assert_valid_python(python_source)
 
 
-
 def test_class_style_get_invocation_preserves_static_factory_call() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -1289,9 +1252,6 @@ def test_class_style_get_invocation_preserves_static_factory_call() -> None:
     assert "return com.example.class_name.get(value)" in result.source
     assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
-
-
-
 
 
 def test_equals_invocation_translates_to_python_equality() -> None:
@@ -1431,9 +1391,6 @@ def test_expression_lambdas_and_method_references_translate() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_block_lambda_translates_to_local_helper() -> None:
     """Block lambdas are now supported via a local helper function (no more forced TODO/LLM)."""
     result = translate_source_with_diagnostics(
@@ -1457,9 +1414,6 @@ def test_block_lambda_translates_to_local_helper() -> None:
     assert "_j2py_lambda_" in result.source  # the name is used
     assert "return user.get_name()" in result.source or "return user.getName()" in result.source
     assert_valid_python(result.source)
-
-
-
 
 
 def test_block_lambda_with_multiple_statements_and_capture() -> None:
@@ -1499,9 +1453,6 @@ def test_block_lambda_with_multiple_statements_and_capture() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_array_constructor_method_reference_in_to_array_translates() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -1523,9 +1474,6 @@ def test_array_constructor_method_reference_in_to_array_translates() -> None:
         "array constructor method reference translated as list factory",
     ]
     assert_valid_python(result.source)
-
-
-
 
 
 def test_emit_line_comments_flag_suppresses_preserved_comments() -> None:
@@ -1585,9 +1533,6 @@ def test_emit_docstrings_flag_keeps_javadocs_as_comments() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_emit_type_hints_flag_suppresses_standard_annotations() -> None:
     cfg = CFG.model_copy(update={"emit_type_hints": False})
     python_source, coverage = translate_source(
@@ -1613,9 +1558,6 @@ def test_emit_type_hints_flag_suppresses_standard_annotations() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_string_concat_with_nested_quoted_expression_remains_valid_python() -> None:
     python_source, coverage = translate_source(
         """
@@ -1630,9 +1572,6 @@ def test_string_concat_with_nested_quoted_expression_remains_valid_python() -> N
     assert coverage == 1.0
     assert "return 'Hello ' + str(" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_string_concat_preserves_leading_numeric_addition() -> None:
@@ -1650,9 +1589,6 @@ def test_string_concat_preserves_leading_numeric_addition() -> None:
     assert 'return f"{a + b}x"' in python_source
     assert 'return f"{a}{b}x"' not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_integer_division_uses_floor_div_and_records_review_warning() -> None:
@@ -1686,9 +1622,6 @@ def test_integer_division_uses_floor_div_and_records_review_warning() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_ambiguous_division_drops_coverage() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -1704,9 +1637,6 @@ def test_ambiguous_division_drops_coverage() -> None:
     assert "return __j2py_todo__('left / right')" in result.source
     assert result.diagnostics.unhandled[-1].reason == "division requires numeric type certainty"
     assert_valid_python(result.source)
-
-
-
 
 
 def test_null_comparison_uses_python_identity_operators() -> None:
@@ -1728,9 +1658,6 @@ def test_null_comparison_uses_python_identity_operators() -> None:
     assert "return value is not None" in python_source
     assert "return value is None" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
@@ -1760,9 +1687,6 @@ def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_partial_translation_reports_structured_diagnostics() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -1783,9 +1707,6 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
     assert (
         diagnostic.reason == "multidimensional array creation requires nested allocation handling"
     )
-
-
-
 
 
 def test_interface_default_and_static_methods_translate_to_protocol_bodies() -> None:

@@ -30,6 +30,7 @@ CFG = ConfigLoader().add_defaults().build()
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _write_java(tmp_path: Path, source: str, filename: str = "Main.java") -> Path:
     p = tmp_path / filename
     p.write_text(source, encoding="utf-8")
@@ -39,6 +40,7 @@ def _write_java(tmp_path: Path, source: str, filename: str = "Main.java") -> Pat
 # ---------------------------------------------------------------------------
 # Pipeline invocation: LLM is called when rule layer has coverage < 1.0
 # ---------------------------------------------------------------------------
+
 
 def test_pipeline_invokes_llm_for_unhandled_constructs(tmp_path: Path) -> None:
     """translate_file with use_llm=True calls translate_with_llm when coverage < 1.0."""
@@ -53,10 +55,7 @@ public class Probe {
     path = _write_java(tmp_path, java)
 
     cassette = (
-        "class Probe:\n"
-        "    def run(self) -> None:\n"
-        "        assert 1 == 1\n"
-        "        print('done')\n"
+        "class Probe:\n    def run(self) -> None:\n        assert 1 == 1\n        print('done')\n"
     )
 
     with patch("j2py.llm.client.translate_with_llm", return_value=cassette) as mock_llm:
@@ -117,6 +116,7 @@ public class Pure {
 # Skeleton shape for previously fixed rule-layer bugs
 # ---------------------------------------------------------------------------
 
+
 def test_skeleton_preserves_arithmetic_parens() -> None:
     """Regression guard for parenthesized arithmetic grouping."""
     src, _ = translate_source("""
@@ -166,6 +166,7 @@ def test_skeleton_keeps_user_add_method_call() -> None:
 # ---------------------------------------------------------------------------
 # Diagnostic accuracy: rule-layer gaps are accurately reported
 # ---------------------------------------------------------------------------
+
 
 def test_diagnostics_report_coverage_below_one_for_unhandled_construct() -> None:
     result = translate_source_with_diagnostics("""

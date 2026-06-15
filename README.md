@@ -136,7 +136,7 @@ Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 make check         # ruff + mypy strict + pytest (excludes behavior, live_llm)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
 make test-targets  # future xfail roadmap targets (empty while all targets graduated)
-make release-check # alpha release gate: check + targets + behavior + dist check
+make release-check # alpha release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```
 
 ### Benchmark corpus

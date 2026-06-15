@@ -6,7 +6,8 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
-	clean clean-dist ci-local-pr ci-local-governance build sdist-hygiene-check dist-check release-check
+	clean clean-dist ci-local-pr ci-local-governance build sdist-hygiene-check dist-check \
+	lock-check version-check import-smoke release-test release-check
 
 CORPUS := uv run python scripts/corpus/translate_spring_sample.py
 
@@ -18,11 +19,12 @@ SPRING_DENSE_ARGS := --preset spring-dense
 
 check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
 
-lint:  ## Lint with ruff
+lint:  ## Lint with ruff (includes format check)
 	uv run --extra dev ruff check j2py/ tests/
+	uv run --extra dev ruff format --check j2py/ tests/ --exclude tests/fixtures/python
 
 format:  ## Format with ruff
-	uv run --extra dev ruff format j2py/ tests/
+	uv run --extra dev ruff format j2py/ tests/ --exclude tests/fixtures/python
 
 typecheck:  ## Type-check with mypy (strict)
 	uv run --extra dev mypy j2py/
@@ -142,4 +144,16 @@ sdist-hygiene-check: build  ## Fail if source distributions contain local/genera
 dist-check: build sdist-hygiene-check  ## Validate built distributions with twine
 	uv run --extra dev twine check dist/*.whl dist/*.tar.gz
 
-release-check: check test-targets test-behavior dist-check  ## Run alpha release readiness checks
+lock-check:  ## Fail when uv.lock is out of date with pyproject.toml
+	uv lock --check
+
+version-check:  ## Fail when pyproject.toml and j2py.__version__ disagree
+	uv run python scripts/packaging/check_release_versions.py
+
+import-smoke:  ## Verify core imports and CLI entry point
+	uv run python -c "import j2py; import j2py.parse.java_ast; import j2py.translate.rules.types"
+	uv run j2py --help > /dev/null
+
+release-test: lock-check check test-targets test-behavior version-check import-smoke  ## Release tests without building dist
+
+release-check: release-test dist-check  ## Run alpha release readiness checks
