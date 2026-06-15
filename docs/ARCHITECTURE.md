@@ -34,7 +34,11 @@ Java source file(s)
 │   ├── class_fields.py      Field extraction/emission
 │   ├── class_model.py       Shared dataclasses
 │   ├── name_resolution.py   Deterministic partial name binding
-│   ├── statements.py        Statement emitter
+│   ├── statements.py        Statement facade / router
+│   ├── stmt_control.py      if/for/while/do control-flow lowering
+│   ├── stmt_exceptions.py   try/catch/throw and try-with-resources lowering
+│   ├── stmt_switch.py       switch statement lowering and fall-through diagnostics
+│   ├── stmt_sync.py         synchronized block lowering
 │   ├── expressions.py       Expression facade / router
 │   ├── expr_access.py       Identifiers, fields, arrays, casts, instanceof
 │   ├── expr_calls.py        Method calls and Java standard-library shims
@@ -90,12 +94,36 @@ Java source file(s)
   - Also exposes structured diagnostics via `translate_skeleton_with_diagnostics`
 - `classes.py` is the class-declaration facade; `class_enums.py`, `class_interfaces.py`,
   `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
-  hold declaration-kind emitters and shared helpers. `statements.py` emits statements.
-  `expressions.py` is a thin expression facade/router; `expr_access.py`,
-  `expr_calls.py`, `expr_lambdas.py`, `expr_objects.py`, `expr_ops.py`,
-  `expr_streams.py`, and `expr_types.py` own focused expression families. The rule layer
-  is intentionally imperative today; a prior unused declarative selector/transform
-  prototype was removed.
+  hold declaration-kind emitters and shared helpers.
+- `statements.py` is the statement facade/router. It owns simple statement forms
+  directly (for example returns, local variables, `break`, `continue`, and nested type
+  declarations) and delegates larger families to focused modules:
+  - `stmt_control.py`: enhanced/classic `for`, `if`, `while`, and `do-while`
+  - `stmt_exceptions.py`: `try`, `try`-with-resources, `catch`, and `throw`
+  - `stmt_switch.py`: switch statements, fall-through lowering, and explicit switch
+    diagnostics
+  - `stmt_sync.py`: synchronized-block lowering
+- `expressions.py` is the expression facade/router. It owns literals, simple names for
+  built-in Java node forms, and unsupported-expression TODO sentinels; focused families
+  live in:
+  - `expr_access.py`: identifiers, field/array access, array creation, casts, class
+    literals, and `instanceof`
+  - `expr_calls.py`: method invocations and Java standard-library shims
+  - `expr_lambdas.py`: lambdas and method references
+  - `expr_objects.py`: object construction and anonymous classes
+  - `expr_ops.py`: assignment, update/unary/binary operators, ternaries, and switch
+    expressions
+  - `expr_streams.py`: stream pipelines and collectors
+  - `expr_types.py`: best-effort expression type inference helpers
+- Contributor import rule: route new statement and expression node kinds through the
+  facade (`translate_statement` / `translate_expression`) so callers have one stable
+  entry point and diagnostics/import side effects remain centralized. Add implementation
+  helpers to the focused `stmt_*` or `expr_*` module that owns the construct family.
+  Function-level (lazy) imports of private helpers from split modules should be used inside
+  the facade routers to avoid circular imports; new pipeline, class, and test code should
+  always call the facades.
+- The rule layer is intentionally imperative today; a prior unused declarative
+  selector/transform prototype was removed.
 - `name_resolution.py` owns deterministic partial name binding for expression
   identifiers. `skeleton.py` builds file-level `FileNameBindings` from the current
   file, config import maps, package name, compilation-unit types, and static imports;
