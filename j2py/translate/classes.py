@@ -39,6 +39,7 @@ from j2py.translate.diagnostics import (
     TranslationDiagnostics,
 )
 from j2py.translate.expressions import translate_expression
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import class_body_needs_pass, first_child_by_type
 from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import (
@@ -93,12 +94,14 @@ def translate_class(
     inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
     docstring_lines: list[str] | None = None,
     outer_self_alias: str | None = None,
     requires_outer_self: bool = False,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
 ) -> list[str]:
+    resolver = name_resolver or NameResolver.empty()
     if node.type == "interface_declaration":
         return _translate_interface(
             node,
@@ -106,6 +109,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
         )
     if node.type == "enum_declaration":
@@ -115,6 +119,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
         )
     if node.type == "record_declaration":
         return _translate_record(
@@ -123,6 +128,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
         )
     if node.type == "annotation_type_declaration":
@@ -132,6 +138,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
         )
 
@@ -225,6 +232,7 @@ def translate_class(
         class_static_methods=class_static_method_names,
         containing_class_name=class_name,
         enclosing_static_dispatch=enclosing_dispatch,
+        name_resolver=resolver,
     )
     direct_nested_type_names = set() if body is None else _direct_nested_type_names(body)
     nested_outer_capture_names = _nested_type_names_using_qualified_this(body)
@@ -238,6 +246,7 @@ def translate_class(
         inherited_declared_type_java_fields=declared_type_java_fields,
         static_field_aliases=static_field_aliases or {},
         static_method_imports=static_method_imports or {},
+        name_resolver=resolver,
         outer_capture_names=nested_outer_capture_names,
         file_class_static_methods=file_class_static_methods,
         enclosing_static_dispatch=nested_enclosing_dispatch,
@@ -298,6 +307,7 @@ def translate_class(
                     class_method_return_types=class_method_return_types,
                     static_field_aliases=static_field_aliases or {},
                     static_method_imports=static_method_imports or {},
+                    name_resolver=resolver,
                     pre_body_lines=(
                         lock_init_lines + instance_init_lines
                         if group[0].type == "constructor_declaration"
@@ -326,6 +336,7 @@ def translate_class(
             class_method_return_types=class_method_return_types,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
             outer_self_alias=outer_self_alias,
@@ -361,6 +372,7 @@ def _translate_interface(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated interface declaration")
@@ -386,6 +398,7 @@ def _translate_interface(
         inherited_declared_type_java_fields={},
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     sealed_alias_lines = _sealed_type_alias_lines(node, body, class_name, indent="    ")
 
@@ -428,6 +441,7 @@ def _translate_interface(
                 class_method_return_types=class_method_return_types,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
                 containing_class_name=class_name,
                 allow_local_helpers=True,
             )
@@ -464,6 +478,7 @@ def _translate_enum(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated enum declaration")
     diagnostics.imports.need_enum()
@@ -526,6 +541,7 @@ def _translate_enum(
             constant_name=constant_name,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             enum_field_names=instance_field_names,
             enum_field_types=class_field_types,
             enum_field_java_types=class_field_java_types,
@@ -579,6 +595,7 @@ def _translate_enum(
                     class_method_return_types=class_method_return_types,
                     static_field_aliases=static_field_aliases,
                     static_method_imports=static_method_imports,
+                    name_resolver=name_resolver,
                     pre_body_lines=[],
                 ),
             )
@@ -620,6 +637,7 @@ def _translate_enum(
             class_method_return_types=class_method_return_types,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             containing_class_name=class_name,
             allow_local_helpers=True,
         )
@@ -658,6 +676,7 @@ def _translate_enum_constant(
     constant_name: str,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     enum_field_names: set[str],
     enum_field_types: dict[str, str],
     enum_field_java_types: dict[str, str],
@@ -675,6 +694,7 @@ def _translate_enum_constant(
             class_field_java_types=enum_field_java_types,
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
+            name_resolver=name_resolver,
             allow_local_helpers=True,
         )
         helper_lines, overridden = _translate_enum_constant_class_body(
@@ -687,7 +707,11 @@ def _translate_enum_constant(
     if args_node is None or not args_node.named_children:
         assignment = [f"    {constant_name} = {constant_name!r}"]
     else:
-        arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        arg_ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            name_resolver=name_resolver,
+        )
         arg_ctx.static_field_aliases = dict(static_field_aliases)
         arg_ctx.static_method_imports = dict(static_method_imports)
         args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]
@@ -883,6 +907,7 @@ def _translate_record(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
     diagnostics.record(node, supported=True, reason="translated record declaration")
@@ -931,6 +956,7 @@ def _translate_annotation_declaration(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
     name_node = node.child_by_field("name")
@@ -973,6 +999,7 @@ def _translate_annotation_declaration(
                         diagnostics,
                         static_field_aliases=static_field_aliases,
                         static_method_imports=static_method_imports,
+                        name_resolver=name_resolver,
                     )
                 )
                 continue
@@ -1011,6 +1038,7 @@ def _translate_annotation_element(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str:
     type_node = _annotation_element_type_node(node)
     name_node = _annotation_element_name_node(node)
@@ -1037,6 +1065,7 @@ def _translate_annotation_element(
         diagnostics,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     if default_value is None:
         diagnostics.record(
@@ -1127,6 +1156,7 @@ def _annotation_element_default(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str | None:
     if default_node.type == "element_value_array_initializer":
         values: list[str] = []
@@ -1137,6 +1167,7 @@ def _annotation_element_default(
                 diagnostics,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
             )
             if scalar is None:
                 return None
@@ -1153,6 +1184,7 @@ def _annotation_element_default(
         diagnostics,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
 
 
@@ -1163,6 +1195,7 @@ def _annotation_scalar_default(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str | None:
     if node.type in _IMMUTABLE_LITERAL_NODES:
         if node.type == "string_literal":
@@ -1180,7 +1213,11 @@ def _annotation_scalar_default(
         return mapped
 
     if node.type == "unary_expression":
-        ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            name_resolver=name_resolver,
+        )
         ctx.static_field_aliases = dict(static_field_aliases)
         ctx.static_method_imports = dict(static_method_imports)
         translated = translate_expression(node, ctx)
@@ -1188,7 +1225,11 @@ def _annotation_scalar_default(
             return None
         return translated
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        name_resolver=name_resolver,
+    )
     ctx.static_field_aliases = dict(static_field_aliases)
     ctx.static_method_imports = dict(static_method_imports)
     translated = translate_expression(node, ctx)
@@ -1208,6 +1249,7 @@ def _nested_type_lines(
     inherited_declared_type_java_fields: dict[str, dict[str, str]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     outer_capture_names: set[str] | None = None,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
@@ -1238,6 +1280,7 @@ def _nested_type_lines(
             inherited_declared_type_java_fields=inherited_declared_type_java_fields,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             docstring_lines=pending_docstring,
             outer_self_alias=(
                 "self._outer_self"
@@ -1646,6 +1689,7 @@ def _translate_overloaded_members(
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -1670,6 +1714,7 @@ def _translate_overloaded_members(
         class_method_return_types=class_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
         docstring_lines=docstring_lines,

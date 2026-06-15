@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 
 if TYPE_CHECKING:
+    from j2py.analyze.symbols import FileSymbols
+    from j2py.config.loader import TranslationConfig
+    from j2py.parse.java_ast import JavaNode, ParsedFile
     from j2py.translate.diagnostics import TranslationContext
 
 
@@ -217,3 +221,91 @@ def scope_from_context(ctx: TranslationContext) -> NameScope:
         nested_class_names=set(ctx.nested_class_names),
         snake_case_fields=ctx.cfg.snake_case_fields,
     )
+
+
+def build_file_name_bindings(
+    parsed: ParsedFile,
+    symbols: FileSymbols,
+    cfg: TranslationConfig,
+    *,
+    static_field_aliases: dict[str, str] | None = None,
+    static_method_imports: dict[str, str] | None = None,
+) -> FileNameBindings:
+    return FileNameBindings(
+        package_name=symbols.package,
+        imported_types=imported_type_bindings(parsed, cfg),
+        compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
+        static_field_aliases=dict(static_field_aliases or {}),
+        static_method_imports=dict(static_method_imports or {}),
+    )
+
+
+def imported_type_bindings(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+) -> dict[str, TypeBinding]:
+    bindings: dict[str, TypeBinding] = {}
+    for java_import in parsed.root.find_all("import_declaration"):
+        if is_static_import(java_import):
+            continue
+        imported_name = java_import_name(java_import)
+        if not imported_name:
+            continue
+        raw_name = imported_name.rsplit(".", 1)[-1]
+        if imported_name in cfg.drop_imports:
+            bindings[raw_name] = TypeBinding(
+                raw_name=raw_name,
+                python_name=translate_class_name(raw_name),
+                source="drop_import",
+            )
+            continue
+        mapped = cfg.import_map.get(imported_name)
+        if mapped is not None:
+            binding = python_binding_from_import_map(mapped)
+            if binding is not None:
+                bindings[raw_name] = TypeBinding(
+                    raw_name=raw_name,
+                    python_name=binding,
+                    source="import_map",
+                )
+            continue
+        py_name = translate_class_name(raw_name)
+        package, _, _ = imported_name.rpartition(".")
+        bindings[raw_name] = TypeBinding(
+            raw_name=raw_name,
+            python_name=py_name,
+            import_line=f"from {package}.{py_name} import {py_name}" if package else None,
+        )
+    return bindings
+
+
+def python_binding_from_import_map(import_text: str) -> str | None:
+    for line in import_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            module = ast.parse(stripped)
+        except SyntaxError:
+            continue
+        if len(module.body) != 1:
+            continue
+        statement = module.body[0]
+        if isinstance(statement, ast.ImportFrom) and statement.names:
+            alias = statement.names[0]
+            return alias.asname or alias.name
+        if isinstance(statement, ast.Import) and statement.names:
+            alias = statement.names[0]
+            return alias.asname or alias.name.split(".", 1)[0]
+    return None
+
+
+def java_import_name(node: JavaNode) -> str:
+    for child in node.walk():
+        if child.type in {"scoped_identifier", "identifier"}:
+            return child.text
+    return ""
+
+
+def is_static_import(node: JavaNode) -> bool:
+    return any(child.type == "static" for child in node.children)
