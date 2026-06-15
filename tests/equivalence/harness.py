@@ -211,3 +211,62 @@ def install_java_lang_stubs() -> list[str]:
         "java.lang.reflect.Array", "Array", types.SimpleNamespace()
     )
     return installed
+
+
+# ---------------------------------------------------------------------------
+# StringUtils stubs
+# ---------------------------------------------------------------------------
+
+
+def char_sequence_utils_stub() -> types.SimpleNamespace:
+    """Stub for Commons-Lang ``CharSequenceUtils`` methods used by StringUtils.
+
+    The translated fixture imports this as ``CharSequenceUtils`` and calls
+    ``index_of`` / ``region_matches``. The implementations use Python string
+    semantics for literal-oracle cases; the stub itself is not under test.
+    """
+
+    def index_of(seq: Any, search_seq: Any, start: int) -> int:
+        return str(seq).find(str(search_seq), start)
+
+    def region_matches(
+        seq: Any,
+        ignore_case: bool,
+        this_start: int,
+        substring: Any,
+        start: int,
+        length: int,
+    ) -> bool:
+        if this_start < 0 or start < 0 or length < 0:
+            return False
+        left = str(seq)[this_start : this_start + length]
+        right = str(substring)[start : start + length]
+        if len(left) != length or len(right) != length:
+            return False
+        if ignore_case:
+            return left.casefold() == right.casefold()
+        return left == right
+
+    return types.SimpleNamespace(index_of=index_of, region_matches=region_matches)
+
+
+def character_stub() -> types.SimpleNamespace:
+    """Stub for Java ``Character`` methods used by StringUtils."""
+
+    return types.SimpleNamespace(is_whitespace=lambda ch: str(ch).isspace())
+
+
+def install_string_utils_stubs() -> list[str]:
+    """Install minimal module chains needed to load the StringUtils fixture."""
+    installed: list[str] = []
+    installed += install_stub_class(
+        "org.apache.commons.lang3.CharSequenceUtils",
+        "CharSequenceUtils",
+        char_sequence_utils_stub(),
+    )
+    installed += install_stub_class(
+        "org.apache.commons.lang3.Character",
+        "Character",
+        character_stub(),
+    )
+    return installed
