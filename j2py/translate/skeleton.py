@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 from dataclasses import dataclass
 
 from j2py.analyze.symbols import FileSymbols
@@ -16,7 +15,12 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
-from j2py.translate.rules.naming import translate_class_name
+from j2py.translate.name_resolution import (
+    NameResolver,
+    build_file_name_bindings,
+    is_static_import,
+    java_import_name,
+)
 from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
@@ -58,13 +62,29 @@ def translate_skeleton_with_diagnostics(
         parsed,
         diagnostics,
     )
-    imported_type_names, imported_type_imports = _imported_type_bindings(parsed, cfg)
-    diagnostics.imported_type_names.update(imported_type_names)
-    diagnostics.imported_type_imports.update(imported_type_imports)
-    diagnostics.package_name = symbols.package
-    diagnostics.compilation_unit_class_names = {
-        translate_class_name(cls.name) for cls in symbols.classes
-    }
+    file_name_bindings = build_file_name_bindings(
+        parsed,
+        symbols,
+        cfg,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+    )
+    name_resolver = NameResolver(file_name_bindings)
+    diagnostics.imported_type_names.update(
+        {
+            raw_name: binding.python_name
+            for raw_name, binding in file_name_bindings.imported_types.items()
+        }
+    )
+    diagnostics.imported_type_imports.update(
+        {
+            raw_name: binding.import_line
+            for raw_name, binding in file_name_bindings.imported_types.items()
+            if binding.import_line is not None
+        }
+    )
+    diagnostics.package_name = file_name_bindings.package_name
+    diagnostics.compilation_unit_class_names = set(file_name_bindings.compilation_unit_types)
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
@@ -85,6 +105,7 @@ def translate_skeleton_with_diagnostics(
                 diagnostics,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
                 docstring_lines=pending_docstring,
                 inherited_declared_type_fields=module_declared_type_fields,
                 inherited_declared_type_java_fields=module_declared_type_java_fields,
@@ -160,9 +181,9 @@ def _import_lines(
 ) -> list[str]:
     imports: set[str] = set()
     for java_import in parsed.root.find_all("import_declaration"):
-        if _is_static_import(java_import):
+        if is_static_import(java_import):
             continue
-        imported_name = _java_import_name(java_import)
+        imported_name = java_import_name(java_import)
         if not imported_name or imported_name in cfg.drop_imports:
             continue
         mapped = cfg.import_map.get(imported_name)
@@ -174,68 +195,6 @@ def _import_lines(
     return sorted(imports)
 
 
-def _imported_type_bindings(
-    parsed: ParsedFile,
-    cfg: TranslationConfig,
-) -> tuple[dict[str, str], dict[str, str]]:
-    names: dict[str, str] = {}
-    imports: dict[str, str] = {}
-    for java_import in parsed.root.find_all("import_declaration"):
-        if _is_static_import(java_import):
-            continue
-        imported_name = _java_import_name(java_import)
-        if not imported_name:
-            continue
-        raw_name = imported_name.rsplit(".", 1)[-1]
-        if imported_name in cfg.drop_imports:
-            names[raw_name] = translate_class_name(raw_name)
-            continue
-        mapped = cfg.import_map.get(imported_name)
-        if mapped is not None:
-            binding = _python_binding_from_import_map(mapped)
-            if binding is not None:
-                names[raw_name] = binding
-            continue
-        py_name = translate_class_name(raw_name)
-        names[raw_name] = py_name
-        package, _, _ = imported_name.rpartition(".")
-        if package:
-            imports[raw_name] = f"from {package}.{py_name} import {py_name}"
-    return names, imports
-
-
-def _python_binding_from_import_map(import_text: str) -> str | None:
-    for line in import_text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            module = ast.parse(stripped)
-        except SyntaxError:
-            continue
-        if len(module.body) != 1:
-            continue
-        statement = module.body[0]
-        if isinstance(statement, ast.ImportFrom) and statement.names:
-            alias = statement.names[0]
-            return alias.asname or alias.name
-        if isinstance(statement, ast.Import) and statement.names:
-            alias = statement.names[0]
-            return alias.asname or alias.name.split(".", 1)[0]
-    return None
-
-
-def _java_import_name(node: JavaNode) -> str:
-    for child in node.walk():
-        if child.type in {"scoped_identifier", "identifier"}:
-            return child.text
-    return ""
-
-
-def _is_static_import(node: JavaNode) -> bool:
-    return any(child.type == "static" for child in node.children)
-
-
 def _static_import_info(
     parsed: ParsedFile,
     diagnostics: TranslationDiagnostics,
@@ -244,9 +203,9 @@ def _static_import_info(
     method_imports: dict[str, str] = {}
     todos: list[str] = []
     for java_import in parsed.root.find_all("import_declaration"):
-        if not _is_static_import(java_import):
+        if not is_static_import(java_import):
             continue
-        imported_name = _java_import_name(java_import)
+        imported_name = java_import_name(java_import)
         if not imported_name:
             diagnostics.record(
                 java_import,

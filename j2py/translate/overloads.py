@@ -28,6 +28,7 @@ from j2py.translate.diagnostics import (
     TranslationDiagnostics,
 )
 from j2py.translate.expressions import translate_expression
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.statements import translate_body
 
@@ -49,6 +50,7 @@ def translate_overloaded_members(
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -65,6 +67,7 @@ def translate_overloaded_members(
     nested_type_java_fields = declared_type_java_fields or {}
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
+    resolver = name_resolver or NameResolver.empty()
     static_class_methods = class_static_methods or set()
     enclosing_dispatch = dict(enclosing_static_dispatch or {})
     inner_capture_names = inner_class_names_requiring_outer or set()
@@ -88,6 +91,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            name_resolver=resolver,
             pre_body_lines=pre_body_lines,
             class_state=class_state,
             docstring_lines=docstring_lines,
@@ -113,6 +117,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            name_resolver=resolver,
             class_state=class_state,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
@@ -137,6 +142,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
@@ -159,6 +165,7 @@ def translate_overloaded_members(
         class_method_return_types=method_return_types,
         static_field_aliases=static_fields,
         static_method_imports=static_methods,
+        name_resolver=resolver,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
         docstring_lines=docstring_lines,
@@ -226,6 +233,7 @@ def _merged_constructor_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -241,6 +249,7 @@ def _merged_constructor_overload(
         cfg,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     if merged is None:
         return None
@@ -271,6 +280,7 @@ def _merged_constructor_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
         allow_local_helpers=True,
         class_state=class_state,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
@@ -340,6 +350,7 @@ def _merged_forwarding_method_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
@@ -360,6 +371,7 @@ def _merged_forwarding_method_overload(
         cfg,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     pass_through_forwarding = False
     if merged is None:
@@ -403,6 +415,7 @@ def _merged_forwarding_method_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
         allow_local_helpers=True,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         containing_class_name=containing_class_name,
@@ -461,6 +474,7 @@ def _resolve_overload_defaults(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> tuple[_OverloadForward, dict[int, _MergedDefault], TranslationDiagnostics] | None:
     """Resolve forwarding chains into per-position defaults on the implementation.
 
@@ -487,6 +501,7 @@ def _resolve_overload_defaults(
         diagnostics=throwaway_diagnostics,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
     )
     for forward in forwards:
         if forward is impl:
@@ -701,6 +716,7 @@ def _merged_method_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -754,6 +770,7 @@ def _merged_method_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
         allow_local_helpers=True,
         class_state=class_state,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
@@ -861,6 +878,7 @@ def _dispatch_overload_members(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -921,6 +939,7 @@ def _dispatch_overload_members(
             class_method_return_types=dict(class_method_return_types),
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
+            name_resolver=name_resolver,
             allow_local_helpers=True,
             self_dispatch_methods={java_name} if java_name and not is_static else set(),
             static_dispatch_methods={java_name} if java_name and is_static else set(),
