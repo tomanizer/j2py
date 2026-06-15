@@ -207,6 +207,20 @@ def test_LineCommentInExpression_fixture_translates_without_unhandled_diagnostic
     assert "__j2py_todo__" not in result.source
 
 
+def test_AmbiguousGetProbe_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "AmbiguousGetProbe.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return calendar.get(Calendar.DAY_OF_MONTH)" in result.source
+    assert "return values[index]" in result.source
+    assert "return values.get(key)" in result.source
+    assert "ambiguous get invocation requires receiver collection type" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------

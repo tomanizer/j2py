@@ -22,6 +22,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Fixed
 - Line comments inside expression lists now translate without unsupported-expression
   diagnostics or `__j2py_todo__` placeholders (#286).
+- `Calendar.get(...)` now stays a Java API method call instead of being reported as an
+  ambiguous collection `.get(...)` invocation (#288).
 
 ## 0.4.0a1 - 2026-06-15
 
