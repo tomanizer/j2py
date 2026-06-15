@@ -9,6 +9,7 @@ from j2py.translate.name_resolution import (
     NameScope,
     TypeBinding,
     build_file_name_bindings,
+    scope_from_context,
 )
 from tests.translate.skeleton.helpers import CFG
 
@@ -334,3 +335,27 @@ def test_translation_context_has_empty_name_resolver_by_default() -> None:
 
     assert resolved.kind == "unknown"
     assert resolved.python_name == "external_thing"
+
+
+def test_scope_from_context_reuses_context_collections() -> None:
+    ctx = TranslationContext(
+        cfg=CFG,
+        diagnostics=TranslationDiagnostics(),
+        expression_aliases={"value": "_j2py_value"},
+        static_field_aliases={"PI": "math.pi"},
+        param_names={"value"},
+        local_names={"localValue"},
+        class_fields={"fieldValue"},
+        class_field_types={"fieldValue": "int"},
+        nested_class_names={"Inner"},
+    )
+
+    scope = scope_from_context(ctx)
+
+    assert scope.expression_aliases is ctx.expression_aliases
+    assert scope.static_field_aliases is ctx.static_field_aliases
+    assert scope.param_names is ctx.param_names
+    assert scope.local_names is ctx.local_names
+    assert scope.class_fields is ctx.class_fields
+    assert scope.class_field_types is ctx.class_field_types
+    assert scope.nested_class_names is ctx.nested_class_names
