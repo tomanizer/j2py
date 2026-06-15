@@ -649,7 +649,7 @@ def write_json(
         "summary": summary,
         "files": [asdict(metric) for metric in metrics],
     }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def write_baseline(
@@ -665,12 +665,12 @@ def write_baseline(
         "summary": summary,
         "files": [asdict(metric) for metric in metrics],
     }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def write_csv(path: Path, metrics: list[FileMetric]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="") as handle:
+    with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(FileMetric.__dataclass_fields__))
         writer.writeheader()
         for metric in metrics:
@@ -743,7 +743,7 @@ def compare_baseline(
     summary: dict[str, Any],
     metrics: list[FileMetric],
 ) -> dict[str, Any]:
-    baseline = json.loads(path.read_text())
+    baseline = json.loads(path.read_text(encoding="utf-8"))
     baseline_summary = baseline["summary"]
     baseline_metadata = baseline.get("metadata", {})
 
@@ -974,7 +974,7 @@ def _git_head(repo: Path) -> str:
             check=True,
             text=True,
         )
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return ""
     return proc.stdout.strip()
 
