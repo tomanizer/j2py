@@ -180,8 +180,10 @@ On-demand live LLM evaluation and harvest (excluded from `make check`):
 ```bash
 make test-llm-e2e            # Anthropic live probes; requires ANTHROPIC_API_KEY
 make test-llm-gemini-e2e     # Gemini live probe; requires GEMINI_API_KEY
-make harvest-pipeline        # batch harvest → triage → target drafts → prune
+make harvest-pipeline        # local probe harvest → triage → target drafts → prune
+make harvest-gemini          # batch Gemini harvest from .j2py/harvest/queue.txt
 make harvest-triage          # summarize local .j2py/harvest/records.jsonl
+# harvest-gemini vars: OFFSET=0 LIMIT=10 SLEEP=6 FILE_LIST=.j2py/harvest/queue.txt
 # or: GEMINI_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -k gemini -v -s
 ```
 

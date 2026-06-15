@@ -16,6 +16,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   with explicit CLI flags taking precedence (#279).
 - Gemini LLM completion now streams responses for large translation prompts while
   preserving cache keys, retries, fence stripping, and truncation detection (#280).
+- Gemini batch harvest via `make harvest-gemini`: queue file (`--file-list`),
+  `--offset` / `--limit` resume, `--skip-package-info`, throttling, and graceful 429
+  quota handling in `scripts/harvest/run_llm_harvest.py`.
+- Gemini token usage logging to `.j2py/harvest/usage.jsonl` with per-file and session
+  summaries (`j2py/llm/usage.py`); disable with `J2PY_LLM_USAGE=0`.
 - Surfaced confidence now stays below 1.00 when validation fails, structural checks fail,
   parse errors occur, or semantic warnings require review (#271).
 

@@ -185,6 +185,10 @@ def translate_with_llm(
     if use_cache:
         cached: str | None = _cache.get(key)
         if cached is not None:
+            if provider == "gemini":
+                from j2py.llm.usage import record_gemini_cache_hit
+
+                record_gemini_cache_hit(model=resolved_model)
             return cached
 
     if provider == "anthropic":
@@ -254,7 +258,9 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
         ),
     )
     parts: list[str] = []
+    last_chunk: object | None = None
     for chunk in chunks:
+        last_chunk = chunk
         if _gemini_hit_max_tokens(chunk):
             raise LLMTruncationError(
                 "Gemini response hit the max_output_tokens limit; the translation is "
@@ -266,6 +272,10 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
             parts.append(text)
     if not parts:
         raise RuntimeError("Gemini response did not include text output")
+    from j2py.llm.usage import record_gemini_api_usage
+
+    if last_chunk is not None:
+        record_gemini_api_usage(model=model, response=last_chunk)
     return _strip_fences("".join(parts))
 
 

@@ -89,7 +89,9 @@ Tags are **approximate** — always read the diff before implementing a rule.
 
 ### Prerequisites
 
-- `ANTHROPIC_API_KEY` in `.env`, shell, or `~/.zshrc` (exported)
+- `GEMINI_API_KEY` for `make harvest-run`, `make harvest-gemini`, and
+  `make test-llm-gemini-e2e`
+- `ANTHROPIC_API_KEY` for `make test-llm-e2e` (Anthropic probes)
 - See [README](../README.md) live LLM section for key setup
 
 ### One-shot pipeline
@@ -108,14 +110,15 @@ Runs, in order:
 ### Individual commands
 
 ```bash
-make harvest-run              # translate tests/fixtures/llm/*.java with LLM
+make harvest-run              # translate tests/fixtures/llm/*.java with LLM (Gemini)
+make harvest-gemini           # batch harvest from corpus queue (see below)
 make harvest-triage           # print triage report (alias: harvest-llm)
 make harvest-suggest-targets  # suggest FUTURE_TARGETS for coverage-gap rows
 make harvest-prune            # dedupe jsonl
 make test-llm-e2e             # full live pytest probes (also records)
 ```
 
-Presets for batch runs (`scripts/harvest/harvest_presets.py`):
+Presets for small probe runs (`scripts/harvest/harvest_presets.py`):
 
 ```bash
 uv run python scripts/harvest/run_llm_harvest.py --preset local
@@ -126,6 +129,57 @@ uv run python scripts/harvest/run_llm_harvest.py --preset constructs
 |---|---|
 | `local` | `tests/fixtures/llm/*.java` (cheap, no corpus checkout) |
 | `constructs` | local + selected `tests/fixtures/corpus/constructs/` mypy probes |
+
+### Continuous batch harvest (Gemini)
+
+For surfacing real gaps from large corpora (e.g. Spring), build a **queue file** from a
+deterministic corpus scan, then run Gemini in batches. Requires `GEMINI_API_KEY`.
+
+**1. Scan the corpus** (once per preset; see [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)):
+
+```bash
+make corpus-clone-all   # if external checkouts are not present yet
+uv run python scripts/corpus/translate_corpus.py \
+  --preset spring-dense --limit 2000 --max-loc 0 --min-constructs 0 \
+  --json-out corpus-reports/spring-scan.json
+```
+
+**2. Build the queue** — keep files with real gaps; drop `package-info.java` descriptors:
+
+```bash
+mkdir -p .j2py/harvest
+jq -r '.files[] | select(
+  (.path | test("package-info\\.java$") | not) and
+  (.unhandled_count > 0 or .syntax_ok == false or .parse_ok == false)
+) | .path' corpus-reports/spring-scan.json > .j2py/harvest/queue.txt
+```
+
+**3. Run batches** — default `LIMIT=10`, `SLEEP=6` (~10 RPM). On the free tier
+(~20 requests/day for Flash), use `LIMIT=2`:
+
+```bash
+make harvest-gemini OFFSET=0 LIMIT=10
+make harvest-gemini OFFSET=10 LIMIT=10   # resume next slice
+make harvest-triage
+```
+
+Makefile variables: `FILE_LIST` (default `.j2py/harvest/queue.txt`), `OFFSET`, `LIMIT`,
+`SLEEP`. Each Java file may trigger 1–3 LLM calls (initial + mypy repair retries).
+
+On **429 quota**, the runner exits with code 3 and prints a resume hint. Monitor rate
+limits at [ai.dev/rate-limit](https://ai.dev/rate-limit); token spend is logged to
+`.j2py/harvest/usage.jsonl` (see below).
+
+Direct script (same flags as `make harvest-gemini`):
+
+```bash
+uv run python scripts/harvest/run_llm_harvest.py \
+  --llm-provider gemini \
+  --file-list .j2py/harvest/queue.txt \
+  --offset 0 --limit 10 \
+  --sleep-seconds 6 \
+  --skip-temp-paths --skip-package-info
+```
 
 ## Triage report
 
@@ -267,13 +321,42 @@ print(len(lines), 'lines,', len(paths), 'unique sources')
 |---|---|---|
 | `J2PY_LLM_HARVEST` | `1` | Set to `0` to disable recording |
 | `J2PY_LLM_HARVEST_PATH` | `.j2py/harvest/records.jsonl` | Alternate log path |
+| `J2PY_LLM_USAGE` | `1` | Set to `0` to disable token usage logging |
+| `J2PY_LLM_USAGE_PATH` | `.j2py/harvest/usage.jsonl` | Alternate usage log path |
 | `ANTHROPIC_API_KEY` | — | Required for `harvest-run` / `test-llm-e2e` |
+| `GEMINI_API_KEY` | — | Required for `make harvest-gemini` |
+
+## Token usage logging (Gemini)
+
+Each Gemini API call records **`usage_metadata`** token counts to a separate append-only
+log (also gitignored):
+
+```text
+.j2py/harvest/usage.jsonl
+```
+
+Each line includes `provider`, `model`, `kind` (`api_call` or `cache_hit`),
+`source_path` (when known), token counts, and an **estimated USD cost** from published
+Flash pricing (approximate — check [Google AI pricing](https://ai.google.dev/pricing)).
+
+The batch harvest runner prints per-file and session summaries:
+
+```text
+  LLM  Foo.java confidence=0.85 usage: api_calls=2, cache_hits=0, tokens in=1200, out=800, total=2000, est=$0.0012
+usage: api_calls=10, cache_hits=1, tokens in=6000, out=4000, total=10000, est=$0.0060
+Usage log: .j2py/harvest/usage.jsonl
+```
+
+Disable with `J2PY_LLM_USAGE=0`. Override path with `J2PY_LLM_USAGE_PATH`.
+
+Implementation: `j2py/llm/usage.py` (client hook + harvest runner summary).
 
 ## Implementation map
 
 | Component | Path |
 |---|---|
 | Record builder + heuristics | `j2py/llm/harvest.py` |
+| Token usage logging | `j2py/llm/usage.py` |
 | Pipeline hook | `j2py/pipeline.py` (`record_llm_repair`) |
 | Batch runner | `scripts/harvest/run_llm_harvest.py` |
 | Triage report | `scripts/harvest/aggregate_llm_harvest.py` |

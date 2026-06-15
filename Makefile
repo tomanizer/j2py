@@ -90,7 +90,7 @@ harvest-run:  ## Translate local harvest preset with Gemini and append records (
 	fi; \
 	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
 
-harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini free tier; OFFSET/LIMIT optional)
+harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini; default LIMIT=10, use LIMIT=2 on free tier)
 	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	if [ -z "$$GEMINI_API_KEY" ]; then \
 		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
@@ -102,7 +102,8 @@ harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini free tier; OFFSET
 		--offset $(or $(OFFSET),0) \
 		--limit $(or $(LIMIT),10) \
 		--sleep-seconds $(or $(SLEEP),6) \
-		--skip-temp-paths
+		--skip-temp-paths \
+		--skip-package-info
 
 harvest-suggest-targets:  ## Draft FUTURE_TARGETS snippets from coverage-gap harvest records
 	uv run python scripts/harvest/suggest_future_targets.py
