@@ -140,33 +140,15 @@ def _translate_parsed_file(
 
     if should_use_llm:
         from j2py.llm.client import resolve_model, translate_with_llm
+        from j2py.llm.usage import bind_usage_source_path, reset_usage_source_path
 
         java_source = path.read_text()
         context = _project_context(symbols, sibling_signatures=sibling_signatures)
         diagnostics_context = _diagnostics_context(skeleton_result.diagnostics)
         config_fingerprint = _config_fingerprint(cfg)
 
-        python_source = _call_llm(
-            translate_with_llm,
-            llm_semaphore=llm_semaphore,
-            java_source=java_source,
-            partial_python=skeleton,
-            context=context,
-            diagnostics=diagnostics_context,
-            validation_feedback=validation_feedback,
-            previous_python="",
-            config_fingerprint=config_fingerprint,
-            model=model,
-            provider=llm_provider,
-        )
-        used_llm = True
-        validation = validate_source(python_source, validation_path) if validate else None
-        structural_verification = verify_structure(symbols, python_source)
-        for _ in range(LLM_REPAIR_RETRY_LIMIT):
-            feedback = _post_llm_feedback(validation, structural_verification)
-            if not feedback:
-                break
-            previous_python = python_source
+        usage_token = bind_usage_source_path(path)
+        try:
             python_source = _call_llm(
                 translate_with_llm,
                 llm_semaphore=llm_semaphore,
@@ -174,14 +156,37 @@ def _translate_parsed_file(
                 partial_python=skeleton,
                 context=context,
                 diagnostics=diagnostics_context,
-                validation_feedback=feedback,
-                previous_python=previous_python,
+                validation_feedback=validation_feedback,
+                previous_python="",
                 config_fingerprint=config_fingerprint,
                 model=model,
                 provider=llm_provider,
             )
+            used_llm = True
             validation = validate_source(python_source, validation_path) if validate else None
             structural_verification = verify_structure(symbols, python_source)
+            for _ in range(LLM_REPAIR_RETRY_LIMIT):
+                feedback = _post_llm_feedback(validation, structural_verification)
+                if not feedback:
+                    break
+                previous_python = python_source
+                python_source = _call_llm(
+                    translate_with_llm,
+                    llm_semaphore=llm_semaphore,
+                    java_source=java_source,
+                    partial_python=skeleton,
+                    context=context,
+                    diagnostics=diagnostics_context,
+                    validation_feedback=feedback,
+                    previous_python=previous_python,
+                    config_fingerprint=config_fingerprint,
+                    model=model,
+                    provider=llm_provider,
+                )
+                validation = validate_source(python_source, validation_path) if validate else None
+                structural_verification = verify_structure(symbols, python_source)
+        finally:
+            reset_usage_source_path(usage_token)
         from j2py.llm.harvest import record_llm_repair
 
         record_llm_repair(

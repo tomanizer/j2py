@@ -36,15 +36,20 @@ The suite has three lanes:
   behavior that should become supported next. Promoted from LLM harvest triage where
   the rule layer leaves explicit failure markers (`coverage < 1.0`).
 
-`FUTURE_TARGETS` is populated manually. There is no automation that turns GitHub issues,
-corpus hotspot rows, audit findings, or harvest records into future targets. The person
-or agent triaging a concrete unsupported Java construct owns one of two outcomes:
+`FUTURE_TARGETS` is populated manually. There is no automation that turns harvest records
+directly into `FUTURE_TARGETS` entries — an agent or contributor still merges snippets
+from `make harvest-suggest-targets` or adds fixtures by hand. **GitHub issues** for
+pattern families can be drafted or filed via `make harvest-promote-dry` /
+`make harvest-promote-issues` (see [LLM_HARVEST.md](LLM_HARVEST.md)). The person or agent
+triaging a concrete unsupported Java construct owns one of two outcomes:
 
 - fix the gap immediately and add normal regression coverage, or
 - defer it by adding a strict `TranslationTarget` xfail before leaving the gap as backlog.
 
 When a new construct gap is identified and deferred, add a fixture here and register it in
-`FUTURE_TARGETS` before implementing the rule later.
+`FUTURE_TARGETS` before implementing the rule later. File the GitHub issue as a
+**pattern family**, not a single-fixture fix — see
+[LLM_HARVEST.md — Promoting harvest → GitHub issues](LLM_HARVEST.md#promoting-harvest--github-issues-pattern-families).
 
 Current future corpus-construct backlog:
 
@@ -54,7 +59,7 @@ Current graduated harvest fixtures:
 
 | Fixture | Tracking | Rule-layer support |
 |---|---|---|
-| `tests/fixtures/llm/MultiDimArray.java` | `llm-harvest-multi-dim-array` | `new int[rows][cols]` → `[[0] * cols for _ in range(rows)]` |
+| `tests/fixtures/llm/MultiDimArray.java` | `issue-308` | `new int[rows][cols]` → `[[0] * cols for _ in range(rows)]` |
 
 Harvest-only mypy-repair cases (e.g. `InterfaceDefaults`, overload dispatch) stay in
 `.j2py/harvest/records.jsonl` until the target contract includes a mypy bar or a

@@ -28,18 +28,18 @@ def _parse_env_line(line: str) -> tuple[str, str] | None:
     return key, value
 
 
-def load_repo_dotenv(*, repo_root: Path | None = None) -> None:
-    """Populate unset environment variables from ``<repo>/.env``."""
-    global _LOADED
-    if _LOADED:
-        return
-    _LOADED = True
+def _dotenv_candidates(repo_root: Path) -> list[Path]:
+    """Return ``.env`` paths to try, in precedence order (first wins per key)."""
+    candidates = [repo_root / ".env"]
+    corpus_root = os.environ.get("J2PY_CORPUS_ROOT", "").strip()
+    if corpus_root:
+        shared = Path(corpus_root) / ".env"
+        if shared not in candidates:
+            candidates.append(shared)
+    return candidates
 
-    root = repo_root or _repo_root()
-    env_path = root / ".env"
-    if not env_path.is_file():
-        return
 
+def _load_env_file(env_path: Path) -> None:
     for line in env_path.read_text(encoding="utf-8").splitlines():
         parsed = _parse_env_line(line)
         if parsed is None:
@@ -47,3 +47,20 @@ def load_repo_dotenv(*, repo_root: Path | None = None) -> None:
         key, value = parsed
         if value:
             os.environ.setdefault(key, value)
+
+
+def load_repo_dotenv(*, repo_root: Path | None = None) -> None:
+    """Populate unset environment variables from ``<repo>/.env``.
+
+    In git worktrees, also loads ``$J2PY_CORPUS_ROOT/.env`` when the checkout
+    has no local ``.env`` (same pattern as shared ``.corpus/`` checkouts).
+    """
+    global _LOADED
+    if _LOADED:
+        return
+    _LOADED = True
+
+    root = repo_root or _repo_root()
+    for env_path in _dotenv_candidates(root):
+        if env_path.is_file():
+            _load_env_file(env_path)
