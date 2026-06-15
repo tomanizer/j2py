@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
@@ -69,7 +70,10 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
 
 
 def _translate_array_initializer(node: JavaNode, ctx: TranslationContext) -> str:
-    return f"[{', '.join(translate_expression(child, ctx) for child in node.named_children)}]"
+    values = [
+        translate_expression(child, ctx) for child in node.named_children if not is_comment(child)
+    ]
+    return f"[{', '.join(values)}]"
 
 
 def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:

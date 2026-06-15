@@ -29,6 +29,9 @@ def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str
     if node is None:
         return "None"
 
+    if is_comment(node):
+        return ""
+
     if node.type in {
         "decimal_integer_literal",
         "hex_integer_literal",
