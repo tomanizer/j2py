@@ -160,7 +160,7 @@ make corpus-hotspots                  # rank gaps across all committed baselines
 Presets and baselines live in `scripts/corpus/corpus_presets.py` and
 `tests/fixtures/corpus/`. In git worktrees, set `J2PY_CORPUS_ROOT` to your main checkout
 so scripts reuse `$J2PY_CORPUS_ROOT/.corpus/`. Regenerate a baseline with
-`make corpus-<preset>-update-baseline` only after comparison shows no regressions.
+`make corpus-<name>-update-baseline` only after comparison shows no regressions.
 
 See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) and
 [docs/TRANSLATION_TARGETS.md](docs/TRANSLATION_TARGETS.md).

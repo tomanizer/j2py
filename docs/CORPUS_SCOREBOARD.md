@@ -20,7 +20,7 @@ baselines live under `tests/fixtures/corpus/`.
 | `spring-broad` | Spring Framework | `spring-context` | `spring-broad-baseline.json` | yes |
 | `spring-lexical` | Spring Framework | `spring-core`, `spring-beans` | `spring-sample-baseline.json` | — (historical lexical sample) |
 
-Dense presets (except `spring-lexical`) use `--strategy density --max-loc 250
+Density presets (except `spring-lexical`) use `--strategy density --max-loc 250
 --min-constructs 5` unless noted in the preset definition.
 
 | Preset | What it stress-tests |
@@ -149,7 +149,7 @@ For translation-rule PRs:
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
 3. Use `make corpus-hotspots` when triaging gaps across libraries.
-4. Update a baseline with `make corpus-<preset>-update-baseline` only after confirming no
+4. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
    regressions in comparison mode.
 
 ## CI and `make check`
