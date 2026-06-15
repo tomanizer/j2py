@@ -14,6 +14,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Live Gemini Flash e2e probe via `make test-llm-gemini-e2e` (#276).
 - Project config defaults for LLM provider/model selection via `llm_provider` and `model`,
   with explicit CLI flags taking precedence (#279).
+- Gemini LLM completion now streams responses for large translation prompts while
+  preserving cache keys, retries, fence stripping, and truncation detection (#280).
 
 ## 0.4.0a1 - 2026-06-15
 
