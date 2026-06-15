@@ -451,6 +451,28 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
     assert_valid_python(result.source)
 
 
+def test_static_field_alias_currently_precedes_local_shadowing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static java.lang.Math.PI;
+
+        public class StaticImportAliasPrecedence {
+            public double value() {
+                double PI = 1.0;
+                return PI;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "pi = 1.0" in result.source
+    assert "return math.pi" in result.source
+    assert "return pi" not in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("static_import", "body", "expected"),
     [
