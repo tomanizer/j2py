@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence test-behavior test-targets test-llm-e2e harvest-run harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -59,18 +59,50 @@ test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPI
 	fi; \
 	uv run --extra dev pytest -m live_llm tests/llm/test_e2e_llm.py -v -s -rs
 
+test-llm-gemini-e2e:  ## Run the on-demand live Gemini LLM exploratory test (requires GEMINI_API_KEY)
+	@echo "Running live Gemini LLM exploratory test. This is excluded from normal make check."
+	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then \
+		set -a; . ./.env; set +a; \
+	fi; \
+	if [ -z "$$GEMINI_API_KEY" ]; then \
+		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
+		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
+	fi; \
+	if [ -z "$$GEMINI_API_KEY" ]; then \
+		echo "ERROR: GEMINI_API_KEY is not visible to make/pytest." >&2; \
+		echo "  If the key is in ~/.zshrc, it must be exported:" >&2; \
+		echo "    export GEMINI_API_KEY=..." >&2; \
+		echo "  Or copy .env.example to .env, or run: source ~/.zshrc" >&2; \
+		exit 1; \
+	fi; \
+	uv run --extra dev pytest -m live_llm tests/llm/test_e2e_llm.py -v -s -rs -k gemini
+
 harvest-llm:  ## Summarize local LLM harvest records for rule-layer triage
 	uv run python scripts/harvest/aggregate_llm_harvest.py
 
 harvest-triage: harvest-llm  ## Alias for harvest-llm
 
-harvest-run:  ## Translate harvest preset files with LLM and append records (requires ANTHROPIC_API_KEY)
-	@if [ -z "$$ANTHROPIC_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$ANTHROPIC_API_KEY" ]; then \
-		_key=$$(zsh -lic 'print -r -- $${ANTHROPIC_API_KEY}' 2>/dev/null || true); \
-		if [ -n "$$_key" ]; then export ANTHROPIC_API_KEY="$$_key"; fi; \
+harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
+	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	if [ -z "$$GEMINI_API_KEY" ]; then \
+		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
+		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
 	fi; \
-	uv run python scripts/harvest/run_llm_harvest.py --preset local
+	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
+
+harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini free tier; OFFSET/LIMIT optional)
+	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	if [ -z "$$GEMINI_API_KEY" ]; then \
+		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
+		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
+	fi; \
+	uv run python scripts/harvest/run_llm_harvest.py \
+		--llm-provider gemini \
+		--file-list $(or $(FILE_LIST),.j2py/harvest/queue.txt) \
+		--offset $(or $(OFFSET),0) \
+		--limit $(or $(LIMIT),10) \
+		--sleep-seconds $(or $(SLEEP),6) \
+		--skip-temp-paths
 
 harvest-suggest-targets:  ## Draft FUTURE_TARGETS snippets from coverage-gap harvest records
 	uv run python scripts/harvest/suggest_future_targets.py
