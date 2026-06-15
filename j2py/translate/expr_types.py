@@ -23,11 +23,6 @@ def _expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
     return infer_expression_py_type(node, ctx)
 
 
-def translate_array_type_expression(node: JavaNode, ctx: TranslationContext) -> str:
-    """Return a runtime-comparable Python type expression for Java array types."""
-    return translate_type(node.text, ctx.cfg)
-
-
 def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
     """Return the Java type string for simple identifier/field expressions, or None."""
     if node.type == "identifier":
