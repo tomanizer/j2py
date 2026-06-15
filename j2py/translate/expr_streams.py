@@ -285,9 +285,10 @@ def _translate_stream_pipeline(node: JavaNode, ctx: TranslationContext) -> str |
     elif is_joining:
         # Basic joining support (delimiter only for phase 1; prefix/suffix fall to general)
         delim = '""'
-        if terminal_arg is not None and terminal_arg.named_children:
+        joining_args = _collector_invocation_arguments(terminal_arg)
+        if joining_args:
             # First arg is usually the delimiter string literal or expr
-            delim = translate_expression(terminal_arg.named_children[0], ctx)
+            delim = translate_expression(joining_args[0], ctx)
         base = f"({current_expr} {comp_suffix})"
         base = _apply_stream_post_ops(base, post_ops, item_name)
         return f"{delim}.join({base})"

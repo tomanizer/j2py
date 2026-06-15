@@ -580,3 +580,379 @@ def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
     assert_valid_python(result.source)
 
 
+def test_to_list_collector_with_unexpected_arg_records_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> bad(List<String> items) {
+                return items.stream()
+                        .collect(Collectors.toList("unexpected"));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "collector without arguments received unexpected arguments" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_grouping_by_with_too_many_args_records_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.HashMap;
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category) {}
+
+            public Map<String, List<Item>> byCategory(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.groupingBy(
+                                Item::category,
+                                Collectors.toList(),
+                                HashMap::new
+                        ));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "Collectors.groupingBy with downstream collector requires manual translation"
+        in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_filter_after_sorted_records_order_preserving_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> names(List<String> items) {
+                return items.stream()
+                        .sorted()
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "stream filter after sorted/distinct requires order-preserving translation"
+        in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "return [item for item in sorted(items)" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_flatmap_after_sorted_records_order_preserving_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> flattened(List<List<String>> nested) {
+                return nested.stream()
+                        .sorted()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "stream flatMap after sorted/distinct requires order-preserving translation"
+        in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "for nested_item in sorted(nested)" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_sorted_comparator_after_map_records_mapped_value_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> sortedNames(List<Item> items) {
+                return items.stream()
+                        .map(Item::getName)
+                        .sorted(String::compareTo)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "sorted comparator after map requires mapped-value translation" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "sorted([item.get_name() for item in items], key=" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_unsupported_stream_intermediate_records_operation_name() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public List<String> peeked(List<String> items) {
+                return items.stream()
+                        .peek(System.out::println)
+                        .collect(Collectors.toList());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "unsupported stream intermediate: peek" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "return items.stream().peek(System.out.println).collect(collectors.to_list())" in (
+        result.source
+    )
+    assert_valid_python(result.source)
+
+
+def test_collector_helper_after_sorted_records_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category) {}
+
+            public Map<String, List<Item>> sortedGroups(List<Item> items) {
+                return items.stream()
+                        .sorted(Item::category)
+                        .collect(Collectors.groupingBy(Item::category));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "collector helper with sorted/distinct requires order-preserving translation"
+        in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "_j2py_groupby_" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_grouping_by_after_map_records_mapped_value_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.function.Function;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Map<String, List<String>> groupedNames(List<Item> items) {
+                return items.stream()
+                        .map(Item::getName)
+                        .collect(Collectors.groupingBy(Function.identity()));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "Collectors.groupingBy after map requires mapped-value helper" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "_j2py_groupby_" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_to_map_after_map_records_mapped_value_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.function.Function;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Map<String, String> byName(List<Item> items) {
+                return items.stream()
+                        .map(Item::getName)
+                        .collect(Collectors.toMap(Function.identity(), Function.identity()));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "Collectors.toMap after map requires mapped-value helper" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "_j2py_to_map_" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_sorted_before_to_set_records_order_discarding_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Set;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public Set<String> sortedSet(List<String> items) {
+                return items.stream()
+                        .sorted()
+                        .collect(Collectors.toSet());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert any(
+        "sorted before Collectors.toSet requires order-discarding review" in item.reason
+        for item in result.diagnostics.unhandled
+    )
+    assert "return {item for item in sorted(items)}" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_joining_without_delimiter_uses_empty_separator() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            public String joined(List<String> parts) {
+                return parts.stream()
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.joining());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'return "".join(' in python_source
+    assert "for part in parts" in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_helper_collectors_record_diagnostic_when_local_scope_is_unavailable() -> None:
+    from j2py.parse.java_ast import parse_source
+    from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+    from j2py.translate.expr_streams import _translate_stream_pipeline
+
+    parsed = parse_source(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category) {}
+
+            public Map<String, List<Item>> byCategory(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.groupingBy(Item::category));
+            }
+
+            public Map<String, Item> byCategoryMap(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.toMap(Item::category, i -> i));
+            }
+        }
+        """,
+    )
+    stream_nodes = [
+        node for node in parsed.root.find_all("method_invocation")
+        if ".stream()" in node.text and ".collect(" in node.text
+    ]
+    assert len(stream_nodes) == 2
+
+    reasons: list[str] = []
+    for node in stream_nodes:
+        diagnostics = TranslationDiagnostics()
+        ctx = TranslationContext(cfg=CFG, diagnostics=diagnostics)
+        assert _translate_stream_pipeline(node, ctx) is None
+        reasons.extend(item.reason for item in diagnostics.unhandled)
+
+    assert "Collectors.groupingBy requires local helper scope" in reasons
+    assert "Collectors.toMap requires local helper scope" in reasons
+
+
+def test_stream_helper_names_are_stable_with_multiple_collectors() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            record Item(String category) {}
+
+            public Map<String, List<Item>> grouped(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.groupingBy(Item::category));
+            }
+
+            public Map<String, Item> mapped(List<Item> items) {
+                return items.stream()
+                        .collect(Collectors.toMap(Item::category, i -> i));
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def _j2py_groupby_1(source):" in python_source
+    assert "return _j2py_groupby_1(items)" in python_source
+    assert "def _j2py_to_map_1(source):" in python_source
+    assert "return _j2py_to_map_1(items)" in python_source
+    assert "_j2py_groupby_2" not in python_source
+    assert "_j2py_to_map_2" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_item_name_falls_back_for_non_identifier_source() -> None:
+    from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+    from j2py.translate.expr_streams import _stream_item_name
+
+    ctx = TranslationContext(cfg=CFG, diagnostics=TranslationDiagnostics())
+
+    assert _stream_item_name("x", ctx) == "item"
+    assert _stream_item_name("123", ctx) == "item"
