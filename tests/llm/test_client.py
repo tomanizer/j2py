@@ -21,6 +21,29 @@ class FakeCache:
         self.written[key] = value
 
 
+class FakeStream:
+    """Context-manager stand-in for ``client.messages.stream(...)``."""
+
+    def __init__(self, message: Any) -> None:
+        self._message = message
+
+    def __enter__(self) -> "FakeStream":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+    def get_final_message(self) -> Any:
+        return self._message
+
+
+def _message(text: str = "translated python", *, stop_reason: str | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        stop_reason=stop_reason,
+        content=[anthropic.types.TextBlock(type="text", text=text)],
+    )
+
+
 def test_translate_with_llm_returns_cached_value(monkeypatch) -> None:
     monkeypatch.setattr(client_mod, "_cache", FakeCache("cached python"))
 
@@ -37,14 +60,12 @@ def test_translate_with_llm_calls_client_and_writes_cache(monkeypatch) -> None:
     cache = FakeCache()
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
+        def stream(self, **kwargs: Any) -> FakeStream:
             assert kwargs["model"] == "claude-test"
             assert kwargs["system"][0]["cache_control"] == {
                 "type": "ephemeral",
             }
-            return SimpleNamespace(
-                content=[anthropic.types.TextBlock(type="text", text="translated python")],
-            )
+            return FakeStream(_message("translated python"))
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
@@ -75,10 +96,8 @@ def test_translate_with_llm_cache_key_includes_config_fingerprint(monkeypatch) -
     cache = FakeCache()
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(
-                content=[anthropic.types.TextBlock(type="text", text="translated python")],
-            )
+        def stream(self, **kwargs: Any) -> FakeStream:
+            return FakeStream(_message())
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
@@ -103,10 +122,8 @@ def test_translate_with_llm_cache_key_includes_validation_feedback(monkeypatch) 
     cache = FakeCache()
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(
-                content=[anthropic.types.TextBlock(type="text", text="translated python")],
-            )
+        def stream(self, **kwargs: Any) -> FakeStream:
+            return FakeStream(_message())
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
@@ -131,10 +148,8 @@ def test_translate_with_llm_cache_key_includes_previous_python(monkeypatch) -> N
     cache = FakeCache()
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(
-                content=[anthropic.types.TextBlock(type="text", text="translated python")],
-            )
+        def stream(self, **kwargs: Any) -> FakeStream:
+            return FakeStream(_message())
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
@@ -162,13 +177,11 @@ def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> Non
     calls = {"count": 0}
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
+        def stream(self, **kwargs: Any) -> FakeStream:
             calls["count"] += 1
             if calls["count"] == 1:
                 raise RuntimeError("transient")
-            return SimpleNamespace(
-                content=[anthropic.types.TextBlock(type="text", text="translated after retry")],
-            )
+            return FakeStream(_message("translated after retry"))
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
@@ -182,6 +195,31 @@ def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> Non
 
     assert result == "translated after retry"
     assert calls["count"] == 2
+
+
+def test_translate_with_llm_raises_on_truncation(monkeypatch) -> None:
+    cache = FakeCache()
+    calls = {"count": 0}
+
+    class Messages:
+        def stream(self, **kwargs: Any) -> FakeStream:
+            calls["count"] += 1
+            return FakeStream(_message("truncated parti", stop_reason="max_tokens"))
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    with pytest.raises(client_mod.LLMTruncationError):
+        client_mod.translate_with_llm(
+            java_source="class A {}",
+            partial_python="class A:\n    pass\n",
+            model="claude-test",
+            use_cache=True,
+        )
+
+    # truncation is not retried (deterministic) and the partial text is never cached
+    assert calls["count"] == 1
+    assert cache.written == {}
 
 
 @pytest.mark.parametrize(
@@ -205,12 +243,8 @@ def test_translate_with_llm_strips_fenced_response(monkeypatch: Any) -> None:
     cache = FakeCache()
 
     class Messages:
-        def create(self, **kwargs: Any) -> SimpleNamespace:
-            return SimpleNamespace(
-                content=[
-                    anthropic.types.TextBlock(type="text", text="```python\ntranslated python\n```")
-                ],
-            )
+        def stream(self, **kwargs: Any) -> FakeStream:
+            return FakeStream(_message("```python\ntranslated python\n```"))
 
     monkeypatch.setattr(client_mod, "_cache", cache)
     monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))

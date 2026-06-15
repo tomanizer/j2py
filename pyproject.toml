@@ -61,6 +61,10 @@ yaml = [
 watch = [
     "watchdog>=4.0",
 ]
+validate = [
+    "mypy>=1.10",
+    "ruff>=0.4",
+]
 dev = [
     "mypy>=1.10",
     "PyYAML>=6.0",
