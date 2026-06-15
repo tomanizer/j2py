@@ -795,6 +795,10 @@ def test_array_type_class_literals_translate_to_runtime_comparable_types() -> No
             public boolean isStringArray(Class<?> candidate) {
                 return candidate == String[].class;
             }
+
+            public boolean isPrimitiveIntMatrix(Class<?> candidate) {
+                return candidate == int[][].class;
+            }
         }
         """,
     )
@@ -803,11 +807,9 @@ def test_array_type_class_literals_translate_to_runtime_comparable_types() -> No
     assert "return list[bool]" in result.source
     assert "return candidate == list[bool]" in result.source
     assert "return candidate == list[str]" in result.source
+    assert "return candidate == list[list[int]]" in result.source
     assert not result.diagnostics.unhandled
     assert "__j2py_todo__" not in result.source
-    assert "unsupported expression array_type" not in {
-        diagnostic.reason for diagnostic in result.diagnostics.unhandled
-    }
     assert_valid_python(result.source)
 
     namespace: dict[str, object] = {}
@@ -818,6 +820,7 @@ def test_array_type_class_literals_translate_to_runtime_comparable_types() -> No
     assert instance.is_primitive_boolean_array(list[bool]) is True
     assert instance.is_primitive_boolean_array(list[int]) is False
     assert instance.is_string_array(list[str]) is True
+    assert instance.is_primitive_int_matrix(list[list[int]]) is True
 
 
 def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:

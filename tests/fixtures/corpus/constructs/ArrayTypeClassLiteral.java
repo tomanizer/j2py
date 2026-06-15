@@ -21,6 +21,10 @@ public class ArrayTypeClassLiteral {
         return candidate == int[].class;
     }
 
+    public boolean isPrimitiveIntMatrix(Class<?> candidate) {
+        return candidate == int[][].class;
+    }
+
     public boolean samePrimitiveArrayLiteral() {
         return boolean[].class == boolean[].class;
     }
