@@ -54,6 +54,62 @@ def load_translated_module(
     return module
 
 
+# ---------------------------------------------------------------------------
+# Generic stub installer
+# ---------------------------------------------------------------------------
+
+
+def _install_module_chain(fqn: str) -> list[str]:
+    """Create module objects for every prefix of ``fqn`` and register in sys.modules.
+
+    Only modules not already present are created; pre-existing entries are left
+    untouched.  Returns the names of modules *newly* added so callers can undo
+    registration precisely without clobbering unrelated entries.
+    """
+    parts = fqn.split(".")
+    names = [".".join(parts[: i + 1]) for i in range(len(parts))]
+    newly_installed: list[str] = []
+    for name in names:
+        if name not in sys.modules:
+            module = types.ModuleType(name)
+            if name != names[-1]:  # non-leaf is a package
+                module.__path__ = []
+            sys.modules[name] = module
+            newly_installed.append(name)
+    # Wire parent.__child__ attributes (only if not already set).
+    for parent_name, child_name in zip(names, names[1:], strict=False):
+        parent = sys.modules[parent_name]
+        attr = child_name.rsplit(".", 1)[-1]
+        if not hasattr(parent, attr):
+            setattr(parent, attr, sys.modules[child_name])
+    return newly_installed
+
+
+def install_stub_class(module_fqn: str, class_name: str, stub: object) -> list[str]:
+    """Register a stub object as ``class_name`` on a synthetic module at ``module_fqn``.
+
+    Creates the full dotted module chain for ``module_fqn`` if not already present.
+    Returns the list of module names *newly* added to ``sys.modules``; pass the list
+    (reversed) to teardown so cleanup is precise and doesn't remove pre-existing entries.
+
+    Example::
+
+        install_stub_class(
+            "org.apache.commons.lang3.math.Long",
+            "Long",
+            types.SimpleNamespace(value_of=lambda x: x),
+        )
+    """
+    installed = _install_module_chain(module_fqn)
+    setattr(sys.modules[module_fqn], class_name, stub)
+    return installed
+
+
+# ---------------------------------------------------------------------------
+# ArrayUtils stub (CharUtils dependency)
+# ---------------------------------------------------------------------------
+
+
 def array_utils_stub() -> types.SimpleNamespace:
     """Stub for Commons-Lang ``ArrayUtils`` (only ``setAll`` is referenced by CharUtils).
 
@@ -70,23 +126,83 @@ def array_utils_stub() -> types.SimpleNamespace:
 
 def install_array_utils_stub_package() -> list[str]:
     """Install a minimal module chain for ``org.apache.commons.lang3.ArrayUtils``."""
-    module_names = [
-        "org",
-        "org.apache",
-        "org.apache.commons",
-        "org.apache.commons.lang3",
+    return install_stub_class(
         "org.apache.commons.lang3.ArrayUtils",
-    ]
-    for name in module_names:
-        module = types.ModuleType(name)
-        if name != module_names[-1]:
-            module.__path__ = []  # type: ignore[attr-defined]
-        sys.modules[name] = module
+        "ArrayUtils",
+        array_utils_stub(),
+    )
 
-    for parent_name, child_name in zip(module_names, module_names[1:], strict=False):
-        parent = sys.modules[parent_name]
-        child = sys.modules[child_name]
-        setattr(parent, child_name.rsplit(".", 1)[-1], child)
 
-    sys.modules[module_names[-1]].ArrayUtils = array_utils_stub()  # type: ignore[attr-defined]
-    return module_names
+# ---------------------------------------------------------------------------
+# Java boxed-type stubs (NumberUtils dependency)
+# ---------------------------------------------------------------------------
+
+
+def install_java_lang_stubs() -> list[str]:
+    """Install stub module chains needed to load the NumberUtils fixture.
+
+    At class-body definition time NumberUtils calls::
+
+        Long.value_of(0), Short.value_of(...), Byte.value_of(...),
+        Double.value_of(0.0), Float.value_of(0.0), Integer.min_value
+
+    — all imported from ``org.apache.commons.lang3.math.*`` (the rule layer maps Java
+    boxed types to sibling fqns).  Method bodies also reference ``StringUtils.contains``,
+    ``Validate.is_true``, ``Float.parse_float``, ``Byte.parse_byte``, ``Short.parse_short``,
+    and ``java.lang.reflect.Array``.
+
+    All stubs are identity functions or no-ops — they make the module importable and
+    class-body initializers runnable.  They are NOT under test.
+
+    Returns the list of module names newly added to ``sys.modules``; pass (reversed) to
+    teardown for precise cleanup.
+    """
+    _id: Any = lambda x: x  # noqa: E731
+
+    math = "org.apache.commons.lang3.math"
+    lang3 = "org.apache.commons.lang3"
+
+    installed: list[str] = []
+    installed += install_stub_class(
+        f"{math}.Long", "Long", types.SimpleNamespace(value_of=_id)
+    )
+    installed += install_stub_class(
+        f"{math}.Short", "Short",
+        types.SimpleNamespace(value_of=_id, parse_short=int),
+    )
+    installed += install_stub_class(
+        f"{math}.Byte", "Byte",
+        types.SimpleNamespace(value_of=_id, parse_byte=int),
+    )
+    installed += install_stub_class(
+        f"{math}.Double", "Double", types.SimpleNamespace(value_of=_id)
+    )
+    installed += install_stub_class(
+        f"{math}.Float", "Float",
+        types.SimpleNamespace(value_of=_id, parse_float=float),
+    )
+    installed += install_stub_class(
+        f"{math}.Integer", "Integer",
+        types.SimpleNamespace(
+            value_of=_id,
+            min_value=-(2**31),
+            max_value=2**31 - 1,
+        ),
+    )
+    installed += install_stub_class(
+        f"{math}.Character", "Character", types.SimpleNamespace(value_of=_id)
+    )
+    installed += install_stub_class(
+        f"{lang3}.StringUtils", "StringUtils",
+        types.SimpleNamespace(
+            contains=lambda s, sub: (sub in s) if s is not None else False,
+        ),
+    )
+    installed += install_stub_class(
+        f"{lang3}.Validate", "Validate",
+        types.SimpleNamespace(is_true=lambda *_: None),
+    )
+    installed += install_stub_class(
+        "java.lang.reflect.Array", "Array", types.SimpleNamespace()
+    )
+    return installed
