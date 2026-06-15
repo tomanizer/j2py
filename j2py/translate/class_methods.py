@@ -1,0 +1,293 @@
+"""Method and constructor emission for class translation."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from j2py.config.loader import TranslationConfig
+from j2py.parse.java_ast import JavaNode
+from j2py.translate.class_members import raw_member_name
+from j2py.translate.class_model import ParameterInfo, _modifiers
+from j2py.translate.comments import is_comment
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.rules.naming import translate_field_name, translate_method_name
+from j2py.translate.rules.types import translate_type
+from j2py.translate.statements import translate_body
+
+# Java literal node types that are safe as Python default parameter values.
+# Anything else (constructor calls, collection literals, ...) must become a
+# None sentinel so the default is not shared across calls.
+_IMMUTABLE_LITERAL_NODES = {
+    "decimal_integer_literal",
+    "hex_integer_literal",
+    "octal_integer_literal",
+    "binary_integer_literal",
+    "decimal_floating_point_literal",
+    "string_literal",
+    "character_literal",
+    "true",
+    "false",
+    "null_literal",
+}
+
+_PARAMETER_TYPE_NODE_TYPES = {
+    "array_type",
+    "boolean_type",
+    "floating_point_type",
+    "generic_type",
+    "integral_type",
+    "scoped_type_identifier",
+    "type_identifier",
+}
+
+
+def class_method_return_types(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    grouped: dict[str, list[str]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        raw_name = raw_member_name(member)
+        if raw_name == "__init__":
+            continue
+        grouped.setdefault(raw_name, []).append(return_type(member, cfg))
+    result: dict[str, str] = {}
+    for name, return_types in grouped.items():
+        unique = list(dict.fromkeys(return_types))
+        result[name] = unique[0] if len(unique) == 1 else " | ".join(unique)
+    return result
+
+
+def translate_method(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    unsupported_reason: str | None = None,
+    pre_body_lines: list[str] | None = None,
+    decorator_lines: list[str] | None = None,
+    def_line_suffix: str = "",
+    supported_reason: str | None = None,
+    docstring_lines: list[str] | None = None,
+) -> list[str]:
+    record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
+    supported = node.type in {"constructor_declaration", "method_declaration"}
+    ctx.diagnostics.record(
+        node,
+        supported=supported and unsupported_reason is None,
+        reason=unsupported_reason or supported_reason or "translated method declaration",
+    )
+
+    is_constructor = node.type == "constructor_declaration"
+    modifiers = _modifiers(node)
+    is_static = "static" in modifiers
+    is_abstract = "abstract" in modifiers
+    ctx.in_instance_method = not is_static
+
+    name_node = node.child_by_field("name")
+    raw_name = name_node.text if name_node is not None else "unknown"
+    py_name = (
+        "__init__"
+        if is_constructor
+        else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+    )
+    method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
+    if ctx.cfg.emit_type_hints:
+        ctx.diagnostics.imports.need_type_annotation(method_return_type)
+    params = params_for_method(node, ctx)
+    if not is_static:
+        params.insert(0, "self")
+
+    if unsupported_reason is not None:
+        return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
+
+    lines: list[str] = []
+    if is_static:
+        lines.append("    @staticmethod")
+    lines.extend(decorator_lines or [])
+    if is_abstract:
+        ctx.diagnostics.imports.need_abc()
+        lines.append("    @abstractmethod")
+    returns = f" -> {method_return_type}" if ctx.cfg.emit_type_hints else ""
+    lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
+
+    if is_abstract:
+        if docstring_lines:
+            lines.extend(docstring_lines)
+        lines.append("        ...")
+        return lines
+
+    body = node.child_by_field("body")
+    if body is None:
+        body = first_child_by_type(node, "block", "constructor_body")
+
+    ctx.allow_local_helpers = True
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if pre_body_lines or body_lines != ["        pass"]:
+            lines.append("")
+    lines.extend(pre_body_lines or [])
+
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
+
+    lines.extend(body_lines)
+    return lines
+
+
+def signature(
+    name: str,
+    params: list[ParameterInfo],
+    *,
+    return_type: str,
+    include_self: bool,
+    defaults: dict[str, str] | None = None,
+    emit_type_hints: bool = True,
+) -> str:
+    defaults = defaults or {}
+    rendered = ["self"] if include_self else []
+    for param in params:
+        prefix = "*" if param.is_spread else ""
+        text = (
+            f"{prefix}{param.py_name}: {param.py_type}"
+            if emit_type_hints
+            else f"{prefix}{param.py_name}"
+        )
+        if param.py_name in defaults and not param.is_spread:
+            text += f" = {defaults[param.py_name]}"
+        rendered.append(text)
+    returns = f" -> {return_type}" if emit_type_hints else ""
+    return f"def {name}({', '.join(rendered)}){returns}"
+
+
+def method_body(node: JavaNode) -> JavaNode | None:
+    return node.child_by_field("body") or first_child_by_type(node, "block", "constructor_body")
+
+
+def record_annotation_diagnostics(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> None:
+    for annotation_name in annotation_names(node):
+        if annotation_name in cfg.drop_annotations:
+            diagnostics.warn(node, reason=f"dropped annotation @{annotation_name}")
+        else:
+            diagnostics.warn(node, reason=f"unsupported annotation @{annotation_name}")
+
+
+def annotation_names(node: JavaNode) -> list[str]:
+    names: list[str] = []
+    for modifiers in node.children_by_type("modifiers"):
+        for annotation in modifiers.named_children:
+            if annotation.type not in {"annotation", "marker_annotation"}:
+                continue
+            name_node = annotation.child_by_field("name")
+            if name_node is None:
+                name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
+            if name_node is not None:
+                names.append(name_node.text)
+    return names
+
+
+def return_type(node: JavaNode, cfg: TranslationConfig) -> str:
+    type_node = node.child_by_field("type")
+    if type_node is None:
+        return "None"
+    return translate_type(type_node.text, cfg)
+
+
+def parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterInfo]:
+    params_node = node.child_by_field("parameters")
+    if params_node is None:
+        return []
+
+    infos: list[ParameterInfo] = []
+    for param in params_node.named_children:
+        if param.type == "ERROR":
+            recovered = _recover_error_parameter_info(param, cfg)
+            if recovered is not None:
+                infos.append(recovered)
+            continue
+        if param.type not in {"formal_parameter", "spread_parameter"}:
+            continue
+        is_spread = param.type == "spread_parameter"
+        type_node = param.child_by_field("type")
+        name_node = param.child_by_field("name")
+        if is_spread:
+            declarator = first_child_by_type(param, "variable_declarator")
+            if declarator is not None:
+                name_node = declarator.child_by_field("name") or name_node
+            if type_node is None:
+                type_node = next(
+                    (
+                        child
+                        for child in param.named_children
+                        if child.type not in {"variable_declarator", "modifiers"}
+                        and not is_comment(child)
+                    ),
+                    None,
+                )
+        raw_name = name_node.text if name_node is not None else "_"
+        java_type = type_node.text if type_node is not None else "Object"
+        py_type = translate_type(java_type, cfg)
+        infos.append(
+            ParameterInfo(
+                raw_name=raw_name,
+                py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
+                py_type=py_type.removeprefix("*"),
+                java_type=java_type,
+                is_spread=is_spread,
+            ),
+        )
+    return infos
+
+
+def _recover_error_parameter_info(node: JavaNode, cfg: TranslationConfig) -> ParameterInfo | None:
+    """Recover annotated varargs that tree-sitter-java nests under ERROR nodes."""
+    if "..." not in node.text:
+        return None
+    type_node = next(
+        (child for child in node.named_children if child.type in _PARAMETER_TYPE_NODE_TYPES),
+        None,
+    )
+    identifiers = [child for child in node.walk() if child.type == "identifier"]
+    name_node = identifiers[-1] if identifiers else None
+    if type_node is None or name_node is None:
+        return None
+    raw_name = name_node.text
+    java_type = type_node.text
+    py_type = translate_type(java_type, cfg)
+    return ParameterInfo(
+        raw_name=raw_name,
+        py_name=translate_field_name(raw_name, snake_case=cfg.snake_case_fields),
+        py_type=py_type.removeprefix("*"),
+        java_type=java_type,
+        is_spread=True,
+    )
+
+
+def params_for_method(node: JavaNode, ctx: TranslationContext) -> list[str]:
+    params: list[str] = []
+    for param in parameter_infos(node, ctx.cfg):
+        register_param(ctx, param)
+        prefix = "*" if param.is_spread else ""
+        if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(param.py_type)
+            params.append(f"{prefix}{param.py_name}: {param.py_type}")
+        else:
+            params.append(f"{prefix}{param.py_name}")
+    return params
+
+
+def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
+    ctx.param_names.add(param.raw_name)
+    ctx.variable_types[param.raw_name] = (
+        f"list[{param.py_type}]" if param.is_spread else param.py_type
+    )
+    ctx.variable_java_types[param.raw_name] = param.java_type

@@ -63,9 +63,11 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
     if base_type in collection_literals:
         if not args:
             return collection_literals[base_type]
-        arg_nodes = [
-            child for child in args_node.named_children if not is_comment(child)
-        ] if args_node is not None else []
+        arg_nodes = (
+            [child for child in args_node.named_children if not is_comment(child)]
+            if args_node is not None
+            else []
+        )
         if len(arg_nodes) == 1:
             copied = translate_expression(arg_nodes[0], ctx)
             return f"{collection_copy_constructors[base_type]}({copied})"
@@ -160,10 +162,10 @@ def _translate_anonymous_class(
     instance_field_names = _instance_field_names(instance_fields)
     instance_field_types = _instance_field_types(instance_fields)
     instance_field_java_types = {field.name: field.java_type for field in instance_fields}
-    from j2py.translate.classes import _class_method_return_types
+    from j2py.translate.class_methods import class_method_return_types
 
     previous_return_types = dict(ctx.class_method_return_types)
-    ctx.class_method_return_types = _class_method_return_types(methods, ctx.cfg)
+    ctx.class_method_return_types = class_method_return_types(methods, ctx.cfg)
     wrote_member = False
     if instance_fields:
         helper_lines.extend(
@@ -267,16 +269,16 @@ def _anonymous_method_lines(
     nested_helper_indent: str = "        ",
     supported_reason: str = "translated anonymous class method",
 ) -> list[str]:
-    from j2py.translate.class_model import _modifiers
-    from j2py.translate.classes import (
-        _method_body,
-        _parameter_infos,
-        _record_annotation_diagnostics,
-        _return_type,
+    from j2py.translate.class_methods import (
+        method_body,
+        parameter_infos,
+        record_annotation_diagnostics,
+        return_type,
     )
+    from j2py.translate.class_model import _modifiers
     from j2py.translate.statements import translate_body
 
-    _record_annotation_diagnostics(method, ctx.cfg, ctx.diagnostics)
+    record_annotation_diagnostics(method, ctx.cfg, ctx.diagnostics)
     ctx.diagnostics.record(
         method,
         supported=True,
@@ -287,14 +289,14 @@ def _anonymous_method_lines(
     raw_name = name_node.text if name_node is not None else "unknown"
     py_name = translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
     is_static = "static" in _modifiers(method)
-    params = _parameter_infos(method, ctx.cfg)
+    params = parameter_infos(method, ctx.cfg)
     rendered_params = [
         f"{param.py_name}: {param.py_type}" if ctx.cfg.emit_type_hints else param.py_name
         for param in params
     ]
     if not is_static:
         rendered_params.insert(0, "self")
-    returns = f" -> {_return_type(method, ctx.cfg)}" if ctx.cfg.emit_type_hints else ""
+    returns = f" -> {return_type(method, ctx.cfg)}" if ctx.cfg.emit_type_hints else ""
     lines: list[str] = []
     if is_static:
         lines.append(f"{member_indent}@staticmethod")
@@ -321,19 +323,15 @@ def _anonymous_method_lines(
     ctx.outer_self_alias = outer_self_alias
     start_index = len(ctx.pending_local_helpers)
     try:
-        body = _method_body(method)
+        body = method_body(method)
         body_lines = (
-            translate_body(body, ctx, indent=body_indent)
-            if body
-            else [f"{body_indent}pass"]
+            translate_body(body, ctx, indent=body_indent) if body else [f"{body_indent}pass"]
         )
         nested_helpers = ctx.pending_local_helpers[start_index:]
         del ctx.pending_local_helpers[start_index:]
         for helper in nested_helpers:
             lines.append("")
-            lines.extend(
-                f"{nested_helper_indent}{line}" if line else line for line in helper
-            )
+            lines.extend(f"{nested_helper_indent}{line}" if line else line for line in helper)
         lines.extend(body_lines)
     finally:
         ctx.param_names = previous_param_names
