@@ -29,6 +29,9 @@ The suite has three lanes:
   (`AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`,
   `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`,
   `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check`.
+- **Graduated harvest fixtures**: selected Java fixtures under `tests/fixtures/llm/`
+  that were promoted out of future targets and now translate deterministically
+  (`MultiDimArray`). These run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
   behavior that should become supported next. Promoted from LLM harvest triage where
   the rule layer leaves explicit failure markers (`coverage < 1.0`).
@@ -45,9 +48,13 @@ When a new construct gap is identified and deferred, add a fixture here and regi
 
 Current future corpus-construct backlog:
 
-| Fixture | Tracking | Rule-layer gap |
+The future target lane is intentional while no deferred concrete construct gap has been selected. Add a strict `TranslationTarget` entry when deferring a new gap.
+
+Current graduated harvest fixtures:
+
+| Fixture | Tracking | Rule-layer support |
 |---|---|---|
-| `tests/fixtures/llm/MultiDimArray.java` | `llm-harvest-multi-dim-array` | `new int[rows][cols]` → `__j2py_todo__` |
+| `tests/fixtures/llm/MultiDimArray.java` | `llm-harvest-multi-dim-array` | `new int[rows][cols]` → `[[0] * cols for _ in range(rows)]` |
 
 Harvest-only mypy-repair cases (e.g. `InterfaceDefaults`, overload dispatch) stay in
 `.j2py/harvest/records.jsonl` until the target contract includes a mypy bar or a
@@ -56,7 +63,8 @@ deterministic fixture pair is added. See [LLM_HARVEST.md](LLM_HARVEST.md).
 Each future target case has:
 
 - a Java fixture under `tests/fixtures/java/targets/` or
-  `tests/fixtures/corpus/constructs/`
+  `tests/fixtures/corpus/constructs/`, or a selected harvest fixture under
+  `tests/fixtures/llm/`
 - expected Python fragments that describe the future translation contract
 - forbidden fragments such as unsupported TODOs
 - a strict `xfail` marker explaining the missing translator capability
