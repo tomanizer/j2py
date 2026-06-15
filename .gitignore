@@ -23,6 +23,7 @@ env/
 # --- Python (tools & test caches) ---
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .nox/
