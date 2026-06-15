@@ -1049,6 +1049,27 @@ def test_annotation_attributes_get_is_map_like() -> None:
     assert_valid_python(python_source)
 
 
+def test_calendar_get_is_api_call() -> None:
+    """Calendar.get(field) is an API method, not ambiguous collection access."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Calendar;
+
+        public class Calls {
+            public int day(Calendar calendar) {
+                return calendar.get(Calendar.DAY_OF_MONTH);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return calendar.get(Calendar.DAY_OF_MONTH)" in result.source
+    assert "calendar[" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(

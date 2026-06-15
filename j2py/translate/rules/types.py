@@ -163,6 +163,7 @@ MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
 # Receivers whose `.get(...)` is an API call (reflection, futures), not indexing.
 API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
     {
+        "Calendar",
         "CompletableFuture",
         "Field",
         "ForkJoinTask",

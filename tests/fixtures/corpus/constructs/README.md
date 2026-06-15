@@ -21,6 +21,7 @@ under-covered or challenging for deterministic translation.
 | AdvancedEnum.java           | Enum constructors, fields, methods, interface impl, static factories | Enum advanced features (#52) |
 | AdvancedStreams.java        | flatMap, reduce, groupingBy+downstream, block lambdas in streams, long chains | Advanced streams |
 | AnonymousAndInner.java      | Anonymous classes (expression + stateful), local classes, non-static inner classes with capture | Anonymous + sophisticated inner classes (#50) |
+| AmbiguousGetProbe.java      | Calendar API `.get(...)`, list indexing `.get(...)`, map `.get(...)` | Non-collection `.get(...)` disambiguation (#288) |
 | ArrayTypeClassLiteral.java  | Array type class literals in runtime class comparisons | Array type class literals (#287) |
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
 | EnumConstantClassBody.java  | Enum constants with anonymous class bodies overriding abstract methods | Enum constant class bodies (#157) |
@@ -49,7 +50,7 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 
 | Tier | Files | How to run |
 |------|-------|------------|
-| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ArrayTypeClassLiteral`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `LineCommentInExpression`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
+| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `AmbiguousGetProbe`, `ArrayTypeClassLiteral`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `LineCommentInExpression`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
 | Future xfail (`make test-targets`) | _(none)_ | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into
