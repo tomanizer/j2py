@@ -34,7 +34,23 @@ class TranslationTarget:
         return self.fixture_root / self.fixture
 
 
+# `FUTURE_TARGETS` is intentionally manual. When triage finds a concrete Java construct
+# gap that will not be fixed immediately, the triaging agent/developer must add a strict
+# xfail contract here before leaving the gap as backlog.
+#
+# Template:
+# TranslationTarget(
+#     fixture="ExampleGap.java",
+#     fixture_root=TARGET_FIXTURES,
+#     tracking="issue-123",
+#     reason="Example construct is not fully supported",
+#     expected_fragments=("expected_python_fragment()",),
+# )
 FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
+EMPTY_FUTURE_TARGETS_REASON = (
+    "All known concrete target fixtures are graduated. Newly triaged deferred construct "
+    "gaps must add a strict TranslationTarget before remaining backlog."
+)
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name
     for path in sorted(TARGET_FIXTURES.glob("*.java"))
@@ -75,6 +91,23 @@ def test_corpus_construct_fixtures_parse_without_errors() -> None:
     for path in sorted(CORPUS_CONSTRUCT_FIXTURES.glob("*.java")):
         parsed = parse_file(path)
         assert not parsed.has_errors, path
+
+
+def test_future_targets_empty_state_is_explicitly_documented() -> None:
+    """An empty future-target lane must be intentional, not an accidental omission."""
+    if not FUTURE_TARGETS:
+        assert EMPTY_FUTURE_TARGETS_REASON
+        assert "deferred construct gaps" in EMPTY_FUTURE_TARGETS_REASON
+        assert "strict TranslationTarget" in EMPTY_FUTURE_TARGETS_REASON
+
+
+def test_future_targets_have_actionable_contract_metadata() -> None:
+    """Future xfail targets should be specific enough for an agent to implement later."""
+    for target in FUTURE_TARGETS:
+        assert target.tracking, target
+        assert target.reason, target
+        assert target.path.exists(), target
+        assert target.expected_fragments or target.forbidden_fragments, target
 
 
 @pytest.mark.parametrize(

@@ -33,12 +33,20 @@ The suite has three lanes:
   behavior that should become supported next. **Currently empty** — all curated
   constructs are graduated as of 2026-06-13 (see `docs/decisions/AUDIT-2026-06-13.md`).
 
-When a new construct gap is identified, add a fixture here and register it in
-`FUTURE_TARGETS` before implementing the rule.
+`FUTURE_TARGETS` is populated manually. There is no automation that turns GitHub issues,
+corpus hotspot rows, or audit findings into future targets. The person or agent triaging a
+concrete unsupported Java construct owns one of two outcomes:
+
+- fix the gap immediately and add normal regression coverage, or
+- defer it by adding a strict `TranslationTarget` xfail before leaving the gap as backlog.
+
+When a new construct gap is identified and deferred, add a fixture here and register it in
+`FUTURE_TARGETS` before implementing the rule later.
 
 Current future corpus-construct backlog:
 
-- _(none — add the next xfail target when scoping a new construct gap)_
+- _(none — this is intentional while no deferred concrete construct gap has been selected;
+  add the next xfail target when triaging such a gap)_
 
 Each future target case has:
 
@@ -47,6 +55,7 @@ Each future target case has:
 - expected Python fragments that describe the future translation contract
 - forbidden fragments such as unsupported TODOs
 - a strict `xfail` marker explaining the missing translator capability
+- a tracking reference to the issue, corpus gap, or roadmap slice that will implement it
 
 When implementing a translation rule:
 
