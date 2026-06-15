@@ -20,6 +20,7 @@ import sys
 
 import pytest
 
+from tests.equivalence.comparator import approx_double
 from tests.equivalence.harness import (
     install_java_lang_stubs,
     load_translated_module,
@@ -131,21 +132,21 @@ def test_to_double_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toDouble")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
     # from NumberUtilsTest.java lines 1586–1600
-    assert NumberUtils.to_double("-1.2345") == pytest.approx(-1.2345)
-    assert NumberUtils.to_double("1.2345") == pytest.approx(1.2345)
+    assert NumberUtils.to_double("-1.2345") == approx_double(-1.2345)
+    assert NumberUtils.to_double("1.2345") == approx_double(1.2345)
     assert NumberUtils.to_double("abc") == 0.0
-    assert NumberUtils.to_double("-001.2345") == pytest.approx(-1.2345)
-    assert NumberUtils.to_double("+001.2345") == pytest.approx(1.2345)
-    assert NumberUtils.to_double("001.2345") == pytest.approx(1.2345)
-    assert NumberUtils.to_double("000.00000") == pytest.approx(0.0)
+    assert NumberUtils.to_double("-001.2345") == approx_double(-1.2345)
+    assert NumberUtils.to_double("+001.2345") == approx_double(1.2345)
+    assert NumberUtils.to_double("001.2345") == approx_double(1.2345)
+    assert NumberUtils.to_double("000.00000") == approx_double(0.0)
     assert NumberUtils.to_double("") == 0.0
     assert NumberUtils.to_double(None) == 0.0
     # from NumberUtilsTest.java lines 1608–1616
-    assert NumberUtils.to_double("1.2345", 5.1) == pytest.approx(1.2345)
-    assert NumberUtils.to_double("a", 5.0) == pytest.approx(5.0)
-    assert NumberUtils.to_double("001.2345", 5.1) == pytest.approx(1.2345)
-    assert NumberUtils.to_double("-001.2345", 5.1) == pytest.approx(-1.2345)
-    assert NumberUtils.to_double("+001.2345", 5.1) == pytest.approx(1.2345)
-    assert NumberUtils.to_double("000.00", 5.1) == pytest.approx(0.0)
-    assert NumberUtils.to_double("", 5.1) == pytest.approx(5.1)
-    assert NumberUtils.to_double(None, 5.1) == pytest.approx(5.1)
+    assert NumberUtils.to_double("1.2345", 5.1) == approx_double(1.2345)
+    assert NumberUtils.to_double("a", 5.0) == approx_double(5.0)
+    assert NumberUtils.to_double("001.2345", 5.1) == approx_double(1.2345)
+    assert NumberUtils.to_double("-001.2345", 5.1) == approx_double(-1.2345)
+    assert NumberUtils.to_double("+001.2345", 5.1) == approx_double(1.2345)
+    assert NumberUtils.to_double("000.00", 5.1) == approx_double(0.0)
+    assert NumberUtils.to_double("", 5.1) == approx_double(5.1)
+    assert NumberUtils.to_double(None, 5.1) == approx_double(5.1)
