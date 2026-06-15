@@ -1863,6 +1863,22 @@ def test_switch_expression_division_operand_preserves_grouping() -> None:
     assert_valid_python(result.source)
 
 
+def test_doubly_parenthesized_ternary_division_keeps_grouping() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public double halfChoice(boolean flag) {
+                return ((flag ? 1 : 2.0)) / 2;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (1 if flag else 2.0) / 2" in result.source
+    assert_valid_python(result.source)
+
+
 def test_unsigned_right_shift_variants_keep_masks_and_warnings_visible() -> None:
     result = translate_source_with_diagnostics(
         """

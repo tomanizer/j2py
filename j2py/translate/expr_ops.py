@@ -498,6 +498,8 @@ def _translate_binary_operand(
         return translate_expression(node, ctx)
 
     inner = node.named_children[0]
+    while inner.type == "parenthesized_expression" and len(inner.named_children) == 1:
+        inner = inner.named_children[0]
     expression = translate_expression(inner, ctx)
     if inner.type in {"switch_expression", "ternary_expression"}:
         return f"({expression})"
