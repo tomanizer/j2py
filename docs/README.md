@@ -41,3 +41,4 @@
 | Document | Description |
 |----------|-------------|
 | [../AGENTS.md](../AGENTS.md) | Agent guidance (mirrored in `CLAUDE.md`) |
+| [../.cursor/skills/README.md](../.cursor/skills/README.md) | Cursor agent skills (harvest promotion, etc.) |
