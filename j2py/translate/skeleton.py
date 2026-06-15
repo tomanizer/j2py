@@ -112,6 +112,11 @@ def translate_skeleton_with_diagnostics(
             lines.append("")
         lines.extend(block)
 
+    if diagnostics.deferred_module_lines:
+        lines.append("")
+        lines.append("")
+        lines.extend(diagnostics.deferred_module_lines)
+
     return SkeletonTranslation(
         source="\n".join(lines) + "\n",
         coverage=diagnostics.coverage,

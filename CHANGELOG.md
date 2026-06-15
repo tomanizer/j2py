@@ -8,6 +8,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- End-to-end **case study** translating the multi-file Apache Commons Lang
+  `org.apache.commons.lang3.tuple` package (6 files) with rule-layer-only output, linked
+  and exercised by ported unit tests ([docs/CASE_STUDY.md](docs/CASE_STUDY.md),
+  `tests/case_study/`, #311). 100% node coverage / 0 `__j2py_todo__`; 19 passing ported
+  assertions and 3 strict xfails pinning surfaced translation gaps.
 - LLM harvest **promotion pipeline**: `make harvest-promote`, `harvest-promote-issues`,
   and `harvest-promote-dry` orchestrate queue build, Gemini batch harvest, prune,
   triage, and pattern-family GitHub issue drafts (`scripts/harvest/run_harvest_promotion.py`,
@@ -34,6 +39,12 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   parse errors occur, or semantic warnings require review (#271).
 
 ### Fixed
+- Generic cross-file superclasses (`class ImmutablePair<L, R> extends Pair<L, R>`) are no
+  longer dropped: the base class is kept and its import requested via the name resolver
+  ([ADR 0018](docs/decisions/0018-cross-file-class-hierarchies.md), #311).
+- Static fields whose initializer references the class being defined (e.g. a `NULL`
+  singleton) are deferred to a post-class module assignment instead of a class-body
+  statement that raised `NameError` at import ([ADR 0018](docs/decisions/0018-cross-file-class-hierarchies.md), #311).
 - Line comments inside expression lists now translate without unsupported-expression
   diagnostics or `__j2py_todo__` placeholders (#286).
 - `Calendar.get(...)` now stays a Java API method call instead of being reported as an

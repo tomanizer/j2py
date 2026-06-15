@@ -100,6 +100,10 @@ class TranslationDiagnostics:
     unhandled: list[TranslationDiagnostic] = field(default_factory=list)
     warnings: list[TranslationDiagnostic] = field(default_factory=list)
     imports: ImportSet = field(default_factory=ImportSet)
+    # Module-level statements emitted after all class blocks. Used for static fields
+    # whose initializer references the enclosing class (e.g. a `NULL` singleton): such an
+    # assignment cannot run inside the class body, where the class name is not yet bound.
+    deferred_module_lines: list[str] = field(default_factory=list)
 
     def record(
         self,

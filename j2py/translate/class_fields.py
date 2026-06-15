@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
@@ -349,10 +351,31 @@ def _translate_static_field(
     initializer = translate_expression(field.initializer, ctx)
     lines: list[str] = []
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
+    if _initializer_references_enclosing_class(initializer, ctx):
+        # A static field whose initializer references the class being defined cannot run
+        # in the class body (the class name is not yet bound). Defer it to a module-level
+        # assignment emitted after the class block. Local helpers, if any, stay in body.
+        diagnostics.deferred_module_lines.append(
+            f"{ctx.containing_class_name}.{field.py_name} = {initializer}",
+        )
+        return lines
     lines.append(
         f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}",
     )
     return lines
+
+
+def _initializer_references_enclosing_class(initializer: str, ctx: TranslationContext) -> bool:
+    """True when a static initializer references the class currently being defined.
+
+    Such a forward self-reference (e.g. ``NULL = ImmutablePair(None, None)``) raises
+    ``NameError`` if emitted inside the class body, so it must be deferred to a
+    post-class assignment.
+    """
+    name = ctx.containing_class_name
+    if not name:
+        return False
+    return re.search(rf"\b{re.escape(name)}\b", initializer) is not None
 
 
 def _extend_with_local_helpers(
