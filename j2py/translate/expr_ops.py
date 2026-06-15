@@ -100,11 +100,7 @@ def _translate_binary_expression(node: JavaNode, ctx: TranslationContext) -> str
             return null_comparison
         left = _translate_binary_operand(children[0], operator_text, ctx, is_right=False)
         right = _translate_binary_operand(children[2], operator_text, ctx, is_right=True)
-        return (
-            f"{left} "
-            f"{binary_operator} "
-            f"{right}"
-        )
+        return f"{left} {binary_operator} {right}"
 
     ctx.diagnostics.record(node, supported=False, reason="malformed binary expression")
     return f"__j2py_todo__({node.text!r})"
@@ -586,8 +582,7 @@ def _translate_unsigned_right_shift_assign(
         index = translate_expression(index_node, ctx)
         distance = _masked_shift_distance(right, width)
         return (
-            f"_j2py_idx = {index}; "
-            f"{array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {distance}"
+            f"_j2py_idx = {index}; {array}[_j2py_idx] = ({array}[_j2py_idx] & {mask}) >> {distance}"
         )
 
     if left_node.type == "field_access" and len(left_node.named_children) == 2:
@@ -597,8 +592,7 @@ def _translate_unsigned_right_shift_assign(
         field = translate_field_name(left_node.named_children[1].text)
         distance = _masked_shift_distance(right, width)
         return (
-            f"_j2py_val = {target}.{field}; "
-            f"{target}.{field} = (_j2py_val & {mask}) >> {distance}"
+            f"_j2py_val = {target}.{field}; {target}.{field} = (_j2py_val & {mask}) >> {distance}"
         )
 
     left = translate_expression(left_node, ctx)
@@ -782,8 +776,7 @@ def _translate_char_arithmetic(
         ctx.diagnostics.warn(
             node,
             reason=(
-                "char arithmetic translated with ord(); "
-                "wrap result in chr() if a char is expected"
+                "char arithmetic translated with ord(); wrap result in chr() if a char is expected"
             ),
         )
     return f"{left} {operator} {right}"

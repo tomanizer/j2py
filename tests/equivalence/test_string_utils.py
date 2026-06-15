@@ -57,9 +57,7 @@ def test_is_empty_equivalence(string_utils) -> None:
 @pytest.mark.equivalence
 @pytest.mark.xfail(
     strict=True,
-    reason=(
-        "rule layer emits CharSequence.charAt as str.char_at; plain Python strings diverge"
-    ),
+    reason=("rule layer emits CharSequence.charAt as str.char_at; plain Python strings diverge"),
 )
 def test_is_blank_equivalence(string_utils) -> None:
     # StringUtilsEmptyBlankTest.java:118-123, plus StringUtils.java Javadoc.

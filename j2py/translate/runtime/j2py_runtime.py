@@ -115,6 +115,7 @@ def _j2py_idiv(left: int, right: int) -> int:
         return -quotient
     return quotient
 
+
 _WILDCARD: Any = object()  # annotation cannot be checked at runtime
 _CALLABLE: Any = object()  # annotation means "any callable"
 _CALLABLE_NAMES = frozenset({"Callable", "typing.Callable", "collections.abc.Callable"})

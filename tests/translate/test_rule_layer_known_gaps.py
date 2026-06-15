@@ -15,6 +15,7 @@ from tests.translate.skeleton.helpers import translate_source, translate_source_
 # Bug 1: Parentheses dropped in arithmetic expressions
 # ---------------------------------------------------------------------------
 
+
 def test_parenthesized_arithmetic_grouping_preserved() -> None:
     """(a + b) * 2 must translate with grouping intact, not drop the parens."""
     src, _ = translate_source("""
@@ -54,6 +55,7 @@ def test_right_hand_division_grouping_preserved_under_multiplication() -> None:
 # Bug 2: Compound integer division emits /= (float) instead of truncating int division
 # ---------------------------------------------------------------------------
 
+
 def test_compound_int_division_uses_truncating_helper() -> None:
     """x /= 6 on a Java int must truncate toward zero, not use Python /= or //=."""
     src, _ = translate_source("""
@@ -88,6 +90,7 @@ def test_compound_negative_int_division_uses_truncating_helper() -> None:
 # ---------------------------------------------------------------------------
 # Bug 3: Collection-method lowering fires on user-defined .add() methods
 # ---------------------------------------------------------------------------
+
 
 def test_user_defined_add_method_not_lowered_to_append() -> None:
     src, _ = translate_source("""
@@ -124,6 +127,7 @@ def test_list_field_add_still_lowers_to_append() -> None:
 # ---------------------------------------------------------------------------
 # Bug 4: Builtin-clash rename renames def but not call site
 # ---------------------------------------------------------------------------
+
 
 def test_builtin_clash_rename_consistent_at_def_and_call_site() -> None:
     """A user method named 'sum' must have matching name at def and call site."""
@@ -180,6 +184,7 @@ def test_builtin_clash_rename_consistent_for_same_class_receiver() -> None:
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
 
+
 def test_for_loop_le_bound_with_continue_translates_to_range() -> None:
     """for (int i=1; i<=5; i++) with a continue must not produce a while-loop."""
     src, _ = translate_source("""
@@ -235,6 +240,7 @@ def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> Non
 # ---------------------------------------------------------------------------
 # Diagnostic accuracy: rule layer emits a warning when it cannot handle a construct
 # ---------------------------------------------------------------------------
+
 
 def test_unhandled_construct_records_diagnostic() -> None:
     """When the rule layer cannot translate a construct it must record an unhandled diagnostic."""

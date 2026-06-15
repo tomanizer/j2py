@@ -57,14 +57,14 @@ import pytest
 # Integer range constants
 # ---------------------------------------------------------------------------
 
-INT_MIN: int = -(2**31)       # Java Integer.MIN_VALUE
-INT_MAX: int = 2**31 - 1      # Java Integer.MAX_VALUE
-LONG_MIN: int = -(2**63)      # Java Long.MIN_VALUE
-LONG_MAX: int = 2**63 - 1     # Java Long.MAX_VALUE
-BYTE_MIN: int = -(2**7)       # Java Byte.MIN_VALUE
-BYTE_MAX: int = 2**7 - 1      # Java Byte.MAX_VALUE
-SHORT_MIN: int = -(2**15)     # Java Short.MIN_VALUE
-SHORT_MAX: int = 2**15 - 1    # Java Short.MAX_VALUE
+INT_MIN: int = -(2**31)  # Java Integer.MIN_VALUE
+INT_MAX: int = 2**31 - 1  # Java Integer.MAX_VALUE
+LONG_MIN: int = -(2**63)  # Java Long.MIN_VALUE
+LONG_MAX: int = 2**63 - 1  # Java Long.MAX_VALUE
+BYTE_MIN: int = -(2**7)  # Java Byte.MIN_VALUE
+BYTE_MAX: int = 2**7 - 1  # Java Byte.MAX_VALUE
+SHORT_MIN: int = -(2**15)  # Java Short.MIN_VALUE
+SHORT_MAX: int = 2**15 - 1  # Java Short.MAX_VALUE
 
 
 # ---------------------------------------------------------------------------

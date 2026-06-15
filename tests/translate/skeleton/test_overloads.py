@@ -1,7 +1,5 @@
 """Skeleton translator tests — overload translation."""
 
-
-
 from tests.translate.skeleton.helpers import (
     assert_module_executes,
     assert_valid_python,
@@ -184,9 +182,6 @@ def test_static_annotated_varargs_overloads_dispatch_after_parameter_recovery() 
     assert_valid_python(result.source)
 
 
-
-
-
 def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
     """int and long both erase to Python int; runtime dispatch cannot tell them apart."""
     python_source, coverage = translate_source(
@@ -208,9 +203,6 @@ def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
     assert "def width(self, *args: object) -> object:" in python_source
     assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_overload_default_expression_diagnostics_are_preserved() -> None:
@@ -240,16 +232,13 @@ def test_overload_default_expression_diagnostics_are_preserved() -> None:
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert 'name: str | None = None' in result.source
+    assert "name: str | None = None" in result.source
     assert 'separator: str = "-"' not in result.source
     assert "from typing import cast" in result.source
     assert [warning.reason for warning in result.diagnostics.warnings].count(
         "Java reference cast translated to typing.cast; verify runtime type",
     ) == 2
     assert_valid_python(result.source)
-
-
-
 
 
 def test_overload_dispatch_trailing_comment_still_counts_as_terminal() -> None:
@@ -273,9 +262,6 @@ def test_overload_dispatch_trailing_comment_still_counts_as_terminal() -> None:
     assert "# keep this comment with the branch" in python_source
     assert "return None" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_merged_overload_block_lambda_emits_helper_before_use() -> None:

@@ -1,7 +1,5 @@
 """Skeleton translator tests — config and import emission."""
 
-
-
 from tests.translate.skeleton.helpers import (
     CFG,
     assert_valid_python,
@@ -28,9 +26,6 @@ def test_import_map_emits_configured_python_imports_and_drops_known_imports() ->
     assert "java.util.List" not in python_source
     assert "def first(self, paths: list[Path]) -> Path:" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_custom_import_map_and_naming_flags_are_respected() -> None:

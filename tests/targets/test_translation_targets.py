@@ -96,8 +96,7 @@ def test_future_targets_empty_state_is_explicitly_documented() -> None:
         assert doc_path.exists()
         doc_content = doc_path.read_text(encoding="utf-8")
         assert (
-            "intentional while no deferred concrete construct gap has been selected"
-            in doc_content
+            "intentional while no deferred concrete construct gap has been selected" in doc_content
         )
         assert "strict `TranslationTarget`" in doc_content
 

@@ -116,7 +116,7 @@ def test_to_long_equivalence(number_utils_source: str) -> None:
     # from NumberUtilsTest.java lines 1703–1710
     assert NumberUtils.to_long("12345") == 12345
     assert NumberUtils.to_long("abc") == 0
-    assert NumberUtils.to_long("1L") == 0   # Java long suffix — not a valid int literal
+    assert NumberUtils.to_long("1L") == 0  # Java long suffix — not a valid int literal
     assert NumberUtils.to_long("1l") == 0
     assert NumberUtils.to_long("") == 0
     assert NumberUtils.to_long(None) == 0
