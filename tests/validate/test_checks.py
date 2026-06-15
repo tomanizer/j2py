@@ -19,6 +19,34 @@ def test_validate_source_reports_syntax_error_without_tool_checks(monkeypatch) -
     assert not result.mypy_ok
 
 
+def test_validate_source_skips_missing_tools_without_failing(monkeypatch) -> None:
+    # ruff/mypy are optional runtime deps; when absent the checks are skipped, not failed.
+    monkeypatch.setattr(checks, "_tool_available", lambda module: False)
+    monkeypatch.setattr(checks, "_run_ruff", lambda path: (_ for _ in ()).throw(AssertionError))
+    monkeypatch.setattr(checks, "_run_mypy", lambda path: (_ for _ in ()).throw(AssertionError))
+
+    result = validate_source("value: int = 1\n")
+
+    assert result.ok  # syntax passed; skipped tool checks do not block
+    assert not result.ruff_available
+    assert not result.mypy_available
+    assert result.skipped_checks == ["ruff", "mypy"]
+    assert result.ruff_errors == []
+    assert result.mypy_errors == []
+
+
+def test_validate_directory_skips_missing_tools_without_failing(monkeypatch) -> None:
+    monkeypatch.setattr(checks, "_tool_available", lambda module: False)
+    monkeypatch.setattr(checks, "_run_ruff", lambda path: (_ for _ in ()).throw(AssertionError))
+    monkeypatch.setattr(checks, "_run_mypy", lambda path: (_ for _ in ()).throw(AssertionError))
+
+    results = validate_directory({Path("a.py"): "value: int = 1\n"})
+    result = results[Path("a.py")]
+
+    assert result.ok
+    assert result.skipped_checks == ["ruff", "mypy"]
+
+
 def test_validate_source_runs_ruff_and_mypy_for_valid_python(monkeypatch) -> None:
     monkeypatch.setattr(checks, "_run_ruff", lambda path: (True, []))
     monkeypatch.setattr(checks, "_run_mypy", lambda path: (True, []))
@@ -28,6 +56,9 @@ def test_validate_source_runs_ruff_and_mypy_for_valid_python(monkeypatch) -> Non
     assert result.ok
     assert result.syntax_ok
     assert result.ruff_ok
+    assert result.ruff_available
+    assert result.mypy_available
+    assert result.skipped_checks == []
     assert result.mypy_ok
 
 

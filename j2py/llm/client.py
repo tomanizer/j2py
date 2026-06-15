@@ -10,7 +10,12 @@ from pathlib import Path
 import anthropic
 import diskcache
 from anthropic.types import TextBlockParam
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from j2py.llm.prompts import PROMPT_VERSION
 
@@ -18,6 +23,15 @@ _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
 _cache = diskcache.Cache(str(_CACHE_DIR))
 
 _client: anthropic.Anthropic | None = None
+
+
+class LLMTruncationError(RuntimeError):
+    """Raised when the model stopped at ``max_tokens`` — the completion is incomplete.
+
+    Retrying does not help (the same oversized class deterministically overruns the budget),
+    so this is excluded from the tenacity retry policy. The class must be split or sent in
+    smaller units. The truncated text is never cached.
+    """
 
 
 def get_client() -> anthropic.Anthropic:
@@ -69,7 +83,11 @@ def _system_text(system: list[TextBlockParam]) -> str:
     return "\n".join(texts)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_not_exception_type(LLMTruncationError),
+)
 def translate_with_llm(
     *,
     java_source: str,
@@ -127,6 +145,12 @@ def translate_with_llm(
         system=system,
         messages=messages,  # type: ignore[arg-type]
     )
+
+    if getattr(response, "stop_reason", None) == "max_tokens":
+        raise LLMTruncationError(
+            "LLM response hit the max_tokens limit; the translation is truncated and "
+            "would emit broken Python. Split the class into smaller units before retrying."
+        )
 
     first_block = response.content[0]
     if not isinstance(first_block, anthropic.types.TextBlock):

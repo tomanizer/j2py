@@ -723,6 +723,13 @@ def _print_result_summary(result: TranslationResult) -> None:
 
 
 def _print_validation(validation: ValidationResult) -> None:
+    skipped = validation.skipped_checks
+    if skipped:
+        tools = ", ".join(skipped)
+        console.print(
+            f"[dim]Validation: {tools} not installed — skipped "
+            f"(pip install 'j2py-converter[validate]')[/dim]"
+        )
     if validation.ok:
         console.print("[green]Validation passed[/green]")
         return

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 import subprocess
 import sys
@@ -20,10 +21,31 @@ class ValidationResult:
     syntax_errors: list[str] = field(default_factory=list)
     mypy_errors: list[str] = field(default_factory=list)
     ruff_errors: list[str] = field(default_factory=list)
+    # Whether the external checkers were importable in this environment. When False the
+    # corresponding check was skipped (not failed) — mypy/ruff are optional runtime deps
+    # (`pip install 'j2py-converter[validate]'`), so a missing tool must not be reported
+    # as a translation error.
+    ruff_available: bool = True
+    mypy_available: bool = True
 
     @property
     def ok(self) -> bool:
         return self.syntax_ok and self.mypy_ok and self.ruff_ok
+
+    @property
+    def skipped_checks(self) -> list[str]:
+        """Names of checks skipped because their tool was not installed."""
+        skipped = []
+        if not self.ruff_available:
+            skipped.append("ruff")
+        if not self.mypy_available:
+            skipped.append("mypy")
+        return skipped
+
+
+def _tool_available(module: str) -> bool:
+    """Whether an optional checker (``ruff``/``mypy``) is importable in this environment."""
+    return importlib.util.find_spec(module) is not None
 
 
 def validate_source(source: str, path: Path | None = None) -> ValidationResult:
@@ -49,10 +71,18 @@ def validate_source(source: str, path: Path | None = None) -> ValidationResult:
         tmp = Path(f.name)
 
     try:
-        result.ruff_ok, ruff_errors = _run_ruff(tmp)
-        result.mypy_ok, mypy_errors = _run_mypy(tmp)
-        result.ruff_errors = [err.replace(str(tmp), str(p)) for err in ruff_errors]
-        result.mypy_errors = [err.replace(str(tmp), str(p)) for err in mypy_errors]
+        result.ruff_available = _tool_available("ruff")
+        result.mypy_available = _tool_available("mypy")
+        if result.ruff_available:
+            result.ruff_ok, ruff_errors = _run_ruff(tmp)
+            result.ruff_errors = [err.replace(str(tmp), str(p)) for err in ruff_errors]
+        else:
+            result.ruff_ok = True  # skipped, not failed
+        if result.mypy_available:
+            result.mypy_ok, mypy_errors = _run_mypy(tmp)
+            result.mypy_errors = [err.replace(str(tmp), str(p)) for err in mypy_errors]
+        else:
+            result.mypy_ok = True  # skipped, not failed
     finally:
         tmp.unlink(missing_ok=True)
 
@@ -68,6 +98,9 @@ def validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
 
     import tempfile
 
+    ruff_available = _tool_available("ruff")
+    mypy_available = _tool_available("mypy")
+
     relative_paths = _relative_validation_paths(syntax_ok_files.keys())
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_root = Path(tmpdir)
@@ -78,14 +111,17 @@ def validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
             temp_path.write_text(source)
             temp_to_original[temp_path] = original_path
 
-        _, ruff_errors = _run_ruff(temp_root)
-        _, mypy_errors = _run_mypy(temp_root)
+        ruff_errors = _run_ruff(temp_root)[1] if ruff_available else []
+        mypy_errors = _run_mypy(temp_root)[1] if mypy_available else []
 
     ruff_by_path = _errors_by_original_path(ruff_errors, temp_to_original)
     mypy_by_path = _errors_by_original_path(mypy_errors, temp_to_original)
 
     for path in syntax_ok_files:
         result = results[path]
+        result.ruff_available = ruff_available
+        result.mypy_available = mypy_available
+        # Skipped checks (tool not installed) are treated as passing, not failing.
         result.ruff_errors = ruff_by_path.get(path, [])
         result.mypy_errors = mypy_by_path.get(path, [])
         result.ruff_ok = not result.ruff_errors

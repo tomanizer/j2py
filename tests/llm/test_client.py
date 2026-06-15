@@ -184,6 +184,34 @@ def test_translate_with_llm_retries_transient_client_failure(monkeypatch) -> Non
     assert calls["count"] == 2
 
 
+def test_translate_with_llm_raises_on_truncation(monkeypatch) -> None:
+    cache = FakeCache()
+    calls = {"count": 0}
+
+    class Messages:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            calls["count"] += 1
+            return SimpleNamespace(
+                stop_reason="max_tokens",
+                content=[anthropic.types.TextBlock(type="text", text="truncated parti")],
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    with pytest.raises(client_mod.LLMTruncationError):
+        client_mod.translate_with_llm(
+            java_source="class A {}",
+            partial_python="class A:\n    pass\n",
+            model="claude-test",
+            use_cache=True,
+        )
+
+    # truncation is not retried (deterministic) and the partial text is never cached
+    assert calls["count"] == 1
+    assert cache.written == {}
+
+
 @pytest.mark.parametrize(
     "raw,expected",
     [
