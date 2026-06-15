@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -112,11 +112,12 @@ def harvest_file(test_source: Path, *, target_class: str, java_fixture: str) -> 
     harvested: list[HarvestedAssertion] = []
     skipped: list[SkippedAssertion] = []
     seen_assertions: set[tuple[int, int]] = set()
+    used_test_names: dict[str, int] = {}
 
     for method in parsed.root.find_all("method_declaration"):
         if not _is_test_method(method):
             continue
-        test_name = _test_method_name(method)
+        test_name = _dedupe_test_name(_test_method_name(method), used_test_names)
         for invocation in method.find_all("method_invocation"):
             key = (invocation.location.line, invocation.location.column)
             if key in seen_assertions:
@@ -239,17 +240,15 @@ def _group_harvested_assertions(
     assertions: Iterable[HarvestedAssertion],
 ) -> dict[str, list[HarvestedAssertion]]:
     grouped: dict[str, list[HarvestedAssertion]] = {}
-    used_names: defaultdict[str, int] = defaultdict(int)
     for assertion in assertions:
-        if assertion.test_name not in grouped:
-            used_names[assertion.test_name] += 1
-            suffix = used_names[assertion.test_name]
-            key = assertion.test_name if suffix == 1 else f"{assertion.test_name}_{suffix}"
-            grouped[key] = []
-        else:
-            key = assertion.test_name
-        grouped[key].append(assertion)
+        grouped.setdefault(assertion.test_name, []).append(assertion)
     return grouped
+
+
+def _dedupe_test_name(test_name: str, used_test_names: dict[str, int]) -> str:
+    used_test_names[test_name] = used_test_names.get(test_name, 0) + 1
+    suffix = used_test_names[test_name]
+    return test_name if suffix == 1 else f"{test_name}_{suffix}"
 
 
 def _parse_file_checked(path: Path) -> ParsedFile:

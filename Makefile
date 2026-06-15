@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -86,6 +86,13 @@ harvest-llm:  ## Summarize local LLM harvest records for rule-layer triage
 	uv run python scripts/harvest/aggregate_llm_harvest.py
 
 harvest-triage: harvest-llm  ## Alias for harvest-llm
+
+harvest-equivalence:  ## Draft literal-oracle pytest from upstream JUnit (TEST_SOURCE=... TARGET_CLASS=... JAVA_FIXTURE=... [WRITE=...])
+	uv run --extra dev python scripts/harvest/harvest_equivalence_tests.py \
+		--test-source $(TEST_SOURCE) \
+		--target-class $(TARGET_CLASS) \
+		--java-fixture $(JAVA_FIXTURE) \
+		$(if $(WRITE),--write $(WRITE),)
 
 # Prefer checkout .env, then $J2PY_CORPUS_ROOT/.env (git worktrees), then login shell.
 LOAD_GEMINI_ENV = \

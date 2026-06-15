@@ -17,6 +17,7 @@ currently selects **1,641 equivalence tests**: 1,639 passing tests plus two docu
 ```bash
 make test-equivalence         # just the equivalence gate
 make equivalence-report       # equivalence gate + verified-surface JSON/table
+make harvest-equivalence TEST_SOURCE=... TARGET_CLASS=... JAVA_FIXTURE=... WRITE=/tmp/draft.py
 make check                    # includes equivalence (along with all other tests)
 ```
 
@@ -160,6 +161,9 @@ math**.
   spec, float approximation helpers, exception mapping helper — independently unit-tested
 - ✅ Guava-style operator-precedence fixture: `GuavaPrecedenceMath` catches the
   `(a+b)*c -> a+b*c` regression at the equivalence level with literal-oracle assertions
+- ✅ Literal-oracle draft harvester (`scripts/harvest/harvest_equivalence_tests.py`),
+  with `make harvest-equivalence`, for conservative upstream JUnit-to-pytest draft
+  generation against declared static fixture methods
 
 **Remaining:**
 - Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
