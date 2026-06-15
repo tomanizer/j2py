@@ -11,9 +11,10 @@ import pytest
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from tests.conftest import TARGET_FIXTURES
 from tests.translate.skeleton.helpers import CFG
 
-CORPUS_CONSTRUCTS = Path(__file__).parents[1] / "fixtures" / "corpus" / "constructs"
+HOTSPOT_FIXTURES = TARGET_FIXTURES
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,7 @@ GRADUATED_HOTSPOTS = (
 )
 def test_promoted_corpus_hotspot_translates_cleanly(case: PromotedHotspot) -> None:
     """Corpus hotspot exemplars that are now fast make-check regressions."""
-    parsed = parse_file(CORPUS_CONSTRUCTS / case.fixture)
+    parsed = parse_file(HOTSPOT_FIXTURES / case.fixture)
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
     ast.parse(result.source)

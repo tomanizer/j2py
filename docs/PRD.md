@@ -102,7 +102,7 @@ presence plus declaration order. Structural failures feed a single LLM repair re
 ### F10 — Regression and measurement suites
 Provide measurable quality signal without live LLM in normal CI:
 
-- **Graduated fixtures** — Java/Python pairs and roadmap targets in `make check`
+- **Graduated fixtures** — Java/Python pairs and graduated roadmap targets in `make check`
 - **Equivalence gate** — literal-oracle differential tests on harvested library code
   (`tests/equivalence/`, Phase 1 active)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
@@ -134,8 +134,9 @@ Provide measurable quality signal without live LLM in normal CI:
 3. `mypy` passes on all translated output from the fixture suite.
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
-5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior` and
-   `live_llm`) — currently **2,000+** tests including graduated constructs, the
+5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior`,
+   `live_llm`, and future `target_translation` xfails) — currently **2,000+** tests
+   including graduated constructs, the
    CharUtils and NumberUtils literal-oracle equivalence gates.
 6. Committed multi-library corpus baselines provide regression signal; CI gates every
    committed dense baseline (`spring-dense`, `guava-dense`, `commons-lang-dense`,

@@ -49,7 +49,7 @@ class TranslationTarget:
 FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
         fixture="IteratorPostIncrementSubscript.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        fixture_root=TARGET_FIXTURES,
         tracking="issue-252/jackson-arrayiterator-invalid-python-output",
         reason=(
             "Jackson ArrayIterator-style post-increment inside an array subscript "
@@ -64,7 +64,7 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
     ),
     TranslationTarget(
         fixture="StaticImportEnumConstants.java",
-        fixture_root=CORPUS_CONSTRUCT_FIXTURES,
+        fixture_root=TARGET_FIXTURES,
         tracking="issue-252/guava-elementtype-static-imports",
         reason=(
             "Guava IgnoreJRERequirement-style ElementType static imports are still "

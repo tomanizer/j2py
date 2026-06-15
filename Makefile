@@ -30,7 +30,7 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run --extra dev mypy j2py/
 
 test:  ## Run test suite
-	uv run --extra dev pytest -m "not behavior and not live_llm"
+	uv run --extra dev pytest -m "not behavior and not live_llm and not target_translation"
 
 test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
 	uv run --extra dev pytest tests/equivalence -m equivalence -v

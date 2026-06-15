@@ -142,9 +142,9 @@ Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 ## Quality gates
 
 ```bash
-make check         # ruff + mypy strict + pytest (excludes behavior, live_llm)
+make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
-make test-targets  # future xfail roadmap targets (empty while all targets graduated)
+make test-targets  # future strict-xfail roadmap targets
 make release-check # alpha release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```
 
@@ -154,6 +154,8 @@ Translation quality is measured against a **multi-library corpus**: pinned check
 Spring Framework, Guava, Apache Commons Lang, Jackson, and Caffeine, plus small curated
 construct fixtures under `tests/fixtures/corpus/`. These libraries are open-source stress
 tests for the deterministic rule layer — not product scope or target runtime.
+Corpus-derived fast fixtures that should not affect committed baselines live under
+`tests/fixtures/java/targets/` instead.
 
 ```bash
 make corpus-list-presets              # show all pinned presets
