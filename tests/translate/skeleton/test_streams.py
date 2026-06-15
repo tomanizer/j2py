@@ -1,7 +1,5 @@
 """Skeleton translator tests — stream pipeline rewrites."""
 
-
-
 from tests.translate.skeleton.helpers import (
     CFG,
     assert_valid_python,
@@ -33,9 +31,6 @@ def test_stream_item_name_avoids_bad_singularization() -> None:
         assert ok, f"{src_name} -> {got} (wanted ~{want})"
 
 
-
-
-
 def test_stream_pipeline_produces_sensible_loop_var_for_statuses() -> None:
     """A successful stream rewrite for a 'statuses' receiver should not emit statu/statuse."""
     python_source, coverage = translate_source(
@@ -64,9 +59,6 @@ def test_stream_pipeline_produces_sensible_loop_var_for_statuses() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_pipeline_to_set_rewrite() -> None:
     """Phase 1: toSet collector now rewrites to set comprehension."""
     python_source, coverage = translate_source(
@@ -89,9 +81,6 @@ def test_stream_pipeline_to_set_rewrite() -> None:
     assert "for status in statuses" in python_source or "for status_ in statuses" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_joining_basic() -> None:
@@ -117,9 +106,6 @@ def test_stream_pipeline_joining_basic() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_source_call_uses_valid_loop_target_for_collection_values() -> None:
     python_source, coverage = translate_source(
         """
@@ -143,9 +129,6 @@ def test_stream_source_call_uses_valid_loop_target_for_collection_values() -> No
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_source_getter_call_uses_valid_loop_target_for_joining() -> None:
     python_source, coverage = translate_source(
         """
@@ -166,9 +149,6 @@ def test_stream_source_getter_call_uses_valid_loop_target_for_joining() -> None:
     assert "for interface in left.get_proxied_interfaces()" in python_source
     assert "interface.get_canonical_name()" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_sorted_and_distinct() -> None:
@@ -199,9 +179,6 @@ def test_stream_pipeline_sorted_and_distinct() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_stream_pipeline_sorted_with_key() -> None:
     """Phase 2: .sorted(Comparator) with simple method ref key."""
     python_source, coverage = translate_source(
@@ -224,9 +201,6 @@ def test_stream_pipeline_sorted_with_key() -> None:
     assert "key=lambda " in python_source  # or similar
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_sorted_before_map_falls_back_to_preserve_order() -> None:
@@ -255,9 +229,6 @@ def test_stream_sorted_before_map_falls_back_to_preserve_order() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_stream_distinct_before_map_falls_back_to_preserve_order() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -284,9 +255,6 @@ def test_stream_distinct_before_map_falls_back_to_preserve_order() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_joining_with_prefix_suffix_falls_back() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -307,9 +275,6 @@ def test_joining_with_prefix_suffix_falls_back() -> None:
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_stream_pipeline_grouping_by_basic() -> None:
@@ -336,9 +301,6 @@ def test_stream_pipeline_grouping_by_basic() -> None:
     assert "groups[key].append" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_stream_pipeline_grouping_by_mapping_to_list() -> None:
@@ -401,9 +363,6 @@ def test_stream_pipeline_grouping_by_non_identity_mapping_falls_back() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_stream_pipeline_to_map_basic() -> None:
     """Phase 3: basic toMap produces helper with dict accumulation."""
     python_source, coverage = translate_source(
@@ -428,9 +387,6 @@ def test_stream_pipeline_to_map_basic() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_to_map_with_merge_function_falls_back() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -452,9 +408,6 @@ def test_to_map_with_merge_function_falls_back() -> None:
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
-
-
-
 
 
 def test_stream_flatmap_list_stream_to_list_rewrite() -> None:
@@ -628,8 +581,7 @@ def test_grouping_by_with_too_many_args_records_diagnostic() -> None:
 
     assert result.coverage < 1.0
     assert any(
-        "Collectors.groupingBy with downstream collector requires manual translation"
-        in item.reason
+        "Collectors.groupingBy with downstream collector requires manual translation" in item.reason
         for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
@@ -654,8 +606,7 @@ def test_filter_after_sorted_records_order_preserving_diagnostic() -> None:
 
     assert result.coverage < 1.0
     assert any(
-        "stream filter after sorted/distinct requires order-preserving translation"
-        in item.reason
+        "stream filter after sorted/distinct requires order-preserving translation" in item.reason
         for item in result.diagnostics.unhandled
     )
     assert "return [item for item in sorted(items)" not in result.source
@@ -681,8 +632,7 @@ def test_flatmap_after_sorted_records_order_preserving_diagnostic() -> None:
 
     assert result.coverage < 1.0
     assert any(
-        "stream flatMap after sorted/distinct requires order-preserving translation"
-        in item.reason
+        "stream flatMap after sorted/distinct requires order-preserving translation" in item.reason
         for item in result.diagnostics.unhandled
     )
     assert "for nested_item in sorted(nested)" not in result.source
@@ -763,8 +713,7 @@ def test_collector_helper_after_sorted_records_diagnostic() -> None:
 
     assert result.coverage < 1.0
     assert any(
-        "collector helper with sorted/distinct requires order-preserving translation"
-        in item.reason
+        "collector helper with sorted/distinct requires order-preserving translation" in item.reason
         for item in result.diagnostics.unhandled
     )
     assert "_j2py_groupby_" not in result.source
@@ -899,7 +848,8 @@ def test_helper_collectors_record_diagnostic_when_local_scope_is_unavailable() -
         """,
     )
     stream_nodes = [
-        node for node in parsed.root.find_all("method_invocation")
+        node
+        for node in parsed.root.find_all("method_invocation")
         if ".stream()" in node.text and ".collect(" in node.text
     ]
     assert len(stream_nodes) == 2

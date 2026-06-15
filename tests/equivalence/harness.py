@@ -34,9 +34,7 @@ _CFG = ConfigLoader().add_defaults().build()
 
 def translate_rule_layer(java_name: str) -> str:
     """Return the rule-layer-only Python translation of a vendored Java fixture."""
-    result = translate_file(
-        FIXTURES / java_name, cfg=_CFG, use_llm=False, validate=False
-    )
+    result = translate_file(FIXTURES / java_name, cfg=_CFG, use_llm=False, validate=False)
     return result.python_source
 
 
@@ -168,26 +166,26 @@ def install_java_lang_stubs() -> list[str]:
     lang3 = "org.apache.commons.lang3"
 
     installed: list[str] = []
+    installed += install_stub_class(f"{math}.Long", "Long", types.SimpleNamespace(value_of=_id))
     installed += install_stub_class(
-        f"{math}.Long", "Long", types.SimpleNamespace(value_of=_id)
-    )
-    installed += install_stub_class(
-        f"{math}.Short", "Short",
+        f"{math}.Short",
+        "Short",
         types.SimpleNamespace(value_of=_id, parse_short=int),
     )
     installed += install_stub_class(
-        f"{math}.Byte", "Byte",
+        f"{math}.Byte",
+        "Byte",
         types.SimpleNamespace(value_of=_id, parse_byte=int),
     )
+    installed += install_stub_class(f"{math}.Double", "Double", types.SimpleNamespace(value_of=_id))
     installed += install_stub_class(
-        f"{math}.Double", "Double", types.SimpleNamespace(value_of=_id)
-    )
-    installed += install_stub_class(
-        f"{math}.Float", "Float",
+        f"{math}.Float",
+        "Float",
         types.SimpleNamespace(value_of=_id, parse_float=float),
     )
     installed += install_stub_class(
-        f"{math}.Integer", "Integer",
+        f"{math}.Integer",
+        "Integer",
         types.SimpleNamespace(
             value_of=_id,
             min_value=-(2**31),
@@ -198,18 +196,18 @@ def install_java_lang_stubs() -> list[str]:
         f"{math}.Character", "Character", types.SimpleNamespace(value_of=_id)
     )
     installed += install_stub_class(
-        f"{lang3}.StringUtils", "StringUtils",
+        f"{lang3}.StringUtils",
+        "StringUtils",
         types.SimpleNamespace(
             contains=lambda s, sub: (sub in s) if s is not None else False,
         ),
     )
     installed += install_stub_class(
-        f"{lang3}.Validate", "Validate",
+        f"{lang3}.Validate",
+        "Validate",
         types.SimpleNamespace(is_true=lambda *_: None),
     )
-    installed += install_stub_class(
-        "java.lang.reflect.Array", "Array", types.SimpleNamespace()
-    )
+    installed += install_stub_class("java.lang.reflect.Array", "Array", types.SimpleNamespace())
     return installed
 
 

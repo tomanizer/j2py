@@ -187,8 +187,7 @@ def test_translated_python_matches_java_behavior(case: BehaviorCase, tmp_path: P
         result.output_path.parent.mkdir(parents=True, exist_ok=True)
         result.output_path.write_text(result.python_source, encoding="utf-8")
     uses_runtime = any(
-        f"from {RUNTIME_MODULE_NAME} import " in result.python_source
-        for result in translated.files
+        f"from {RUNTIME_MODULE_NAME} import " in result.python_source for result in translated.files
     )
     if uses_runtime:
         (python_work / f"{RUNTIME_MODULE_NAME}.py").write_text(

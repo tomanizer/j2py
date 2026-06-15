@@ -43,6 +43,7 @@ def validate_source(source: str, path: Path | None = None) -> ValidationResult:
 
     # 2. Write to a temp file for tool-based checks
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
         f.write(source)
         tmp = Path(f.name)
@@ -60,15 +61,8 @@ def validate_source(source: str, path: Path | None = None) -> ValidationResult:
 
 def validate_directory(files: dict[Path, str]) -> dict[Path, ValidationResult]:
     """Run validation for many translated Python files with one ruff and one mypy call."""
-    results = {
-        path: _syntax_validation_result(source, path)
-        for path, source in files.items()
-    }
-    syntax_ok_files = {
-        path: source
-        for path, source in files.items()
-        if results[path].syntax_ok
-    }
+    results = {path: _syntax_validation_result(source, path) for path, source in files.items()}
+    syntax_ok_files = {path: source for path, source in files.items() if results[path].syntax_ok}
     if not syntax_ok_files:
         return results
 
@@ -118,10 +112,7 @@ def _relative_validation_paths(paths: Iterable[Path]) -> dict[Path, Path]:
     path_list = list(paths)
     if not path_list:
         return {}
-    absolute_paths = [
-        path if path.is_absolute() else Path.cwd() / path
-        for path in path_list
-    ]
+    absolute_paths = [path if path.is_absolute() else Path.cwd() / path for path in path_list]
     common_parent = Path(os.path.commonpath([str(path.parent) for path in absolute_paths]))
     return {
         original_path: absolute_path.relative_to(common_parent)
@@ -138,7 +129,7 @@ def _errors_by_original_path(
         for temp_path, original_path in temp_to_original.items():
             temp_prefix = str(temp_path)
             if error.startswith(temp_prefix):
-                remaining = error[len(temp_prefix):]
+                remaining = error[len(temp_prefix) :]
                 if not remaining or remaining.startswith(":"):
                     by_path[original_path].append(f"{original_path}{remaining}")
                     break
@@ -149,12 +140,19 @@ def _run_ruff(path: Path) -> tuple[bool, list[str]]:
     # --select E,F: check real errors (syntax/undefined-name) but skip style/isort rules
     # --isolated: ignore any project ruff.toml so we apply the same rules everywhere
     proc = subprocess.run(
-        [sys.executable, "-m", "ruff", "check",
-         "--select", "E,F",
-         "--isolated",
-         "--output-format=concise",
-         str(path)],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            "E,F",
+            "--isolated",
+            "--output-format=concise",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
     )
     output = proc.stdout + proc.stderr
     errors = [line for line in output.splitlines() if ": E" in line or ": F" in line]
@@ -163,9 +161,9 @@ def _run_ruff(path: Path) -> tuple[bool, list[str]]:
 
 def _run_mypy(path: Path) -> tuple[bool, list[str]]:
     proc = subprocess.run(
-        [sys.executable, "-m", "mypy", "--ignore-missing-imports",
-         "--no-error-summary", str(path)],
-        capture_output=True, text=True,
+        [sys.executable, "-m", "mypy", "--ignore-missing-imports", "--no-error-summary", str(path)],
+        capture_output=True,
+        text=True,
     )
     errors = [line for line in proc.stdout.splitlines() if ": error:" in line]
     return proc.returncode == 0, errors

@@ -17,9 +17,7 @@ from tests.translate.skeleton.helpers import (
 
 def _malformed_for_diagnostics(result) -> list:
     return [
-        item
-        for item in result.diagnostics.unhandled
-        if "malformed for statement" in item.reason
+        item for item in result.diagnostics.unhandled if "malformed for statement" in item.reason
     ]
 
 
@@ -172,9 +170,6 @@ def test_while_statement_translates_break_and_update() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_do_while_statement_translates_to_guarded_infinite_loop() -> None:
     python_source, coverage = translate_source(
         """
@@ -195,9 +190,6 @@ def test_do_while_statement_translates_to_guarded_infinite_loop() -> None:
     assert "value -= 1" in python_source
     assert "if not (value > 0):" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_try_catch_finally_and_throw_use_exception_map() -> None:
@@ -231,9 +223,6 @@ def test_try_catch_finally_and_throw_use_exception_map() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
     python_source, coverage = translate_source(
         """
@@ -258,9 +247,6 @@ def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_switch_statement_translates_returning_cases() -> None:
     python_source, coverage = translate_source(
         """
@@ -283,9 +269,6 @@ def test_switch_statement_translates_returning_cases() -> None:
     assert "else:" in python_source
     assert "return 0" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_switch_statement_merges_grouped_labels_and_ignores_label_comments() -> None:
@@ -316,9 +299,6 @@ def test_switch_statement_merges_grouped_labels_and_ignores_label_comments() -> 
     assert_valid_python(python_source)
 
 
-
-
-
 def test_switch_statement_merges_grouped_default_label() -> None:
     python_source, coverage = translate_source(
         """
@@ -342,9 +322,6 @@ def test_switch_statement_merges_grouped_default_label() -> None:
     assert "raise ValueError()" in python_source
     assert "TODO(j2py): switch fall-through requires manual translation" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_switch_statement_with_fallthrough_to_default_translates() -> None:
@@ -536,8 +513,7 @@ def test_switch_statement_default_before_final_case_reports_explicit_diagnostic(
 
     assert result.coverage < 1.0
     assert (
-        "TODO(j2py): switch default before final case requires manual translation"
-        in result.source
+        "TODO(j2py): switch default before final case requires manual translation" in result.source
     )
     assert any(
         item.reason == "switch default before final case requires manual translation"
@@ -587,9 +563,6 @@ def test_switch_fallthrough_corpus_construct_reaches_full_coverage() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_switch_expression_translates_arrow_rules_and_yield_blocks() -> None:
     python_source, coverage = translate_source(
         """
@@ -633,9 +606,6 @@ def test_pattern_matching_switch_expression_uses_python_match_helper() -> None:
     assert_valid_python(result.source)
 
 
-
-
-
 def test_if_statement_translates_single_branch() -> None:
     python_source, coverage = translate_source(
         """
@@ -654,9 +624,6 @@ def test_if_statement_translates_single_branch() -> None:
     assert "if value < 0:" in python_source
     assert "return 0" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_if_statement_translates_else_branch() -> None:
@@ -680,9 +647,6 @@ def test_if_statement_translates_else_branch() -> None:
     assert "else:" in python_source
     assert "return -1" in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_if_statement_translates_chained_else_if() -> None:
@@ -711,9 +675,6 @@ def test_if_statement_translates_chained_else_if() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_if_statement_translates_nested_branch() -> None:
     python_source, coverage = translate_source(
         """
@@ -736,9 +697,6 @@ def test_if_statement_translates_nested_branch() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_if_statement_translates_instanceof_condition() -> None:
     python_source, coverage = translate_source(
         """
@@ -757,9 +715,6 @@ def test_if_statement_translates_instanceof_condition() -> None:
     assert "if isinstance(value, str):" in python_source
     assert "unsupported if_statement" not in python_source
     assert_valid_python(python_source)
-
-
-
 
 
 def test_try_with_resources_effectively_final_resource_translates() -> None:
@@ -782,9 +737,6 @@ def test_try_with_resources_effectively_final_resource_translates() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_synchronized_this_in_static_method_emits_todo() -> None:
     python_source, coverage = translate_source(
         """
@@ -802,9 +754,6 @@ def test_synchronized_this_in_static_method_emits_todo() -> None:
     assert "TODO(j2py): synchronized(this) in static context" in python_source
     assert "import threading" not in python_source
     assert "_j2py_lock" not in python_source
-
-
-
 
 
 def test_nested_synchronized_this_does_not_initialize_outer_lock() -> None:
@@ -830,9 +779,6 @@ def test_nested_synchronized_this_does_not_initialize_outer_lock() -> None:
     assert "with self._j2py_lock:" in python_source
 
 
-
-
-
 def test_synchronized_non_this_lock_uses_j2py_monitor() -> None:
     parsed = parse_source(
         """
@@ -854,10 +800,7 @@ def test_synchronized_non_this_lock_uses_j2py_monitor() -> None:
     assert "self.monitor: object = object()" in result.source
     assert "with _j2py_monitor(self.monitor):" in result.source
     assert "from j2py_runtime import _j2py_monitor" in result.source
-    assert any(
-        "_j2py_monitor" in warning.reason
-        for warning in result.diagnostics.warnings
-    )
+    assert any("_j2py_monitor" in warning.reason for warning in result.diagnostics.warnings)
     assert_module_executes(result.source)
 
 
@@ -958,7 +901,7 @@ def test_var_local_and_enhanced_for_infer_types() -> None:
     assert coverage == 1.0
     assert ": var" not in python_source
     assert "results: list[str] = []" in python_source
-    assert "name = cast(str, item.get(\"name\"))" in python_source
+    assert 'name = cast(str, item.get("name"))' in python_source
     assert "results.append(name)" in python_source
     assert "from typing import cast" in python_source
     assert_valid_python(python_source)

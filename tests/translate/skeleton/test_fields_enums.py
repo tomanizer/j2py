@@ -453,9 +453,7 @@ def test_annotation_type_declaration_preserves_javadoc_and_comments() -> None:
     assert '"""Describes an endpoint."""' in result.source
     assert "    # Reviewers should still see body comments." in result.source
     assert "value: str" in result.source
-    assert any(
-        warning.reason == "preserved comment" for warning in result.diagnostics.warnings
-    )
+    assert any(warning.reason == "preserved comment" for warning in result.diagnostics.warnings)
     assert_valid_python(result.source)
 
 

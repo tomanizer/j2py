@@ -231,9 +231,7 @@ def is_list_like_type(py_type: str) -> bool:
     """True when a translated type behaves like a Java List for `.get(index)` lowering."""
     if " | " in py_type:
         return any(
-            is_list_like_type(part.strip())
-            for part in py_type.split("|")
-            if part.strip() != "None"
+            is_list_like_type(part.strip()) for part in py_type.split("|") if part.strip() != "None"
         )
     if py_type == "list" or py_type.startswith("list["):
         return True

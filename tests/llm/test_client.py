@@ -208,9 +208,7 @@ def test_translate_with_llm_strips_fenced_response(monkeypatch: Any) -> None:
         def create(self, **kwargs: Any) -> SimpleNamespace:
             return SimpleNamespace(
                 content=[
-                    anthropic.types.TextBlock(
-                        type="text", text="```python\ntranslated python\n```"
-                    )
+                    anthropic.types.TextBlock(type="text", text="```python\ntranslated python\n```")
                 ],
             )
 

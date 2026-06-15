@@ -1,7 +1,5 @@
 """Skeleton translator tests — miscellaneous skeleton behaviour."""
 
-
-
 from tests.translate.skeleton.helpers import (
     assert_valid_python,
     translate_source,
@@ -62,9 +60,6 @@ def test_receiverless_method_call_escapes_python_builtin_name() -> None:
     assert_valid_python(python_source)
 
 
-
-
-
 def test_non_empty_collection_constructor_translates_to_copy() -> None:
     python_source, coverage = translate_source(
         """
@@ -98,5 +93,3 @@ def test_non_empty_collection_constructor_translates_to_copy() -> None:
     assert "return set(source)" in python_source
     assert "__j2py_todo__" not in python_source
     assert_valid_python(python_source)
-
-

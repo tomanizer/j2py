@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --locked --extra dev
-      - run: uv run ruff check j2py/ tests/
+      - run: make lint
 
   typecheck:
     name: Type check
@@ -58,9 +58,9 @@ jobs:
           python-version: "3.11"
       - run: uv sync --locked --extra dev
       - name: Import smoke test
-        run: uv run python -c "import j2py; import j2py.parse.java_ast; import j2py.translate.rules.types"
+        run: make import-smoke
       - name: Lint
-        run: uv run ruff check j2py/ tests/
+        run: make lint
       - name: Type check
         run: uv run mypy j2py/
 

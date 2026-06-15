@@ -175,13 +175,15 @@ def _parse_class(node: JavaNode, package: str) -> ClassSymbol | None:
     )
 
 
-_NESTED_DECLARATION_TYPES = frozenset({
-    "class_declaration",
-    "interface_declaration",
-    "enum_declaration",
-    "record_declaration",
-    "annotation_type_declaration",
-})
+_NESTED_DECLARATION_TYPES = frozenset(
+    {
+        "class_declaration",
+        "interface_declaration",
+        "enum_declaration",
+        "record_declaration",
+        "annotation_type_declaration",
+    }
+)
 
 
 def _parse_record_components(params_node: JavaNode) -> list[FieldSymbol]:
@@ -191,12 +193,14 @@ def _parse_record_components(params_node: JavaNode) -> list[FieldSymbol]:
         name_node = param.child_by_field("name")
         if name_node is None:
             continue
-        result.append(FieldSymbol(
-            name=name_node.text,
-            java_type=type_node.text if type_node else "Object",
-            is_final=True,
-            line=param.location.line,
-        ))
+        result.append(
+            FieldSymbol(
+                name=name_node.text,
+                java_type=type_node.text if type_node else "Object",
+                is_final=True,
+                line=param.location.line,
+            )
+        )
     return result
 
 
@@ -216,13 +220,15 @@ def _parse_fields(node: JavaNode) -> list[FieldSymbol]:
     for declarator in node.find_all("variable_declarator"):
         name_node = declarator.child_by_field("name")
         if name_node:
-            result.append(FieldSymbol(
-                name=name_node.text,
-                java_type=java_type,
-                is_static="static" in modifiers_text,
-                is_final="final" in modifiers_text,
-                line=node.location.line,
-            ))
+            result.append(
+                FieldSymbol(
+                    name=name_node.text,
+                    java_type=java_type,
+                    is_static="static" in modifiers_text,
+                    is_final="final" in modifiers_text,
+                    line=node.location.line,
+                )
+            )
     return result
 
 

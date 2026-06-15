@@ -44,11 +44,7 @@ def write_translation_report(
 
 
 def render_translation_report(inputs: list[ReportInput], *, title: str) -> str:
-    avg_confidence = (
-        sum(item.confidence for item in inputs) / len(inputs)
-        if inputs
-        else 0.0
-    )
+    avg_confidence = sum(item.confidence for item in inputs) / len(inputs) if inputs else 0.0
     nav = "\n".join(_nav_item(index, item) for index, item in enumerate(inputs))
     sections = "\n".join(_file_section(index, item) for index, item in enumerate(inputs))
     return f"""<!doctype html>
@@ -82,8 +78,8 @@ def render_translation_report(inputs: list[ReportInput], *, title: str) -> str:
 def _nav_item(index: int, item: ReportInput) -> str:
     return (
         f'<a href="#file-{index}">'
-        f'<span>{escape(item.source_path.name)}</span>'
-        f'<strong>{item.confidence:.0%}</strong>'
+        f"<span>{escape(item.source_path.name)}</span>"
+        f"<strong>{item.confidence:.0%}</strong>"
         "</a>"
     )
 
@@ -106,11 +102,13 @@ def _file_section(index: int, item: ReportInput) -> str:
     </div>
     <div class="pane">
       <h3>Python</h3>
-      {_source_lines(
-          item.python_source,
-          provenance="llm" if item.used_llm else "rule",
-          diagnostics=item.diagnostics,
-      )}
+      {
+        _source_lines(
+            item.python_source,
+            provenance="llm" if item.used_llm else "rule",
+            diagnostics=item.diagnostics,
+        )
+    }
     </div>
   </div>
 </article>
@@ -139,9 +137,7 @@ def _line_html(
         classes.append("todo")
     detail = ""
     if is_todo:
-        line_diagnostics = [
-            item for item in diagnostics if item.startswith(f"line {number}:")
-        ]
+        line_diagnostics = [item for item in diagnostics if item.startswith(f"line {number}:")]
         reason = "<br>".join(escape(item) for item in line_diagnostics) or "TODO(j2py)"
         detail = f"<details><summary>TODO</summary><p>{reason}</p></details>"
     return (
