@@ -23,6 +23,12 @@ def _malformed_for_diagnostics(result) -> list:
     ]
 
 
+def _load_translated_class(source: str, class_name: str):
+    namespace: dict[str, object] = {}
+    exec(compile(source, "<translated>", "exec"), namespace)
+    return namespace[class_name]
+
+
 def test_classic_for_statement_translates_to_range_loop() -> None:
     python_source, coverage = translate_source(
         """
@@ -362,6 +368,209 @@ def test_switch_statement_with_fallthrough_to_default_translates() -> None:
     assert "TODO(j2py): switch fall-through requires manual translation" not in result.source
     assert "if value == 1:" in result.source
     assert "elif value not in (1):" in result.source
+    assert_valid_python(result.source)
+
+
+def test_empty_switch_statement_emits_pass_and_continues() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                }
+                return 7;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "pass" in result.source
+    assert "return 7" in result.source
+    assert_valid_python(result.source)
+    switch_cls = _load_translated_class(result.source, "Switches")
+    assert switch_cls().pick(1) == 7
+
+
+def test_switch_statement_default_only_uses_explicit_guard() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    default:
+                        return 4;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "if True:" in result.source
+    assert "return 4" in result.source
+    assert_valid_python(result.source)
+    switch_cls = _load_translated_class(result.source, "Switches")
+    assert switch_cls().pick(99) == 4
+
+
+def test_switch_statement_fallthrough_to_case_then_default_preserves_semantics() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                int result = 0;
+                switch (value) {
+                    case 1:
+                        result = 1;
+                    case 2:
+                        return result + 2;
+                    default:
+                        return result;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "if value == 1:" in result.source
+    assert "if value in (1, 2):" in result.source
+    assert "elif value not in (1, 2):" in result.source
+    assert_valid_python(result.source)
+    switch_cls = _load_translated_class(result.source, "Switches")
+    switch = switch_cls()
+    assert switch.pick(1) == 3
+    assert switch.pick(2) == 2
+    assert switch.pick(3) == 0
+
+
+def test_switch_statement_with_declaration_and_statement_block_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                        int local = value + 1;
+                        return local;
+                    default:
+                        return 0;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "if value == 1:" in result.source
+    assert "local = value + 1" in result.source
+    assert "return local" in result.source
+    assert "else:" in result.source
+    assert_valid_python(result.source)
+    switch_cls = _load_translated_class(result.source, "Switches")
+    switch = switch_cls()
+    assert switch.pick(1) == 2
+    assert switch.pick(2) == 0
+
+
+def test_switch_statement_arrow_rules_translate_expression_and_throw_bodies() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                int result = 0;
+                switch (value) {
+                    case 1 -> result = 10;
+                    default -> result = -1;
+                }
+                return result;
+            }
+
+            public int fail(int value) {
+                switch (value) {
+                    case 1 -> throw new IllegalArgumentException();
+                    default -> { return 0; }
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "if value == 1:" in result.source
+    assert "result = 10" in result.source
+    assert "raise ValueError()" in result.source
+    assert_valid_python(result.source)
+    switch_cls = _load_translated_class(result.source, "Switches")
+    switch = switch_cls()
+    assert switch.pick(1) == 10
+    assert switch.pick(2) == -1
+    assert switch.fail(2) == 0
+
+
+def test_switch_statement_default_before_final_case_reports_explicit_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                switch (value) {
+                    case 1:
+                        return 1;
+                    default:
+                        return 0;
+                    case 2:
+                        return 2;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert (
+        "TODO(j2py): switch default before final case requires manual translation"
+        in result.source
+    )
+    assert any(
+        item.reason == "switch default before final case requires manual translation"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_switch_statement_multiple_fallthrough_groups_report_explicit_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Switches {
+            public int pick(int value) {
+                int result = 0;
+                switch (value) {
+                    case 1:
+                        result += 1;
+                    case 2:
+                        result += 2;
+                    case 3:
+                        return result;
+                    default:
+                        return -1;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "TODO(j2py): switch fall-through requires manual translation" in result.source
+    assert any(
+        item.reason == "switch fall-through requires manual translation"
+        for item in result.diagnostics.unhandled
+    )
     assert_valid_python(result.source)
 
 
