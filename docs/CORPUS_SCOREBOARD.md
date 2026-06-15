@@ -86,6 +86,11 @@ export J2PY_CORPUS_ROOT=/path/to/j2py   # directory that contains .corpus/
 make corpus-commons-lang-dense-check
 ```
 
+CI uses the same clone layout inside the GitHub Actions workspace. Each dense baseline
+matrix job runs with `--clone`, so it creates or refreshes only the checkout needed for
+that preset under the job-local `.corpus/` directory. Local worktrees should continue to
+set `J2PY_CORPUS_ROOT` to avoid duplicating those external clones.
+
 ## Per-preset commands
 
 For presets with a **committed baseline** (`guava-dense`, `commons-lang-dense`,
@@ -182,32 +187,38 @@ pull the average coverage or below-threshold count toward zero.
 For translation-rule PRs:
 
 1. Run `make check` (required — no corpus clone needed).
-2. After `make corpus-clone-all`, run at least:
+2. After `make corpus-clone-all`, run the most relevant local dense checks before
+   pushing:
    - `make corpus-spring-dense-check` when constructs or broad rule-layer behavior may
      shift, and
    - one additional library preset relevant to the change (e.g.
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
-3. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
+3. Expect CI to enforce every committed dense baseline (`spring-dense`, `guava-dense`,
+   `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
+4. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
    updates.
-4. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
+5. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
    regressions in comparison mode.
 
 ## CI and `make check`
 
 The default `make check` gate does not clone external libraries or run the corpus
-harness; this keeps CI fast and deterministic.
+harness; this keeps the required unit/type/lint gate fast and deterministic.
 
-`.github/workflows/corpus.yml` runs two lightweight gates when translation or corpus
-files change:
+`.github/workflows/corpus.yml` runs when translator, corpus harness, or dependency files
+change:
 
-1. **`spring-dense` baseline comparison** — clones Spring and fails on regression against
-   the construct-mix dense preset (historical CI anchor).
+1. **Dense baseline matrix** — clones the checkout for each committed dense preset and
+   fails on regression for `spring-dense`, `guava-dense`, `commons-lang-dense`,
+   `jackson-dense`, and `caffeine-dense`.
 2. **`corpus-hotspots` scorecard** — reads committed `*-baseline.json` files only; no
    clones. Surfaces multi-library baseline drift and validates hotspot aggregation.
 
-We do **not** clone every library preset on each PR (clone time). Local rule-layer PRs
-should still run the additional `corpus-*-dense-check` preset relevant to the change.
+The dense matrix intentionally pays extra clone time on translation-related PRs so
+regressions across committed library baselines are visible before merge. Historical
+`spring-lexical` and exploratory `spring-broad` remain local/manual unless a PR
+intentionally refreshes those baselines.
 
 ## Known parser exclusions
 

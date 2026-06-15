@@ -8,6 +8,9 @@ on:
       - "scripts/corpus/**"
       - "tests/fixtures/corpus/**"
       - "tests/corpus/**"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/corpus.yml"
   push:
     branches: [main]
@@ -16,6 +19,9 @@ on:
       - "scripts/corpus/**"
       - "tests/fixtures/corpus/**"
       - "tests/corpus/**"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/corpus.yml"
   workflow_dispatch:
 
@@ -37,20 +43,29 @@ jobs:
       - name: Aggregate committed baseline scorecard and hotspots
         run: uv run python scripts/corpus/aggregate_hotspots.py --top 8
 
-  spring-dense-baseline:
-    name: Spring dense corpus baseline
+  dense-baseline:
+    name: ${{ matrix.preset }} corpus baseline
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - spring-dense
+          - guava-dense
+          - commons-lang-dense
+          - jackson-dense
+          - caffeine-dense
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
         with:
           python-version: "3.11"
       - run: uv sync --locked --extra dev
-      - name: Compare spring-dense + construct sample against committed baseline
+      - name: Compare ${{ matrix.preset }} against committed baseline
         run: >
           uv run python scripts/corpus/translate_spring_sample.py
           --clone
-          --preset spring-dense
+          --preset ${{ matrix.preset }}
           --compare-baseline
           --fail-on-regression
