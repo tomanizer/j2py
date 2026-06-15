@@ -11,25 +11,30 @@ Known bugs tracked by xfail(strict=True) below:
   Bug 2 (FIXED in #216): ``RuntimeException`` catch was mapped to ``RuntimeError``
       instead of ``Exception``.  The structural test below asserts the fix holds.
 
-Stubs needed once Bug 1 is fixed
----------------------------------
-The class body (at definition time) calls ``Long.value_of(0)``,
-``Short.value_of(...)``, ``Byte.value_of(...)``, ``Double.value_of(0.0)``,
-``Float.value_of(0.0)`` — all imported as ``from org.apache.commons.lang3.math.*``.
-``install_java_lang_stubs()`` must be added to harness.py before the module can
-be loaded and behavioral tests can activate.
+Class-body stubs
+----------------
+The module-scoped ``_java_lang_stubs`` fixture (autouse) installs identity stubs
+for the boxed-type classes the class body references at definition time
+(``Long.value_of``, ``Short.value_of``, ..., ``Integer.min_value``).  Once Bug 1 is
+fixed the behavioral tests can be activated by removing their xfail decorators; the
+stubs will already be in place.
 
-Additionally ``to_float`` translates ``Float.parseFloat(str)`` as
-``Float.parse_float(str_)`` and ``to_byte``/``to_short`` similarly — the stub for
-those types must implement ``parse_float``/``parse_byte``/``parse_short`` as
-``float(x)`` / ``int(x)`` respectively, or the rule layer must map them directly.
+``to_float`` / ``to_byte`` / ``to_short`` each delegate to ``Float.parse_float``,
+``Byte.parse_byte``, ``Short.parse_short`` — the stubs implement these as
+``float(x)`` / ``int(x)`` so they are semantically correct.
 """
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
-from tests.equivalence.harness import load_translated_module, translate_rule_layer
+from tests.equivalence.harness import (
+    install_java_lang_stubs,
+    load_translated_module,
+    translate_rule_layer,
+)
 
 JAVA_CLASS = "NumberUtils.java"
 
@@ -40,6 +45,15 @@ JAVA_CLASS = "NumberUtils.java"
 @pytest.fixture(scope="module")
 def number_utils_source() -> str:
     return translate_rule_layer(JAVA_CLASS)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _java_lang_stubs():
+    """Install Java boxed-type stubs once for the whole test module, then clean up."""
+    stub_modules = install_java_lang_stubs()
+    yield
+    for name in reversed(stub_modules):
+        sys.modules.pop(name, None)
 
 
 # ── Structural tests (always run) ─────────────────────────────────────────────
@@ -89,9 +103,11 @@ def test_module_compiles(number_utils_source: str) -> None:
 # ── Behavioral tests — adapted from upstream NumberUtilsTest.java ──────────────
 #
 # All tests below are xfailed because ``load_translated_module`` raises SyntaxError
-# at the ``compile()`` step (Bug 1).  Remove xfail once:
-#   1. Bug 1 (SyntaxError) is fixed
-#   2. install_java_lang_stubs() is added to harness.py and called in the fixture
+# at the ``compile()`` step (Bug 1).
+#
+# To activate: fix Bug 1, then remove the xfail decorators.  The ``_java_lang_stubs``
+# autouse fixture already installs all required stubs, so no further harness changes
+# are needed.
 #
 # Literal-oracle source: NumberUtilsTest.java lines 1681–1721 (toInt, toLong)
 # and lines 1586–1616 (toDouble).  Expression-oracle assertions (MAX_VALUE etc.)
@@ -99,10 +115,7 @@ def test_module_compiles(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason="Bug 1 (SyntaxError) blocks module loading; also needs class-body stubs",
-)
+@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_int_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toInt")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
@@ -119,17 +132,14 @@ def test_to_int_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason="Bug 1 (SyntaxError) blocks module loading; also needs class-body stubs",
-)
+@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_long_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toLong")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
     # from NumberUtilsTest.java lines 1703–1710
     assert NumberUtils.to_long("12345") == 12345
     assert NumberUtils.to_long("abc") == 0
-    assert NumberUtils.to_long("1L") == 0   # Java suffix — not a valid int literal
+    assert NumberUtils.to_long("1L") == 0   # Java long suffix — not a valid int literal
     assert NumberUtils.to_long("1l") == 0
     assert NumberUtils.to_long("") == 0
     assert NumberUtils.to_long(None) == 0
@@ -141,10 +151,7 @@ def test_to_long_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason="Bug 1 (SyntaxError) blocks module loading; also needs class-body stubs",
-)
+@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_double_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toDouble")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
