@@ -923,23 +923,31 @@ def test_common_spring_expression_shapes_translate() -> None:
 
 
 def test_static_utility_contains_not_lowered_to_in() -> None:
-    """2-arg static-utility contains (e.g. StringUtils.contains(s, sub)) must NOT
-    be lowered to the `in` operator — that rule is only safe for the 1-arg
-    instance case (collection.contains(element)).  Regression for the bug where
-    StringUtils.contains(str, '.') was emitted as `str_, "." in StringUtils`
-    (a SyntaxError in Python 3.12+)."""
+    """contains lowering to `in` must be skipped for static utility receivers and super.
+
+    Safe case:  collection.contains(element)  →  element in collection
+    Unsafe cases (all would raise TypeError at runtime):
+      - 2-arg static: StringUtils.contains(s, sub)  — class is not iterable
+      - 1-arg static: MyUtils.contains(s)            — class is not iterable
+      - super:        super.contains(x)              — super is not iterable
+    """
     python_source, _ = translate_source(
         """
         public class Util {
-            public static boolean hexLike(String s) {
+            public static boolean twoArgStatic(String s) {
                 return StringUtils.contains(s, '.');
+            }
+            public static boolean oneArgStatic(String s) {
+                return MyUtils.contains(s);
             }
         }
         """
     )
-    # Receiver is snake-cased by the rule layer (StringUtils → string_utils)
+    # Receiver is snake-cased (StringUtils → string_utils, MyUtils → my_utils)
     assert "string_utils.contains(" in python_source
     assert "in string_utils" not in python_source
+    assert "my_utils.contains(" in python_source
+    assert "in my_utils" not in python_source
     assert_valid_python(python_source)
 
 
