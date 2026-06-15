@@ -3,7 +3,7 @@
 Status: **Active — Phase 1 (partial)** (decision recorded in [ADR 0014](decisions/0014-equivalence-differential-testing.md)).
 
 **What is running now.** `tests/equivalence/` is live and runs in `make check` (no JDK, no
-LLM). The current surface is Commons-Lang `CharUtils`: 1 622 literal-oracle assertions
+LLM). The current surface is Commons-Lang `CharUtils`: 1,622 literal-oracle assertions
 covering all non-overloaded static predicates (`isAscii*`, `compare`, constants) with
 exhaustive [0, 196) range sweeps ported from upstream `CharUtilsTest.java`. The harness
 infrastructure lives in `tests/equivalence/harness.py` (translate → load → stub).
@@ -145,7 +145,7 @@ math**.
 **Done:**
 - ✅ Harness infrastructure (`tests/equivalence/harness.py`): `translate_rule_layer`,
   `load_translated_module`, `install_array_utils_stub_package`
-- ✅ `CharUtils` fixture + 1 622 literal-oracle assertions running in `make check`
+- ✅ `CharUtils` fixture + 1,622 literal-oracle assertions running in `make check`
 - ✅ `equivalence` pytest marker registered and excluded from `behavior`/`live_llm` filter
 
 **Remaining:**
