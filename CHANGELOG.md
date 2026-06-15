@@ -7,6 +7,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Changed
+- Documentation reframes the benchmark corpus as a multi-library measurement harness
+  (Guava, Commons Lang, Jackson, Caffeine, Spring, and construct fixtures) instead of
+  centering Spring Framework as the primary scoreboard (#201).
+
 ### Added
 - YAML/TOML/`pyproject.toml` configuration loading with strict schema validation,
   helpful unknown-key suggestions, and documented config schema (#125).
