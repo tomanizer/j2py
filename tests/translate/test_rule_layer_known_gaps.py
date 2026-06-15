@@ -221,6 +221,21 @@ def test_AmbiguousGetProbe_fixture_translates_without_unhandled_diagnostics() ->
     assert "__j2py_todo__" not in result.source
 
 
+def test_ApiGetReceivers_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "ApiGetReceivers.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return self.byte_buffer.get(index)" in result.source
+    assert "return self.counts.get(index)" in result.source
+    assert "return values.get(index)" in result.source
+    assert "byte_buffer[index]" not in result.source
+    assert "ambiguous get invocation requires receiver collection type" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------
