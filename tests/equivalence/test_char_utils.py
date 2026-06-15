@@ -18,7 +18,7 @@ import sys
 import pytest
 
 from tests.equivalence.harness import (
-    array_utils_stub,
+    install_array_utils_stub_package,
     load_translated_module,
     translate_rule_layer,
 )
@@ -33,15 +33,14 @@ def char_utils_source() -> str:
 
 @pytest.fixture(scope="module")
 def char_utils(char_utils_source: str):
-    # ArrayUtils.setAll is referenced but unimported (bug #188); stub it so the class
-    # body (a static cache initializer) can run and the methods become callable.
-    module = load_translated_module(
-        char_utils_source,
-        "char_utils_fixture",
-        {"array_utils": array_utils_stub()},
-    )
+    # Stub ArrayUtils so the class body static cache initializer can run and
+    # the pure CharUtils methods under test become callable.
+    stub_modules = install_array_utils_stub_package()
+    module = load_translated_module(char_utils_source, "char_utils_fixture")
     yield module.CharUtils
     sys.modules.pop("char_utils_fixture", None)
+    for name in reversed(stub_modules):
+        sys.modules.pop(name, None)
 
 
 # --- Correctly translated, non-overloaded methods: these must pass. ---------------
@@ -72,14 +71,7 @@ def test_is_ascii_alpha(char_utils, ch, expected):
     assert char_utils.is_ascii_alpha(ch) is expected
 
 
-# --- Known divergences, tracked as strict xfails. --------------------------------
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="#188: external class ArrayUtils emitted as bare lowercased identifier, unimported",
-)
 def test_class_reference_qualified(char_utils_source: str):
-    # When #188 is fixed the class name is retained/qualified instead of being
-    # snake-cased into a bare module-style reference with no import.
+    assert "from org.apache.commons.lang3.ArrayUtils import ArrayUtils" in char_utils_source
+    assert "ArrayUtils.set_all" in char_utils_source
     assert "array_utils.set_all" not in char_utils_source

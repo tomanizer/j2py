@@ -64,4 +64,71 @@ def test_custom_import_map_and_naming_flags_are_respected() -> None:
     assert_valid_python(python_source)
 
 
+def test_imported_class_references_keep_class_name_and_emit_import() -> None:
+    python_source, coverage = translate_source(
+        """
+        import com.example.ExternalThing;
+
+        public class UsesExternal {
+            public Object make() {
+                return ExternalThing.create();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "from com.example.ExternalThing import ExternalThing" in python_source
+    assert "return ExternalThing.create()" in python_source
+    assert "external_thing.create()" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_same_package_class_references_emit_import_without_importing_static_fields() -> None:
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        public class UsesPeer {
+            private static final String[] VALUES = new String[1];
+
+            static {
+                Peer.fill(VALUES);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "from com.example.Peer import Peer" in python_source
+    assert "from com.example.VALUES import VALUES" not in python_source
+    assert "Peer.fill(values)" in python_source
+    assert "peer.fill" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_imported_class_references_use_configured_import_binding() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "import_map": {**CFG.import_map, "com.example.ExternalThing": "from ext import Thing"},
+        },
+    )
+    python_source, coverage = translate_source(
+        """
+        import com.example.ExternalThing;
+
+        public class UsesExternal {
+            public Object make() {
+                return ExternalThing.create();
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert coverage == 1.0
+    assert "from ext import Thing" in python_source
+    assert "return Thing.create()" in python_source
+    assert "ExternalThing.create()" not in python_source
+    assert_valid_python(python_source)
 
