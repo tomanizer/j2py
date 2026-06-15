@@ -1,6 +1,19 @@
 # Equivalence testing — design and phased plan
 
-Status: **Design** (decision recorded in [ADR 0014](decisions/0014-equivalence-differential-testing.md)).
+Status: **Active — Phase 1 (partial)** (decision recorded in [ADR 0014](decisions/0014-equivalence-differential-testing.md)).
+
+**What is running now.** `tests/equivalence/` is live and runs in `make check` (no JDK, no
+LLM). The current surface is Commons-Lang `CharUtils`: 1,622 literal-oracle assertions
+covering all non-overloaded static predicates (`isAscii*`, `compare`, constants) with
+exhaustive [0, 196) range sweeps ported from upstream `CharUtilsTest.java`. The harness
+infrastructure lives in `tests/equivalence/harness.py` (translate → load → stub).
+Overloaded methods are explicitly excluded (same-arity Java `char`/`Character` overloads
+both erase to Python `str`, making dispatch ambiguous at the rule layer). Run alone with:
+
+```bash
+make test-equivalence         # just the equivalence gate
+make check                    # includes equivalence (along with all other tests)
+```
 
 This document describes how j2py verifies that translated Python is **behaviourally
 equivalent** to the original Java, at scale, on real libraries — closing the gap left by
@@ -128,12 +141,20 @@ coverage=1.0 class is unimportable until its cross-class dependencies are resolv
 that Guava's math tests are mostly expression-oracle (`BigInteger` cross-checks), so
 **Commons-Lang `CharUtils`/`NumberUtils`/`StringUtils` are better first targets than Guava
 math**.
-- **Build the dependency resolver/stubber first** — without it nothing imports.
-- Build the trusted JUnit→pytest shim and its independent unit tests.
-- Emit the correspondence manifest from the translator.
-- Harvest literal-oracle unit tests for the target classes; run translated tests against
-  translated code.
-- Stand up the comparator's first normalization rules (numeric, exceptions).
+
+**Done:**
+- ✅ Harness infrastructure (`tests/equivalence/harness.py`): `translate_rule_layer`,
+  `load_translated_module`, `install_array_utils_stub_package`
+- ✅ `CharUtils` fixture + 1,622 literal-oracle assertions running in `make check`
+- ✅ `equivalence` pytest marker registered and excluded from `behavior`/`live_llm` filter
+
+**Remaining:**
+- Generalize the dependency stubber (`install_array_utils_stub_package` is currently
+  hardcoded for CharUtils; needs a generic `stub_package(fqn, attrs)` before adding
+  fixtures with different dependencies)
+- Add second fixture: `NumberUtils` (pure static math, no external dependencies)
+- Stand up the comparator's first normalization rules (numeric overflow, exceptions)
+- Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
 - **Exit criterion:** the divergences already found by hand in §8 (bare static-call
   `NameError`, overload-dispatch stub) — plus the Guava precedence bug and the 5 tracked
   xfails — are caught by this gate automatically, not just the toy corpus.

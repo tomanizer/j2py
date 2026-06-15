@@ -122,6 +122,9 @@ Before approving or merging a PR, verify:
    via `diagnostics.semantic_warning_count` and do not reduce coverage
 7. **Rule-layer helpers stay focused** — keep translation functions stateless where
    possible and use diagnostics when a rule cannot preserve Java semantics
+8. **Equivalence gate still passes** — `tests/equivalence/` literal-oracle tests run in
+   `make check` (no JDK, no LLM). Rule-layer changes affecting a tested method must not
+   introduce new failures; use `make test-equivalence` to run the gate in isolation
 
 ## Writing new ADRs
 

@@ -83,6 +83,21 @@ target check, or move the behavior into the normal fixture suite. See
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
 
+### Equivalence tests
+
+`tests/equivalence/` holds literal-oracle assertions ported from upstream Java unit tests
+and run against the rule-layer-only translation of vendored Java fixture classes. These
+run automatically in `make check` (no JDK, no LLM needed). To run only the equivalence
+gate:
+
+```bash
+make test-equivalence
+```
+
+New rule-layer changes that affect a tested method should not introduce new failures here.
+See [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md) for the design and phase
+plan, and `tests/equivalence/harness.py` for the translate-and-load infrastructure.
+
 For real-corpus progress checks on translation-rule PRs, run `make corpus-clone-all` once,
 then compare against committed baselines. At minimum:
 
