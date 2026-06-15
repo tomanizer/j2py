@@ -1,6 +1,6 @@
 package com.example;
 
-/** Tiny fixture: multidimensional array creation leaves a rule-layer placeholder. */
+/** Tiny fixture: multidimensional array creation translates deterministically. */
 public class MultiDimArray {
 
     public int[][] create(int rows, int cols) {

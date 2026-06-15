@@ -24,7 +24,10 @@ PARTIAL_FIXTURE = FIXTURES / "java" / "PartialUnsupported.java"
 PARTIAL_LLM_OUTPUT = """\
 class PartialUnsupported:
     def matrix(self, rows: int, cols: int) -> list[list[int]]:
-        return []
+        return [[0] * cols for _ in range(rows)]
+
+    def check(self, value: int) -> None:
+        return
 """
 
 
@@ -49,7 +52,8 @@ def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
     assert result.diagnostics is not None
     assert result.diagnostics.unhandled
     assert result.validation is not None
-    assert "__j2py_todo__('new int[rows][cols]')" in result.python_source
+    assert "return [[0] * cols for _ in range(rows)]" in result.python_source
+    assert "# TODO(j2py): unsupported labeled_statement" in result.python_source
     ast.parse(result.python_source)
 
 
@@ -135,9 +139,10 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         provider: str,
     ) -> str:
         assert "public class PartialUnsupported" in java_source
-        assert "__j2py_todo__('new int[rows][cols]')" in partial_python
+        assert "return [[0] * cols for _ in range(rows)]" in partial_python
+        assert "# TODO(j2py): unsupported labeled_statement" in partial_python
         assert "package: com.example" in context
-        assert "array_creation_expression" in diagnostics
+        assert "labeled_statement" in diagnostics
         assert validation_feedback == ""
         assert previous_python == ""
         assert config_fingerprint
@@ -434,7 +439,7 @@ def test_translate_file_retries_llm_once_with_structural_feedback(monkeypatch, t
         """
         package com.example;
         public class DroppedMethod {
-            public int first() { return 1; }
+            public int first() { done: return 1; }
             public int second() { return 2; }
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
@@ -494,7 +499,7 @@ def test_translate_file_records_structural_failure_when_retry_still_drops_method
         """
         package com.example;
         public class DroppedMethod {
-            public int first() { return 1; }
+            public int first() { done: return 1; }
             public int second() { return 2; }
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
@@ -773,6 +778,7 @@ def test_translate_directory_passes_direct_sibling_signatures_to_llm(
             }
 
             public int[][] matrix(int rows, int cols) {
+                ready:
                 return new int[rows][cols];
             }
         }

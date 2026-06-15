@@ -46,23 +46,20 @@ def test_pipeline_invokes_llm_for_unhandled_constructs(tmp_path: Path) -> None:
     """translate_file with use_llm=True calls translate_with_llm when coverage < 1.0."""
     java = """\
 public class Probe {
-    public int[][] matrix(int rows, int cols) {
-        return new int[rows][cols];
+    public int value() {
+        done:
+        return 1;
     }
 }
 """
     path = _write_java(tmp_path, java)
 
-    cassette = (
-        "class Probe:\n"
-        "    def matrix(self, rows: int, cols: int) -> list[list[int]]:\n"
-        "        return [[0] * cols for _ in range(rows)]\n"
-    )
+    cassette = "class Probe:\n    def value(self) -> int:\n        return 1\n"
 
     with patch("j2py.llm.client.translate_with_llm", return_value=cassette) as mock_llm:
         result = translate_file(path, cfg=CFG, use_llm=True, validate=False)
 
-    assert result.used_llm, "LLM should have been invoked for array_creation_expression"
+    assert result.used_llm, "LLM should have been invoked for labeled_statement"
     mock_llm.assert_called_once()
     assert result.python_source == cassette
 
@@ -71,8 +68,9 @@ def test_pipeline_passes_skeleton_to_llm(tmp_path: Path) -> None:
     """translate_with_llm receives the rule-layer skeleton and diagnostics."""
     java = """\
 public class Matrix {
-    public int[][] matrix(int rows, int cols) {
-        return new int[rows][cols];
+    public int value() {
+        done:
+        return 1;
     }
 }
 """
@@ -81,11 +79,7 @@ public class Matrix {
 
     def capture(**kwargs: str) -> str:
         captured.update(kwargs)
-        return (
-            "class Matrix:\n"
-            "    def matrix(self, rows: int, cols: int) -> list[list[int]]:\n"
-            "        return [[0] * cols for _ in range(rows)]\n"
-        )
+        return "class Matrix:\n    def value(self) -> int:\n        return 1\n"
 
     with patch("j2py.llm.client.translate_with_llm", side_effect=capture):
         translate_file(path, cfg=CFG, use_llm=True, validate=False)
@@ -93,8 +87,8 @@ public class Matrix {
     assert "partial_python" in captured
     assert "Matrix" in captured["partial_python"], "skeleton should contain the class name"
     assert "diagnostics" in captured
-    assert "array_creation_expression" in captured["diagnostics"], (
-        "diagnostics should mention the unhandled array creation construct"
+    assert "labeled_statement" in captured["diagnostics"], (
+        "diagnostics should mention the unhandled labeled statement construct"
     )
 
 
@@ -176,8 +170,9 @@ def test_skeleton_keeps_user_add_method_call() -> None:
 def test_diagnostics_report_coverage_below_one_for_unhandled_construct() -> None:
     result = translate_source_with_diagnostics("""
     public class Unsup {
-        public int[][] matrix(int rows, int cols) {
-            return new int[rows][cols];
+        public int value() {
+            done:
+            return 1;
         }
     }
     """)

@@ -881,24 +881,51 @@ def test_sized_array_creation_uses_java_default_values() -> None:
     assert_valid_python(python_source)
 
 
-def test_multidimensional_array_creation_keeps_honest_diagnostic() -> None:
+def test_multidimensional_array_creation_uses_nested_allocations() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Arrays {
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
             }
+
+            public boolean[][] flags(int rows, int cols) {
+                return new boolean[rows][cols];
+            }
+
+            public int[][][] cube(int planes, int rows, int cols) {
+                return new int[planes][rows][cols];
+            }
+
+            public String[][] names(int rows, int cols) {
+                return new String[rows][cols];
+            }
         }
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "__j2py_todo__('new int[rows][cols]')" in result.source
-    assert "from j2py_runtime import __j2py_todo__" in result.source
-    assert [diagnostic.reason for diagnostic in result.diagnostics.unhandled] == [
-        "multidimensional array creation requires nested allocation handling"
-    ]
+    assert result.coverage == 1.0
+    assert "return [[0] * cols for _ in range(rows)]" in result.source
+    assert "return [[False] * cols for _ in range(rows)]" in result.source
+    assert "return [[[0] * cols for _ in range(rows)] for _ in range(planes)]" in (result.source)
+    assert "return [[None] * cols for _ in range(rows)]" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    instance = namespace["Arrays"]()
+    matrix = instance.matrix(2, 3)
+    cube = instance.cube(2, 2, 3)
+    assert matrix == [[0, 0, 0], [0, 0, 0]]
+    assert matrix[0] is not matrix[1]
+    assert cube == [
+        [[0, 0, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, 0, 0]],
+    ]
+    assert cube[0] is not cube[1]
+    assert cube[0][0] is not cube[0][1]
 
 
 def test_common_spring_expression_shapes_translate() -> None:
@@ -1995,7 +2022,7 @@ def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
     assert_valid_python(python_source)
 
 
-def test_partial_translation_reports_structured_diagnostics() -> None:
+def test_multidimensional_array_creation_reports_full_coverage() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Arrays {
@@ -2006,15 +2033,29 @@ def test_partial_translation_reports_structured_diagnostics() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert result.diagnostics.unhandled
-    diagnostic = result.diagnostics.unhandled[0]
-    assert diagnostic.node_type == "array_creation_expression"
-    assert diagnostic.line == 4
-    assert diagnostic.text == "new int[rows][cols]"
-    assert (
-        diagnostic.reason == "multidimensional array creation requires nested allocation handling"
+    assert result.coverage == 1.0
+    assert result.source.count("__j2py_todo__") == 0
+    assert result.source.count("[[0] * cols for _ in range(rows)]") == 1
+    assert not result.diagnostics.unhandled
+
+
+def test_partially_unsized_array_creation_stays_unsupported() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Arrays {
+            public int[][] jagged(int rows) {
+                return new int[rows][];
+            }
+        }
+        """,
     )
+
+    assert result.coverage < 1.0
+    assert "__j2py_todo__('new int[rows][]')" in result.source
+    assert result.diagnostics.unhandled[0].reason == (
+        "array creation with unsized dimensions requires allocation handling"
+    )
+    assert_valid_python(result.source)
 
 
 def test_interface_default_and_static_methods_translate_to_protocol_bodies() -> None:
