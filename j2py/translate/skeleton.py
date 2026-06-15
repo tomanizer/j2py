@@ -12,7 +12,7 @@ from j2py.translate.class_fields import (
     _collect_declared_type_java_fields,
 )
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
-from j2py.translate.classes import translate_class
+from j2py.translate.classes import collect_file_class_static_methods, translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.translate.rules.static_imports import (
@@ -58,6 +58,7 @@ def translate_skeleton_with_diagnostics(
     )
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
+    file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
     for class_node in parsed.root.named_children:
@@ -78,6 +79,7 @@ def translate_skeleton_with_diagnostics(
                 docstring_lines=pending_docstring,
                 inherited_declared_type_fields=module_declared_type_fields,
                 inherited_declared_type_java_fields=module_declared_type_java_fields,
+                file_class_static_methods=file_class_static_methods,
             )
         )
         pending_docstring = None

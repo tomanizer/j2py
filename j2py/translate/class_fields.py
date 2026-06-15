@@ -181,6 +181,9 @@ def _translate_fields(
     *,
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
+    class_static_methods: set[str] | None = None,
+    containing_class_name: str | None = None,
+    enclosing_static_dispatch: dict[str, str] | None = None,
 ) -> tuple[list[str], list[str]]:
     body = class_node.child_by_field("body")
     if body is None:
@@ -198,6 +201,9 @@ def _translate_fields(
         class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
         declared_type_java_fields=type_java_fields,
+        class_static_methods=class_static_methods or set(),
+        containing_class_name=containing_class_name,
+        enclosing_static_dispatch=enclosing_static_dispatch or {},
         allow_local_helpers=True,
     )
     instance_ctx = TranslationContext(
@@ -208,6 +214,9 @@ def _translate_fields(
         class_field_java_types=_class_field_java_types(fields),
         declared_type_fields=type_fields,
         declared_type_java_fields=type_java_fields,
+        class_static_methods=class_static_methods or set(),
+        containing_class_name=containing_class_name,
+        enclosing_static_dispatch=enclosing_static_dispatch or {},
         in_instance_method=True,
         allow_local_helpers=True,
     )

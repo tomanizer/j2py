@@ -289,6 +289,77 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
     assert_valid_python(result.source)
 
 
+def test_receiverless_static_sibling_method_calls_are_class_qualified() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CharChecks {
+            public static boolean isAlpha(char ch) {
+                return isAlphaUpper(ch) || isAlphaLower(ch);
+            }
+
+            public static boolean isAlphaUpper(char ch) {
+                return ch >= 'A' && ch <= 'Z';
+            }
+
+            public static boolean isAlphaLower(char ch) {
+                return ch >= 'a' && ch <= 'z';
+            }
+        }
+        """,
+    )
+
+    assert "return CharChecks.is_alpha_upper(ch) or CharChecks.is_alpha_lower(ch)" in (
+        result.source
+    )
+    assert "return is_alpha_upper(ch) or is_alpha_lower(ch)" not in result.source
+    assert result.coverage == 1.0
+    assert_valid_python(result.source)
+
+
+def test_receiverless_static_calls_qualify_enclosing_class_from_nested_type() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Outer {
+            public static int base(int value) {
+                return value + 1;
+            }
+
+            public static class Inner {
+                public static int run(int value) {
+                    return base(value);
+                }
+            }
+        }
+        """,
+    )
+
+    assert "return Outer.base(value)" in result.source
+    assert "return base(value)" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_receiverless_static_calls_qualify_inherited_methods() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Base {
+            public static int bump(int value) {
+                return value + 1;
+            }
+        }
+
+        public class Child extends Base {
+            public static int run(int value) {
+                return bump(value);
+            }
+        }
+        """,
+    )
+
+    assert "return Base.bump(value)" in result.source
+    assert "return bump(value)" not in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [

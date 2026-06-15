@@ -29,6 +29,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ### Fixed
 - Auto-discovery now ignores executable `j2py_config.py` files; Python config remains
   available only through explicit trusted `--config j2py_config.py` use (#180).
+- Receiverless calls from static methods to sibling static methods now emit
+  class-qualified calls instead of bare function names, avoiding runtime `NameError`
+  in utility classes (#187).
 - LLM-enabled directory translation now avoids per-file ruff/mypy prevalidation for
   full-coverage rule-layer outputs, relying on syntax-only routing plus batched final
   validation instead (#181).

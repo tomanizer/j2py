@@ -96,6 +96,8 @@ def translate_class(
     docstring_lines: list[str] | None = None,
     outer_self_alias: str | None = None,
     requires_outer_self: bool = False,
+    file_class_static_methods: dict[str, set[str]] | None = None,
+    enclosing_static_dispatch: dict[str, str] | None = None,
 ) -> list[str]:
     if node.type == "interface_declaration":
         return _translate_interface(
@@ -187,7 +189,17 @@ def translate_class(
         ]
     )
     class_method_names = _member_method_names(members, cfg)
+    class_static_method_names = _member_static_method_names(members, cfg)
     class_method_return_types = _class_method_return_types(members, cfg)
+    enclosing_dispatch = dict(enclosing_static_dispatch or {})
+    enclosing_dispatch.update(
+        _inherited_static_dispatch(node, file_class_static_methods or {}, cfg)
+    )
+    nested_enclosing_dispatch = _enclosing_static_dispatch_for_nested_types(
+        class_name=class_name,
+        class_static_methods=class_static_method_names,
+        enclosing_static_dispatch=enclosing_dispatch,
+    )
     class_state = ClassTranslationState(needs_instance_lock=class_uses_synchronized_this(node))
     if class_state.needs_instance_lock:
         diagnostics.imports.need_threading()
@@ -210,6 +222,9 @@ def translate_class(
         diagnostics,
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
+        class_static_methods=class_static_method_names,
+        containing_class_name=class_name,
+        enclosing_static_dispatch=enclosing_dispatch,
     )
     direct_nested_type_names = set() if body is None else _direct_nested_type_names(body)
     nested_outer_capture_names = _nested_type_names_using_qualified_this(body)
@@ -224,6 +239,8 @@ def translate_class(
         static_field_aliases=static_field_aliases or {},
         static_method_imports=static_method_imports or {},
         outer_capture_names=nested_outer_capture_names,
+        file_class_static_methods=file_class_static_methods,
+        enclosing_static_dispatch=nested_enclosing_dispatch,
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
@@ -277,6 +294,7 @@ def translate_class(
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
                     class_methods=class_method_names,
+                    class_static_methods=class_static_method_names,
                     class_method_return_types=class_method_return_types,
                     static_field_aliases=static_field_aliases or {},
                     static_method_imports=static_method_imports or {},
@@ -289,6 +307,7 @@ def translate_class(
                     docstring_lines=_docstring_for_group(group, member_docstrings),
                     inner_class_names_requiring_outer=nested_outer_capture_names,
                     nested_class_names=direct_nested_type_names,
+                    enclosing_static_dispatch=enclosing_dispatch,
                 ),
             )
             continue
@@ -303,6 +322,7 @@ def translate_class(
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
             class_methods=class_method_names,
+            class_static_methods=class_static_method_names,
             class_method_return_types=class_method_return_types,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
@@ -312,6 +332,7 @@ def translate_class(
             inner_class_names_requiring_outer=nested_outer_capture_names,
             containing_class_name=class_name,
             nested_class_names=direct_nested_type_names,
+            enclosing_static_dispatch=enclosing_dispatch,
         )
         pre_body_lines = (
             lock_init_lines + instance_init_lines
@@ -353,6 +374,7 @@ def _translate_interface(
         else [child for child in body.named_children if child.type == "method_declaration"]
     )
     class_method_names = _member_method_names(methods, cfg)
+    class_static_method_names = _member_static_method_names(methods, cfg)
     class_method_return_types = _class_method_return_types(methods, cfg)
     nested_type_lines = _nested_type_lines(
         body,
@@ -402,9 +424,11 @@ def _translate_interface(
                 class_field_types={},
                 class_field_java_types={},
                 class_methods=class_method_names,
+                class_static_methods=class_static_method_names,
                 class_method_return_types=class_method_return_types,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                containing_class_name=class_name,
                 allow_local_helpers=True,
             )
             lines.extend(_translate_method(method, ctx, supported_reason=reason))
@@ -464,6 +488,9 @@ def _translate_enum(
         for child in declaration.named_children
         if child.type in {"constructor_declaration", "method_declaration"}
     ]
+    class_method_names = _member_method_names(members, cfg)
+    class_static_method_names = _member_static_method_names(members, cfg)
+    class_method_return_types = _class_method_return_types(members, cfg)
 
     interfaces = _enum_interface_names(node)
     lines = [f"class {class_name}(Enum):"]
@@ -547,6 +574,9 @@ def _translate_enum(
                     class_field_java_types=class_field_java_types,
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
+                    class_methods=class_method_names,
+                    class_static_methods=class_static_method_names,
+                    class_method_return_types=class_method_return_types,
                     static_field_aliases=static_field_aliases,
                     static_method_imports=static_method_imports,
                     pre_body_lines=[],
@@ -585,8 +615,12 @@ def _translate_enum(
             class_field_java_types=class_field_java_types,
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
+            class_methods=class_method_names,
+            class_static_methods=class_static_method_names,
+            class_method_return_types=class_method_return_types,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            containing_class_name=class_name,
             allow_local_helpers=True,
         )
         lines.extend(_translate_method(group[0], ctx))
@@ -1175,6 +1209,8 @@ def _nested_type_lines(
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     outer_capture_names: set[str] | None = None,
+    file_class_static_methods: dict[str, set[str]] | None = None,
+    enclosing_static_dispatch: dict[str, str] | None = None,
 ) -> list[str]:
     if body is None:
         return []
@@ -1211,6 +1247,8 @@ def _nested_type_lines(
             requires_outer_self=(
                 _type_name(child) in capture_names and child.type == "class_declaration"
             ),
+            file_class_static_methods=file_class_static_methods,
+            enclosing_static_dispatch=enclosing_static_dispatch,
         )
         pending_docstring = None
         lines.extend(f"    {line}" if line else line for line in child_lines)
@@ -1324,6 +1362,85 @@ def _member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) ->
         translate_method_name(_raw_member_name(member), snake_case=cfg.snake_case_methods)
         for member in members
     }
+
+
+def _member_static_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
+    return {
+        translate_method_name(_raw_member_name(member), snake_case=cfg.snake_case_methods)
+        for member in members
+        if member.type == "method_declaration" and "static" in _modifiers(member)
+    }
+
+
+def collect_file_class_static_methods(
+    root: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, set[str]]:
+    """Map translated class name to static method names declared in that class."""
+    result: dict[str, set[str]] = {}
+
+    def visit_class(node: JavaNode) -> None:
+        if node.type != "class_declaration":
+            return
+        name_node = node.child_by_field("name")
+        if name_node is None:
+            return
+        py_name = translate_class_name(name_node.text)
+        body = node.child_by_field("body")
+        members = (
+            []
+            if body is None
+            else [
+                child
+                for child in body.named_children
+                if child.type in {"constructor_declaration", "method_declaration"}
+            ]
+        )
+        result[py_name] = _member_static_method_names(members, cfg)
+        if body is not None:
+            for child in body.named_children:
+                if child.type in TYPE_DECLARATION_NODES:
+                    visit_class(child)
+
+    for child in root.named_children:
+        if child.type in TYPE_DECLARATION_NODES:
+            visit_class(child)
+    return result
+
+
+def _superclass_simple_name(node: JavaNode) -> str | None:
+    superclass = node.child_by_field("superclass")
+    if superclass is None:
+        return None
+    type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
+    if type_node is None:
+        return None
+    return type_node.text.rsplit(".", 1)[-1]
+
+
+def _inherited_static_dispatch(
+    node: JavaNode,
+    file_class_static_methods: dict[str, set[str]],
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    super_simple = _superclass_simple_name(node)
+    if super_simple is None:
+        return {}
+    super_py = translate_class_name(super_simple)
+    methods = file_class_static_methods.get(super_py, set())
+    return {method: super_py for method in methods}
+
+
+def _enclosing_static_dispatch_for_nested_types(
+    *,
+    class_name: str,
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+) -> dict[str, str]:
+    dispatch = dict(enclosing_static_dispatch)
+    for method in class_static_methods:
+        dispatch[method] = class_name
+    return dispatch
 
 
 def _class_method_return_types(
@@ -1524,6 +1641,8 @@ def _translate_overloaded_members(
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
+    class_static_methods: set[str] | None = None,
+    enclosing_static_dispatch: dict[str, str] | None = None,
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
@@ -1546,6 +1665,8 @@ def _translate_overloaded_members(
         declared_type_fields=declared_type_fields,
         declared_type_java_fields=declared_type_java_fields,
         class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
         class_method_return_types=class_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
