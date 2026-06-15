@@ -14,7 +14,7 @@ tests/fixtures/behavior/<case_name>/main_class.txt  # optional entry-point overr
 ```
 
 Cases are **auto-discovered** by `tests/behavior/test_equivalence.py`: any directory under
-`tests/fixtures/behavior/` containing a `Main.java` becomes a parametrised case. Add a case
+`tests/fixtures/behavior/` containing a `Main.java` becomes a parameterized case. Add a case
 by dropping a directory — no test edit required. `scripts/corpus/gen_behavior_corpus.py`
 regenerates the curated set and documents the authoring contract.
 
