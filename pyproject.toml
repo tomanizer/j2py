@@ -131,3 +131,15 @@ markers = [
     "equivalence: runtime equivalence gate — rule-layer translation of a vendored real-library class run against literal-oracle assertions ported from its upstream unit tests. Runs in make check (no JDK, no LLM).",
     "live_llm: end-to-end exploratory tests that make live calls to the Anthropic API. These are excluded from normal test runs and make check. Run on demand with: ANTHROPIC_API_KEY=... pytest -m live_llm tests/llm/test_e2e_llm.py -v -s",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["j2py"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = false
+
+[tool.coverage.xml]
+output = "coverage.xml"
