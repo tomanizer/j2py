@@ -147,6 +147,8 @@ Java source file(s)
   preflight; disk-cached at `~/.cache/j2py/llm/`; cache keys include provider, prompt
   version, file hashes, model, config fingerprint, diagnostics, and validation feedback;
   3 retries with exponential back-off via `tenacity`
+- `harvest.py`: appends deterministic repair records to `.j2py/harvest/records.jsonl`
+  when the LLM runs; see [LLM_HARVEST.md](LLM_HARVEST.md)
 
 ### `verify/` — Structural verification
 - Runs after LLM completion and compares Java symbols with the returned Python AST
@@ -197,6 +199,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Equivalence verification (differential testing) | [ADR 0014](decisions/0014-equivalence-differential-testing.md) |
 | `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
 | Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
+| LLM harvest for rule-layer backlog | [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md), [LLM_HARVEST.md](LLM_HARVEST.md) |
 
 ## Quality measurement
 
@@ -209,6 +212,7 @@ codebases, but together they cover breadth, triage, and bounded correctness.
 | Multi-library corpus baselines | Rule-layer coverage, syntax validity, unhandled nodes on pinned library samples | `make corpus-<name>-check`, `make corpus-hotspots` |
 | Behavior equivalence | stdout/stderr/exit-code match on small hand-written programs | `make test-behavior` (JDK required) |
 | Harvested equivalence (phased) | Method-level Java-vs-Python differential tests with JVM-independent oracles | `tests/equivalence/` (see [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md)) |
+| LLM harvest log | Local backlog of LLM repairs for future rule-layer work | `make harvest-pipeline`, `make harvest-triage` (see [LLM_HARVEST.md](LLM_HARVEST.md)) |
 
 Corpus presets and baselines: [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md). CI runs a
 dense-baseline matrix for every committed dense preset plus a committed-baseline hotspot

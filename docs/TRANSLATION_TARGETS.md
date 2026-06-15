@@ -30,12 +30,12 @@ The suite has three lanes:
   `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`,
   `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check`.
 - **Future targets**: strict `xfail` contracts in `FUTURE_TARGETS` for unsupported
-  behavior that should become supported next. **Currently empty** — all curated
-  constructs are graduated as of 2026-06-13 (see `docs/decisions/AUDIT-2026-06-13.md`).
+  behavior that should become supported next. Promoted from LLM harvest triage where
+  the rule layer leaves explicit failure markers (`coverage < 1.0`).
 
 `FUTURE_TARGETS` is populated manually. There is no automation that turns GitHub issues,
-corpus hotspot rows, or audit findings into future targets. The person or agent triaging a
-concrete unsupported Java construct owns one of two outcomes:
+corpus hotspot rows, audit findings, or harvest records into future targets. The person
+or agent triaging a concrete unsupported Java construct owns one of two outcomes:
 
 - fix the gap immediately and add normal regression coverage, or
 - defer it by adding a strict `TranslationTarget` xfail before leaving the gap as backlog.
@@ -45,8 +45,14 @@ When a new construct gap is identified and deferred, add a fixture here and regi
 
 Current future corpus-construct backlog:
 
-- _(none — this is intentional while no deferred concrete construct gap has been selected;
-  add the next xfail target when triaging such a gap)_
+| Fixture | Tracking | Rule-layer gap |
+|---|---|---|
+| `tests/fixtures/llm/AssertProbe.java` | `llm-harvest-assert` | `assert_statement` → `# TODO(j2py): unsupported` |
+| `tests/fixtures/llm/MultiDimArray.java` | `llm-harvest-multi-dim-array` | `new int[rows][cols]` → `__j2py_todo__` |
+
+Harvest-only mypy-repair cases (e.g. `InterfaceDefaults`, overload dispatch) stay in
+`.j2py/harvest/records.jsonl` until the target contract includes a mypy bar or a
+deterministic fixture pair is added. See [LLM_HARVEST.md](LLM_HARVEST.md).
 
 Each future target case has:
 

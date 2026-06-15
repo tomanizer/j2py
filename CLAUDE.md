@@ -15,6 +15,7 @@ against the original Java class-by-class, method-by-method.
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product goals, user stories, non-goals, success criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
+| [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest backlog, triage, pruning, promotion to FUTURE_TARGETS |
 | [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch workflow, PR rules, commit style, changelog |
 

@@ -18,6 +18,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from j2py.dotenv import load_repo_dotenv
 from j2py.llm.prompts import PROMPT_VERSION, TextPromptBlock
 
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
@@ -59,6 +60,7 @@ class LLMTruncationError(RuntimeError):
 
 def get_client() -> anthropic.Anthropic:
     global _client
+    load_repo_dotenv()
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is required for LLM translation")
@@ -69,6 +71,7 @@ def get_client() -> anthropic.Anthropic:
 
 def get_gemini_client() -> GeminiClient:
     global _gemini_client
+    load_repo_dotenv()
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is required for Gemini LLM translation")

@@ -174,12 +174,16 @@ See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md),
 [docs/TRANSLATION_TARGETS.md](docs/TRANSLATION_TARGETS.md), and the full
 [documentation index](docs/README.md).
 
-On-demand live LLM evaluation (excluded from `make check`):
+On-demand live LLM evaluation and harvest (excluded from `make check`):
 
 ```bash
-make test-llm-e2e
-# or: ANTHROPIC_API_KEY=... uv run pytest -m live_llm tests/llm/test_e2e_llm.py -v -s
+make test-llm-e2e          # exploratory live probes
+make harvest-pipeline      # batch harvest → triage → target drafts → prune
+make harvest-triage        # summarize local .j2py/harvest/records.jsonl
 ```
+
+See [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) for the full harvest workflow and
+maintenance guide.
 
 ## Adding translation rules
 
