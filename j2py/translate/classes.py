@@ -46,7 +46,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
-from j2py.translate.name_resolution import NameResolver
+from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.statements import (
@@ -205,7 +205,15 @@ def translate_class(
     lock_init_lines = [instance_lock_init_line()] if class_state.needs_instance_lock else []
 
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
-    lines = [f"class {class_name}{base_suffix(node)}:"]
+    direct_nested_names = set() if body is None else direct_nested_type_names(body)
+    base_scope = NameScope(
+        containing_class_name=class_name,
+        nested_class_names=direct_nested_names,
+        snake_case_fields=cfg.snake_case_fields,
+    )
+    lines = [
+        f"class {class_name}{base_suffix(node, diagnostics, resolver=resolver, scope=base_scope)}:",
+    ]
     if docstring_lines:
         lines.extend(docstring_lines)
     lines.extend(metadata_lines)
@@ -223,7 +231,6 @@ def translate_class(
         enclosing_static_dispatch=enclosing_dispatch,
         name_resolver=resolver,
     )
-    direct_nested_names = set() if body is None else direct_nested_type_names(body)
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
 

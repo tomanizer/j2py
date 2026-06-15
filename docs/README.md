@@ -17,6 +17,7 @@
 | [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) | Multi-library corpus presets, baselines, hotspots |
 | [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design (Phase 1 active; CharUtils and NumberUtils literal-oracle gates) |
 | [BEHAVIOR_CORPUS.md](BEHAVIOR_CORPUS.md) | JDK-backed stdout/exit-code behavior suite |
+| [CASE_STUDY.md](CASE_STUDY.md) | End-to-end multi-file case study (commons-lang `tuple`): what translated, gaps surfaced |
 
 ## Process and release
 
