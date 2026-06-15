@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
@@ -32,7 +32,7 @@ MAX_OUTPUT_TOKENS = 32000
 
 
 class GeminiModels(Protocol):
-    def generate_content(self, **kwargs: object) -> object: ...
+    def generate_content_stream(self, **kwargs: object) -> Iterator[object]: ...
 
 
 class GeminiClient(Protocol):
@@ -241,7 +241,11 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
     from google.genai import types
 
     client = get_gemini_client()
-    response = client.models.generate_content(
+    # Use the streaming endpoint for parity with Anthropic at the 32K output-token
+    # budget. Large class translations can run long enough that one-shot provider calls
+    # are more likely to hit SDK/client timeout guards, while the streaming response still
+    # exposes chunk text and final finish reasons for truncation detection.
+    chunks = client.models.generate_content_stream(
         model=model,
         contents=contents,
         config=types.GenerateContentConfig(
@@ -249,15 +253,20 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
             system_instruction=system_text,
         ),
     )
-    if _gemini_hit_max_tokens(response):
-        raise LLMTruncationError(
-            "Gemini response hit the max_output_tokens limit; the translation is truncated "
-            "and would emit broken Python. Split the class into smaller units before retrying."
-        )
-    text = getattr(response, "text", None)
-    if not isinstance(text, str):
+    parts: list[str] = []
+    for chunk in chunks:
+        if _gemini_hit_max_tokens(chunk):
+            raise LLMTruncationError(
+                "Gemini response hit the max_output_tokens limit; the translation is "
+                "truncated and would emit broken Python. Split the class into smaller "
+                "units before retrying."
+            )
+        text = getattr(chunk, "text", None)
+        if isinstance(text, str):
+            parts.append(text)
+    if not parts:
         raise RuntimeError("Gemini response did not include text output")
-    return _strip_fences(text)
+    return _strip_fences("".join(parts))
 
 
 def _message_text(messages: list[dict[str, object]]) -> str:

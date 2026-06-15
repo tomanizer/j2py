@@ -28,6 +28,15 @@ Use each provider's official SDK directly:
 - Anthropic via `anthropic`
 - Gemini via `google-genai`
 
+Both provider paths use streaming for high-token completions. Anthropic requires
+streaming at j2py's 32K output-token ceiling because the SDK can reject long
+non-streaming requests with timeout-guard errors. Gemini has not shown the same
+failure in normal use yet, but `google-genai` exposes `models.generate_content_stream`,
+so j2py uses that path for parity and to avoid one-shot large-completion timeout risk.
+Streaming responses are still assembled into the same plain Python string before cache
+writeback, and `MAX_TOKENS` / `max_output_tokens` finish reasons still raise
+`LLMTruncationError`.
+
 Do not introduce a provider abstraction framework such as LangChain or litellm. Keep a
 small in-repo dispatcher in `j2py.llm.client.translate_with_llm(...)` and keep the pipeline
 contract provider-neutral.
