@@ -173,9 +173,10 @@ codebases, but together they cover breadth, triage, and bounded correctness.
 | Behavior equivalence | stdout/stderr/exit-code match on small hand-written programs | `make test-behavior` (JDK required) |
 | Harvested equivalence (phased) | Method-level Java-vs-Python differential tests with JVM-independent oracles | `tests/equivalence/` (see [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md)) |
 
-Corpus presets and baselines: [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md). CI runs
-`spring-dense` comparison plus a committed-baseline hotspot scorecard; contributors run
-additional library checks locally for rule-layer PRs.
+Corpus presets and baselines: [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md). CI runs a
+dense-baseline matrix for every committed dense preset plus a committed-baseline hotspot
+scorecard; contributors run the most relevant library checks locally for fast feedback
+before pushing rule-layer PRs.
 
 ## Dependency rules
 

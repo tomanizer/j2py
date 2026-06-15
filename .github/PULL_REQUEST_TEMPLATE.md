@@ -42,6 +42,9 @@ For translation rule changes:
 Skip if this PR does not change `j2py/translate/` or corpus baselines.
 
 - [ ] `make corpus-clone-all` already done on this machine (or `J2PY_CORPUS_ROOT` set)
-- [ ] `make corpus-spring-dense-check` (when constructs or broad rule-layer behavior may shift)
-- [ ] `make corpus-<library>-dense-check` for a relevant library preset
+- [ ] Most relevant local `make corpus-<name>-dense-check` run for fast feedback
+- [ ] `make corpus-spring-dense-check` run when constructs or broad rule-layer behavior may shift
 - [ ] `make corpus-hotspots` (required when any `tests/fixtures/corpus/*-baseline.json` changed)
+
+CI runs every committed dense baseline (`spring-dense`, `guava-dense`,
+`commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
