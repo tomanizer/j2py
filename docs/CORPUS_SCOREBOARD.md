@@ -194,7 +194,7 @@ For translation-rule PRs:
    - one additional library preset relevant to the change (e.g.
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
-3. Expect CI to enforce every committed dense baseline (`spring-dense`, `guava-dense`,
+3. CI enforces every committed dense baseline (`spring-dense`, `guava-dense`,
    `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
 4. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
    updates.
@@ -206,8 +206,8 @@ For translation-rule PRs:
 The default `make check` gate does not clone external libraries or run the corpus
 harness; this keeps the required unit/type/lint gate fast and deterministic.
 
-`.github/workflows/corpus.yml` runs when translator, corpus harness, or dependency files
-change:
+`.github/workflows/corpus.yml` runs when the translator, corpus harness, or dependency
+files change:
 
 1. **Dense baseline matrix** — clones the checkout for each committed dense preset and
    fails on regression for `spring-dense`, `guava-dense`, `commons-lang-dense`,
