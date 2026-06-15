@@ -45,7 +45,9 @@ Normalisation rules
 
 from __future__ import annotations
 
+import builtins
 import contextlib
+import functools
 from collections.abc import Iterator
 from typing import Any
 
@@ -106,6 +108,13 @@ def approx_double(value: float, rel: float = 1e-9) -> Any:
 # ---------------------------------------------------------------------------
 
 
+@functools.lru_cache(maxsize=1)
+def _get_exception_map() -> dict[str, str]:
+    from j2py.config.loader import ConfigLoader
+
+    return ConfigLoader().add_defaults().build().exception_map
+
+
 @contextlib.contextmanager
 def assert_raises_mapped(java_exception: str) -> Iterator[pytest.ExceptionInfo[Exception]]:
     """Assert that the block raises the Python exception mapped from ``java_exception``.
@@ -118,16 +127,15 @@ def assert_raises_mapped(java_exception: str) -> Iterator[pytest.ExceptionInfo[E
         with assert_raises_mapped("NumberFormatException"):
             NumberUtils.create_integer("not-a-number")
     """
-    from j2py.config.loader import ConfigLoader
-
-    cfg = ConfigLoader().add_defaults().build()
-    py_exc_name = cfg.exception_map.get(java_exception)
+    py_exc_name = _get_exception_map().get(java_exception)
     if py_exc_name is None:
         raise KeyError(
             f"{java_exception!r} not in EXCEPTION_MAP — add it or use pytest.raises directly"
         )
-    import builtins
-
-    py_exc: type[Exception] = getattr(builtins, py_exc_name, Exception)
+    py_exc = getattr(builtins, py_exc_name, None)
+    if py_exc is None:
+        raise AttributeError(
+            f"Python exception class {py_exc_name!r} not found in builtins"
+        )
     with pytest.raises(py_exc) as exc_info:
         yield exc_info

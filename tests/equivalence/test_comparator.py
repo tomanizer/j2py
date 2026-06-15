@@ -24,7 +24,6 @@ from tests.equivalence.comparator import (
     java_long,
 )
 
-
 # ---------------------------------------------------------------------------
 # Integer range constants
 # ---------------------------------------------------------------------------
@@ -95,24 +94,24 @@ def test_java_long_wraps_overflow() -> None:
 
 
 def test_approx_float_matches_within_single_precision() -> None:
-    assert 1.2345001 == approx_float(1.2345)   # within 1e-5 rel
-    assert 0.0 == approx_float(0.0)
+    assert approx_float(1.2345) == 1.2345001   # within 1e-5 rel
+    assert approx_float(0.0) == 0.0
 
 
 def test_approx_float_rejects_large_difference() -> None:
     with pytest.raises(AssertionError):
-        assert 1.5 == approx_float(1.2345)
+        assert approx_float(1.2345) == 1.5
 
 
 def test_approx_double_matches_within_double_precision() -> None:
-    assert 1.234500001 == approx_double(1.2345)   # within 1e-9 rel
-    assert -1.2345 == approx_double(-1.2345)
+    assert approx_double(1.2345) == 1.234500001   # within 1e-9 rel
+    assert approx_double(-1.2345) == -1.2345
 
 
 def test_approx_double_rejects_single_precision_error() -> None:
     # A difference that passes approx_float (1e-5) but fails approx_double (1e-9)
     with pytest.raises(AssertionError):
-        assert 1.2345001 == approx_double(1.2345)
+        assert approx_double(1.2345) == 1.2345001
 
 
 # ---------------------------------------------------------------------------
@@ -131,12 +130,12 @@ def test_assert_raises_mapped_illegal_argument_exception() -> None:
 
 
 def test_assert_raises_mapped_unknown_exception_raises_key_error() -> None:
-    with pytest.raises(KeyError, match="NoSuchJavaException"):
-        with assert_raises_mapped("NoSuchJavaException"):
-            pass
+    with pytest.raises(KeyError, match="NoSuchJavaException"), assert_raises_mapped(
+        "NoSuchJavaException"
+    ):
+        pass
 
 
 def test_assert_raises_mapped_wrong_exception_fails() -> None:
-    with pytest.raises(Exception):
-        with assert_raises_mapped("NumberFormatException"):
-            raise TypeError("wrong type")  # not ValueError
+    with pytest.raises(TypeError), assert_raises_mapped("NumberFormatException"):
+        raise TypeError("wrong type")  # not ValueError
