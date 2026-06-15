@@ -435,6 +435,51 @@ def test_annotation_type_declaration_translates_marker_to_dataclass() -> None:
     assert_valid_python(result.source)
 
 
+def test_annotation_type_declaration_preserves_javadoc_and_comments() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        /**
+         * Describes an endpoint.
+         */
+        public @interface Endpoint {
+            // Reviewers should still see body comments.
+            String value();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert '"""Describes an endpoint."""' in result.source
+    assert "    # Reviewers should still see body comments." in result.source
+    assert "value: str" in result.source
+    assert any(
+        warning.reason == "preserved comment" for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_preserves_non_meta_annotation_comment() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Component("worker")
+        public @interface WorkerBinding {
+            String value();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert '# @Component("worker")' in result.source
+    assert "class WorkerBinding:" in result.source
+    assert any(
+        "preserved annotation @Component" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
 def test_annotation_type_declaration_translates_elements_and_defaults() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -451,6 +496,24 @@ def test_annotation_type_declaration_translates_elements_and_defaults() -> None:
     assert 'value: str = ""' in result.source
     assert "count: int = 0" in result.source
     assert "enabled: bool = True" in result.source
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_translates_required_element_without_default() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface RequiredDescription {
+            String value();
+            int order();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "value: str" in result.source
+    assert "order: int" in result.source
+    assert "value: str =" not in result.source
     assert_valid_python(result.source)
 
 
@@ -473,6 +536,57 @@ def test_annotation_type_declaration_translates_array_and_class_elements() -> No
         item.reason == "annotation type declaration requires manual translation"
         for item in result.diagnostics.unhandled
     )
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_translates_scalar_array_defaults() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Profiles {
+            String[] single() default {"dev"};
+            String[] many() default {"dev", "test"};
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'single: tuple[str, ...] = ("dev",)' in result.source
+    assert 'many: tuple[str, ...] = ("dev", "test")' in result.source
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_warns_for_non_object_class_literal_default() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Typed {
+            Class<?> value() default String.class;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "value: type[Any] = String" in result.source
+    assert any(
+        warning.reason == "annotation class literal default requires manual review"
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_translates_expression_default() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Flags {
+            int mask() default 1 + 2;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "mask: int = 1 + 2" in result.source
     assert_valid_python(result.source)
 
 
@@ -502,6 +616,27 @@ def test_annotation_type_declaration_preserves_meta_annotations_as_warnings() ->
     assert_valid_python(result.source)
 
 
+def test_annotation_type_declaration_records_unsupported_members() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface WithConstant {
+            int CONSTANT = 1;
+            String value();
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "class WithConstant:" in result.source
+    assert "TODO(j2py): unsupported annotation member constant_declaration" in result.source
+    assert "value: str" in result.source
+    assert any(
+        item.reason == "unsupported annotation member constant_declaration"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_annotation_element_default_failure_is_member_level_only() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -516,6 +651,30 @@ def test_annotation_element_default_failure_is_member_level_only() -> None:
     assert not any(
         item.node_type == "annotation_type_declaration" for item in result.diagnostics.unhandled
     )
+    assert any(
+        item.reason == "unsupported annotation element default"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_annotation_elements_without_type_hints_keep_defaults_and_todos() -> None:
+    cfg = CFG.model_copy(update={"emit_type_hints": False})
+    result = translate_source_with_diagnostics(
+        """
+        public @interface Compact {
+            String required();
+            String value() default "compact";
+            Compact[] nested() default { @Compact };
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "required\n" in result.source
+    assert 'value = "compact"' in result.source
+    assert "nested = None  # TODO(j2py): unsupported default" in result.source
+    assert "required: str" not in result.source
     assert any(
         item.reason == "unsupported annotation element default"
         for item in result.diagnostics.unhandled
