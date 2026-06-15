@@ -780,6 +780,49 @@ def test_hex_literals_inline_argument_comments_and_primitive_class_literals_tran
     assert_valid_python(python_source)
 
 
+def test_array_type_class_literals_translate_to_runtime_comparable_types() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ArrayTypeClassLiteral {
+            public Class<?> primitive() {
+                return boolean[].class;
+            }
+
+            public boolean isPrimitiveBooleanArray(Class<?> candidate) {
+                return candidate == boolean[].class;
+            }
+
+            public boolean isStringArray(Class<?> candidate) {
+                return candidate == String[].class;
+            }
+
+            public boolean isPrimitiveIntMatrix(Class<?> candidate) {
+                return candidate == int[][].class;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return list[bool]" in result.source
+    assert "return candidate == list[bool]" in result.source
+    assert "return candidate == list[str]" in result.source
+    assert "return candidate == list[list[int]]" in result.source
+    assert not result.diagnostics.unhandled
+    assert "__j2py_todo__" not in result.source
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    translated_class = namespace["ArrayTypeClassLiteral"]
+    instance = translated_class()
+    assert instance.primitive() == list[bool]
+    assert instance.is_primitive_boolean_array(list[bool]) is True
+    assert instance.is_primitive_boolean_array(list[int]) is False
+    assert instance.is_string_array(list[str]) is True
+    assert instance.is_primitive_int_matrix(list[list[int]]) is True
+
+
 def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
     python_source, coverage = translate_source(
         '''
