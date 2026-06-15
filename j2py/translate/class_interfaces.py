@@ -22,6 +22,7 @@ from j2py.translate.class_methods import (
 )
 from j2py.translate.class_model import _modifiers
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
 
 
@@ -32,6 +33,7 @@ def translate_interface(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
     from j2py.translate.class_nested import nested_type_lines
@@ -59,6 +61,7 @@ def translate_interface(
         inherited_declared_type_java_fields={},
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     sealed_alias_lines = sealed_type_alias_lines(node, body, class_name, indent="    ")
 
@@ -101,6 +104,7 @@ def translate_interface(
                 class_method_return_types=method_return_types,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
                 containing_class_name=class_name,
                 allow_local_helpers=True,
             )

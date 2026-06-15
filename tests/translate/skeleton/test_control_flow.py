@@ -247,7 +247,7 @@ def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
     )
 
     assert coverage == 1.0
-    assert "except (OSError, RuntimeError) as ex:" in python_source
+    assert "except (OSError, Exception) as ex:" in python_source
     assert "raise ex" in python_source
     assert_valid_python(python_source)
 

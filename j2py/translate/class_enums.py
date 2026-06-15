@@ -29,6 +29,7 @@ from j2py.translate.class_model import FieldInfo, _modifiers
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import (
     translate_class_name,
@@ -45,6 +46,7 @@ def translate_enum(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> list[str]:
     from j2py.translate.classes import translate_overloaded_members
 
@@ -107,6 +109,7 @@ def translate_enum(
             constant_name=constant_name,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             enum_field_names=instance_field_names,
             enum_field_types=class_field_types,
             enum_field_java_types=class_field_java_types,
@@ -160,6 +163,7 @@ def translate_enum(
                     class_method_return_types=method_return_types,
                     static_field_aliases=static_field_aliases,
                     static_method_imports=static_method_imports,
+                    name_resolver=name_resolver,
                     pre_body_lines=[],
                 ),
             )
@@ -201,6 +205,7 @@ def translate_enum(
             class_method_return_types=method_return_types,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             containing_class_name=class_name,
             allow_local_helpers=True,
         )
@@ -239,6 +244,7 @@ def _translate_enum_constant(
     constant_name: str,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     enum_field_names: set[str],
     enum_field_types: dict[str, str],
     enum_field_java_types: dict[str, str],
@@ -256,6 +262,7 @@ def _translate_enum_constant(
             class_field_java_types=enum_field_java_types,
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
+            name_resolver=name_resolver,
             allow_local_helpers=True,
         )
         helper_lines, overridden = _translate_enum_constant_class_body(
@@ -268,7 +275,11 @@ def _translate_enum_constant(
     if args_node is None or not args_node.named_children:
         assignment = [f"    {constant_name} = {constant_name!r}"]
     else:
-        arg_ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+        arg_ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            name_resolver=name_resolver,
+        )
         arg_ctx.static_field_aliases = dict(static_field_aliases)
         arg_ctx.static_method_imports = dict(static_method_imports)
         args = [translate_expression(arg, arg_ctx) for arg in args_node.named_children]

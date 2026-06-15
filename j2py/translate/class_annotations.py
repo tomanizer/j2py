@@ -8,6 +8,7 @@ from j2py.translate.class_methods import _IMMUTABLE_LITERAL_NODES
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
@@ -37,6 +38,7 @@ def translate_annotation_declaration(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
     name_node = node.child_by_field("name")
@@ -79,6 +81,7 @@ def translate_annotation_declaration(
                         diagnostics,
                         static_field_aliases=static_field_aliases,
                         static_method_imports=static_method_imports,
+                        name_resolver=name_resolver,
                     )
                 )
                 continue
@@ -117,6 +120,7 @@ def _translate_annotation_element(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str:
     type_node = _annotation_element_type_node(node)
     name_node = _annotation_element_name_node(node)
@@ -143,6 +147,7 @@ def _translate_annotation_element(
         diagnostics,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
     if default_value is None:
         diagnostics.record(
@@ -233,6 +238,7 @@ def _annotation_element_default(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str | None:
     if default_node.type == "element_value_array_initializer":
         values: list[str] = []
@@ -243,6 +249,7 @@ def _annotation_element_default(
                 diagnostics,
                 static_field_aliases=static_field_aliases,
                 static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
             )
             if scalar is None:
                 return None
@@ -259,6 +266,7 @@ def _annotation_element_default(
         diagnostics,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
     )
 
 
@@ -269,6 +277,7 @@ def _annotation_scalar_default(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
 ) -> str | None:
     if node.type in _IMMUTABLE_LITERAL_NODES:
         if node.type == "string_literal":
@@ -285,7 +294,7 @@ def _annotation_scalar_default(
             return "object"
         return mapped
 
-    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics)
+    ctx = TranslationContext(cfg=cfg, diagnostics=diagnostics, name_resolver=name_resolver)
     ctx.static_field_aliases = dict(static_field_aliases)
     ctx.static_method_imports = dict(static_method_imports)
     translated = translate_expression(node, ctx)

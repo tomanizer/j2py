@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.runtime import (
     RUNTIME_IDIV_IMPORT_LINE,
     RUNTIME_IMPORT_LINE,
@@ -175,6 +176,7 @@ class TranslationContext:
     expression_aliases: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
+    name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
     allow_local_helpers: bool = False

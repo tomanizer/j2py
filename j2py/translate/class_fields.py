@@ -8,6 +8,7 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modif
 from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
@@ -184,6 +185,7 @@ def _translate_fields(
     class_static_methods: set[str] | None = None,
     containing_class_name: str | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
 ) -> tuple[list[str], list[str]]:
     body = class_node.child_by_field("body")
     if body is None:
@@ -193,6 +195,7 @@ def _translate_fields(
     instance_init_lines: list[str] = []
     type_fields = declared_type_fields or {}
     type_java_fields = declared_type_java_fields or {}
+    resolver = name_resolver or NameResolver.empty()
     static_ctx = TranslationContext(
         cfg=cfg,
         diagnostics=diagnostics,
@@ -204,6 +207,7 @@ def _translate_fields(
         class_static_methods=class_static_methods or set(),
         containing_class_name=containing_class_name,
         enclosing_static_dispatch=enclosing_static_dispatch or {},
+        name_resolver=resolver,
         allow_local_helpers=True,
     )
     instance_ctx = TranslationContext(
@@ -217,6 +221,7 @@ def _translate_fields(
         class_static_methods=class_static_methods or set(),
         containing_class_name=containing_class_name,
         enclosing_static_dispatch=enclosing_static_dispatch or {},
+        name_resolver=resolver,
         in_instance_method=True,
         allow_local_helpers=True,
     )

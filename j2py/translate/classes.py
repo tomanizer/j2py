@@ -46,6 +46,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
+from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.statements import (
@@ -79,12 +80,14 @@ def translate_class(
     inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
     docstring_lines: list[str] | None = None,
     outer_self_alias: str | None = None,
     requires_outer_self: bool = False,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
 ) -> list[str]:
+    resolver = name_resolver or NameResolver.empty()
     if node.type == "interface_declaration":
         from j2py.translate.class_interfaces import translate_interface
 
@@ -94,6 +97,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
         )
     if node.type == "enum_declaration":
@@ -105,6 +109,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
         )
     if node.type == "record_declaration":
         return _translate_record(
@@ -124,6 +129,7 @@ def translate_class(
             diagnostics,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             docstring_lines=docstring_lines,
         )
 
@@ -215,6 +221,7 @@ def translate_class(
         class_static_methods=class_static_method_names,
         containing_class_name=class_name,
         enclosing_static_dispatch=enclosing_dispatch,
+        name_resolver=resolver,
     )
     direct_nested_names = set() if body is None else direct_nested_type_names(body)
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
@@ -230,6 +237,7 @@ def translate_class(
         inherited_declared_type_java_fields=declared_type_java_fields,
         static_field_aliases=static_field_aliases or {},
         static_method_imports=static_method_imports or {},
+        name_resolver=resolver,
         outer_capture_names=nested_outer_capture_names,
         file_class_static_methods=file_class_static_methods,
         enclosing_static_dispatch=nested_enclosing_dispatch,
@@ -290,6 +298,7 @@ def translate_class(
                     class_method_return_types=method_return_types,
                     static_field_aliases=static_field_aliases or {},
                     static_method_imports=static_method_imports or {},
+                    name_resolver=resolver,
                     pre_body_lines=(
                         lock_init_lines + instance_init_lines
                         if group[0].type == "constructor_declaration"
@@ -318,6 +327,7 @@ def translate_class(
             class_method_return_types=method_return_types,
             static_field_aliases=static_field_aliases or {},
             static_method_imports=static_method_imports or {},
+            name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
             outer_self_alias=outer_self_alias,
@@ -395,6 +405,7 @@ def translate_overloaded_members(
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -419,6 +430,7 @@ def translate_overloaded_members(
         class_method_return_types=class_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
         pre_body_lines=pre_body_lines,
         class_state=class_state,
         docstring_lines=docstring_lines,

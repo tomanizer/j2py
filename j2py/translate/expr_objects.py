@@ -237,6 +237,7 @@ def _anonymous_helper_init_lines(
         class_field_java_types={field.name: field.java_type for field in fields},
         declared_type_fields=dict(ctx.declared_type_fields),
         declared_type_java_fields=dict(ctx.declared_type_java_fields),
+        name_resolver=ctx.name_resolver,
         in_instance_method=True,
     )
     for field in fields:

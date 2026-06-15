@@ -8,6 +8,7 @@ from j2py.translate.class_members import javadoc_docstring, type_name_of
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.name_resolution import NameResolver
 
 
 def nested_type_lines(
@@ -21,6 +22,7 @@ def nested_type_lines(
     inherited_declared_type_java_fields: dict[str, dict[str, str]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
     outer_capture_names: set[str] | None = None,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
@@ -53,6 +55,7 @@ def nested_type_lines(
             inherited_declared_type_java_fields=inherited_declared_type_java_fields,
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
             docstring_lines=pending_docstring,
             outer_self_alias=(
                 "self._outer_self"
