@@ -19,6 +19,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Surfaced confidence now stays below 1.00 when validation fails, structural checks fail,
   parse errors occur, or semantic warnings require review (#271).
 
+### Fixed
+- Line comments inside expression lists now translate without unsupported-expression
+  diagnostics or `__j2py_todo__` placeholders (#286).
+
 ## 0.4.0a1 - 2026-06-15
 
 ### Changed

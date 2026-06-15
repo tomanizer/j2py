@@ -25,6 +25,7 @@ under-covered or challenging for deterministic translation.
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
 | EnumConstantClassBody.java  | Enum constants with anonymous class bodies overriding abstract methods | Enum constant class bodies (#157) |
 | InterfaceDefaults.java      | Interface `default` methods, `static` methods on interfaces | Interface default + static methods (#48) |
+| LineCommentInExpression.java | Line comments inside array initializers/expression lists | Line comments in expression contexts (#286) |
 | SealedClasses.java          | `sealed` interfaces, `permits`, `non-sealed`, records as permitted types | Sealed classes |
 | SuperMethodCalls.java       | `super.method(...)` as statement and return-expression receiver | Super method receiver calls |
 | SwitchFallthrough.java      | Intentional fall-through (colon style), complex blocks, switch expressions | Improved switch fall-through + complex rules (#51) |
@@ -48,7 +49,7 @@ When adding support for a new construct (e.g. one of the remaining gaps), add at
 
 | Tier | Files | How to run |
 |------|-------|------------|
-| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ArrayTypeClassLiteral`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
+| Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ArrayTypeClassLiteral`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `LineCommentInExpression`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
 | Future xfail (`make test-targets`) | _(none)_ | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into

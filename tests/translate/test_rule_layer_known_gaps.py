@@ -9,7 +9,19 @@ These tests are fast (no JDK, no LLM, no subprocess) and run in the normal suite
 
 from __future__ import annotations
 
-from tests.translate.skeleton.helpers import translate_source, translate_source_with_diagnostics
+import ast
+from pathlib import Path
+
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from tests.translate.skeleton.helpers import (
+    CFG,
+    translate_source,
+    translate_source_with_diagnostics,
+)
+
+CFG_FIXTURES = Path(__file__).parents[1] / "fixtures"
 
 # ---------------------------------------------------------------------------
 # Bug 1: Parentheses dropped in arithmetic expressions
@@ -178,6 +190,21 @@ def test_builtin_clash_rename_consistent_for_same_class_receiver() -> None:
     """)
     assert "def sum_(" in src
     assert "return other.sum_(3, 4)" in src
+
+
+def test_LineCommentInExpression_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "LineCommentInExpression.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return [0, 1, 2]" in result.source
+    assert 'return ["alpha", "beta"]' in result.source
+    assert "# nop" not in result.source
+    assert "# first" not in result.source
+    assert "unsupported expression line_comment" not in result.source
+    assert "__j2py_todo__" not in result.source
 
 
 # ---------------------------------------------------------------------------
