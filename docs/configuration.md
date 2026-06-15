@@ -95,6 +95,10 @@ Scalar options:
 - `workers`: int
 - `llm_concurrency`: int
 
+LLM provider and model selection are runtime options rather than project translation
+settings. Use `--llm-provider anthropic|gemini` and `--model <id>` on CLI commands that
+invoke LLM completion.
+
 Mapping options:
 
 - `type_map`: map Java type names to Python type expressions
