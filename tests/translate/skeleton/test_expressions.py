@@ -922,6 +922,25 @@ def test_common_spring_expression_shapes_translate() -> None:
     assert_valid_python(python_source)
 
 
+def test_static_utility_contains_not_lowered_to_in() -> None:
+    """2-arg static-utility contains (e.g. StringUtils.contains(s, sub)) must NOT
+    be lowered to the `in` operator — that rule is only safe for the 1-arg
+    instance case (collection.contains(element)).  Regression for the bug where
+    StringUtils.contains(str, '.') was emitted as `str_, "." in StringUtils`
+    (a SyntaxError in Python 3.12+)."""
+    python_source, _ = translate_source(
+        """
+        public class Util {
+            public static boolean hexLike(String s) {
+                return StringUtils.contains(s, '.');
+            }
+        }
+        """
+    )
+    # Receiver is snake-cased by the rule layer (StringUtils → string_utils)
+    assert "string_utils.contains(" in python_source
+    assert "in string_utils" not in python_source
+    assert_valid_python(python_source)
 
 
 

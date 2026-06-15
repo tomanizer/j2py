@@ -1,13 +1,5 @@
 """Equivalence gate for NumberUtils — Phase 1 literal-oracle tests.
 
-Known bugs tracked by xfail(strict=True) below:
-
-  Bug 1 (OPEN): ``isCreatable`` SyntaxError — ``StringUtils.contains(str, '.')``
-      is mis-translated to ``not str_, "." in StringUtils`` at line 517.
-      Blocks ``compile()`` of the whole module, so all behavioral tests are xfailed.
-      Fix requires a rule-layer change in expression translation (method call on
-      external class whose first argument shadows a Python builtin).
-
   Bug 2 (FIXED in #216): ``RuntimeException`` catch was mapped to ``RuntimeError``
       instead of ``Exception``.  The structural test below asserts the fix holds.
 
@@ -15,9 +7,7 @@ Class-body stubs
 ----------------
 The module-scoped ``_java_lang_stubs`` fixture (autouse) installs identity stubs
 for the boxed-type classes the class body references at definition time
-(``Long.value_of``, ``Short.value_of``, ..., ``Integer.min_value``).  Once Bug 1 is
-fixed the behavioral tests can be activated by removing their xfail decorators; the
-stubs will already be in place.
+(``Long.value_of``, ``Short.value_of``, ..., ``Integer.min_value``).
 
 ``to_float`` / ``to_byte`` / ``to_short`` each delegate to ``Float.parse_float``,
 ``Byte.parse_byte``, ``Short.parse_short`` — the stubs implement these as
@@ -90,13 +80,6 @@ def test_exception_mapping_is_exception_not_runtime_error(number_utils_source: s
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Bug 1: isCreatable mis-translates StringUtils.contains — "
-        "produces `not str_, '.' in StringUtils` (SyntaxError at line 517)"
-    ),
-)
 def test_module_compiles(number_utils_source: str) -> None:
     """Module must compile cleanly before any behavioral tests can activate."""
     compile(number_utils_source, "<NumberUtils>", "exec")
@@ -104,20 +87,12 @@ def test_module_compiles(number_utils_source: str) -> None:
 
 # ── Behavioral tests — adapted from upstream NumberUtilsTest.java ──────────────
 #
-# All tests below are xfailed because ``load_translated_module`` raises SyntaxError
-# at the ``compile()`` step (Bug 1).
-#
-# To activate: fix Bug 1, then remove the xfail decorators.  The ``_java_lang_stubs``
-# autouse fixture already installs all required stubs, so no further harness changes
-# are needed.
-#
 # Literal-oracle source: NumberUtilsTest.java lines 1681–1721 (toInt, toLong)
 # and lines 1586–1616 (toDouble).  Expression-oracle assertions (MAX_VALUE etc.)
 # are omitted to avoid correlated-failure risk.
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_int_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toInt")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
@@ -134,7 +109,6 @@ def test_to_int_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_long_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toLong")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
@@ -153,7 +127,6 @@ def test_to_long_equivalence(number_utils_source: str) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(strict=True, reason="Bug 1 (isCreatable SyntaxError) blocks module loading")
 def test_to_double_equivalence(number_utils_source: str) -> None:
     mod = load_translated_module(number_utils_source, "_NumberUtils_toDouble")
     NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
