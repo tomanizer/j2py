@@ -2,7 +2,12 @@
 
 import pytest
 
-from j2py.translate.rules.naming import camel_to_snake, safe_attribute_name, safe_identifier
+from j2py.translate.rules.naming import (
+    camel_to_snake,
+    safe_attribute_name,
+    safe_identifier,
+    translate_field_name,
+)
 
 
 @pytest.mark.parametrize(
@@ -45,3 +50,31 @@ def test_safe_identifier(name: str, expected: str):
 )
 def test_safe_attribute_name(name: str, expected: str):
     assert safe_attribute_name(name) == expected
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("LF", "LF"),  # Java CONSTANT_CASE — must not be lowercased
+        ("CR", "CR"),
+        ("NUL", "NUL"),
+        ("MAX_VALUE", "MAX_VALUE"),
+        ("MIN_VALUE", "MIN_VALUE"),
+        ("EMPTY_STRING", "EMPTY_STRING"),
+    ],
+)
+def test_translate_field_name_preserves_constant_case(name: str, expected: str):
+    assert translate_field_name(name) == expected
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("myField", "my_field"),
+        ("someValue", "some_value"),
+        ("MyField", "my_field"),  # PascalCase → snake_case (has lowercase letters)
+        ("getHTTPCode", "get_http_code"),
+    ],
+)
+def test_translate_field_name_snake_cases_camel(name: str, expected: str):
+    assert translate_field_name(name) == expected
