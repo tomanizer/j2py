@@ -82,33 +82,54 @@ harvest-llm:  ## Summarize local LLM harvest records for rule-layer triage
 
 harvest-triage: harvest-llm  ## Alias for harvest-llm
 
-harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
-	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$GEMINI_API_KEY" ]; then \
+# Prefer checkout .env, then $J2PY_CORPUS_ROOT/.env (git worktrees), then login shell.
+LOAD_GEMINI_ENV = \
+	if [ -f .env ]; then set -a; . ./.env; set +a; \
+	elif [ -n "$$J2PY_CORPUS_ROOT" ] && [ -f "$$J2PY_CORPUS_ROOT/.env" ]; then set -a; . "$$J2PY_CORPUS_ROOT/.env"; set +a; \
+	elif [ -z "$$GEMINI_API_KEY" ]; then \
 		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
-		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
-	fi; \
+		[ -n "$$_key" ] && export GEMINI_API_KEY="$$_key"; \
+	fi
+
+harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
+	@$(LOAD_GEMINI_ENV); \
 	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
 
-harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini free tier; OFFSET/LIMIT optional)
-	@if [ -z "$$GEMINI_API_KEY" ] && [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	if [ -z "$$GEMINI_API_KEY" ]; then \
-		_key=$$(zsh -lic 'print -r -- $${GEMINI_API_KEY}' 2>/dev/null || true); \
-		if [ -n "$$_key" ]; then export GEMINI_API_KEY="$$_key"; fi; \
-	fi; \
+harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini; default LIMIT=10, use LIMIT=2 on free tier)
+	@$(LOAD_GEMINI_ENV); \
 	uv run python scripts/harvest/run_llm_harvest.py \
 		--llm-provider gemini \
 		--file-list $(or $(FILE_LIST),.j2py/harvest/queue.txt) \
 		--offset $(or $(OFFSET),0) \
 		--limit $(or $(LIMIT),10) \
 		--sleep-seconds $(or $(SLEEP),6) \
-		--skip-temp-paths
+		--skip-temp-paths \
+		--skip-package-info
 
 harvest-suggest-targets:  ## Draft FUTURE_TARGETS snippets from coverage-gap harvest records
 	uv run python scripts/harvest/suggest_future_targets.py
 
 harvest-prune:  ## Dedupe harvest jsonl (latest row per source; drop resolved)
 	uv run python scripts/harvest/prune_llm_harvest.py
+
+harvest-queue:  ## Build/refresh Tier A queue from corpus-reports/ (coverage==1.0, syntax fail)
+	uv run python scripts/harvest/build_harvest_queue.py $(if $(REFRESH),--force,)
+
+harvest-promote:  ## Queue + Gemini batch + prune + triage + draft top pattern issues (LIMIT=2)
+	@$(LOAD_GEMINI_ENV); \
+	uv run python scripts/harvest/run_harvest_promotion.py \
+		--limit $(or $(LIMIT),2) \
+		--issues $(or $(ISSUES),3)
+
+harvest-promote-issues:  ## Same as harvest-promote but create GitHub issues via gh
+	@$(LOAD_GEMINI_ENV); \
+	uv run python scripts/harvest/run_harvest_promotion.py \
+		--limit $(or $(LIMIT),2) \
+		--issues $(or $(ISSUES),3) \
+		--create-issues
+
+harvest-promote-dry:  ## Prune, triage, and draft issues only (no LLM calls)
+	uv run python scripts/harvest/run_harvest_promotion.py --skip-harvest --skip-local --issues $(or $(ISSUES),3)
 
 harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draft suggestions
 	$(MAKE) harvest-run

@@ -66,15 +66,21 @@ Heuristics live in `j2py/llm/harvest.py` and are unit-tested.
 ### Workflow
 
 1. **Record** — automatic on every `translate_file(..., use_llm=True)` (`J2PY_LLM_HARVEST=1`, default on).
-2. **Batch collect** — `make harvest-run` (or `--preset constructs` for mypy probes).
+2. **Batch collect** — `make harvest-run` (local probes) or `make harvest-gemini` / `make harvest-promote` (corpus queue).
 3. **Aggregate** — `make harvest-triage` ranks clusters by `repair_signals` and trigger kinds / validation buckets.
 4. **Draft targets** — `make harvest-suggest-targets` prints `FUTURE_TARGETS` snippets for
    coverage-gap records; `--write` saves to `scripts/harvest/drafts/`.
-5. **One-shot** — `make harvest-pipeline` runs steps 2–4 and **prune**.
-6. **Promote** — copy a record or draft into `tests/fixtures/llm/harvest/<name>.json` or
+5. **One-shot (local probes)** — `make harvest-pipeline` runs steps 2–4 and **prune**.
+6. **Promote (manual)** — copy a record or draft into `tests/fixtures/llm/harvest/<name>.json` or
    merge the snippet into `tests/targets/test_translation_targets.py`.
-7. **Resolve** — set record ``status`` to ``resolved`` in the jsonl after the rule lands,
+7. **Promote (pattern-family issues)** — `make harvest-promote-dry` drafts GitHub issues from top
+   repair signals; `make harvest-promote-issues` creates them via `gh`. Issues are grouped by
+   pattern family (not single-file fixes). Progress tracked in `.j2py/harvest/state.json`.
+8. **Resolve** — set record ``status`` to ``resolved`` in the jsonl after the rule lands,
    then run ``make harvest-prune`` to drop it; or delete the file entirely.
+
+**Content cache:** batch harvest skips sources already recorded at the same `java_sha256`.
+Use `--force` or `--no-skip-cached` to re-run. See [LLM_HARVEST.md](../LLM_HARVEST.md).
 
 Full operator guide: [LLM_HARVEST.md](../LLM_HARVEST.md).
 
@@ -87,7 +93,7 @@ Disable recording: ``J2PY_LLM_HARVEST=0``.
 
 ### Non-goals
 
-- No automatic GitHub issue creation.
+- No unsolicited or CI-triggered GitHub issue creation (operator runs `harvest-promote-issues` explicitly).
 - No LLM-generated “explanation” field (avoids hallucinated rationale).
 - No committed jsonl by default — only promoted fixtures are reviewed in git.
 
@@ -111,5 +117,6 @@ Disable recording: ``J2PY_LLM_HARVEST=0``.
 - [ADR 0003](0003-layered-translation-pipeline.md) — layered rule → LLM pipeline
 - [ADR 0010](0010-post-llm-structural-verification.md) — structural verification inputs
 - [LLM_HARVEST.md](../LLM_HARVEST.md) — operator guide and maintenance
-- `j2py/llm/harvest.py` — implementation
-- `scripts/harvest/aggregate_llm_harvest.py` — triage report
+- `.cursor/skills/harvest-promote/SKILL.md` — agent skill for promotion pipeline
+- `j2py/llm/harvest.py` — record builder
+- `scripts/harvest/` — batch runner, triage, queue, cache, promotion

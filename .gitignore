@@ -56,7 +56,9 @@ target/
 .claude/
 .codex/
 .claire/
-.cursor/
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
 
 # --- j2py project-local generated state ---
 .corpus/

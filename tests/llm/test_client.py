@@ -1,6 +1,8 @@
 """Tests for LLM client wrappers without live API calls."""
 
+import json
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 
@@ -115,6 +117,14 @@ def test_get_gemini_client_requires_api_key(monkeypatch) -> None:
     monkeypatch.setattr(client_mod, "_gemini_client", None)
 
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
+        client_mod.get_gemini_client()
+
+
+def test_get_gemini_client_rejects_gcloud_oauth_token(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "ya29.oauth-token")
+    monkeypatch.setattr(client_mod, "_gemini_client", None)
+
+    with pytest.raises(RuntimeError, match="OAuth access token"):
         client_mod.get_gemini_client()
 
 
@@ -270,7 +280,15 @@ def test_translate_with_llm_calls_gemini_and_writes_cache(monkeypatch) -> None:
             observed.update(kwargs)
             return [
                 SimpleNamespace(text="translated ", candidates=[]),
-                SimpleNamespace(text="python", candidates=[]),
+                SimpleNamespace(
+                    text="python",
+                    candidates=[],
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=10,
+                        candidates_token_count=20,
+                        total_token_count=30,
+                    ),
+                ),
             ]
 
     _install_fake_google_genai_types(monkeypatch)
@@ -291,6 +309,46 @@ def test_translate_with_llm_calls_gemini_and_writes_cache(monkeypatch) -> None:
     assert observed["config"].kwargs["max_output_tokens"] == client_mod.MAX_OUTPUT_TOKENS
     assert "expert Java-to-Python translator" in observed["config"].kwargs["system_instruction"]
     assert list(cache.written.values()) == ["translated python"]
+
+
+def test_translate_with_llm_gemini_records_usage(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cache = FakeCache()
+    log_path = tmp_path / "usage.jsonl"
+    monkeypatch.setenv("J2PY_LLM_USAGE_PATH", str(log_path))
+
+    class Models:
+        def generate_content_stream(self, **kwargs: Any) -> list[SimpleNamespace]:
+            return [
+                SimpleNamespace(text="translated python", candidates=[]),
+                SimpleNamespace(
+                    text="",
+                    candidates=[],
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=100,
+                        candidates_token_count=50,
+                        total_token_count=150,
+                    ),
+                ),
+            ]
+
+    _install_fake_google_genai_types(monkeypatch)
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_gemini_client", lambda: SimpleNamespace(models=Models()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        provider="gemini",
+        model="gemini-3.5-flash",
+    )
+
+    payload = json.loads(log_path.read_text(encoding="utf-8").strip())
+    assert payload["kind"] == "api_call"
+    assert payload["prompt_tokens"] == 100
+    assert payload["candidates_tokens"] == 50
 
 
 def test_translate_with_llm_strips_gemini_fenced_response(monkeypatch: Any) -> None:
