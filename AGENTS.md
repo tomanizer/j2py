@@ -85,8 +85,9 @@ make check                  # lint + typecheck + test (run before every commit)
 make ci-local-pr            # full local PR check — must pass before pushing
 ```
 
-All `make` targets must pass locally before pushing. CI gates are identical to local
-presets; a red CI means `make check` was not run.
+All relevant `make` targets must pass locally before pushing. CI gates are identical to
+local presets; a red CI means the corresponding local target was not run, or the PR
+introduced corpus baseline drift that needs an intentional baseline refresh.
 
 ## Benchmark corpus checkouts
 

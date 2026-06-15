@@ -5,7 +5,8 @@ Python fixture pairs. The target suite records roadmap examples and graduated ro
 fixtures that should keep translating cleanly.
 
 Graduated target fixtures run in `make check`. Only future `xfail` contracts use the
-`target_translation` marker and run via `make test-targets`.
+`target_translation` marker; they are excluded from `make check` and run via
+`make test-targets`.
 
 Run the normal gate:
 
@@ -19,16 +20,19 @@ Run future roadmap xfail targets:
 make test-targets
 ```
 
-The suite has three lanes:
+The suite has four lanes:
 
 - **Graduated targets**: Java fixtures under `tests/fixtures/java/targets/` that now
   translate deterministically. These run in `make check`, must parse, produce valid
-  Python, reach `coverage == 1.0`, and report no unhandled diagnostics.
+  Python, reach `coverage == 1.0`, and report no unhandled diagnostics. Corpus-derived
+  fast regressions that should not change committed corpus baselines also belong here.
 - **Graduated corpus constructs**: Java fixtures under
   `tests/fixtures/corpus/constructs/` that reach the same bar as graduated targets
   (`AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `ComplexRecords`,
   `EnumConstantClassBody`, `InterfaceDefaults`, `SealedClasses`, `SuperMethodCalls`,
-  `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check`.
+  `SwitchFallthrough`, `TextBlocks`, `VarKeyword`). These also run in `make check` and
+  are included in corpus presets that use `--include-constructs`, so do not place
+  deferred strict-xfail gaps in this directory.
 - **Graduated harvest fixtures**: selected Java fixtures under `tests/fixtures/llm/`
   that were promoted out of future targets and now translate deterministically
   (`MultiDimArray`). These run in `make check`.
@@ -46,14 +50,26 @@ triaging a concrete unsupported Java construct owns one of two outcomes:
 - fix the gap immediately and add normal regression coverage, or
 - defer it by adding a strict `TranslationTarget` xfail before leaving the gap as backlog.
 
-When a new construct gap is identified and deferred, add a fixture here and register it in
-`FUTURE_TARGETS` before implementing the rule later. File the GitHub issue as a
+When a new construct gap is identified and deferred, add a fixture under
+`tests/fixtures/java/targets/` and register it in `FUTURE_TARGETS` before implementing
+the rule later. File the GitHub issue as a
 **pattern family**, not a single-fixture fix — see
 [LLM_HARVEST.md — Promoting harvest → GitHub issues](LLM_HARVEST.md#promoting-harvest--github-issues-pattern-families).
 
-Current future corpus-construct backlog:
+Current corpus-derived fast target promotions:
 
-The future target lane is intentional while no deferred concrete construct gap has been selected. Add a strict `TranslationTarget` entry when deferring a new gap.
+| Fixture | Tracking | Rule-layer support |
+|---|---|---|
+| `tests/fixtures/java/targets/CorpusArrayTypeMapProbe.java` | `issue-252` | Array type class literals as map keys, promoted from Spring `PropertyEditorRegistrySupport.java`. |
+| `tests/fixtures/java/targets/CorpusAssertStatementProbe.java` | `issue-252` | Java `assert_statement`, promoted from Commons Lang `CachedRandomBits.java`. |
+| `tests/fixtures/java/targets/CorpusMalformedTernaryProbe.java` | `issue-252` | Jackson `InetSocketAddressSerializer.java` nested ternary/string-concat pattern. |
+
+Current future target backlog:
+
+| Fixture | Tracking | Missing rule-layer support |
+|---|---|---|
+| `tests/fixtures/java/targets/IteratorPostIncrementSubscript.java` | `issue-252/jackson-arrayiterator-invalid-python-output` | Split Java post-increment expressions used inside array subscripts into a value read plus a following increment so generated Python parses and preserves old-index semantics. |
+| `tests/fixtures/java/targets/StaticImportEnumConstants.java` | `issue-252/guava-elementtype-static-imports` | Resolve `java.lang.annotation.ElementType` static enum imports used in annotations instead of surfacing unknown static-import TODOs. |
 
 Current graduated harvest fixtures:
 
@@ -67,9 +83,8 @@ deterministic fixture pair is added. See [LLM_HARVEST.md](LLM_HARVEST.md).
 
 Each future target case has:
 
-- a Java fixture under `tests/fixtures/java/targets/` or
-  `tests/fixtures/corpus/constructs/`, or a selected harvest fixture under
-  `tests/fixtures/llm/`
+- a Java fixture under `tests/fixtures/java/targets/`, or a selected harvest fixture
+  under `tests/fixtures/llm/`
 - expected Python fragments that describe the future translation contract
 - forbidden fragments such as unsupported TODOs
 - a strict `xfail` marker explaining the missing translator capability

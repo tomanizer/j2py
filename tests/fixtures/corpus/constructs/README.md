@@ -45,18 +45,20 @@ make corpus-spring-broad            # exploratory; no committed baseline
 ```
 
 When adding support for a new construct (e.g. one of the remaining gaps), add at least one new minimal file here and ensure it appears in density-based runs.
+For corpus-derived fast tests that should not change committed corpus baselines, use
+`tests/fixtures/java/targets/` instead.
 
 ## Regression tiers
 
 | Tier | Files | How to run |
 |------|-------|------------|
 | Graduated (`make check`) | `AdvancedEnum`, `AdvancedStreams`, `AnonymousAndInner`, `AmbiguousGetProbe`, `ArrayTypeClassLiteral`, `ComplexRecords`, `EnumConstantClassBody`, `InterfaceDefaults`, `LineCommentInExpression`, `SealedClasses`, `SuperMethodCalls`, `SwitchFallthrough`, `TextBlocks`, `VarKeyword` | `tests/targets/test_translation_targets.py` — `test_graduated_corpus_construct_translates_cleanly` |
-| Future xfail (`make test-targets`) | _(none)_ | `FUTURE_TARGETS` in the same test module |
+| Future xfail (`make test-targets`) | _(none in this directory)_ | `FUTURE_TARGETS` in the same test module |
 
 When a future xfail construct starts passing, move it into the graduated tier (or into
 the normal Java/Python fixture pair suite if exact output is stable enough).
 
 ## Notes
-- Graduated constructs run in `make check`; remaining gaps run as strict xfail via
-  `make test-targets`.
+- Graduated constructs run in `make check`; deferred gaps are tracked outside this
+  directory as strict xfails via `make test-targets`.
 - Keep each file minimal and parse-clean with tree-sitter-java.

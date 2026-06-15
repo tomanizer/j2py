@@ -68,6 +68,9 @@ Density presets with `--include-constructs` (`spring-dense` and exploratory
 also run in `make check` via `tests/targets/`. See
 [docs/TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) and
 [tests/fixtures/corpus/constructs/README.md](../tests/fixtures/corpus/constructs/README.md).
+Because this directory is part of committed corpus baselines, deferred strict-xfail
+targets and corpus-derived fast regressions that should not change baselines belong under
+`tests/fixtures/java/targets/` instead.
 
 ## Setup
 
