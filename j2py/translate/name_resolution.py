@@ -210,15 +210,15 @@ class NameResolver:
 
 def scope_from_context(ctx: TranslationContext) -> NameScope:
     return NameScope(
-        expression_aliases=dict(ctx.expression_aliases),
-        static_field_aliases=dict(ctx.static_field_aliases),
-        param_names=set(ctx.param_names),
-        local_names=set(ctx.local_names),
-        class_fields=set(ctx.class_fields),
-        class_field_types=dict(ctx.class_field_types),
+        expression_aliases=ctx.expression_aliases,
+        static_field_aliases=ctx.static_field_aliases,
+        param_names=ctx.param_names,
+        local_names=ctx.local_names,
+        class_fields=ctx.class_fields,
+        class_field_types=ctx.class_field_types,
         in_instance_method=ctx.in_instance_method,
         containing_class_name=ctx.containing_class_name,
-        nested_class_names=set(ctx.nested_class_names),
+        nested_class_names=ctx.nested_class_names,
         snake_case_fields=ctx.cfg.snake_case_fields,
     )
 

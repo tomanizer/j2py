@@ -70,21 +70,6 @@ def translate_skeleton_with_diagnostics(
         static_method_imports=static_method_imports,
     )
     name_resolver = NameResolver(file_name_bindings)
-    diagnostics.imported_type_names.update(
-        {
-            raw_name: binding.python_name
-            for raw_name, binding in file_name_bindings.imported_types.items()
-        }
-    )
-    diagnostics.imported_type_imports.update(
-        {
-            raw_name: binding.import_line
-            for raw_name, binding in file_name_bindings.imported_types.items()
-            if binding.import_line is not None
-        }
-    )
-    diagnostics.package_name = file_name_bindings.package_name
-    diagnostics.compilation_unit_class_names = set(file_name_bindings.compilation_unit_types)
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
