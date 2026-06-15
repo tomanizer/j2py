@@ -87,6 +87,20 @@ def test_module_compiles(number_utils_source: str) -> None:
     compile(number_utils_source, "<NumberUtils>", "exec")
 
 
+@pytest.mark.equivalence
+def test_number_utils_string_utils_stub_helpers() -> None:
+    string_utils = sys.modules["org.apache.commons.lang3.StringUtils"].StringUtils
+
+    assert string_utils.is_empty(None) is True
+    assert string_utils.is_empty("") is True
+    assert string_utils.is_empty(" ") is False
+    assert string_utils.is_blank(None) is True
+    assert string_utils.is_blank(" ") is True
+    assert string_utils.is_blank("a") is False
+    assert string_utils.is_numeric("123") is True
+    assert string_utils.is_numeric("12.3") is False
+
+
 # ── Behavioral tests — adapted from upstream NumberUtilsTest.java ──────────────
 #
 # Literal-oracle source: NumberUtilsTest.java lines 1681–1721 (toInt, toLong)
