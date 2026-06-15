@@ -178,7 +178,7 @@ def _translate_single(
         validate=validate,
     )
     if json_output:
-        console.print(json.dumps(_result_payload(result), indent=2, sort_keys=True))
+        typer.echo(json.dumps(_result_payload(result), indent=2, sort_keys=True))
     else:
         _print_result_summary(result)
 
@@ -260,7 +260,7 @@ def _translate_dir(
         incremental=incremental,
     )
     if json_output:
-        console.print(json.dumps(_directory_payload(batch), indent=2, sort_keys=True))
+        typer.echo(json.dumps(_directory_payload(batch), indent=2, sort_keys=True))
     else:
         console.print("[bold]Translation order:[/bold]")
         for index, path in enumerate(batch.order, start=1):
