@@ -8,13 +8,14 @@ import os
 import sys
 import tomllib
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from j2py.config import default
 
 T = TypeVar("T")
+LLMProvider = Literal["anthropic", "gemini"]
 
 
 class ConfigError(ValueError):
@@ -45,6 +46,19 @@ class TranslationConfig(BaseModel):
     target_python: str = "3.11"
     workers: int = Field(default_factory=lambda: min(8, os.cpu_count() or 1))
     llm_concurrency: int = 4
+    llm_provider: LLMProvider | None = None
+    model: str | None = None
+
+    @field_validator("llm_provider", mode="before")
+    @classmethod
+    def _validate_llm_provider(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            normalized = value.lower()
+            if normalized in {"anthropic", "gemini"}:
+                return normalized
+        raise ValueError("unsupported LLM provider; choose 'anthropic' or 'gemini'")
 
     @classmethod
     def default(cls) -> TranslationConfig:

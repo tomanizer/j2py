@@ -116,6 +116,28 @@ def test_translate_file_forwards_gemini_provider_to_llm(monkeypatch) -> None:
     assert observed["model"] == "gemini-test"
 
 
+def test_translate_file_uses_configured_llm_defaults(monkeypatch) -> None:
+    observed: dict[str, object] = {}
+    cfg = CFG.model_copy(
+        update={
+            "llm_provider": "gemini",
+            "model": "gemini-config",
+        },
+    )
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        observed.update(kwargs)
+        return PARTIAL_LLM_OUTPUT
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_file(PARTIAL_FIXTURE, cfg=cfg, use_llm=True)
+
+    assert result.used_llm
+    assert observed["provider"] == "gemini"
+    assert observed["model"] == "gemini-config"
+
+
 def test_translate_file_uses_full_prevalidation_for_invalid_full_coverage_skeleton(
     monkeypatch,
     tmp_path: Path,

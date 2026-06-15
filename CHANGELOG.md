@@ -12,6 +12,8 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   ([ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md), #275); Anthropic
   remains the default.
 - Live Gemini Flash e2e probe via `make test-llm-gemini-e2e` (#276).
+- Project config defaults for LLM provider/model selection via `llm_provider` and `model`,
+  with explicit CLI flags taking precedence (#279).
 
 ## 0.4.0a1 - 2026-06-15
 
