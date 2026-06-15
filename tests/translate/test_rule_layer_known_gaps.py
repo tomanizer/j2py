@@ -265,21 +265,20 @@ def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> Non
 
 
 # ---------------------------------------------------------------------------
-# Diagnostic accuracy: rule layer emits a warning when it cannot handle a construct
+# Diagnostic accuracy: graduated assert statements are handled by the rule layer
 # ---------------------------------------------------------------------------
 
 
-def test_unhandled_construct_records_diagnostic() -> None:
-    """When the rule layer cannot translate a construct it must record an unhandled diagnostic."""
+def test_assert_statement_translates_without_unhandled_diagnostic() -> None:
     result = translate_source_with_diagnostics("""
     public class Probe {
         public void run() {
             assert 1 == 1 : "unreachable";
+            assert true;
         }
     }
     """)
-    unhandled_reasons = [d.reason for d in result.diagnostics.unhandled]
-    assert any("assert" in r for r in unhandled_reasons), (
-        f"expected an assert_statement diagnostic in: {unhandled_reasons}"
-    )
-    assert result.coverage < 1.0
+    assert 'assert 1 == 1, "unreachable"' in result.source
+    assert "assert True" in result.source
+    assert not any(d.node_type == "assert_statement" for d in result.diagnostics.unhandled)
+    assert result.coverage == 1.0

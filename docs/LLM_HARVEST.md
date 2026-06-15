@@ -249,7 +249,7 @@ Then `make harvest-prune` removes it.
 
 ```bash
 # Pretty-print one record
-grep AssertProbe .j2py/harvest/records.jsonl | python -m json.tool
+grep MultiDimArray .j2py/harvest/records.jsonl | python -m json.tool
 
 # Count lines vs unique sources
 wc -l .j2py/harvest/records.jsonl

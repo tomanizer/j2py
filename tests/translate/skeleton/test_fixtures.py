@@ -20,6 +20,7 @@ from tests.translate.skeleton.helpers import (
         ("HelloWorld", 1.0),
         ("Fields", 1.0),
         ("AbstractClass", 1.0),
+        ("AssertProbe", 1.0),
         ("JavadocConversion", 1.0),
         ("OuterThisCapture", 1.0),
         ("PatternMatchSwitch", 1.0),

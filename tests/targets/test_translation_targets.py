@@ -48,18 +48,6 @@ class TranslationTarget:
 # )
 FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
     TranslationTarget(
-        fixture="AssertProbe.java",
-        fixture_root=LLM_FIXTURES,
-        tracking="llm-harvest-assert",
-        reason="Java assert statements are not translated by the rule layer",
-        expected_fragments=('assert value > 0, "must be positive"',),
-        forbidden_fragments=(
-            "TODO(j2py): unsupported",
-            "__j2py_todo__",
-            "# TODO(j2py): unsupported assert_statement",
-        ),
-    ),
-    TranslationTarget(
         fixture="MultiDimArray.java",
         fixture_root=LLM_FIXTURES,
         tracking="llm-harvest-multi-dim-array",
