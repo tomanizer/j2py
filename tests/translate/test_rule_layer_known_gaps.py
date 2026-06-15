@@ -199,6 +199,10 @@ def test_LineCommentInExpression_fixture_translates_without_unhandled_diagnostic
     ast.parse(result.source)
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
+    assert "return [0, 1, 2]" in result.source
+    assert 'return ["alpha", "beta"]' in result.source
+    assert "# nop" not in result.source
+    assert "# first" not in result.source
     assert "unsupported expression line_comment" not in result.source
     assert "__j2py_todo__" not in result.source
 
