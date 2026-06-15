@@ -45,6 +45,7 @@ def translate_overloaded_members(
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
     class_static_methods: set[str] | None = None,
+    enclosing_static_dispatch: dict[str, str] | None = None,
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
@@ -65,6 +66,7 @@ def translate_overloaded_members(
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
     static_class_methods = class_static_methods or set()
+    enclosing_dispatch = dict(enclosing_static_dispatch or {})
     inner_capture_names = inner_class_names_requiring_outer or set()
     direct_nested_names = nested_class_names or set()
     method_return_types = dict(class_method_return_types or {})
@@ -82,6 +84,7 @@ def translate_overloaded_members(
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
             class_static_methods=static_class_methods,
+            enclosing_static_dispatch=enclosing_dispatch,
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
@@ -106,6 +109,7 @@ def translate_overloaded_members(
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
             class_static_methods=static_class_methods,
+            enclosing_static_dispatch=enclosing_dispatch,
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
@@ -129,6 +133,7 @@ def translate_overloaded_members(
             declared_type_java_fields=nested_type_java_fields,
             class_methods=class_methods or set(),
             class_static_methods=static_class_methods,
+            enclosing_static_dispatch=enclosing_dispatch,
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
@@ -159,6 +164,7 @@ def translate_overloaded_members(
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_capture_names,
         nested_class_names=direct_nested_names,
+        enclosing_static_dispatch=enclosing_dispatch,
     )
     if dispatched is not None:
         return dispatched
@@ -216,6 +222,7 @@ def _merged_constructor_overload(
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
@@ -261,6 +268,7 @@ def _merged_constructor_overload(
         class_fields=class_fields,
         class_methods=class_methods,
         class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
@@ -328,6 +336,7 @@ def _merged_forwarding_method_overload(
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
@@ -391,6 +400,7 @@ def _merged_forwarding_method_overload(
         class_fields=class_fields,
         class_methods=class_methods,
         class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
@@ -687,6 +697,7 @@ def _merged_method_overload(
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
@@ -740,6 +751,7 @@ def _merged_method_overload(
         class_fields=class_fields,
         class_methods=class_methods,
         class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
         allow_local_helpers=True,
@@ -845,6 +857,7 @@ def _dispatch_overload_members(
     declared_type_java_fields: dict[str, dict[str, str]],
     class_methods: set[str],
     class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
@@ -900,6 +913,7 @@ def _dispatch_overload_members(
             class_fields=class_fields,
             class_methods=class_methods,
             class_static_methods=class_static_methods,
+            enclosing_static_dispatch=dict(enclosing_static_dispatch),
             class_field_types=dict(class_field_types),
             class_field_java_types=dict(class_field_java_types),
             declared_type_fields=dict(declared_type_fields),

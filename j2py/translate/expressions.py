@@ -688,6 +688,9 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
             and ctx.containing_class_name
         ):
             return f"{ctx.containing_class_name}.{py_method}({args})"
+        enclosing_class = ctx.enclosing_static_dispatch.get(py_method)
+        if not receiver and enclosing_class:
+            return f"{enclosing_class}.{py_method}({args})"
         if not receiver and method_name in ctx.self_dispatch_methods and ctx.in_instance_method:
             return f"self.{py_method}({args})"
         if (

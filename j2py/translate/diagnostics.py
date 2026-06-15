@@ -157,6 +157,9 @@ class TranslationContext:
     declared_type_java_fields: dict[str, dict[str, str]] = field(default_factory=dict)
     class_methods: set[str] = field(default_factory=set)
     class_static_methods: set[str] = field(default_factory=set)
+    # Receiverless static calls to enclosing or inherited methods map to the
+    # qualifying class name (own-class siblings use class_static_methods above).
+    enclosing_static_dispatch: dict[str, str] = field(default_factory=dict)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
     variable_types: dict[str, str] = field(default_factory=dict)
