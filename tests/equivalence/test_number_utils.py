@@ -71,7 +71,9 @@ def test_to_long_defined(number_utils_source: str) -> None:
 
 @pytest.mark.equivalence
 def test_to_double_defined(number_utils_source: str) -> None:
-    assert "def to_double(str_: str, default_value: float) -> float:" in number_utils_source
+    # String overload: 1-arg Java method becomes a delegating overload (not default_value=0.0).
+    assert "def to_double(str_: str) -> float:" in number_utils_source
+    assert "return NumberUtils.to_double(str_, 0.0)" in number_utils_source
 
 
 @pytest.mark.equivalence
