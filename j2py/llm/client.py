@@ -22,6 +22,12 @@ from j2py.llm.prompts import PROMPT_VERSION
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
 _cache = diskcache.Cache(str(_CACHE_DIR))
 
+# Output token ceiling for a single class translation. 8192 was too low for large
+# classes (silent truncation, see LLMTruncationError). 32K is well within the 64K
+# streamable limit of the default claude-sonnet-4-6 model. Values this large require
+# streaming — a non-streaming request would trip the SDK's >10-minute timeout guard.
+MAX_OUTPUT_TOKENS = 32000
+
 _client: anthropic.Anthropic | None = None
 
 
@@ -139,12 +145,16 @@ def translate_with_llm(
         if cached is not None:
             return cached
 
-    response = get_client().messages.create(
+    # Stream the response: at MAX_OUTPUT_TOKENS the SDK refuses a non-streaming
+    # request (estimated >10 min → ValueError). get_final_message() still yields the
+    # full Message, including stop_reason, once the stream completes.
+    with get_client().messages.stream(
         model=model,
-        max_tokens=8192,
+        max_tokens=MAX_OUTPUT_TOKENS,
         system=system,
         messages=messages,  # type: ignore[arg-type]
-    )
+    ) as stream:
+        response = stream.get_final_message()
 
     if getattr(response, "stop_reason", None) == "max_tokens":
         raise LLMTruncationError(
