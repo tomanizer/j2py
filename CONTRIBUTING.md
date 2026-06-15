@@ -99,13 +99,17 @@ See [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md) for the design an
 plan, and `tests/equivalence/harness.py` for the translate-and-load infrastructure.
 
 For real-corpus progress checks on translation-rule PRs, run `make corpus-clone-all` once,
-then compare against committed baselines. At minimum:
+then compare against committed baselines. Run the most relevant local checks before
+pushing for fast feedback:
 
 ```bash
 make corpus-spring-dense-check        # Spring dense + construct fixtures
 make corpus-guava-dense-check         # or another library preset relevant to the change
 make corpus-hotspots                  # optional: cross-library gap triage
 ```
+
+CI runs every committed dense baseline before merge, so local targeted checks are a
+pre-push signal rather than the final corpus gate.
 
 See [Corpus scoreboard](docs/CORPUS_SCOREBOARD.md) for the full preset table, per-library
 baselines, comparison mode, and intentional baseline refresh workflow.
