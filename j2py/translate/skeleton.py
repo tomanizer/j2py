@@ -11,6 +11,7 @@ from j2py.translate.class_fields import (
     _collect_declared_type_fields,
     _collect_declared_type_java_fields,
 )
+from j2py.translate.class_interfaces import interface_type_var_declaration_lines
 from j2py.translate.class_methods import collect_declared_type_method_return_types
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
@@ -110,12 +111,18 @@ def translate_skeleton_with_diagnostics(
         )
         pending_docstring = None
 
+    type_var_lines = interface_type_var_declaration_lines(parsed.root, cfg, diagnostics)
+
     lines = ["from __future__ import annotations"]
     import_lines = _import_lines(parsed, cfg, diagnostics, static_import_todos)
     if import_lines:
         lines.append("")
         lines.extend(import_lines)
     lines.extend(["", ""])
+
+    if type_var_lines:
+        lines.extend(type_var_lines)
+        lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):
         if index:

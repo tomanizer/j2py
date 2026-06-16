@@ -37,6 +37,27 @@ from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.statements import translate_body
 
 
+def interface_type_var_declaration_lines(
+    root: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    """Return module-level TypeVar declarations needed by translated interfaces."""
+    declarations: dict[str, str] = {}
+    for interface in _interface_declarations(root):
+        variances = _interface_type_param_variances(interface, cfg)
+        for type_param in _type_parameter_names(interface):
+            _register_type_var(declarations, type_param, variances.get(type_param, "invariant"))
+
+        for method in _interface_methods(interface):
+            for type_param in _type_parameter_names(method):
+                _register_type_var(declarations, type_param, "invariant")
+
+    if declarations:
+        diagnostics.imports.need_typing("TypeVar")
+    return [_type_var_declaration_line(name, variance) for name, variance in declarations.items()]
+
+
 def translate_interface(
     node: JavaNode,
     cfg: TranslationConfig,
@@ -60,16 +81,6 @@ def translate_interface(
         else [child for child in body.named_children if child.type == "method_declaration"]
     )
     interface_type_params = _type_parameter_names(node)
-    type_var_names = list(
-        dict.fromkeys(
-            [
-                *interface_type_params,
-                *[type_param for method in methods for type_param in _type_parameter_names(method)],
-            ],
-        ),
-    )
-    if type_var_names:
-        diagnostics.imports.need_typing("TypeVar")
     class_method_names = member_method_names(methods, cfg)
     class_static_method_names = member_static_method_names(methods, cfg)
     method_return_types = class_method_return_types(methods, cfg)
@@ -97,13 +108,6 @@ def translate_interface(
     )
     class_mapping = class_annotation_mapping(node, cfg, diagnostics)
     lines: list[str] = []
-    for type_var_name in type_var_names:
-        if type_var_name in interface_type_params:
-            lines.append(f'{type_var_name} = TypeVar("{type_var_name}", contravariant=True)')
-        else:
-            lines.append(f'{type_var_name} = TypeVar("{type_var_name}")')
-    if type_var_names:
-        lines.append("")
     lines.extend(annotation_comment_lines(node, cfg))
     lines.extend(class_mapping.decorators)
     protocol_base = (
@@ -422,6 +426,86 @@ def _type_parameter_names(node: JavaNode) -> list[str]:
         if name:
             names.append(name)
     return names
+
+
+def _interface_declarations(root: JavaNode) -> list[JavaNode]:
+    declarations: list[JavaNode] = []
+    if root.type == "interface_declaration":
+        declarations.append(root)
+    declarations.extend(root.find_all("interface_declaration"))
+    return declarations
+
+
+def _interface_methods(node: JavaNode) -> list[JavaNode]:
+    body = node.child_by_field("body")
+    if body is None:
+        return []
+    return [child for child in body.named_children if child.type == "method_declaration"]
+
+
+def _interface_type_param_variances(
+    node: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    type_params = _type_parameter_names(node)
+    usages: dict[str, set[str]] = {type_param: set() for type_param in type_params}
+    if not usages:
+        return {}
+
+    for method in _interface_methods(node):
+        if "static" in _modifiers(method):
+            continue
+        _record_type_var_usages(return_type(method, cfg), usages, position="return")
+        for param in parameter_infos(method, cfg):
+            _record_type_var_usages(param.py_type, usages, position="parameter")
+
+    return {name: _variance_for_usages(usages[name]) for name in type_params}
+
+
+def _record_type_var_usages(
+    py_type: str,
+    usages: dict[str, set[str]],
+    *,
+    position: str,
+) -> None:
+    stripped = py_type.strip()
+    for type_param in usages:
+        if not re.search(rf"\b{re.escape(type_param)}\b", stripped):
+            continue
+        if stripped == type_param:
+            usages[type_param].add(position)
+        else:
+            usages[type_param].add("invariant")
+
+
+def _variance_for_usages(usages: set[str]) -> str:
+    if "invariant" in usages or len(usages) != 1:
+        return "invariant"
+    if "return" in usages:
+        return "covariant"
+    if "parameter" in usages:
+        return "contravariant"
+    return "invariant"
+
+
+def _register_type_var(
+    declarations: dict[str, str],
+    name: str,
+    variance: str,
+) -> None:
+    existing = declarations.get(name)
+    if existing is None:
+        declarations[name] = variance
+    elif existing != variance:
+        declarations[name] = "invariant"
+
+
+def _type_var_declaration_line(name: str, variance: str) -> str:
+    if variance == "covariant":
+        return f'{name} = TypeVar("{name}", covariant=True)'
+    if variance == "contravariant":
+        return f'{name} = TypeVar("{name}", contravariant=True)'
+    return f'{name} = TypeVar("{name}")'
 
 
 def _returned_lambda(method: JavaNode) -> JavaNode | None:
