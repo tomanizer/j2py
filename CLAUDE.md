@@ -74,6 +74,9 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
   design in [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md))
 - **Framework annotation lowering is opt-in via `annotation_map`**, with no default
   Spring/FastAPI/JPA semantics in core ([ADR 0019](docs/decisions/0019-annotation-map-framework-lowering.md))
+- **JDK lowering, not JVM emulation** — ubiquitous JDK types and call patterns lower to
+  Python in core; JDBC, servlets, and framework packages use stubs plus project
+  `import_map` ([ADR 0020](docs/decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md))
 
 ## Development workflow
 
