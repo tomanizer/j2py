@@ -123,7 +123,9 @@ Provide measurable quality signal without live LLM in normal CI:
 - **Java reflection, byte manipulation, JNI** — not translatable; flagged with
   `# TODO(j2py): reflection — manual port required`.
 - **Full Spring/Hibernate framework support** — annotations are translated syntactically;
-  framework semantics (DI, ORM mappings) must be ported manually.
+  framework semantics (DI, ORM mappings) must be ported manually. JDBC and other
+  platform I/O boundaries follow the same stub-plus-project-config policy
+  ([ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)).
 - **Round-trip Java generation** — j2py is one-way.
 
 ## Success criteria
@@ -151,3 +153,4 @@ Provide measurable quality signal without live LLM in normal CI:
 - [Translation targets](TRANSLATION_TARGETS.md)
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
 - [Equivalence testing design](EQUIVALENCE_TESTING.md)
+- [JDK lowering vs platform boundaries](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)
