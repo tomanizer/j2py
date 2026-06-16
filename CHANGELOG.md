@@ -7,10 +7,60 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.5.0b2 - 2026-06-16
+
+Second beta pre-release. Extends rule-layer translation breadth — framework annotation
+visibility and opt-in lowering, broader static-overload dispatch, and more deterministic
+`.get(...)` receiver typing — plus a new enterprise corpus measurement preset. Correctness
+gaps from 0.5.0b1 remain open (overload manual-dispatch, division numeric certainty, some
+JDK static imports); see **Known limitations** under 0.5.0b1.
+
 ### Added
 - Opt-in `annotation_map` config for framework annotation lowering: mapped annotations can
   emit decorators, imports, class bases, field comments, and constructor-injection
-  parameters while unmapped annotations keep Tier 1 visibility behavior (#335).
+  parameters while unmapped annotations keep Tier 1 visibility behavior
+  ([ADR 0019](docs/decisions/0019-annotation-map-framework-lowering.md), #335, #343).
+- Tier 1 **annotation visibility**: stripped framework annotations on class, field, and
+  method declarations now emit diagnostics and `# @...` line comments so reviewers and
+  downstream tooling can see what wiring was lost; multi-line annotations stay
+  syntactically valid Python comments (#334, #341).
+- New **`spring-app-dense` corpus preset** sampling Spring application-layer Java filtered
+  by enterprise annotation usage (`@RestController`, `@Service`, `@Entity`, …), with
+  `annotation_filter.py` / `enterprise_metrics.py` reporting method-body coverage,
+  annotation-only stub rate, and annotation-warning rate alongside node coverage; includes
+  a CI corpus job, Makefile targets, and committed baselines (#336, #348).
+- **Static `ObjectName.getInstance(...)` overload dispatcher**: emits `typing.overload`
+  stubs plus one concrete `*args` implementation instead of a `j2py_runtime.overloaded`
+  user method, and promotes `ObjectName` / `MalformedObjectNameException` to vendored
+  runtime placeholder classes (#347, closes #300).
+- **char/String `append(...)` overload dispatch**: deterministic rule-layer path for
+  `StringBuilder.append(char|String)` pairs that erase to Python `str`, routing
+  one-character strings through the `char` body and other values through the `String` body
+  via `@overload` stubs and one concrete dispatcher (#344, closes #290).
+
+### Changed
+- **Centralized platform import policy** (`translate/rules/imports.py`): evidence-backed
+  JDK/platform/external imports route through one rule-layer helper shared by skeleton
+  import emission and name-resolution type bindings, preventing fake Python module paths
+  like `from com.example.Integer import Integer`; adds an `Integer.compare(a, b)` shim
+  ([ADR 0019](docs/decisions/0019-annotation-map-framework-lowering.md), #340, closes #298).
+- `java.util.Comparator` now maps to a vendored runtime `Comparator[T]` Protocol; anonymous
+  Comparator helper classes emit as concrete, instantiable local classes that satisfy the
+  protocol structurally rather than subclassing an uninstantiable `typing.Protocol` (#349,
+  closes #296).
+
+### Fixed
+- Static `.get(...)` receiver typing no longer flags reviewable factory/registry chains as
+  ambiguous collection access:
+  - `MergedAnnotations.from(annotation).get(annotationType)` stays a method call via a
+    static-factory return-type table (#332, closes #306).
+  - `registry.get(Customizer.class)` on a class-keyed registry stays a method call (#330,
+    closes #307).
+  - `this.mapping.getAttributes().get(index)` infers the declared `List<Method>` return
+    type and lowers the final `.get(index)` to Python indexing (#329, closes #304).
+- `java.lang.annotation.ElementType` static enum constants (`METHOD`, `CONSTRUCTOR`,
+  `TYPE`) resolve through the static-field alias table, so `@Target({METHOD, …})` stays a
+  reviewable comment without emitting static-import TODOs (#342, closes #289).
 
 ## 0.5.0b1 - 2026-06-16
 
