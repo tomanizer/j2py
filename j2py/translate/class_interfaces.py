@@ -148,9 +148,7 @@ def translate_interface(
     lines.extend(annotation_comment_lines(node, cfg))
     lines.extend(class_mapping.decorators)
     py_type_params = [_typevar_rename.get(p, p) for p in interface_type_params]
-    protocol_base = (
-        f"Protocol[{', '.join(py_type_params)}]" if py_type_params else "Protocol"
-    )
+    protocol_base = f"Protocol[{', '.join(py_type_params)}]" if py_type_params else "Protocol"
     bases = [*class_mapping.bases, protocol_base]
     lines.append(f"class {class_name}({', '.join(bases)}):")
     if docstring_lines:
