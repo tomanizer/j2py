@@ -61,6 +61,8 @@ JDK static imports); see **Known limitations** under 0.5.0b1.
 - `java.lang.annotation.ElementType` static enum constants (`METHOD`, `CONSTRUCTOR`,
   `TYPE`) resolve through the static-field alias table, so `@Target({METHOD, …})` stays a
   reviewable comment without emitting static-import TODOs (#342, closes #289).
+- Deduplicate mapped annotation class bases so a class is not emitted with a repeated base
+  from overlapping `annotation_map` entries (#346).
 
 ## 0.5.0b1 - 2026-06-16
 
