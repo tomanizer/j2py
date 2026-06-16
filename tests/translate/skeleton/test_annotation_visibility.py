@@ -1,9 +1,40 @@
 """Tests for class/field framework annotation visibility (issue #334)."""
 
+from j2py.analyze.symbols import extract_symbols
+from j2py.parse.java_ast import parse_file
+from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
+    FIXTURES,
     assert_valid_python,
     translate_source_with_diagnostics,
+)
+
+ANNOTATION_MAP_CFG = CFG.model_copy(
+    update={
+        "annotation_map": {
+            "RestController": {
+                "python_decorator": "mapped_controller",
+                "import": "from zfixtures.spring_shim import mapped_controller",
+            },
+            "Entity": {
+                "python_base": "Base",
+                "import": "from zfixtures.db_base import Base",
+            },
+            "Autowired": {
+                "field_comment": "# injected: {field_type} {field_name}",
+                "emit_init_param": True,
+            },
+            "Transactional": {
+                "python_decorator": "transactional",
+                "import": "from zfixtures.db_tx import transactional",
+            },
+            "GetMapping": {
+                "python_decorator": 'router.get("{value}")',
+                "import": "from zfixtures.web import router",
+            },
+        },
+    },
 )
 
 
@@ -163,5 +194,76 @@ def test_method_framework_annotation_uses_stripped_reason() -> None:
     assert "# @Transactional" in result.source
     assert [warning.reason for warning in result.diagnostics.warnings] == [
         "stripped framework annotation @Transactional on method process",
+    ]
+    assert_valid_python(result.source)
+
+
+def test_annotation_map_fixture_lowers_framework_annotations() -> None:
+    parsed = parse_file(FIXTURES / "java" / "AnnotationMapFrameworkLowering.java")
+    result = translate_skeleton_with_diagnostics(
+        parsed,
+        extract_symbols(parsed),
+        ANNOTATION_MAP_CFG,
+    )
+
+    assert result.coverage == 1.0
+    assert result.source == (FIXTURES / "python" / "AnnotationMapFrameworkLowering.py").read_text()
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "mapped annotation @RestController -> @mapped_controller on class OrderController",
+        "mapped annotation @Entity -> base Base on class OrderController",
+        "mapped annotation @Autowired -> field comment, constructor parameter on field repo",
+        "mapped annotation @Transactional -> @transactional on method get",
+        'mapped annotation @GetMapping -> @router.get("{value}") on method get',
+    ]
+    assert_valid_python(result.source)
+
+
+def test_annotation_map_can_suppress_mapped_audit_comment() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "annotation_map": {
+                "Service": {
+                    "python_decorator": "service",
+                    "preserve_comment": False,
+                },
+            },
+        },
+    )
+    result = translate_source_with_diagnostics(
+        """
+        @Service
+        public class Worker {
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "@service" in result.source
+    assert "# @Service" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_annotation_map_drop_uses_dropped_reason() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "annotation_map": {
+                "Service": {
+                    "drop": True,
+                },
+            },
+        },
+    )
+    result = translate_source_with_diagnostics(
+        """
+        @Service
+        public class Worker {
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "@service" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "dropped annotation @Service",
     ]
     assert_valid_python(result.source)

@@ -53,6 +53,7 @@ def translate_overloaded_members(
     static_method_imports: dict[str, str] | None = None,
     name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
+    extra_params: list[ParameterInfo] | None = None,
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -82,6 +83,7 @@ def translate_overloaded_members(
     inner_capture_names = inner_class_names_requiring_outer or set()
     direct_nested_names = nested_class_names or set()
     method_return_types = dict(class_method_return_types or {})
+    injected_params = extra_params or []
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -102,6 +104,7 @@ def translate_overloaded_members(
             static_method_imports=static_methods,
             name_resolver=resolver,
             pre_body_lines=pre_body_lines,
+            extra_params=injected_params,
             class_state=class_state,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
@@ -176,6 +179,7 @@ def translate_overloaded_members(
         static_method_imports=static_methods,
         name_resolver=resolver,
         pre_body_lines=pre_body_lines,
+        extra_params=injected_params,
         class_state=class_state,
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_capture_names,
@@ -244,6 +248,7 @@ def _merged_constructor_overload(
     static_method_imports: dict[str, str],
     name_resolver: NameResolver,
     pre_body_lines: list[str],
+    extra_params: list[ParameterInfo],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -302,6 +307,8 @@ def _merged_constructor_overload(
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = True
+    for param in extra_params:
+        register_param(ctx, param)
     for param in impl.params:
         register_param(ctx, param)
 
@@ -309,6 +316,14 @@ def _merged_constructor_overload(
         impl.params,
         defaults_by_position,
     )
+    signature_params = [
+        param
+        for param in extra_params
+        if param.raw_name not in {item.raw_name for item in impl.params}
+    ] + signature_params
+    if cfg.emit_type_hints:
+        for param in extra_params:
+            diagnostics.imports.need_type_annotation(param.py_type)
 
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
@@ -889,6 +904,7 @@ def _dispatch_overload_members(
     static_method_imports: dict[str, str],
     name_resolver: NameResolver,
     pre_body_lines: list[str],
+    extra_params: list[ParameterInfo],
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -967,6 +983,7 @@ def _dispatch_overload_members(
                 ctx,
                 pre_body_lines=member_pre_body,
                 decorator_lines=["    @overloaded"],
+                extra_params=extra_params if is_constructor else [],
                 def_line_suffix=("" if index == 0 else "  # type: ignore[no-redef]  # noqa: F811"),
                 supported_reason=reason,
                 docstring_lines=docstring_lines if index == len(members) - 1 else None,

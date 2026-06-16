@@ -11,6 +11,10 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modif
 from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
+from j2py.translate.framework_annotations import (
+    field_annotation_comment_lines,
+    field_init_parameter,
+)
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
@@ -239,6 +243,22 @@ def _translate_fields(
             target_kind="field",
             target_name=field.py_name,
         )
+        init_param = field_init_parameter(field, cfg, diagnostics)
+        if init_param is not None:
+            diagnostics.record(
+                field.node,
+                supported=True,
+                reason="translated annotation-mapped constructor injection field",
+            )
+            if cfg.emit_type_hints:
+                diagnostics.imports.need_type_annotation(field.py_type)
+            target = _field_assignment(f"self.{field.py_name}", field.py_type, cfg)
+            instance_init_lines.extend(annotation_comment_lines(field.node, cfg, indent="        "))
+            instance_init_lines.extend(
+                field_annotation_comment_lines(field, cfg, diagnostics, indent="        "),
+            )
+            instance_init_lines.append(f"        {target} = {field.py_name}")
+            continue
 
         if field.initializer is not None:
             diagnostics.record(
@@ -256,6 +276,9 @@ def _translate_fields(
                 instance_init_lines.append("")
             instance_init_lines.extend(
                 annotation_comment_lines(field.node, cfg, indent="        "),
+            )
+            instance_init_lines.extend(
+                field_annotation_comment_lines(field, cfg, diagnostics, indent="        "),
             )
             instance_init_lines.append(
                 f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
@@ -282,6 +305,9 @@ def _translate_fields(
             diagnostics.imports.need_type_annotation(annotation)
         target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
         instance_init_lines.extend(annotation_comment_lines(field.node, cfg, indent="        "))
+        instance_init_lines.extend(
+            field_annotation_comment_lines(field, cfg, diagnostics, indent="        "),
+        )
         instance_init_lines.append(f"        {target} = {default_value}")
 
     supported_members = {
@@ -363,6 +389,7 @@ def _translate_static_field(
             diagnostics.imports.need_type_annotation(annotation)
         return [
             *annotation_comment_lines(field.node, ctx.cfg, indent="    "),
+            *field_annotation_comment_lines(field, ctx.cfg, diagnostics, indent="    "),
             f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}",
         ]
 
@@ -372,6 +399,7 @@ def _translate_static_field(
     initializer = translate_expression(field.initializer, ctx)
     lines: list[str] = []
     lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="    "))
+    lines.extend(field_annotation_comment_lines(field, ctx.cfg, diagnostics, indent="    "))
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
     if _initializer_references_enclosing_class(initializer, ctx):
         # A static field whose initializer references the class being defined cannot run

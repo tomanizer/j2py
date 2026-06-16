@@ -97,6 +97,50 @@ drop_annotations:
     assert "Override" in cfg.drop_annotations
 
 
+def test_config_loader_loads_annotation_map(tmp_path: Path) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text(
+        """
+annotation_map:
+  RestController:
+    python_decorator: mapped_controller
+    import: from tests.fixtures.spring_shim import mapped_controller
+    preserve_comment: false
+  Autowired:
+    field_comment: "# injected: {field_type} {field_name}"
+    emit_init_param: true
+""",
+    )
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.annotation_map["RestController"].python_decorator == "mapped_controller"
+    assert (
+        cfg.annotation_map["RestController"].import_
+        == "from tests.fixtures.spring_shim import mapped_controller"
+    )
+    assert cfg.annotation_map["RestController"].preserve_comment is False
+    assert cfg.annotation_map["Autowired"].emit_init_param is True
+
+
+def test_config_loader_rejects_unknown_annotation_map_entry_key(tmp_path: Path) -> None:
+    config_file = tmp_path / "j2py.toml"
+    config_file.write_text(
+        """
+[annotation_map.RestController]
+python_decorator = "mapped_controller"
+unknown_behavior = true
+""",
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        ConfigLoader().add_defaults().add_file(config_file).build()
+
+    message = str(exc_info.value)
+    assert "annotation_map.RestController.unknown_behavior" in message
+
+
 def test_config_loader_rejects_unknown_key_with_suggestion(tmp_path: Path) -> None:
     config_file = tmp_path / "j2py.toml"
     config_file.write_text("type_maps = {}\n")
