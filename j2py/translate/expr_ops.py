@@ -609,6 +609,8 @@ def _translate_binary_operand(
         return expression
     # Parenthesized non-assignment: decide whether to keep parens for precedence.
     expression = translate_expression(inner, ctx)
+    if _binary_operand_needs_parentheses(parent_operator, inner):
+        return f"({expression})"
     if inner.type in {"switch_expression", "ternary_expression"}:
         return f"({expression})"
     if inner.type != "binary_expression" or len(inner.children) < 3:

@@ -101,6 +101,10 @@ def test_bitwise_comparison_operands_are_parenthesized() -> None:
             public static boolean any(Object left, Object middle, Object right) {
                 return left != null | middle != null || right != null;
             }
+
+            public static boolean anyParenthesized(Object left, Object middle, Object right) {
+                return (left != null) | (middle != null) || right != null;
+            }
         }
         """,
     )
@@ -108,6 +112,12 @@ def test_bitwise_comparison_operands_are_parenthesized() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "return (left is not None) | (middle is not None) or right is not None" in result.source
+    assert (
+        result.source.count(
+            "return (left is not None) | (middle is not None) or right is not None",
+        )
+        == 2
+    )
     assert_valid_python(result.source)
 
 
