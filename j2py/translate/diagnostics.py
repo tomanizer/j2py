@@ -192,6 +192,11 @@ class TranslationContext:
     # the runtime dispatcher; see ADR 0009).
     self_dispatch_methods: set[str] = field(default_factory=set)
 
+    # Statements accumulated by _desugar_embedded_assign that must be emitted
+    # *before* the enclosing statement.  Cleared by _flush_hoisted_pre_stmts
+    # after each statement-root translate_expression call.
+    hoisted_pre_stmts: list[str] = field(default_factory=list)
+
     # Java method name -> translated return type for the enclosing class.
     class_method_return_types: dict[str, str] = field(default_factory=dict)
 

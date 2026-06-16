@@ -8,7 +8,7 @@ from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
 from j2py.translate.name_resolution import scope_from_context
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
 
@@ -66,7 +66,15 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
     if len(children) != 2:
         ctx.diagnostics.record(node, supported=False, reason="malformed array access")
         return f"__j2py_todo__({node.text!r})"
-    return f"{translate_expression(children[0], ctx)}[{translate_expression(children[1], ctx)}]"
+    array_expr = translate_expression(children[0], ctx)
+    index_inner = unwrap_parens(children[1])
+    if index_inner.type in {"assignment_expression", "update_expression"}:
+        from j2py.translate.expr_ops import _desugar_embedded_assign
+
+        index_expr = _desugar_embedded_assign(index_inner, ctx)
+    else:
+        index_expr = translate_expression(children[1], ctx)
+    return f"{array_expr}[{index_expr}]"
 
 
 def _translate_array_initializer(node: JavaNode, ctx: TranslationContext) -> str:

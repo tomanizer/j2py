@@ -6,7 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_attribute_method_name,
     translate_method_name,
@@ -33,7 +33,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return f"__j2py_todo__({node.text!r})"
 
     arg_nodes = _argument_nodes(args_node)
-    arg_expressions = [translate_expression(child, ctx) for child in arg_nodes]
+    arg_expressions = [_translate_argument(child, ctx) for child in arg_nodes]
     args = ", ".join(arg_expressions)
 
     args_index = named.index(args_node)
@@ -238,6 +238,18 @@ def _argument_nodes(args_node: JavaNode) -> list[JavaNode]:
     return [child for child in args_node.named_children if not is_comment(child)]
 
 
+_ASSIGN_OR_UPDATE = frozenset({"assignment_expression", "update_expression"})
+
+
+def _translate_argument(node: JavaNode, ctx: TranslationContext) -> str:
+    inner = unwrap_parens(node)
+    if inner.type in _ASSIGN_OR_UPDATE:
+        from j2py.translate.expr_ops import _desugar_embedded_assign
+
+        return _desugar_embedded_assign(inner, ctx)
+    return translate_expression(node, ctx)
+
+
 def _translate_static_method_invocation(
     node: JavaNode,
     *,
@@ -357,8 +369,10 @@ def _translate_static_imported_method(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
+    from j2py.translate.rules.naming import translate_class_name, translate_method_name
+
     raw_receiver, method_name = imported_name.rsplit(".", 1)
-    return _translate_static_method_invocation(
+    result = _translate_static_method_invocation(
         node,
         raw_receiver=raw_receiver,
         method_name=method_name,
@@ -366,6 +380,13 @@ def _translate_static_imported_method(
         args=args,
         ctx=ctx,
     )
+    if result is not None:
+        return result
+    # Fallback: emit ClassName.method_name(args) for unknown receiver classes so the
+    # output is always syntactically valid and reviewable rather than a bare call.
+    class_name = translate_class_name(raw_receiver.rsplit(".", 1)[-1])
+    py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+    return f"{class_name}.{py_method}({', '.join(args)})"
 
 
 def _translate_string_format(args: list[str]) -> str:

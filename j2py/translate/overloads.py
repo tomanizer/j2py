@@ -212,8 +212,14 @@ def translate_overloaded_members(
     if char_string_append is not None:
         return char_string_append
 
+    # When same-erased-signature overloads have identical Java bodies (e.g. sort(int[])
+    # and sort(long[]) both do Arrays.sort(array)), deduplicate to one representative so
+    # _dispatch_overload_members can proceed with a distinct-signature set.
+    deduped_members = _deduplicate_same_body_erased_sig(members, cfg)
+    dispatch_input = deduped_members if deduped_members is not None else members
+
     dispatched = _dispatch_overload_members(
-        members,
+        dispatch_input,
         cfg=cfg,
         diagnostics=diagnostics,
         containing_class_name=containing_class_name,
@@ -237,6 +243,16 @@ def translate_overloaded_members(
         enclosing_static_dispatch=enclosing_dispatch,
     )
     if dispatched is not None:
+        if deduped_members is not None:
+            # Record dropped duplicates as handled (deduplicated into one representative)
+            deduped_ids = {id(m) for m in deduped_members}
+            for member in members:
+                if id(member) not in deduped_ids:
+                    diagnostics.record(
+                        member,
+                        supported=True,
+                        reason="deduplicated same-body erased-signature overload",
+                    )
         return dispatched
 
     for member in members:
@@ -1532,6 +1548,42 @@ def _dispatch_overload_members(
             ),
         )
     return lines
+
+
+def _deduplicate_same_body_erased_sig(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+) -> list[JavaNode] | None:
+    """Reduce overloads that share an erased signature AND identical Java body to one member.
+
+    When Java numeric-width variants (e.g. ``sort(int[])`` and ``sort(long[])``) map to
+    the same Python erasure and have identical Java body text, only one representative is
+    needed. Returns the reduced list when at least one deduplication occurs AND no
+    same-erased-sig pair had *different* bodies (which would require runtime dispatch to
+    distinguish).  Returns None if deduplication is impossible or unnecessary.
+    """
+    erased = [_erased_overload_signature(member, cfg) for member in members]
+    if len(set(erased)) == len(erased):
+        return None  # already distinct — nothing to deduplicate
+
+    sig_to_body: dict[tuple[str, ...], str] = {}
+    reduced: list[JavaNode] = []
+
+    for member, sig in zip(members, erased, strict=True):
+        body = method_body(member)
+        body_text = body.text.strip() if body is not None else ""
+
+        if sig not in sig_to_body:
+            sig_to_body[sig] = body_text
+            reduced.append(member)
+        elif sig_to_body[sig] == body_text:
+            pass  # same erased sig + same body → safe to drop duplicate
+        else:
+            return None  # same erased sig but different bodies → can't safely merge
+
+    if len(reduced) == len(members):
+        return None  # no deduplication actually happened
+    return reduced
 
 
 def _erased_overload_signature(member: JavaNode, cfg: TranslationConfig) -> tuple[str, ...]:

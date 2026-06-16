@@ -441,7 +441,31 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
     assert result.diagnostics.unhandled[0].reason == (
         "unknown static import com.example.Helpers.magic"
     )
-    assert "return magic(value)" in result.source
+    # Unknown static method import now emits a qualified call so output stays syntactically
+    # valid and reviewable; bare unqualified fallback was replaced by ClassName.method(args).
+    assert "return Helpers.magic(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_unknown_static_field_import_emits_qualified_identifier() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static com.example.BoundType.CLOSED;
+
+        public class StaticField {
+            public boolean check(Object x) {
+                return x == CLOSED;
+            }
+        }
+        """,
+    )
+
+    assert "# TODO(j2py): static import com.example.BoundType.CLOSED - resolve manually" in (
+        result.source
+    )
+    # Unknown static field now emits qualified ClassName.MEMBER so output is valid Python.
+    assert "BoundType.CLOSED" in result.source
+    assert "x == BoundType.CLOSED" in result.source or "== BoundType.CLOSED" in result.source
     assert_valid_python(result.source)
 
 
@@ -1802,6 +1826,21 @@ def test_array_constructor_method_reference_in_to_array_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_generic_type_constructor_reference_strips_type_args() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Foo {
+            public void m() {
+                Collector.of(ImmutableState<R, C, V>::new, s -> s.build());
+            }
+        }
+        """,
+    )
+    assert "ImmutableState<R, C, V>" not in result.source
+    assert "ImmutableState" in result.source
+    assert_valid_python(result.source)
+
+
 def test_emit_line_comments_flag_suppresses_preserved_comments() -> None:
     cfg = CFG.model_copy(update={"emit_line_comments": False})
     result = translate_source_with_diagnostics(
@@ -2580,3 +2619,194 @@ def test_method_named_forecast_does_not_trigger_cast_import() -> None:
     )
     assert "from typing import cast" not in result.source
     assert_valid_python(result.source)
+
+
+# ---------------------------------------------------------------------------
+# Assignment-as-expression desugaring (#353)
+# ---------------------------------------------------------------------------
+
+
+def test_simple_assignment_in_null_check_becomes_walrus() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Drain {
+            public void drain(java.util.Queue<String> q) {
+                String item;
+                while ((item = q.poll()) != null) {
+                    process(item);
+                }
+            }
+            private void process(String s) {}
+        }
+        """,
+    )
+    assert "(item := q.poll()) is not None" in result.source
+    assert_valid_python(result.source)
+
+
+def test_compound_assign_in_binary_condition_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class FreqSketch {
+            private int size;
+            private int sampleSize;
+            public void tryReset(boolean added) {
+                if (added && (size += 1) == sampleSize) {
+                    doReset();
+                }
+            }
+            private void doReset() {}
+        }
+        """,
+    )
+    src = result.source
+    assert "self.size += 1" in src
+    assert "self.size == self.sample_size" in src
+    assert_valid_python(src)
+
+
+def test_prefix_update_in_binary_condition_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Timer {
+            private int steps;
+            private int limit;
+            public String nextBucket() {
+                return ++steps < limit ? "a" : null;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.steps += 1" in src
+    assert '"a" if self.steps < self.limit else None' in src
+    assert_valid_python(src)
+
+
+def test_field_assignment_in_ternary_branch_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Lazy {
+            private Object cache;
+            public Object get() {
+                Object v = cache;
+                return v != null ? v : (cache = compute());
+            }
+            private Object compute() { return new Object(); }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.cache = self.compute()" in src
+    assert "v if v is not None else self.cache" in src
+    assert_valid_python(src)
+
+
+def test_local_var_assignment_in_not_operand_becomes_walrus() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Strip {
+            public void offer(Object e, java.util.Queue<Object> buf) {
+                boolean uncontended;
+                if (!(uncontended = buf.offer(e))) {
+                    retry(e);
+                }
+            }
+            private void retry(Object e) {}
+        }
+        """,
+    )
+    src = result.source
+    assert "uncontended := buf.offer(e)" in src
+    assert "not " in src
+    assert_valid_python(src)
+
+
+def test_nested_assignment_in_assignment_rhs_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Queue {
+            private int size;
+            public int insertNext() {
+                int insertIndex = size += 1;
+                return insertIndex;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.size += 1" in src
+    assert "insert_index = self.size" in src
+    assert_valid_python(src)
+
+
+def test_update_in_local_var_declaration_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Agg {
+            private int i;
+            public int nextIndex() {
+                int index = i++;
+                return index;
+            }
+        }
+        """,
+    )
+    src = result.source
+    # post-increment hoisted; index gets the old value
+    assert "self.i += 1" in src
+    assert "index = " in src
+    assert_valid_python(src)
+
+
+def test_length_field_on_assignment_lhs_is_not_rewritten_to_len_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ByteBuffer {
+            private int length;
+
+            public ByteBuffer(int n) {
+                this.length = n;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.length = n" in src
+    assert "len(self) = " not in src
+    assert_valid_python(src)
+
+
+def test_compound_assign_in_method_argument_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Iter {
+            private int position;
+            public String nextValue() {
+                return get(position += 1);
+            }
+            private String get(int idx) { return ""; }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.position += 1" in src
+    assert "self.get(self.position)" in src
+    assert_valid_python(src)
+
+
+def test_field_assignment_in_expression_lambda_is_promoted_to_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Splitter {
+            private String prefix;
+            private java.util.function.Function<String,String> fn;
+            public void process(java.util.Spliterator<String> src) {
+                src.tryAdvance(elem -> this.prefix = fn.apply(elem));
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.prefix = self.fn.apply(elem)" in src
+    assert_valid_python(src)
