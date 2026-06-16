@@ -63,13 +63,11 @@ def _desugar_update_in_expr(node: JavaNode, ctx: TranslationContext) -> str:
     named_children = node.named_children
     if len(children) < 2 or not named_children:
         return translate_expression(node, ctx)
-    operator = next(
-        (c.text for c in children if c.text in {"++", "--"}), children[-1].text
-    )
+    operator = next((c.text for c in children if c.text in {"++", "--"}), children[-1].text)
     target = translate_expression(named_children[0], ctx)
     is_prefix = children[0].text in {"++", "--"}
     delta = "1" if operator == "++" else "-1"
-    op_stmt = f"{target} {'+'  if operator == '++' else '-'}= 1"
+    op_stmt = f"{target} {'+' if operator == '++' else '-'}= 1"
     ctx.hoisted_pre_stmts.append(op_stmt)
     if is_prefix:
         # ++i / --i: value IS the new value
@@ -99,6 +97,7 @@ def _translate_assignment_lhs(node: JavaNode, ctx: TranslationContext) -> str:
         if children and children[-1].text == "length":
             target = translate_expression(children[0], ctx)
             from j2py.translate.rules.naming import translate_field_name
+
             field = translate_field_name("length", snake_case=ctx.cfg.snake_case_fields)
             return f"{target}.{field}"
     return translate_expression(node, ctx)

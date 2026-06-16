@@ -3170,19 +3170,19 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 22,
-      "coverage": 0.7636363636363637,
+      "annotation_warning_count": 28,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 42,
+      "handled_count": 60,
       "method_body_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ComparisonChain.java",
       "syntax_ok": true,
-      "unhandled_count": 13,
-      "unhandled_node_types": "method_declaration:13",
-      "unhandled_reasons": "overloaded method compare requires manual dispatch:13",
-      "warning_count": 35
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 41
     },
     {
       "annotation_use_count": 0,
@@ -3226,7 +3226,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9812229824597475,
+    "average_coverage": 0.9824048006415657,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
@@ -3234,17 +3234,17 @@
       "annotation_only_stub_rate": 0.0,
       "annotation_warning_file_rate": 0.995,
       "avg_annotation_uses_per_file": 0.0,
-      "avg_annotation_warnings_per_file": 12.845,
+      "avg_annotation_warnings_per_file": 12.875,
       "files_with_annotation_warnings": 199,
       "files_with_method_bodies": 166,
       "method_body_file_rate": 0.83,
       "total_annotation_uses": 0,
-      "total_annotation_warnings": 2569
+      "total_annotation_warnings": 2575
     },
-    "files_below_coverage_threshold": 4,
+    "files_below_coverage_threshold": 3,
     "files_scanned": 200,
-    "files_with_unhandled": 56,
-    "full_coverage_files": 144,
+    "files_with_unhandled": 55,
+    "full_coverage_files": 145,
     "parse_success_rate": 0.99,
     "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
@@ -3253,11 +3253,11 @@
         92
       ],
       [
-        "method_declaration",
-        19
+        "binary_expression",
+        6
       ],
       [
-        "binary_expression",
+        "method_declaration",
         6
       ],
       [
@@ -3278,10 +3278,6 @@
       ]
     ],
     "top_unhandled_reasons": [
-      [
-        "overloaded method compare requires manual dispatch",
-        13
-      ],
       [
         "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative",
         6
@@ -3356,6 +3352,10 @@
       ],
       [
         "unknown static import java.util.Collections.emptySet",
+        2
+      ],
+      [
+        "unknown static import com.google.common.collect.ImmutableMapEntry.createEntryArray",
         2
       ]
     ]

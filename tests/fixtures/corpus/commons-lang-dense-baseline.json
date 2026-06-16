@@ -34,7 +34,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -46,7 +46,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -114,7 +114,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 8,
@@ -126,7 +126,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -162,7 +162,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 20,
@@ -174,7 +174,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
@@ -530,7 +530,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -542,7 +542,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
@@ -597,7 +597,7 @@
       "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 17,
+      "handled_count": 18,
       "method_body_count": 3,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -610,7 +610,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -622,7 +622,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -642,7 +642,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 34,
@@ -654,11 +654,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -670,11 +670,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -686,11 +686,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -702,11 +702,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -718,7 +718,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -738,7 +738,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -750,11 +750,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -766,11 +766,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -782,11 +782,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -798,11 +798,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -814,7 +814,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -850,7 +850,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -862,7 +862,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
@@ -930,7 +930,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -942,14 +942,14 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 44,
+      "handled_count": 45,
       "method_body_count": 11,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -994,10 +994,10 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 22,
+      "handled_count": 23,
       "method_body_count": 5,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1006,11 +1006,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1022,7 +1022,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -1042,7 +1042,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1054,11 +1054,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -1070,11 +1070,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -1086,11 +1086,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 39,
@@ -1102,11 +1102,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 14
+      "warning_count": 15
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 46,
@@ -1118,7 +1118,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
@@ -1250,7 +1250,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 21,
@@ -1262,7 +1262,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
@@ -1298,7 +1298,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -1310,11 +1310,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -1326,11 +1326,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -1342,11 +1342,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -1358,11 +1358,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -1374,11 +1374,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -1390,11 +1390,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -1406,7 +1406,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -1442,7 +1442,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -1454,11 +1454,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 12,
@@ -1470,11 +1470,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -1486,7 +1486,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -1570,7 +1570,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 27,
@@ -1582,7 +1582,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
@@ -1605,7 +1605,7 @@
       "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 24,
+      "handled_count": 25,
       "method_body_count": 7,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1626,7 +1626,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/exception/DefaultExceptionContext.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -1650,7 +1650,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1662,7 +1662,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -1730,7 +1730,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1742,11 +1742,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -1758,11 +1758,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 10
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1774,7 +1774,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -1786,7 +1786,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/concurrent/AtomicSafeInitializer.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -1810,7 +1810,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 15,
@@ -1822,7 +1822,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
@@ -1858,7 +1858,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 26,
@@ -1870,7 +1870,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 21
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
@@ -1906,7 +1906,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 17,
@@ -1918,11 +1918,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 26,
@@ -1934,7 +1934,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 21
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
@@ -2002,7 +2002,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 0.5555555555555556,
       "error": "",
       "handled_count": 5,
@@ -2014,7 +2014,7 @@
       "unhandled_count": 4,
       "unhandled_node_types": "method_declaration:4",
       "unhandled_reasons": "overloaded method append requires manual dispatch:4",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
@@ -2114,7 +2114,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 30,
@@ -2126,7 +2126,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 24
     },
     {
       "annotation_use_count": 0,
@@ -2163,17 +2163,17 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.18181818181818182,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 2,
+      "handled_count": 17,
       "method_body_count": 10,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/ArraySorter.java",
       "syntax_ok": true,
-      "unhandled_count": 9,
-      "unhandled_node_types": "method_declaration:9",
-      "unhandled_reasons": "overloaded method sort requires manual dispatch:9",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 12
     },
     {
@@ -2229,7 +2229,7 @@
       "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 64,
+      "handled_count": 65,
       "method_body_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2258,7 +2258,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 22,
@@ -2270,23 +2270,23 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 15
+      "warning_count": 16
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 0,
-      "coverage": 0.8461538461538461,
+      "coverage": 0.85,
       "error": "",
-      "handled_count": 33,
+      "handled_count": 34,
       "method_body_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/time/CalendarUtils.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 6,
       "unhandled_node_types": "method_declaration:6",
       "unhandled_reasons": "overloaded method to_local_date_time requires manual dispatch:2;overloaded method to_offset_date_time requires manual dispatch:2;overloaded method to_zoned_date_time requires manual dispatch:2",
-      "warning_count": 20
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
@@ -2306,19 +2306,19 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
-      "coverage": 0.6875,
+      "annotation_warning_count": 13,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 22,
+      "handled_count": 46,
       "method_body_count": 14,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/builder/MultilineRecursiveToStringStyle.java",
       "syntax_ok": true,
-      "unhandled_count": 10,
-      "unhandled_node_types": "method_declaration:10",
-      "unhandled_reasons": "overloaded method append_detail requires manual dispatch:10",
-      "warning_count": 17
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
@@ -2450,7 +2450,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -2462,7 +2462,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -2533,7 +2533,7 @@
       "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 104,
+      "handled_count": 105,
       "method_body_count": 19,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2658,10 +2658,10 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 203,
+      "handled_count": 204,
       "method_body_count": 21,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2670,7 +2670,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 38
+      "warning_count": 39
     },
     {
       "annotation_use_count": 0,
@@ -2762,11 +2762,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/CharSequenceUtils.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "for_statement:1",
       "unhandled_reasons": "malformed for statement:1",
-      "warning_count": 44
+      "warning_count": 47
     },
     {
       "annotation_use_count": 0,
@@ -2834,7 +2834,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 19,
+      "annotation_warning_count": 27,
       "coverage": 0.9915966386554622,
       "error": "",
       "handled_count": 118,
@@ -2846,7 +2846,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "method_invocation:1",
       "unhandled_reasons": "unsupported stream intermediate: flatMap:1",
-      "warning_count": 62
+      "warning_count": 70
     },
     {
       "annotation_use_count": 0,
@@ -2914,7 +2914,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 0.9880952380952381,
       "error": "",
       "handled_count": 83,
@@ -2926,7 +2926,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "for_statement:1",
       "unhandled_reasons": "malformed for statement:1",
-      "warning_count": 50
+      "warning_count": 51
     },
     {
       "annotation_use_count": 0,
@@ -3026,7 +3026,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 85,
@@ -3038,11 +3038,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 40
+      "warning_count": 59
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 64,
@@ -3054,11 +3054,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 25
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 38,
@@ -3070,7 +3070,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 14
+      "warning_count": 15
     },
     {
       "annotation_use_count": 0,
@@ -3091,9 +3091,9 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 4,
-      "coverage": 0.9919354838709677,
+      "coverage": 0.992,
       "error": "",
-      "handled_count": 123,
+      "handled_count": 124,
       "method_body_count": 44,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -3125,7 +3125,7 @@
       "annotation_warning_count": 41,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 99,
+      "handled_count": 100,
       "method_body_count": 42,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -3138,7 +3138,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 53,
@@ -3150,11 +3150,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 34
+      "warning_count": 42
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 133,
@@ -3162,11 +3162,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/text/WordUtils.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
@@ -3223,31 +3223,31 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9798542643091231,
+    "average_coverage": 0.9855272267499081,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
       "annotation_only_stub_files": 0,
       "annotation_only_stub_rate": 0.0,
-      "annotation_warning_file_rate": 0.72,
+      "annotation_warning_file_rate": 0.825,
       "avg_annotation_uses_per_file": 0.0,
-      "avg_annotation_warnings_per_file": 2.91,
-      "files_with_annotation_warnings": 144,
+      "avg_annotation_warnings_per_file": 3.29,
+      "files_with_annotation_warnings": 165,
       "files_with_method_bodies": 172,
       "method_body_file_rate": 0.86,
       "total_annotation_uses": 0,
-      "total_annotation_warnings": 582
+      "total_annotation_warnings": 658
     },
-    "files_below_coverage_threshold": 8,
+    "files_below_coverage_threshold": 6,
     "files_scanned": 200,
-    "files_with_unhandled": 20,
-    "full_coverage_files": 180,
+    "files_with_unhandled": 18,
+    "full_coverage_files": 182,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.965,
+    "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
       [
         "method_declaration",
-        110
+        91
       ],
       [
         "constructor_declaration",
@@ -3282,14 +3282,6 @@
       [
         "overloaded method __init__ requires manual dispatch",
         11
-      ],
-      [
-        "overloaded method append_detail requires manual dispatch",
-        10
-      ],
-      [
-        "overloaded method sort requires manual dispatch",
-        9
       ],
       [
         "division requires numeric type certainty",
@@ -3353,6 +3345,14 @@
       ],
       [
         "overloaded method to_zoned_date_time requires manual dispatch",
+        2
+      ],
+      [
+        "malformed for statement",
+        2
+      ],
+      [
+        "overloaded method to_character_object requires manual dispatch",
         2
       ]
     ]

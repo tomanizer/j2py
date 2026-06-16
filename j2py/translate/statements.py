@@ -133,6 +133,7 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
         inner = unwrap_parens(val_node)
         if inner.type in {"assignment_expression", "update_expression"}:
             from j2py.translate.expr_ops import _desugar_embedded_assign
+
             value_expr = _desugar_embedded_assign(inner, ctx)
         else:
             value_expr = translate_expression(val_node, ctx)
@@ -268,6 +269,7 @@ def _translate_local_variable_declaration(
             inner_val = unwrap_parens(value_node)
             if inner_val.type in {"assignment_expression", "update_expression"}:
                 from j2py.translate.expr_ops import _desugar_embedded_assign
+
                 value = _desugar_embedded_assign(inner_val, ctx)
             else:
                 value = translate_expression(value_node, ctx)

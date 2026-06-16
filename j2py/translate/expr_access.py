@@ -70,6 +70,7 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
     index_inner = unwrap_parens(children[1])
     if index_inner.type in {"assignment_expression", "update_expression"}:
         from j2py.translate.expr_ops import _desugar_embedded_assign
+
         index_expr = _desugar_embedded_assign(index_inner, ctx)
     else:
         index_expr = translate_expression(children[1], ctx)
