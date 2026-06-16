@@ -1802,6 +1802,21 @@ def test_array_constructor_method_reference_in_to_array_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_generic_type_constructor_reference_strips_type_args() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Foo {
+            public void m() {
+                Collector.of(ImmutableState<R, C, V>::new, s -> s.build());
+            }
+        }
+        """,
+    )
+    assert "ImmutableState<R, C, V>" not in result.source
+    assert "ImmutableState" in result.source
+    assert_valid_python(result.source)
+
+
 def test_emit_line_comments_flag_suppresses_preserved_comments() -> None:
     cfg = CFG.model_copy(update={"emit_line_comments": False})
     result = translate_source_with_diagnostics(

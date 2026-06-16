@@ -314,6 +314,11 @@ def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:
 
 
 def _method_reference_target(node: JavaNode, ctx: TranslationContext) -> str:
-    if node.text[:1].isupper():
-        return translate_class_name(node.text)
+    target_text = node.text
+    if node.type == "generic_type":
+        type_id = first_child_by_type(node, "type_identifier")
+        if type_id is not None:
+            target_text = type_id.text
+    if target_text[:1].isupper():
+        return translate_class_name(target_text)
     return translate_expression(node, ctx)

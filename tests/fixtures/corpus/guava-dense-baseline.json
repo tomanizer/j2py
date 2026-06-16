@@ -526,7 +526,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
@@ -2570,7 +2570,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/TableCollectors.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
@@ -3246,7 +3246,7 @@
     "files_with_unhandled": 56,
     "full_coverage_files": 144,
     "parse_success_rate": 0.99,
-    "syntax_success_rate": 0.995,
+    "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
       [
         "import_declaration",
