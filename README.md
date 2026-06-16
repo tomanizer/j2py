@@ -25,9 +25,10 @@ and semantic warnings, plus structured diagnostics for anything left unhandled.
 
 ## Status
 
-**Alpha.** The library is usable for experimentation, fixture-driven development, and
-batch translation of real Java projects, but construct coverage is still incomplete and
-output on large enterprise codebases will contain TODOs and review warnings.
+**Beta.** The library is usable for experimentation, fixture-driven development, and
+batch translation of real Java projects, but construct coverage is still incomplete,
+multi-file inheritance can require manual import fixups, and output on large enterprise
+codebases will contain review warnings and known correctness gaps.
 
 Deterministic support today includes:
 
@@ -208,11 +209,13 @@ queue tiers, content cache, state files, and the harvest-promote agent skill.
 
 Material translation policy changes should get an ADR under `docs/decisions/`.
 
-## Alpha release notes
+## Beta release notes
 
-`j2py-converter` is published as an alpha package. Expect incomplete construct
-coverage, diagnostics for unsupported regions, and manual review on production-scale
-codebases. See [docs/RELEASING.md](docs/RELEASING.md) for the release checklist.
+`j2py-converter` is published as a beta package. Expect incomplete construct
+coverage, diagnostics for unsupported regions, known multi-file import limitations,
+and manual review on production-scale codebases. See [docs/RELEASING.md](docs/RELEASING.md)
+for the release checklist and [CHANGELOG.md](CHANGELOG.md) for known limitations in
+`0.5.0b1`.
 
 ## License
 

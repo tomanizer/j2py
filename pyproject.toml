@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "j2py-converter"
-version = "0.4.0a1"
+version = "0.5.0b1"
 description = "Java-to-Python source translator with line-level structural correspondence for side-by-side review"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -22,7 +22,7 @@ keywords = [
     "tree-sitter",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -96,6 +96,8 @@ exclude = [
     "/.claude",
     "/.codex",
     "/.claire",
+    "/.cursor",
+    "/.cursor/**",
     "/.venv",
     "/.corpus",
     "/corpus-reports",
