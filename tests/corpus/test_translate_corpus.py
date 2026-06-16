@@ -66,6 +66,49 @@ def test_summarize_tracks_coverage_threshold() -> None:
     assert summary["files_with_unhandled"] == 1
 
 
+def test_summarize_includes_enterprise_block() -> None:
+    summary = corpus.summarize(
+        [
+            corpus.FileMetric(
+                path="Config.java",
+                parse_ok=True,
+                parse_error_count=0,
+                syntax_ok=True,
+                coverage=1.0,
+                handled_count=5,
+                unhandled_count=0,
+                warning_count=0,
+                method_body_count=0,
+                annotation_use_count=2,
+                annotation_warning_count=0,
+                unhandled_node_types="",
+                unhandled_reasons="",
+            ),
+            corpus.FileMetric(
+                path="Service.java",
+                parse_ok=True,
+                parse_error_count=0,
+                syntax_ok=True,
+                coverage=1.0,
+                handled_count=10,
+                unhandled_count=0,
+                warning_count=1,
+                method_body_count=3,
+                annotation_use_count=1,
+                annotation_warning_count=1,
+                unhandled_node_types="",
+                unhandled_reasons="",
+            ),
+        ],
+    )
+
+    enterprise = summary["enterprise"]
+    assert enterprise["files_with_method_bodies"] == 1
+    assert enterprise["method_body_file_rate"] == 0.5
+    assert enterprise["annotation_only_stub_files"] == 1
+    assert enterprise["total_annotation_warnings"] == 1
+
+
 def test_compare_baseline_reports_per_file_regressions(tmp_path: Path) -> None:
     baseline_metrics = [
         _metric("A.java", coverage=1.0),
@@ -224,6 +267,103 @@ def test_collect_java_files_prioritizes_curated_constructs(
     assert construct_one in selected
     assert construct_two in selected
     assert len(selected) == 3
+
+
+def test_collect_java_files_skips_package_info_by_default(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    module = repo / "module" / "src" / "main" / "java" / "example"
+    module.mkdir(parents=True)
+    real = module / "Real.java"
+    package_info = module / "package-info.java"
+    real.write_text("package example;\nclass Real { }\n")
+    package_info.write_text("@Deprecated\npackage example;\n")
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("module/src/main/java",),
+        limit=10,
+        include_tests=False,
+        strategy="lexical",
+    )
+
+    assert real in selected
+    assert package_info not in selected
+
+
+def test_collect_java_files_can_include_package_info(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    module = repo / "module" / "src" / "main" / "java" / "example"
+    module.mkdir(parents=True)
+    real = module / "Real.java"
+    package_info = module / "package-info.java"
+    real.write_text("package example;\nclass Real { }\n")
+    package_info.write_text("@Deprecated\npackage example;\n")
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("module/src/main/java",),
+        limit=10,
+        include_tests=False,
+        strategy="lexical",
+        skip_package_info=False,
+    )
+
+    assert real in selected
+    assert package_info in selected
+
+
+def test_collect_java_files_respects_min_loc(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    module = repo / "module" / "src" / "main" / "java" / "example"
+    module.mkdir(parents=True)
+    tiny = module / "Tiny.java"
+    substantial = module / "Substantial.java"
+    tiny.write_text("package example;\nclass Tiny { }\n")
+    substantial.write_text(
+        "package example;\n"
+        + "".join(f"    void m{i}() {{ }}\n" for i in range(25))
+        + "class Substantial { }\n",
+    )
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("module/src/main/java",),
+        limit=10,
+        include_tests=False,
+        strategy="lexical",
+        min_loc=20,
+    )
+
+    assert substantial in selected
+    assert tiny not in selected
+
+
+def test_collect_java_files_pins_path_prefixes_before_density(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    pinned_dir = repo / "module" / "src" / "main" / "java" / "di"
+    other_dir = repo / "module" / "src" / "main" / "java" / "other"
+    pinned_dir.mkdir(parents=True)
+    other_dir.mkdir(parents=True)
+    pinned = pinned_dir / "Autowired.java"
+    other = other_dir / "Other.java"
+    pinned.write_text("package di;\nclass Autowired { }\n")
+    other.write_text("package other;\nclass Other { void run() { } }\n")
+    monkeypatch.setattr(corpus, "CONSTRUCTS_DIR", tmp_path / "empty_constructs")
+
+    selected = corpus.collect_java_files(
+        repo,
+        modules=("module/src/main/java",),
+        limit=1,
+        include_tests=False,
+        strategy="density",
+        include_path_prefixes=("module/src/main/java/di/",),
+    )
+
+    assert pinned in selected
+    assert other not in selected
 
 
 def test_collect_java_files_respects_exclude_paths(tmp_path: Path) -> None:

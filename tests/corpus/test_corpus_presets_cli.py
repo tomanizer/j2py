@@ -36,14 +36,24 @@ def test_resolve_args_spring_dense_preset_matches_dense_scoreboard(
 
     assert args.preset_name == "spring-dense"
     assert args.strategy == "density"
-    assert args.max_loc == 250
+    assert args.max_loc == 1000
+    assert args.min_loc == 20
     assert args.min_constructs == 5
     assert args.include_constructs is True
-    assert args.limit == 100
+    assert args.limit == 200
     assert args.modules == [
         "spring-core/src/main/java",
         "spring-beans/src/main/java",
+        "spring-beans/src/main/java/org/springframework/beans/factory/annotation",
+        "spring-beans/src/main/java/org/springframework/beans/factory/config",
+        "spring-context/src/main/java/org/springframework/context/annotation",
+        "spring-context/src/main/java/org/springframework/stereotype",
     ]
+    assert args.include_path_prefixes == (
+        "spring-beans/src/main/java/org/springframework/beans/factory/annotation/",
+        "spring-context/src/main/java/org/springframework/stereotype/",
+    )
+    assert args.skip_package_info is True
     assert args.baseline.name == "spring-dense-baseline.json"
 
 

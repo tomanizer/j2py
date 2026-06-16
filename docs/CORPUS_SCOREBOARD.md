@@ -16,12 +16,13 @@ baselines live under `tests/fixtures/corpus/`.
 | `commons-lang-dense` | Apache Commons Lang | `src/main/java` | `commons-lang-dense-baseline.json` | — |
 | `jackson-dense` | Jackson databind | `src/main/java` | `jackson-dense-baseline.json` | — |
 | `caffeine-dense` | Caffeine | `caffeine/src/main/java` | `caffeine-dense-baseline.json` | — |
-| `spring-dense` | Spring Framework | `spring-core`, `spring-beans` | `spring-dense-baseline.json` | yes (`--include-constructs`) |
+| `spring-dense` | Spring Framework | `spring-core`, `spring-beans`, DI annotation/config packages, stereotypes | `spring-dense-baseline.json` | yes (`--include-constructs`) |
+| `spring-app-dense` | Spring Framework | context-indexer samples, framework-docs web/data, webmvc tests, scannable examples | `spring-app-dense-baseline.json` | yes (`--include-constructs`) |
 | `spring-lexical` | Spring Framework | `spring-core`, `spring-beans` | `spring-sample-baseline.json` | — (historical lexical sample) |
 | `spring-broad` | Spring Framework | `spring-context` | — (exploratory; no committed baseline) | yes |
 
-Density presets (except `spring-lexical`) use `--strategy density --max-loc 250
---min-constructs 5` unless noted in the preset definition.
+Density presets (except `spring-lexical`) use `--strategy density --max-loc 1000
+--min-loc 20 --min-constructs 5` unless noted in the preset definition.
 
 | Preset | What it stress-tests |
 |--------|----------------------|
@@ -29,7 +30,8 @@ Density presets (except `spring-lexical`) use `--strategy density --max-loc 250
 | `commons-lang-dense` | Classic utility Java without framework magic |
 | `jackson-dense` | Annotation and bean-introspection patterns |
 | `caffeine-dense` | Concurrent cache code and lambdas |
-| `spring-dense` | Framework-style core/beans Java plus construct fixtures |
+| `spring-dense` | Framework core/beans Java, Spring DI annotations/stereotypes, construct fixtures |
+| `spring-app-dense` | Application-layer Spring: `@RestController`, `@Service`/`@Repository`, `@Transactional`, JPA `@Entity` samples from framework test fixtures and docs |
 | `spring-lexical` | Historical lexical Spring sample for continuity with older reports |
 | `spring-broad` | Broader `spring-context` surface plus construct fixtures (local exploration) |
 
@@ -63,8 +65,8 @@ across large codebases (interface defaults + statics, text blocks, anonymous and
 classes, switch fall-through, advanced enums, enum constant class bodies, sealed types,
 records, and more).
 
-Density presets with `--include-constructs` (`spring-dense` and exploratory
-`spring-broad`) mix these fixtures into the sampled run. All graduated construct files
+Density presets with `--include-constructs` (`spring-dense`, `spring-app-dense`, and
+exploratory `spring-broad`) mix these fixtures into the sampled run. All graduated construct files
 also run in `make check` via `tests/targets/`. See
 [docs/TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) and
 [tests/fixtures/corpus/constructs/README.md](../tests/fixtures/corpus/constructs/README.md).
@@ -97,7 +99,7 @@ set `J2PY_CORPUS_ROOT` to avoid duplicating those external clones.
 ## Per-preset commands
 
 For presets with a **committed baseline** (`guava-dense`, `commons-lang-dense`,
-`jackson-dense`, `caffeine-dense`, `spring-dense`):
+`jackson-dense`, `caffeine-dense`, `spring-dense`, `spring-app-dense`):
 
 ```bash
 make corpus-<name>                  # run without baseline comparison
@@ -113,6 +115,7 @@ make corpus-commons-lang-dense-check
 make corpus-jackson-dense-check
 make corpus-caffeine-dense-check
 make corpus-spring-dense-check      # Spring dense preset + construct fixtures
+make corpus-spring-app-dense-check  # Spring app-layer samples (REST, JPA, @Transactional)
 ```
 
 Historical Spring lexical baseline (`spring-lexical` preset):
@@ -181,9 +184,9 @@ Newer runs can report additional signals (strategy used, max-loc / min-construct
 number of curated construct files mixed in, rough "construct density").
 
 Coverage aggregates only include files where the translator recorded at least one
-handled or unhandled construct. Files with no measured constructs, such as
-`package-info.java`, still count in parse/syntax rates and per-file reports but do not
-pull the average coverage or below-threshold count toward zero.
+handled or unhandled construct. `package-info.java` files are excluded from sampling by
+default (use `--include-package-info` to opt in); they are package descriptors with no
+real class body and would otherwise displace meaningful sources in dense presets.
 
 ## Contributor workflow
 
@@ -197,8 +200,8 @@ For translation-rule PRs:
    - one additional library preset relevant to the change (e.g.
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
-3. CI enforces every committed dense baseline (`spring-dense`, `guava-dense`,
-   `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
+3. CI enforces every committed dense baseline (`spring-dense`, `spring-app-dense`,
+   `guava-dense`, `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
 4. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
    updates.
 5. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
@@ -213,8 +216,8 @@ harness; this keeps the required unit/type/lint gate fast and deterministic.
 files change:
 
 1. **Dense baseline matrix** — clones the checkout for each committed dense preset and
-   fails on regression for `spring-dense`, `guava-dense`, `commons-lang-dense`,
-   `jackson-dense`, and `caffeine-dense`.
+   fails on regression for `spring-dense`, `spring-app-dense`, `guava-dense`,
+   `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`.
 2. **`corpus-hotspots` scorecard** — reads committed `*-baseline.json` files only; no
    clones. Surfaces multi-library baseline drift and validates hotspot aggregation.
 
@@ -245,9 +248,51 @@ framework Java with the construct mini-corpus. It is pinned to:
 
 - remote: `https://github.com/spring-projects/spring-framework.git`
 - ref: `0c60266986197a191ff33eb498ebc8bac3dc933f`
-- sample size: `100`
-- modules: `spring-core/src/main/java`, `spring-beans/src/main/java`
+- sample size: `200` (or fewer when a preset's module tree is smaller, e.g. Caffeine)
+- modules: `spring-core/src/main/java`, `spring-beans/src/main/java`,
+  `spring-beans/.../factory/annotation`, `spring-beans/.../factory/config`,
+  `spring-context/.../context/annotation`, `spring-context/.../stereotype`
+- pinned path prefixes (always sampled): `beans/factory/annotation`, `context/stereotype`
 - selection: density + `--include-constructs`
 
 For current metrics, use the [committed baseline scorecard](#committed-baseline-scorecard)
 above rather than a static snapshot in this doc.
+
+## Reference: `spring-app-dense` pins
+
+The `spring-app-dense` preset stress-tests application-layer Spring patterns using
+framework **test fixtures and documentation samples** (not a Spring Boot checkout). It
+reuses the same `spring-framework` git ref as `spring-dense` and applies an
+**annotation pre-filter**: only files containing at least one `@Name` from the preset's
+`require_annotations` list are eligible for density sampling (curated constructs and
+pinned path prefixes are always included).
+
+- modules: `spring-context-indexer/.../sample`, `framework-docs`, `spring-web`,
+  `spring-webmvc`, `spring-context`, `spring-tx`, `integration-tests`
+- pinned path prefixes (always sampled): entire `context-indexer/.../sample/` tree
+- `require_annotations`: web/DI/JPA/transactional annotation simple names (see
+  `scripts/corpus/annotation_filter.py`)
+- selection: annotation filter + density + `--include-constructs`
+
+Baseline metadata records `annotation_family_file_counts` (files per annotation family)
+for transparency. **Node coverage may stay high** on empty annotated stubs — use the
+**enterprise readiness** block in each baseline's `summary.enterprise` (and
+`make corpus-hotspots` scorecard columns `bodies`, `stubs`, `ann_warn`) alongside
+family counts for gap triage; semantic annotation lowering is tracked separately
+([#334](https://github.com/tomanizer/j2py/issues/334),
+[#335](https://github.com/tomanizer/j2py/issues/335)).
+
+### Enterprise readiness metrics
+
+Each corpus run adds `summary.enterprise` (and per-file `method_body_count`,
+`annotation_use_count`, `annotation_warning_count`):
+
+| Field | Meaning |
+|-------|---------|
+| `method_body_file_rate` | Share of sampled files with at least one non-empty method/constructor body |
+| `annotation_only_stub_rate` | Files with enterprise `@Annotation` uses but zero method bodies |
+| `annotation_warning_file_rate` | Files emitting annotation-related semantic warnings |
+| `total_annotation_warnings` | Count of warnings whose reason mentions "annotation" |
+
+These complement `average_coverage` — a `@RestController` shell can score 100% node
+coverage while still being an annotation-only stub with zero translated behavior.
