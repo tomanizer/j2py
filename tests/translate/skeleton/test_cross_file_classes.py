@@ -1,6 +1,6 @@
 """Cross-file class-hierarchy translation.
 
-Covers two rule-layer fixes surfaced by the commons-lang ``tuple`` case study
+Covers rule-layer fixes surfaced by the commons-lang ``tuple`` case study
 (docs/CASE_STUDY.md):
 
 * A generic superclass declared in another file (``extends Pair<L, R>``) must be kept
@@ -9,6 +9,8 @@ Covers two rule-layer fixes surfaced by the commons-lang ``tuple`` case study
 * A static field whose initializer references the class being defined
   (``NULL = new Foo()``) must be deferred to a post-class module assignment, since the
   class name is not yet bound inside the class body.
+* Same-package sibling type references inside method bodies are emitted as function-local
+  imports to break the base↔derived circular import cycle (issue #325).
 """
 
 from tests.translate.skeleton.helpers import (
@@ -105,3 +107,29 @@ def test_self_referential_static_field_is_deferred_after_class() -> None:
     assert deferred.strip() == ""
     # The module imports cleanly (the original class-body form raised NameError).
     assert_module_executes(python_source)
+
+
+def test_same_package_sibling_ref_in_method_body_is_local_import() -> None:
+    # Issue #325: base↔derived circular import. Base.factory() references the derived
+    # class (same package, no explicit Java import). That reference must become a
+    # function-local import, not a module-level one, so the derived file can import
+    # the base without triggering a circular import error.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        public class Base {
+            public static Base create() {
+                return new Derived();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    module_imports, _, class_body = python_source.partition("\nclass Base")
+    # Sibling reference must NOT appear at module level.
+    assert "from com.example.Derived import Derived" not in module_imports
+    # It MUST appear as a local import inside the method body.
+    assert "from com.example.Derived import Derived" in class_body
+    assert_valid_python(python_source)

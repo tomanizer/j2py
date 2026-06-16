@@ -180,6 +180,7 @@ class TranslationContext:
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
+    in_method: bool = False
     allow_local_helpers: bool = False
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
@@ -210,6 +211,17 @@ class TranslationContext:
     # translation and flushed near the top of the enclosing method body so the
     # generated names are in scope and the structure remains reviewable.
     pending_local_helpers: list[list[str]] = field(default_factory=list)
+
+    # True while translating a method/constructor body. Used by _translate_identifier
+    # to route same-package sibling type imports to body_local_imports (function-local)
+    # instead of the module-level diagnostics.imports, breaking base↔derived circular
+    # import cycles (issue #325).
+    in_method_body: bool = False
+
+    # Same-package sibling type imports accumulated during a method body translation.
+    # Flushed as ``from X import Y`` lines at the start of the method body by
+    # translate_method after translate_body returns.
+    body_local_imports: set[str] = field(default_factory=set)
 
     # Expression visitors can surface reviewer-visible markers here; statement
     # emitters attach them as trailing comments once the full line is known.

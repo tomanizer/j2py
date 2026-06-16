@@ -133,6 +133,22 @@ def test_static_context_field_uses_field_name_without_self() -> None:
     assert resolved.import_line is None
 
 
+def test_method_static_field_uses_containing_class_name() -> None:
+    resolved = resolve(
+        "VALUES",
+        scope=NameScope(
+            class_fields=set(),
+            class_field_types={"VALUES": "list[str]"},
+            containing_class_name="Holder",
+            in_method=True,
+        ),
+    )
+
+    assert resolved.kind == "field"
+    assert resolved.python_name == "Holder.VALUES"
+    assert resolved.import_line is None
+
+
 def test_explicit_imported_type_returns_binding_and_import_request() -> None:
     resolved = resolve(
         "ExternalThing",

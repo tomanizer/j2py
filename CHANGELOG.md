@@ -7,6 +7,13 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Fixed
+- Same-class static field reads in method bodies now qualify through the containing
+  class, bitwise `|`/`&`/`^` operands preserve Java comparison precedence, and generic
+  `typing.cast(...)` targets for translated classes are runtime-safe strings; the
+  Commons Lang tuple case-study gaps C, D, and E now pass as regressions (#322, #323,
+  #324).
+
 ## 0.5.0b2 - 2026-06-16
 
 Second beta pre-release. Extends rule-layer translation breadth — framework annotation

@@ -52,9 +52,9 @@ signal beta requires: *handled is not the same as correct.*
 
 Node coverage measures mechanical completion. Executing the output is a different bar. The
 case study surfaced **five** real correctness gaps that a coverage scoreboard cannot see.
-Two were fixed in this change; three are documented below as follow-ups.
+All five now have deterministic rule-layer coverage and end-to-end regression tests.
 
-### Fixed in this change
+### Fixed rule-layer gaps
 
 **Gap A — class-body forward self-reference.** `private static final ImmutablePair NULL =
 new ImmutablePair<>(null, null)` translated to a class-body statement
@@ -71,26 +71,30 @@ did not descend into. With no base, every inherited method (`getKey`, `getValue`
 extracted and the base class import requested via the deterministic name resolver
 (`class ImmutablePair(Pair):` + `from ...tuple.Pair import Pair`).
 
-Both fixes have rule-layer fixture tests in
-[`tests/translate/skeleton/test_cross_file_classes.py`](../tests/translate/skeleton/test_cross_file_classes.py).
-
-### Surfaced, tracked as follow-ups
-
 **Gap C — static field reads emitted unqualified.** Inside a method, `return NULL` is
-emitted as a bare name rather than `return ImmutablePair.NULL`, so it cannot see the class
-attribute (`NameError`). Affects `null_pair()` and `empty_array()`.
+now emitted as `return ImmutablePair.NULL`, so it can see the class attribute instead of
+raising `NameError`. Also affects `empty_array()` reads of `EMPTY_ARRAY`.
 
 **Gap D — bitwise `|`/`&`/`^` precedence with comparison operands.** `ImmutableTriple.of`
 contains (verbatim from commons-lang) `left != null | middle != null || right != null`.
 Java binds `!=` tighter than `|`; Python binds `|` tighter than `is not`, so the
-translation `left is not None | middle is not None` mis-parses into a chained comparison
-and raises `TypeError`. Same precedence-preservation class as the Guava `(a+b)*c` work
-([#310](https://github.com/tomanizer/j2py/issues/310)).
+translation now parenthesizes comparison operands:
+`(left is not None) | (middle is not None)`.
 
 **Gap E — `cast()` to a generic translated class.** `Triple.equals` emits
-`cast(Triple[Any, Any, Any], obj)`; `cast`'s first argument is evaluated at runtime and
-the translated `Triple` is not subscriptable → `TypeError`. (`Pair.equals` avoids this
-because its cast target is the external `Map.Entry`.)
+`cast("Triple[Any, Any, Any]", obj)` so `typing.cast` does not evaluate a non-subscriptable
+translated class at runtime. Generic array casts such as `list[Pair[L, R]]` are quoted
+for the same reason. External generic cast targets may also be quoted; `typing.cast`
+accepts strings and returns the value unchanged.
+
+The Gap A/B fixes have rule-layer fixture tests in
+[`tests/translate/skeleton/test_cross_file_classes.py`](../tests/translate/skeleton/test_cross_file_classes.py).
+The Gap C/D/E fixes have focused rule-layer tests in
+[`tests/translate/skeleton/test_expressions.py`](../tests/translate/skeleton/test_expressions.py)
+and end-to-end regressions in
+[`tests/case_study/test_tuple_case_study.py`](../tests/case_study/test_tuple_case_study.py).
+
+### Still tracked separately
 
 **Circular import (directory level).** With cross-file inheritance fixed (Gap B), the
 package no longer imports as separate modules: `Pair` imports `ImmutablePair` (factory
@@ -115,9 +119,8 @@ only external, non-translated dependencies are small stubs for `java.util.Object
 uv run pytest tests/case_study/ -v      # runs in make check; no corpus, no LLM, no JDK
 ```
 
-**Result: 19 passing assertions** over the working surface and **3 strict xfails**
-pinning Gaps C, D, and E. The xfails flip and force their own removal when the underlying
-bug is fixed.
+**Result: 22 passing assertions** over the working surface, including regressions for
+Gaps C, D, and E.
 
 The passing surface exercises real translated behaviour end-to-end:
 
