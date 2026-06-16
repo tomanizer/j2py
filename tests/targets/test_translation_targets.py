@@ -62,19 +62,6 @@ FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
         ),
         forbidden_fragments=("self.values[self.index += 1]", "__j2py_todo__"),
     ),
-    TranslationTarget(
-        fixture="StaticImportEnumConstants.java",
-        fixture_root=TARGET_FIXTURES,
-        tracking="issue-252/guava-elementtype-static-imports",
-        reason=(
-            "Guava IgnoreJRERequirement-style ElementType static imports are still "
-            "reported as unknown static imports"
-        ),
-        expected_fragments=(
-            "# @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE})",
-        ),
-        forbidden_fragments=("TODO(j2py): static import", "__j2py_todo__"),
-    ),
 )
 GRADUATED_LLM_FIXTURES = ("MultiDimArray.java",)
 GRADUATED_TARGET_FIXTURES = tuple(

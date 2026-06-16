@@ -614,6 +614,31 @@ def test_annotation_type_declaration_preserves_meta_annotations_as_warnings() ->
     assert_valid_python(result.source)
 
 
+def test_annotation_type_declaration_applies_static_import_aliases_to_meta_comments() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static java.lang.annotation.ElementType.CONSTRUCTOR;
+        import static java.lang.annotation.ElementType.METHOD;
+        import static java.lang.annotation.ElementType.TYPE;
+
+        import java.lang.annotation.Target;
+
+        @Target({METHOD, CONSTRUCTOR, TYPE})
+        public @interface StaticImportEnumConstants {
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "# @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE})" in (
+        result.source
+    )
+    assert "TODO(j2py): static import" not in result.source
+    assert "ElementType.ElementType" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_annotation_type_declaration_records_unsupported_members() -> None:
     result = translate_source_with_diagnostics(
         """
