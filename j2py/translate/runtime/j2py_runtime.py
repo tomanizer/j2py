@@ -34,7 +34,15 @@ from typing import Any, ClassVar, NoReturn, Protocol, TypeVar
 
 _T_contra = TypeVar("_T_contra", contravariant=True)
 
-__all__ = ["Comparator", "__j2py_todo__", "_j2py_idiv", "_j2py_monitor", "overloaded"]
+__all__ = [
+    "Comparator",
+    "MalformedObjectNameException",
+    "ObjectName",
+    "__j2py_todo__",
+    "_j2py_idiv",
+    "_j2py_monitor",
+    "overloaded",
+]
 
 
 class Comparator(Protocol[_T_contra]):
@@ -113,6 +121,20 @@ def __j2py_todo__(java_source: str) -> NoReturn:
     translation gap that requires manual attention.
     """
     raise NotImplementedError(f"untranslated Java construct: {java_source!r}")
+
+
+class MalformedObjectNameException(Exception):
+    """Placeholder for ``javax.management.MalformedObjectNameException``."""
+
+
+class ObjectName:
+    """Placeholder for ``javax.management.ObjectName`` static factories."""
+
+    @staticmethod
+    def get_instance(*args: object) -> ObjectName:
+        raise NotImplementedError(
+            "j2py platform stub: javax.management.ObjectName.getInstance",
+        )
 
 
 def _j2py_idiv(left: int, right: int) -> int:

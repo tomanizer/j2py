@@ -32,13 +32,13 @@ from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_wit
         (
             "javax.management.ObjectName",
             "ObjectName",
-            ("from typing import Any as ObjectName",),
+            ("from j2py_runtime import ObjectName",),
             "platform_placeholder",
         ),
         (
             "javax.management.MalformedObjectNameException",
             "MalformedObjectNameException",
-            ("from typing import Any as MalformedObjectNameException",),
+            ("from j2py_runtime import MalformedObjectNameException",),
             "platform_placeholder",
         ),
         (
@@ -86,9 +86,9 @@ def test_platform_import_bindings_do_not_request_java_module_imports() -> None:
         import_line="from j2py_runtime import Comparator",
         source="platform_placeholder",
     )
-    assert bindings["ObjectName"].import_line == "from typing import Any as ObjectName"
+    assert bindings["ObjectName"].import_line == "from j2py_runtime import ObjectName"
     assert bindings["MalformedObjectNameException"].import_line == (
-        "from typing import Any as MalformedObjectNameException"
+        "from j2py_runtime import MalformedObjectNameException"
     )
     assert bindings["NativeDetector"].source == "external_placeholder"
     assert bindings["ProjectType"] == TypeBinding(
@@ -179,7 +179,7 @@ def test_object_name_probe_has_no_bogus_platform_imports() -> None:
     ast.parse(result.source)
     assert "from java." not in result.source
     assert "from javax." not in result.source
-    assert "from typing import Any as ObjectName" in result.source
-    assert "from typing import Any as MalformedObjectNameException" in result.source
+    assert "from j2py_runtime import ObjectName" in result.source
+    assert "from j2py_runtime import MalformedObjectNameException" in result.source
     assert "def get_instance(self, name: str) -> ObjectName:" in result.source
     assert "return ObjectName.get_instance(name)" in result.source
