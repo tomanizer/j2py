@@ -164,6 +164,7 @@ class TranslationContext:
     class_field_java_types: dict[str, str] = field(default_factory=dict)
     declared_type_fields: dict[str, dict[str, str]] = field(default_factory=dict)
     declared_type_java_fields: dict[str, dict[str, str]] = field(default_factory=dict)
+    declared_type_method_return_types: dict[str, dict[str, str]] = field(default_factory=dict)
     class_methods: set[str] = field(default_factory=set)
     class_static_methods: set[str] = field(default_factory=set)
     # Receiverless static calls to enclosing or inherited methods map to the

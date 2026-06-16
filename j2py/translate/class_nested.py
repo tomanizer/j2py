@@ -20,6 +20,7 @@ def nested_type_lines(
     inherited_class_field_java_types: dict[str, str],
     inherited_declared_type_fields: dict[str, dict[str, str]],
     inherited_declared_type_java_fields: dict[str, dict[str, str]],
+    inherited_declared_type_method_return_types: dict[str, dict[str, str]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     name_resolver: NameResolver,
@@ -53,6 +54,9 @@ def nested_type_lines(
             inherited_class_field_java_types=inherited_class_field_java_types,
             inherited_declared_type_fields=inherited_declared_type_fields,
             inherited_declared_type_java_fields=inherited_declared_type_java_fields,
+            inherited_declared_type_method_return_types=(
+                inherited_declared_type_method_return_types
+            ),
             static_field_aliases=static_field_aliases,
             static_method_imports=static_method_imports,
             name_resolver=name_resolver,

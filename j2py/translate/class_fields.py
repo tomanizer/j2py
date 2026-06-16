@@ -6,6 +6,7 @@ import re
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_emit import annotation_comment_lines, record_annotation_diagnostics
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
 from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
@@ -231,6 +232,14 @@ def _translate_fields(
             static_lines.extend(_translate_static_field(field, static_ctx, diagnostics))
             continue
 
+        record_annotation_diagnostics(
+            field.node,
+            cfg,
+            diagnostics,
+            target_kind="field",
+            target_name=field.py_name,
+        )
+
         if field.initializer is not None:
             diagnostics.record(
                 field.node,
@@ -245,6 +254,9 @@ def _translate_fields(
             instance_init_lines.extend(helper_lines)
             if helper_lines:
                 instance_init_lines.append("")
+            instance_init_lines.extend(
+                annotation_comment_lines(field.node, cfg, indent="        "),
+            )
             instance_init_lines.append(
                 f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
                 f"{initializer}",
@@ -269,6 +281,7 @@ def _translate_fields(
         if cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(annotation)
         target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
+        instance_init_lines.extend(annotation_comment_lines(field.node, cfg, indent="        "))
         instance_init_lines.append(f"        {target} = {default_value}")
 
     supported_members = {
@@ -331,6 +344,13 @@ def _translate_static_field(
     ctx: TranslationContext,
     diagnostics: TranslationDiagnostics,
 ) -> list[str]:
+    record_annotation_diagnostics(
+        field.node,
+        ctx.cfg,
+        diagnostics,
+        target_kind="field",
+        target_name=field.py_name,
+    )
     if field.initializer is None:
         diagnostics.record(
             field.node,
@@ -342,6 +362,7 @@ def _translate_static_field(
         if ctx.cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(annotation)
         return [
+            *annotation_comment_lines(field.node, ctx.cfg, indent="    "),
             f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}",
         ]
 
@@ -350,6 +371,7 @@ def _translate_static_field(
         diagnostics.imports.need_type_annotation(field.py_type)
     initializer = translate_expression(field.initializer, ctx)
     lines: list[str] = []
+    lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="    "))
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
     if _initializer_references_enclosing_class(initializer, ctx):
         # A static field whose initializer references the class being defined cannot run

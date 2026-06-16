@@ -1217,6 +1217,56 @@ def test_delegate_multimap_get_is_map_like() -> None:
     assert_valid_python(python_source)
 
 
+def test_chained_declared_method_return_type_get_uses_indexing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.lang.reflect.Method;
+        import java.util.List;
+
+        public class ChainedGetReceiverType {
+            private Mapping mapping;
+
+            public Method attribute(int attributeIndex) {
+                return this.mapping.getAttributes().get(attributeIndex);
+            }
+
+            static class Mapping {
+                private List<Method> attributes;
+
+                List<Method> getAttributes() {
+                    return this.attributes;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.mapping.get_attributes()[attribute_index]" in result.source
+    assert "get_attributes().get(" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_unknown_chained_method_return_type_get_stays_ambiguous() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ChainedUnknown {
+            public Object attribute(Object mapping, int attributeIndex) {
+                return mapping.getAttributes().get(attributeIndex);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "mapping.get_attributes().get(attribute_index)" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    assert_valid_python(result.source)
+
+
 def test_require_non_null_field_get_is_api_call() -> None:
     python_source, coverage = translate_source(
         """
@@ -1329,6 +1379,62 @@ def test_nested_holder_map_field_get_is_map_like() -> None:
     assert coverage == 1.0
     assert "holder.method_interceptors.get(method)" in python_source
     assert_valid_python(python_source)
+
+
+def test_class_keyed_registry_get_is_api_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        public class ClassKeyedRegistryGet {
+            public int count(CustomizerRegistry registry) {
+                int total = 0;
+                for (Customizer customizer : registry.get(Customizer.class)) {
+                    total += customizer.weight();
+                }
+                return total;
+            }
+
+            static class CustomizerRegistry {
+                <T> List<T> get(Class<T> klass) {
+                    return null;
+                }
+            }
+
+            interface Customizer {
+                int weight();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "for customizer in registry.get(Customizer):" in result.source
+    assert "registry[Customizer]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_unknown_registry_class_literal_get_receiver_stays_ambiguous() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class UnknownClassKeyedGet {
+            public Object lookup(Object registry) {
+                return registry.get(Customizer.class);
+            }
+
+            interface Customizer {
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "return registry.get(Customizer)" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    assert_valid_python(result.source)
 
 
 def test_inner_class_can_use_outer_map_field_get() -> None:

@@ -11,6 +11,7 @@ from j2py.translate.class_fields import (
     _collect_declared_type_fields,
     _collect_declared_type_java_fields,
 )
+from j2py.translate.class_methods import collect_declared_type_method_return_types
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
@@ -73,6 +74,10 @@ def translate_skeleton_with_diagnostics(
     name_resolver = NameResolver(file_name_bindings)
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
+    module_declared_type_method_return_types = _module_declared_type_method_return_types(
+        parsed,
+        cfg,
+    )
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
@@ -95,6 +100,9 @@ def translate_skeleton_with_diagnostics(
                 docstring_lines=pending_docstring,
                 inherited_declared_type_fields=module_declared_type_fields,
                 inherited_declared_type_java_fields=module_declared_type_java_fields,
+                inherited_declared_type_method_return_types=(
+                    module_declared_type_method_return_types
+                ),
                 file_class_static_methods=file_class_static_methods,
             )
         )
@@ -145,6 +153,17 @@ def _module_declared_type_java_fields(
         if class_node.type in TYPE_DECLARATION_NODES:
             fields.update(_collect_declared_type_java_fields(class_node, cfg))
     return fields
+
+
+def _module_declared_type_method_return_types(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    method_return_types: dict[str, dict[str, str]] = {}
+    for class_node in parsed.root.named_children:
+        if class_node.type in TYPE_DECLARATION_NODES:
+            method_return_types.update(collect_declared_type_method_return_types(class_node, cfg))
+    return method_return_types
 
 
 def _javadoc_docstring(
