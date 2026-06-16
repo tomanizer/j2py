@@ -36,6 +36,7 @@ from j2py.translate.class_members import (
 )
 from j2py.translate.class_methods import (
     class_method_return_types,
+    collect_declared_type_method_return_types,
     parameter_infos,
     translate_method,
 )
@@ -82,6 +83,7 @@ def translate_class(
     inherited_class_field_java_types: dict[str, str] | None = None,
     inherited_declared_type_fields: dict[str, dict[str, str]] | None = None,
     inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
+    inherited_declared_type_method_return_types: dict[str, dict[str, str]] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
     name_resolver: NameResolver | None = None,
@@ -179,6 +181,10 @@ def translate_class(
         **(inherited_declared_type_java_fields or {}),
         **_collect_declared_type_java_fields(node, cfg),
     }
+    declared_type_method_return_types = {
+        **(inherited_declared_type_method_return_types or {}),
+        **collect_declared_type_method_return_types(node, cfg),
+    }
     assigned_fields = _constructor_assigned_fields(node)
     body = node.child_by_field("body")
     members = (
@@ -255,6 +261,7 @@ def translate_class(
         inherited_class_field_java_types=class_field_java_types,
         inherited_declared_type_fields=declared_type_fields,
         inherited_declared_type_java_fields=declared_type_java_fields,
+        inherited_declared_type_method_return_types=declared_type_method_return_types,
         static_field_aliases=static_field_aliases or {},
         static_method_imports=static_method_imports or {},
         name_resolver=resolver,
@@ -313,6 +320,7 @@ def translate_class(
                     class_field_java_types=class_field_java_types,
                     declared_type_fields=declared_type_fields,
                     declared_type_java_fields=declared_type_java_fields,
+                    declared_type_method_return_types=declared_type_method_return_types,
                     class_methods=class_method_names,
                     class_static_methods=class_static_method_names,
                     class_method_return_types=method_return_types,
@@ -342,6 +350,7 @@ def translate_class(
             class_field_java_types=class_field_java_types,
             declared_type_fields=declared_type_fields,
             declared_type_java_fields=declared_type_java_fields,
+            declared_type_method_return_types=declared_type_method_return_types,
             class_methods=class_method_names,
             class_static_methods=class_static_method_names,
             class_method_return_types=method_return_types,
@@ -428,6 +437,7 @@ def translate_overloaded_members(
     class_field_java_types: dict[str, str] | None = None,
     declared_type_fields: dict[str, dict[str, str]] | None = None,
     declared_type_java_fields: dict[str, dict[str, str]] | None = None,
+    declared_type_method_return_types: dict[str, dict[str, str]] | None = None,
     class_methods: set[str] | None = None,
     class_static_methods: set[str] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,

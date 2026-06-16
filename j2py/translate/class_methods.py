@@ -11,7 +11,7 @@ from j2py.translate.annotation_emit import (
     record_annotation_diagnostics,
 )
 from j2py.translate.class_members import raw_member_name
-from j2py.translate.class_model import ParameterInfo, _modifiers
+from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.node_utils import first_child_by_type
@@ -63,6 +63,38 @@ def class_method_return_types(
         unique = list(dict.fromkeys(return_types))
         result[name] = unique[0] if len(unique) == 1 else " | ".join(unique)
     return result
+
+
+def collect_declared_type_method_return_types(
+    class_node: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    """Map each declared type to its Java method return types."""
+    by_type: dict[str, dict[str, str]] = {}
+
+    def add_type(type_node: JavaNode) -> None:
+        name_node = type_node.child_by_field("name")
+        if name_node is None:
+            return
+        body = type_node.child_by_field("body")
+        members = (
+            []
+            if body is None
+            else [
+                child
+                for child in body.named_children
+                if child.type in {"constructor_declaration", "method_declaration"}
+            ]
+        )
+        by_type[name_node.text] = class_method_return_types(members, cfg)
+        if body is None:
+            return
+        for child in body.named_children:
+            if child.type in TYPE_DECLARATION_NODES:
+                add_type(child)
+
+    add_type(class_node)
+    return by_type
 
 
 def translate_method(

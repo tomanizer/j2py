@@ -24,6 +24,7 @@ under-covered or challenging for deterministic translation.
 | AmbiguousGetProbe.java      | Calendar API `.get(...)`, list indexing `.get(...)`, map `.get(...)` | Non-collection `.get(...)` disambiguation (#288) |
 | ApiGetReceivers.java        | ByteBuffer and atomic-array API `.get(...)` receivers | JDK API `.get(...)` receivers (#305) |
 | ArrayTypeClassLiteral.java  | Array type class literals in runtime class comparisons | Array type class literals (#287) |
+| ChainedGetReceiverType.java | Method-return type inference before chained `.get(...)` | Chained `.get(...)` receiver typing (#304) |
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
 | EnumConstantClassBody.java  | Enum constants with anonymous class bodies overriding abstract methods | Enum constant class bodies (#157) |
 | InterfaceDefaults.java      | Interface `default` methods, `static` methods on interfaces | Interface default + static methods (#48) |
