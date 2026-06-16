@@ -22,6 +22,7 @@ from j2py.translate.name_resolution import (
     is_static_import,
     java_import_name,
 )
+from j2py.translate.rules.imports import java_import_policy
 from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
@@ -193,11 +194,11 @@ def _import_lines(
         if is_static_import(java_import):
             continue
         imported_name = java_import_name(java_import)
-        if not imported_name or imported_name in cfg.drop_imports:
+        if not imported_name:
             continue
-        mapped = cfg.import_map.get(imported_name)
-        if mapped:
-            imports.update(line for line in mapped.splitlines() if line.strip())
+        policy = java_import_policy(imported_name, cfg)
+        if policy is not None:
+            imports.update(policy.import_lines)
 
     imports.update(diagnostics.imports.render())
     imports.update(static_import_todos or [])
