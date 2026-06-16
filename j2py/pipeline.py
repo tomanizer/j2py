@@ -255,6 +255,9 @@ def _surface_confidence(
         # Semantic warnings preserve raw coverage ordering, but they must never present
         # as perfect trust.
         confidence = min(confidence, SEMANTIC_WARNING_CONFIDENCE_CAP)
+    if validation is not None and not validation.syntax_ok:
+        # Syntactically invalid Python is never reviewable — confidence must be 0.
+        return 0.0
     if validation is not None and not validation.ok:
         confidence = min(confidence, REVIEW_REQUIRED_CONFIDENCE_CAP)
     if structural_verification is not None and not structural_verification.ok:
