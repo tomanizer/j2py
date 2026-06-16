@@ -1217,6 +1217,56 @@ def test_delegate_multimap_get_is_map_like() -> None:
     assert_valid_python(python_source)
 
 
+def test_chained_declared_method_return_type_get_uses_indexing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.lang.reflect.Method;
+        import java.util.List;
+
+        public class ChainedGetReceiverType {
+            private Mapping mapping;
+
+            public Method attribute(int attributeIndex) {
+                return this.mapping.getAttributes().get(attributeIndex);
+            }
+
+            static class Mapping {
+                private List<Method> attributes;
+
+                List<Method> getAttributes() {
+                    return this.attributes;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.mapping.get_attributes()[attribute_index]" in result.source
+    assert "get_attributes().get(" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_unknown_chained_method_return_type_get_stays_ambiguous() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ChainedUnknown {
+            public Object attribute(Object mapping, int attributeIndex) {
+                return mapping.getAttributes().get(attributeIndex);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "mapping.get_attributes().get(attribute_index)" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    assert_valid_python(result.source)
+
+
 def test_require_non_null_field_get_is_api_call() -> None:
     python_source, coverage = translate_source(
         """

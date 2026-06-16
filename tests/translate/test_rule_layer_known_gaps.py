@@ -236,6 +236,19 @@ def test_ApiGetReceivers_fixture_translates_without_unhandled_diagnostics() -> N
     assert "__j2py_todo__" not in result.source
 
 
+def test_ChainedGetReceiverType_fixture_translates_without_unhandled_diagnostics() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "ChainedGetReceiverType.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return self.mapping.get_attributes()[attribute_index]" in result.source
+    assert "get_attributes().get(" not in result.source
+    assert "ambiguous get invocation requires receiver collection type" not in result.source
+    assert "__j2py_todo__" not in result.source
+
+
 # ---------------------------------------------------------------------------
 # Bug 5: for-loop with <= bound falls back to while-loop where continue skips increment
 # ---------------------------------------------------------------------------

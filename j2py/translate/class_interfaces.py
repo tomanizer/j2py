@@ -59,6 +59,7 @@ def translate_interface(
         inherited_class_field_java_types={},
         inherited_declared_type_fields={},
         inherited_declared_type_java_fields={},
+        inherited_declared_type_method_return_types={},
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
         name_resolver=name_resolver,
