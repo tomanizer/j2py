@@ -204,6 +204,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
 | LLM harvest for rule-layer backlog | [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md), [LLM_HARVEST.md](LLM_HARVEST.md) |
 | Cross-file class hierarchies | [ADR 0018](decisions/0018-cross-file-class-hierarchies.md), [CASE_STUDY.md](CASE_STUDY.md) |
+| JDK lowering vs platform boundary stubs | [ADR 0019](decisions/0019-jdk-lowering-vs-platform-boundary-stubs.md) |
 
 ## Quality measurement
 

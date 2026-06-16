@@ -72,6 +72,9 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 - **Equivalence verification** via harvested-test differential testing with a
   JVM-independent oracle ([ADR 0014](docs/decisions/0014-equivalence-differential-testing.md),
   design in [docs/EQUIVALENCE_TESTING.md](docs/EQUIVALENCE_TESTING.md))
+- **JDK lowering, not JVM emulation** — ubiquitous JDK types and call patterns lower to
+  Python in core; JDBC, servlets, and framework packages use stubs plus project
+  `import_map` ([ADR 0019](docs/decisions/0019-jdk-lowering-vs-platform-boundary-stubs.md))
 
 ## Development workflow
 
