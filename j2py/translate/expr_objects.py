@@ -6,10 +6,39 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_model import FieldInfo
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.expr_access import request_type_import
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_class_name, translate_method_name
 from j2py.translate.rules.types import java_default_value
+
+
+def _request_constructor_import(class_name: str, ctx: TranslationContext) -> None:
+    """Request a function-local import for same-package sibling constructor types.
+
+    Only acts on cross-file ``"package_type"`` references so that
+    ``new SiblingClass(...)`` inside a method body uses a function-local import,
+    breaking base↔derived circular import cycles (issue #325).  Types declared in
+    the same compilation unit (same Python module) need no import and are skipped.
+    Qualified names (``Outer.Inner``) are also skipped — they are inner-class
+    references that the object-creation caller already handles without an import.
+    Explicitly-imported types were never auto-imported via the object-creation path;
+    this function preserves that existing behaviour.
+    """
+    # Qualified names (inner-class constructors like ``new Outer.Inner()``) cannot
+    # produce valid Python import statements and need no sibling import anyway.
+    if "." in class_name:
+        return
+    from j2py.translate.name_resolution import scope_from_context
+    from j2py.translate.rules.naming import translate_class_name
+
+    py_name = translate_class_name(class_name)
+    # Same-compilation-unit types (other classes in this file) need no import.
+    if py_name in ctx.name_resolver.bindings.compilation_unit_types:
+        return
+    resolved = ctx.name_resolver.resolve_identifier(class_name, scope_from_context(ctx))
+    if resolved.import_line and resolved.kind == "package_type":
+        request_type_import(resolved.import_line, resolved.kind, ctx)
 
 
 def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
@@ -24,6 +53,7 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         return _translate_anonymous_class(node, body_node, base_type, args, ctx)
 
     py_base_type = translate_class_name(base_type)
+    _request_constructor_import(base_type, ctx)
     if ctx.containing_class_name and py_base_type in ctx.nested_class_names:
         if ctx.in_instance_method and py_base_type in ctx.inner_class_names_requiring_outer:
             constructor_args = f"self, {args}" if args else "self"

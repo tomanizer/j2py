@@ -138,6 +138,8 @@ def translate_method(
     is_abstract = "abstract" in modifiers
     previous_in_instance_method = ctx.in_instance_method
     previous_in_method = ctx.in_method
+    previous_in_method_body = ctx.in_method_body
+    previous_body_local_imports = set(ctx.body_local_imports)
     ctx.in_instance_method = not is_static
     ctx.in_method = True
     try:
@@ -178,11 +180,23 @@ def translate_method(
             body = first_child_by_type(node, "block", "constructor_body")
 
         ctx.allow_local_helpers = True
+        ctx.body_local_imports.clear()
+        ctx.in_method_body = True
         body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+        ctx.in_method_body = False
+        local_import_lines = sorted(ctx.body_local_imports)
+        ctx.body_local_imports.clear()
+
         if docstring_lines:
             lines.extend(docstring_lines)
-            if pre_body_lines or body_lines != ["        pass"]:
+            if local_import_lines or pre_body_lines or body_lines != ["        pass"]:
                 lines.append("")
+
+        if local_import_lines:
+            for imp in local_import_lines:
+                lines.append(f"        {imp}")
+            lines.append("")
+
         lines.extend(pre_body_lines or [])
 
         if ctx.pending_local_helpers:
@@ -195,6 +209,8 @@ def translate_method(
     finally:
         ctx.in_instance_method = previous_in_instance_method
         ctx.in_method = previous_in_method
+        ctx.in_method_body = previous_in_method_body
+        ctx.body_local_imports = previous_body_local_imports
 
 
 def signature(

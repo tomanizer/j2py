@@ -16,8 +16,21 @@ from j2py.translate.rules.types import java_default_value, translate_type
 def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
     resolved = ctx.name_resolver.resolve_identifier(raw_name, scope_from_context(ctx))
     if resolved.import_line:
-        ctx.diagnostics.imports.need_line(resolved.import_line)
+        request_type_import(resolved.import_line, resolved.kind, ctx)
     return resolved.python_name
+
+
+def request_type_import(import_line: str, kind: str, ctx: TranslationContext) -> None:
+    """Route a type import to module-level or body-local depending on context.
+
+    Same-package sibling type references (kind ``"package_type"``) inside method
+    bodies are emitted as function-local imports to break base↔derived circular
+    import cycles (issue #325). All other imports remain at module level.
+    """
+    if ctx.in_method_body and kind == "package_type":
+        ctx.body_local_imports.add(import_line)
+    else:
+        ctx.diagnostics.imports.need_line(import_line)
 
 
 def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:

@@ -74,6 +74,16 @@ def test_self_referential_static_field_is_deferred(sources: dict[str, str]) -> N
     assert after.strip() == ""
 
 
+def test_sibling_factory_refs_are_body_local_imports(sources: dict[str, str]) -> None:
+    # Issue #325 fix: Pair.of() delegates to ImmutablePair — that reference must be a
+    # function-local import (not module-level) so the base↔derived cycle is not eager.
+    pair_src = sources["Pair"]
+    module_imports, _, class_body = pair_src.partition("\nclass Pair")
+    sibling_import = "from org.apache.commons.lang3.tuple.ImmutablePair import ImmutablePair"
+    assert sibling_import not in module_imports
+    assert sibling_import in class_body
+
+
 # --- Ported behavioural assertions: the working surface. --------------------------
 
 
