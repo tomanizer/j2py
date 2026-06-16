@@ -30,9 +30,18 @@ import inspect
 import threading
 import weakref
 from collections.abc import Callable
-from typing import Any, ClassVar, NoReturn
+from typing import Any, ClassVar, NoReturn, Protocol, TypeVar
 
-__all__ = ["__j2py_todo__", "_j2py_idiv", "_j2py_monitor", "overloaded"]
+_T_contra = TypeVar("_T_contra", contravariant=True)
+
+__all__ = ["Comparator", "__j2py_todo__", "_j2py_idiv", "_j2py_monitor", "overloaded"]
+
+
+class Comparator(Protocol[_T_contra]):
+    """Protocol placeholder for ``java.util.Comparator``."""
+
+    def compare(self, left: _T_contra, right: _T_contra) -> int: ...
+
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/
 # ``hashCode``. We therefore key the lock registry on ``id(obj)`` rather than on
