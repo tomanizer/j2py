@@ -15,3 +15,6 @@ def test_known_static_method_import_includes_preconditions_and_objects() -> None
 
 def test_known_static_field_alias_math_constants() -> None:
     assert known_static_field_alias("java.lang.Math.PI") == "math.pi"
+    assert (
+        known_static_field_alias("java.lang.annotation.ElementType.METHOD") == "ElementType.METHOD"
+    )

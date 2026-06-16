@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_methods import _IMMUTABLE_LITERAL_NODES
@@ -58,11 +60,11 @@ def translate_annotation_declaration(
                     reason=f"preserved meta-annotation @{name}",
                 )
                 if cfg.emit_line_comments:
-                    lines.append(f"# {annotation.text.strip()}")
+                    lines.append(f"# {_annotation_comment_text(annotation, static_field_aliases)}")
                 continue
             diagnostics.warn(annotation, reason=f"preserved annotation @{name}")
             if cfg.emit_line_comments:
-                lines.append(f"# {annotation.text.strip()}")
+                lines.append(f"# {_annotation_comment_text(annotation, static_field_aliases)}")
 
     diagnostics.imports.need_dataclass()
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
@@ -111,6 +113,20 @@ def _annotation_node_name(annotation: JavaNode) -> str | None:
     if name_node is None:
         name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
     return name_node.text if name_node is not None else None
+
+
+def _annotation_comment_text(
+    annotation: JavaNode,
+    static_field_aliases: dict[str, str],
+) -> str:
+    text = annotation.text.strip()
+    for raw_name, alias in sorted(static_field_aliases.items(), key=lambda item: -len(item[0])):
+        text = re.sub(
+            rf"(?<![\w.]){re.escape(raw_name)}(?![\w.])",
+            alias,
+            text,
+        )
+    return text
 
 
 def _translate_annotation_element(
