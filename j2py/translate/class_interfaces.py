@@ -25,6 +25,10 @@ from j2py.translate.class_methods import (
 )
 from j2py.translate.class_model import _modifiers
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.framework_annotations import (
+    class_annotation_mapping,
+    method_annotation_decorator_lines,
+)
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
 
@@ -76,9 +80,12 @@ def translate_interface(
         target_kind="class",
         target_name=class_name,
     )
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
     lines: list[str] = []
     lines.extend(annotation_comment_lines(node, cfg))
-    lines.append(f"class {class_name}(Protocol):")
+    lines.extend(class_mapping.decorators)
+    bases = [*class_mapping.bases, "Protocol"]
+    lines.append(f"class {class_name}({', '.join(bases)}):")
     if docstring_lines:
         lines.extend(docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
@@ -134,6 +141,7 @@ def translate_interface(
             target_name=py_name,
         )
         lines.extend(annotation_comment_lines(method, cfg, indent="    "))
+        lines.extend(method_annotation_decorator_lines(method, cfg, diagnostics, indent="    "))
         params = parameter_infos(method, cfg)
         method_return_type = return_type(method, cfg)
         if cfg.emit_type_hints:

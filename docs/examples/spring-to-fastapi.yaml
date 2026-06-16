@@ -1,0 +1,39 @@
+# Reference profile only: copy and adapt these mappings for your project shims.
+# j2py does not enable or maintain Spring/FastAPI framework support by default.
+
+annotation_map:
+  RestController:
+    python_decorator: rest_controller
+    import: "from myapp.spring_shim import rest_controller"
+
+  RequestMapping:
+    python_decorator: 'router.api_route("{value}")'
+    import: "from myapp.web import router"
+
+  GetMapping:
+    python_decorator: 'router.get("{value}")'
+    import: "from myapp.web import router"
+
+  PostMapping:
+    python_decorator: 'router.post("{value}")'
+    import: "from myapp.web import router"
+
+  PutMapping:
+    python_decorator: 'router.put("{value}")'
+    import: "from myapp.web import router"
+
+  DeleteMapping:
+    python_decorator: 'router.delete("{value}")'
+    import: "from myapp.web import router"
+
+  Autowired:
+    field_comment: "# injected: {field_type} {field_name}"
+    emit_init_param: true
+
+  Entity:
+    python_base: Base
+    import: "from myapp.db import Base"
+
+  Transactional:
+    python_decorator: transactional
+    import: "from myapp.db import transactional"

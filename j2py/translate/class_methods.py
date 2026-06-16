@@ -14,6 +14,7 @@ from j2py.translate.class_members import raw_member_name
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.framework_annotations import method_annotation_decorator_lines
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name, translate_method_name
 from j2py.translate.rules.types import translate_type
@@ -104,6 +105,7 @@ def translate_method(
     unsupported_reason: str | None = None,
     pre_body_lines: list[str] | None = None,
     decorator_lines: list[str] | None = None,
+    extra_params: list[ParameterInfo] | None = None,
     def_line_suffix: str = "",
     supported_reason: str | None = None,
     docstring_lines: list[str] | None = None,
@@ -140,6 +142,8 @@ def translate_method(
     if ctx.cfg.emit_type_hints:
         ctx.diagnostics.imports.need_type_annotation(method_return_type)
     params = params_for_method(node, ctx)
+    injected_params = _render_extra_params(ctx, extra_params or [])
+    params = injected_params + params
     if not is_static:
         params.insert(0, "self")
 
@@ -148,6 +152,9 @@ def translate_method(
 
     lines: list[str] = []
     lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
+    lines.extend(
+        method_annotation_decorator_lines(node, ctx.cfg, ctx.diagnostics, indent="    "),
+    )
     if is_static:
         lines.append("    @staticmethod")
     lines.extend(decorator_lines or [])
@@ -309,3 +316,17 @@ def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
         f"list[{param.py_type}]" if param.is_spread else param.py_type
     )
     ctx.variable_java_types[param.raw_name] = param.java_type
+
+
+def _render_extra_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list[str]:
+    rendered: list[str] = []
+    for param in params:
+        if param.raw_name in ctx.param_names or param.py_name in ctx.param_names:
+            continue
+        register_param(ctx, param)
+        if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(param.py_type)
+            rendered.append(f"{param.py_name}: {param.py_type}")
+        else:
+            rendered.append(param.py_name)
+    return rendered
