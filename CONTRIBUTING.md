@@ -65,15 +65,16 @@ Every new Java construct translation needs:
 
 1. **Java fixture** — `tests/fixtures/java/<Feature>.java`
 2. **Expected Python fixture** — `tests/fixtures/python/<Feature>.py`
-3. **Test** — parametrised entry in `tests/translate/` (or a new test file)
-4. **Implementation** — rule in `j2py/translate/rules/` or `skeleton.py`
+3. **Test** — parametrised entry in `tests/translate/` (see
+   [`.cursor/skills/add-translation-rule/SKILL.md`](.cursor/skills/add-translation-rule/SKILL.md))
+4. **Implementation** — split modules under `j2py/translate/` (`statements.py`, `expr_*`,
+   `class_*`, `overloads.py`, `rules/`) — not monolithic `skeleton.py` edits
 
 The fixture pair is the contract. CI runs exact fixture equality tests in `make check`.
 
 For unsupported but planned Java constructs, add or update a roadmap target test first.
 Graduated target tests live under `tests/targets/` and run in `make check`. Future
-`xfail` roadmap contracts use the `target_translation` marker, are excluded from
-`make check`, and run with:
+`xfail` roadmap contracts use the `target_translation` marker and run with:
 
 ```bash
 make test-targets
@@ -83,9 +84,6 @@ Once a target is supported, remove it from `FUTURE_TARGETS` so it runs in the gr
 target check, or move the behavior into the normal fixture suite. See
 [Translation Target Tests](docs/TRANSLATION_TARGETS.md) for the target-test workflow and
 graduation rules.
-For corpus-derived fast regressions that should not change committed corpus baselines,
-put the Java fixture under `tests/fixtures/java/targets/`, not under
-`tests/fixtures/corpus/constructs/`.
 
 ### Equivalence tests
 

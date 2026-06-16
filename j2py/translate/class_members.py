@@ -13,6 +13,8 @@ from j2py.translate.comments import (
     translate_comment,
     translate_javadoc_docstring,
 )
+from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_class_name, translate_method_name
 
@@ -107,18 +109,72 @@ def uses_qualified_this(node: JavaNode) -> bool:
     return any(uses_qualified_this(child) for child in node.named_children)
 
 
-def base_suffix(node: JavaNode) -> str:
+def _superclass_type_node(superclass: JavaNode) -> JavaNode | None:
+    """Return the type-name node of an ``extends`` clause.
+
+    The superclass may be a bare ``type_identifier``/``scoped_type_identifier`` or a
+    ``generic_type`` wrapper such as ``Pair<L, R>``. In the generic case the bare name
+    lives one level down, so descend into it.
+    """
+    type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
+    if type_node is not None:
+        return type_node
+    generic = first_child_by_type(superclass, "generic_type")
+    if generic is not None:
+        return first_child_by_type(generic, "type_identifier", "scoped_type_identifier")
+    return None
+
+
+def base_suffix(
+    node: JavaNode,
+    diagnostics: TranslationDiagnostics | None = None,
+    *,
+    resolver: NameResolver | None = None,
+    scope: NameScope | None = None,
+) -> str:
     bases: list[str] = []
     superclass = node.child_by_field("superclass")
     if superclass is not None:
-        type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
+        type_node = _superclass_type_node(superclass)
         if type_node is not None:
-            bases.append(translate_class_name(type_node.text))
+            bases.append(_superclass_binding(type_node.text, diagnostics, resolver, scope))
     if "abstract" in _modifiers(node):
         bases.append("ABC")
     if not bases:
         return ""
     return f"({', '.join(bases)})"
+
+
+def _superclass_binding(
+    raw_name: str,
+    diagnostics: TranslationDiagnostics | None,
+    resolver: NameResolver | None,
+    scope: NameScope | None,
+) -> str:
+    """Resolve the Python base-class name and request its import if needed.
+
+    Reuses the deterministic type-reference resolution in
+    :class:`~j2py.translate.name_resolution.NameResolver` (ADR 0016): an explicit Java
+    import or configured import-map binding wins, then a same-package sibling import,
+    falling back to a default-package module import. A superclass declared in the same
+    compilation unit (and therefore the same Python module) needs no import. The
+    ``translate_class_name`` fallback keeps a class name when no binding source resolves.
+    """
+    simple = raw_name.rsplit(".", 1)[-1]
+    if resolver is None or scope is None:
+        return translate_class_name(simple)
+    py_name = translate_class_name(simple)
+    # A superclass declared in the same compilation unit shares the Python module, so it
+    # needs no import. Check this before the resolver, whose same-package fallback would
+    # otherwise emit a self-referential cross-module import.
+    if py_name in resolver.bindings.compilation_unit_types:
+        return py_name
+    resolved = resolver.resolve_identifier(simple, scope)
+    if not resolved.is_type_reference:
+        return translate_class_name(simple)
+    if diagnostics is not None and resolved.import_line:
+        diagnostics.imports.need_line(resolved.import_line)
+    return resolved.python_name
 
 
 def member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
@@ -176,7 +232,7 @@ def superclass_simple_name(node: JavaNode) -> str | None:
     superclass = node.child_by_field("superclass")
     if superclass is None:
         return None
-    type_node = first_child_by_type(superclass, "type_identifier", "scoped_type_identifier")
+    type_node = _superclass_type_node(superclass)
     if type_node is None:
         return None
     return type_node.text.rsplit(".", 1)[-1]
