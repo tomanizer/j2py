@@ -153,23 +153,18 @@ def test_mutable_triple_setters(tuple_pkg) -> None:
     assert (triple.get_left(), triple.get_middle(), triple.get_right()) == ("L", "M", "R")
 
 
-# --- Known translation gaps (pinned; see docs/CASE_STUDY.md "Gaps surfaced"). ------
+# --- Fixed case-study gaps: keep these as end-to-end regressions. ------------------
 
 
-@pytest.mark.xfail(strict=True, reason="CASE_STUDY gap C: static field read emitted unqualified")
 def test_gap_c_null_singleton_accessor(tuple_pkg) -> None:
-    # null_pair() does `return NULL` (bare) instead of `return ImmutablePair.NULL`.
     assert tuple_pkg.ImmutablePair.null_pair() is tuple_pkg.ImmutablePair.NULL
 
 
-@pytest.mark.xfail(strict=True, reason="CASE_STUDY gap D: bitwise '|' precedence vs comparison")
 def test_gap_d_triple_factory(tuple_pkg) -> None:
-    # ImmutableTriple.of mistranslates `a != null | b != null` precedence.
     triple = tuple_pkg.ImmutableTriple.of(1, 2, 3)
     assert (triple.get_left(), triple.get_middle(), triple.get_right()) == (1, 2, 3)
 
 
-@pytest.mark.xfail(strict=True, reason="CASE_STUDY gap E: cast() to generic translated class")
 def test_gap_e_triple_equals(tuple_pkg) -> None:
     a = tuple_pkg.ImmutableTriple("x", "y", 1)
     b = tuple_pkg.ImmutableTriple("x", "y", 1)

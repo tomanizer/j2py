@@ -137,6 +137,7 @@ def translate_method(
     is_static = "static" in modifiers
     is_abstract = "abstract" in modifiers
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
 
     method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
     if ctx.cfg.emit_type_hints:

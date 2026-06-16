@@ -603,7 +603,10 @@ def _translate_binary_operand(
     if inner.type in _ASSIGN_OR_UPDATE:
         return _desugar_embedded_assign(inner, ctx)
     if node.type != "parenthesized_expression" or len(node.named_children) != 1:
-        return translate_expression(node, ctx)
+        expression = translate_expression(node, ctx)
+        if _binary_operand_needs_parentheses(parent_operator, node):
+            return f"({expression})"
+        return expression
     # Parenthesized non-assignment: decide whether to keep parens for precedence.
     expression = translate_expression(inner, ctx)
     if inner.type in {"switch_expression", "ternary_expression"}:
@@ -618,6 +621,14 @@ def _translate_binary_operand(
     ):
         return f"({expression})"
     return expression
+
+
+def _binary_operand_needs_parentheses(parent_operator: str, node: JavaNode) -> bool:
+    if node.type != "binary_expression" or len(node.children) < 3:
+        return False
+    if parent_operator not in {"&", "|", "^"}:
+        return False
+    return node.children[1].text in {"==", "!=", "<", "<=", ">", ">="}
 
 
 def _binary_parentheses_change_meaning(

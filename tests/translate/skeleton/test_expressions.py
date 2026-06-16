@@ -67,6 +67,73 @@ def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
     assert_valid_python(result.source)
 
 
+def test_same_class_static_field_reads_are_qualified_in_methods() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class StaticFields {
+            private static final int COUNT = 1;
+            private static final int DOUBLE = COUNT + 1;
+
+            public static int count() {
+                return COUNT;
+            }
+
+            public int instanceCount() {
+                return COUNT;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "    COUNT: int = 1" in result.source
+    assert "    DOUBLE: int = COUNT + 1" in result.source
+    assert "return StaticFields.COUNT" in result.source
+    assert "return COUNT" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_bitwise_comparison_operands_are_parenthesized() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class BitwiseComparisons {
+            public static boolean any(Object left, Object middle, Object right) {
+                return left != null | middle != null || right != null;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return (left is not None) | (middle is not None) or right is not None" in result.source
+    assert_valid_python(result.source)
+
+
+def test_generic_cast_to_translated_class_uses_string_target() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Casts<T> {
+            public boolean same(Object obj) {
+                Casts<?> other = (Casts<?>) obj;
+                return other != null;
+            }
+
+            public Casts<T>[] array(Object obj) {
+                return (Casts<T>[]) obj;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "other = cast('Casts[Any]', obj)" in result.source
+    assert "return cast('list[Casts[T]]', obj)" in result.source
+    assert_valid_python(result.source)
+
+
 def test_char_arithmetic_wraps_operands_in_ord() -> None:
     result = translate_source_with_diagnostics(
         """

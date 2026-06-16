@@ -81,6 +81,7 @@ class NameScope:
     class_fields: set[str] = field(default_factory=set)
     class_field_types: dict[str, str] = field(default_factory=dict)
     in_instance_method: bool = False
+    in_method: bool = False
     containing_class_name: str | None = None
     nested_class_names: set[str] = field(default_factory=set)
     snake_case_fields: bool = True
@@ -211,6 +212,12 @@ class NameResolver:
     def _field_python_name(raw_name: str, py_name: str, scope: NameScope) -> str:
         if scope.in_instance_method and raw_name in scope.class_fields:
             return f"self.{py_name}"
+        if (
+            scope.in_method
+            and raw_name not in scope.class_fields
+            and scope.containing_class_name is not None
+        ):
+            return f"{scope.containing_class_name}.{py_name}"
         return py_name
 
 
@@ -223,6 +230,7 @@ def scope_from_context(ctx: TranslationContext) -> NameScope:
         class_fields=ctx.class_fields,
         class_field_types=ctx.class_field_types,
         in_instance_method=ctx.in_instance_method,
+        in_method=ctx.in_method,
         containing_class_name=ctx.containing_class_name,
         nested_class_names=ctx.nested_class_names,
         snake_case_fields=ctx.cfg.snake_case_fields,
