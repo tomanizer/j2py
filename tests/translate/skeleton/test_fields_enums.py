@@ -378,6 +378,46 @@ def test_interface_declaration_translates_to_protocol() -> None:
     assert_valid_python(result.source)
 
 
+def test_interface_static_factories_return_adapter_instances() -> None:
+    parsed = parse_file(FIXTURES / "corpus" / "constructs" / "InterfaceDefaults.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from j2py_runtime import Consumer" in result.source
+    assert "from typing import Protocol, TypeVar, cast" in result.source
+    assert 'T = TypeVar("T", contravariant=True)' in result.source
+    assert 'U = TypeVar("U")' in result.source
+    assert "class InterfaceDefaults(Protocol[T]):" in result.source
+    assert "class _NoopInterfaceDefaultsAdapter:" in result.source
+    assert "class _LoggingInterfaceDefaultsAdapter:" in result.source
+    assert "return cast(InterfaceDefaults[U], _NoopInterfaceDefaultsAdapter())" in result.source
+    assert "return cast(InterfaceDefaults[U], _LoggingInterfaceDefaultsAdapter())" in result.source
+    assert "delegate.accept(value)" in result.source
+    assert "def _j2py_lambda_" not in result.source
+    assert any(
+        diagnostic.reason == "translated interface static factory adapter"
+        for diagnostic in result.diagnostics.handled
+    )
+    assert_valid_python(result.source)
+
+
+def test_interface_static_factory_adapter_fixture_is_not_name_specific() -> None:
+    parsed = parse_file(
+        FIXTURES / "corpus" / "constructs" / "InterfaceStaticFactoryAdapter.java",
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class InterfaceStaticFactoryAdapter(Protocol[T]):" in result.source
+    assert "class _EmptyInterfaceStaticFactoryAdapterAdapter:" in result.source
+    assert "return cast(\n            InterfaceStaticFactoryAdapter[U]," in result.source
+    assert "            _EmptyInterfaceStaticFactoryAdapterAdapter()," in result.source
+    assert "def _j2py_lambda_" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_sealed_interface_preserves_permits_and_nested_permitted_types() -> None:
     parsed = parse_file(FIXTURES / "corpus" / "constructs" / "SealedClasses.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)

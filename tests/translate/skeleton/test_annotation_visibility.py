@@ -6,6 +6,7 @@ from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
     FIXTURES,
+    assert_module_executes,
     assert_valid_python,
     translate_source_with_diagnostics,
 )
@@ -216,6 +217,24 @@ def test_annotation_map_fixture_lowers_framework_annotations() -> None:
         'mapped annotation @GetMapping -> @router.get("{value}") on method get',
     ]
     assert_valid_python(result.source)
+
+
+def test_annotation_map_python_base_dedupes_explicit_extends_base() -> None:
+    cfg = CFG.model_copy(update={"annotation_map": {"Entity": {"python_base": "Base"}}})
+    result = translate_source_with_diagnostics(
+        """
+        class Base {}
+
+        @Entity
+        class User extends Base {
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "class User(Base):" in result.source
+    assert "class User(Base, Base):" not in result.source
+    assert_module_executes(result.source)
 
 
 def test_annotation_map_can_suppress_mapped_audit_comment() -> None:

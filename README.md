@@ -216,7 +216,7 @@ Material translation policy changes should get an ADR under `docs/decisions/`.
 coverage, diagnostics for unsupported regions, known multi-file import limitations,
 and manual review on production-scale codebases. See [docs/RELEASING.md](docs/RELEASING.md)
 for the release checklist and [CHANGELOG.md](CHANGELOG.md) for known limitations in
-`0.5.0b1`.
+`0.5.0b2`.
 
 ## License
 
