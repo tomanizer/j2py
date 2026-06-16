@@ -166,6 +166,7 @@ make corpus-commons-lang-dense-check  # Commons Lang utilities vs baseline
 make corpus-jackson-dense-check       # Jackson databind vs baseline
 make corpus-caffeine-dense-check      # Caffeine cache code vs baseline
 make corpus-spring-dense-check        # Spring dense preset + construct fixtures
+make corpus-spring-app-dense-check    # Spring app-layer samples (REST, JPA, @Transactional)
 make corpus-hotspots                  # rank gaps across all committed baselines
 ```
 

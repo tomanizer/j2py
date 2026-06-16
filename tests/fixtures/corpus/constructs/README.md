@@ -2,8 +2,8 @@
 
 Small, focused `.java` files that exercise specific Java language constructs for the
 j2py rule layer. Density corpus presets mix them in via `--include-constructs` (see
-`spring-dense` and `spring-broad` in `scripts/corpus/corpus_presets.py`). External
-library checkouts are measurement harnesses only — not product scope.
+`spring-dense`, `spring-app-dense`, and exploratory `spring-broad` in
+`scripts/corpus/corpus_presets.py`). External library checkouts are measurement harnesses only — not product scope.
 
 These files target constructs that are common in large Java codebases but historically
 under-covered or challenging for deterministic translation.
@@ -36,6 +36,7 @@ under-covered or challenging for deterministic translation.
 | SwitchFallthrough.java      | Intentional fall-through (colon style), complex blocks, switch expressions | Improved switch fall-through + complex rules (#51) |
 | TextBlocks.java             | Text blocks with indentation stripping, formatting, `.formatted()`, escapes | Text blocks (#49) |
 | VarKeyword.java             | `var` local inference in loops, streams, with generics/casts | Local `var` (modern Java) |
+| SpringDependencyInjection.java | `@Configuration`/`@Bean`, `@Service`/`@Repository`, `@Autowired` constructor + field injection, `@Qualifier` | Spring DI annotation patterns |
 
 ## Usage in Corpus Harness
 ```bash

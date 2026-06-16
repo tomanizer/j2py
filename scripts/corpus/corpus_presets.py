@@ -11,8 +11,15 @@ agents and scripts reuse one shared clone directory.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
+from annotation_filter import DEFAULT_ENTERPRISE_ANNOTATIONS  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_CORPUS = REPO_ROOT / "tests" / "fixtures" / "corpus"
@@ -47,13 +54,18 @@ class CorpusPreset:
     checkout_dir: str
     modules: tuple[str, ...]
     baseline: Path
-    limit: int = 100
+    limit: int = 200
     strategy: str = "density"
-    max_loc: int = 250
+    max_loc: int = 1000
+    min_loc: int = 20
     min_constructs: int = 5
     include_constructs: bool = False
     include_tests: bool = False
+    skip_package_info: bool = True
     exclude_paths: tuple[str, ...] = ()
+    include_path_prefixes: tuple[str, ...] = ()
+    require_annotations: tuple[str, ...] = ()
+    min_annotation_hits: int = 0
 
     @property
     def repo_path(self) -> Path:
@@ -95,16 +107,49 @@ PRESETS: dict[str, CorpusPreset] = {
     for preset in (
         _preset(
             "spring-dense",
-            "Preferred dense Spring sample plus curated construct fixtures",
+            "Spring core/beans/context DI annotations plus curated construct fixtures",
             remote="https://github.com/spring-projects/spring-framework.git",
             ref="0c60266986197a191ff33eb498ebc8bac3dc933f",
             checkout_dir="spring-framework",
             modules=(
                 "spring-core/src/main/java",
                 "spring-beans/src/main/java",
+                "spring-beans/src/main/java/org/springframework/beans/factory/annotation",
+                "spring-beans/src/main/java/org/springframework/beans/factory/config",
+                "spring-context/src/main/java/org/springframework/context/annotation",
+                "spring-context/src/main/java/org/springframework/stereotype",
             ),
             baseline_name="spring-dense-baseline.json",
             include_constructs=True,
+            include_path_prefixes=(
+                "spring-beans/src/main/java/org/springframework/beans/factory/annotation/",
+                "spring-context/src/main/java/org/springframework/stereotype/",
+            ),
+        ),
+        _preset(
+            "spring-app-dense",
+            "Spring application-layer Java filtered by enterprise annotation usage",
+            remote="https://github.com/spring-projects/spring-framework.git",
+            ref="0c60266986197a191ff33eb498ebc8bac3dc933f",
+            checkout_dir="spring-framework",
+            modules=(
+                "spring-context-indexer/src/test/java/org/springframework/context/index/sample",
+                "framework-docs/src/main/java/org/springframework/docs",
+                "spring-web/src/main/java",
+                "spring-webmvc/src/main/java",
+                "spring-webmvc/src/test/java",
+                "spring-context/src/main/java",
+                "spring-context/src/test/java/example",
+                "spring-tx/src/main/java",
+                "integration-tests/src/test/java",
+            ),
+            baseline_name="spring-app-dense-baseline.json",
+            include_constructs=True,
+            include_path_prefixes=(
+                "spring-context-indexer/src/test/java/org/springframework/context/index/sample/",
+            ),
+            require_annotations=DEFAULT_ENTERPRISE_ANNOTATIONS,
+            min_annotation_hits=1,
         ),
         _preset(
             "spring-broad",
@@ -114,7 +159,7 @@ PRESETS: dict[str, CorpusPreset] = {
             checkout_dir="spring-framework",
             modules=("spring-context/src/main/java",),
             baseline_name="spring-broad-baseline.json",
-            limit=150,
+            limit=200,
             include_constructs=True,
             min_constructs=0,
         ),
@@ -131,6 +176,7 @@ PRESETS: dict[str, CorpusPreset] = {
             baseline_name="spring-sample-baseline.json",
             strategy="lexical",
             max_loc=0,
+            min_loc=0,
             min_constructs=0,
         ),
         _preset(
@@ -210,10 +256,15 @@ def apply_preset(
         "csv_out",
         "strategy",
         "max_loc",
+        "min_loc",
         "min_constructs",
         "include_constructs",
         "include_tests",
+        "skip_package_info",
         "exclude_paths",
+        "include_path_prefixes",
+        "require_annotations",
+        "min_annotation_hits",
     )
     resolved: dict[str, object] = {
         "repo": preset.repo_path,
@@ -223,10 +274,15 @@ def apply_preset(
         "limit": preset.limit,
         "strategy": preset.strategy,
         "max_loc": preset.max_loc,
+        "min_loc": preset.min_loc,
         "min_constructs": preset.min_constructs,
         "include_constructs": preset.include_constructs,
         "include_tests": preset.include_tests,
+        "skip_package_info": preset.skip_package_info,
         "exclude_paths": list(preset.exclude_paths),
+        "include_path_prefixes": list(preset.include_path_prefixes),
+        "require_annotations": list(preset.require_annotations),
+        "min_annotation_hits": preset.min_annotation_hits,
         "baseline": preset.baseline,
         "json_out": preset.json_out,
         "csv_out": preset.csv_out,

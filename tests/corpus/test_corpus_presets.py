@@ -27,8 +27,21 @@ presets = _load_presets()
 def test_list_preset_names_includes_spring_and_guava() -> None:
     names = presets.list_preset_names()
     assert "spring-dense" in names
+    assert "spring-app-dense" in names
     assert "guava-dense" in names
     assert names == sorted(names)
+
+
+def test_spring_app_dense_preset_targets_application_samples() -> None:
+    preset = presets.get_preset("spring-app-dense")
+    assert preset.checkout_dir == "spring-framework"
+    assert preset.include_constructs is True
+    assert preset.require_annotations
+    assert preset.min_annotation_hits == 1
+    assert any("context/index/sample" in module for module in preset.modules)
+    assert preset.include_path_prefixes == (
+        "spring-context-indexer/src/test/java/org/springframework/context/index/sample/",
+    )
 
 
 def test_apply_preset_uses_sampling_parameters() -> None:
@@ -54,7 +67,8 @@ def test_apply_preset_uses_sampling_parameters() -> None:
 
     assert resolved["preset"] == "spring-dense"
     assert resolved["strategy"] == "density"
-    assert resolved["max_loc"] == 250
+    assert resolved["max_loc"] == 1000
+    assert resolved["min_loc"] == 20
     assert resolved["min_constructs"] == 5
     assert resolved["include_constructs"] is True
     assert resolved["baseline"] == preset.baseline
