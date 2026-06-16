@@ -441,7 +441,31 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
     assert result.diagnostics.unhandled[0].reason == (
         "unknown static import com.example.Helpers.magic"
     )
-    assert "return magic(value)" in result.source
+    # Unknown static method import now emits a qualified call so output stays syntactically
+    # valid and reviewable; bare unqualified fallback was replaced by ClassName.method(args).
+    assert "return Helpers.magic(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_unknown_static_field_import_emits_qualified_identifier() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static com.example.BoundType.CLOSED;
+
+        public class StaticField {
+            public boolean check(Object x) {
+                return x == CLOSED;
+            }
+        }
+        """,
+    )
+
+    assert "# TODO(j2py): static import com.example.BoundType.CLOSED - resolve manually" in (
+        result.source
+    )
+    # Unknown static field now emits qualified ClassName.MEMBER so output is valid Python.
+    assert "BoundType.CLOSED" in result.source
+    assert "x == BoundType.CLOSED" in result.source or "== BoundType.CLOSED" in result.source
     assert_valid_python(result.source)
 
 

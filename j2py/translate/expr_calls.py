@@ -369,8 +369,10 @@ def _translate_static_imported_method(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
+    from j2py.translate.rules.naming import translate_class_name, translate_method_name
+
     raw_receiver, method_name = imported_name.rsplit(".", 1)
-    return _translate_static_method_invocation(
+    result = _translate_static_method_invocation(
         node,
         raw_receiver=raw_receiver,
         method_name=method_name,
@@ -378,6 +380,13 @@ def _translate_static_imported_method(
         args=args,
         ctx=ctx,
     )
+    if result is not None:
+        return result
+    # Fallback: emit ClassName.method_name(args) for unknown receiver classes so the
+    # output is always syntactically valid and reviewable rather than a bare call.
+    class_name = translate_class_name(raw_receiver.rsplit(".", 1)[-1])
+    py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+    return f"{class_name}.{py_method}({', '.join(args)})"
 
 
 def _translate_string_format(args: list[str]) -> str:

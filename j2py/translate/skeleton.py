@@ -23,6 +23,7 @@ from j2py.translate.name_resolution import (
     java_import_name,
 )
 from j2py.translate.rules.imports import java_import_policy
+from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
@@ -63,6 +64,7 @@ def translate_skeleton_with_diagnostics(
     static_field_aliases, static_method_imports, static_import_todos = _static_import_info(
         parsed,
         diagnostics,
+        cfg,
     )
     file_name_bindings = build_file_name_bindings(
         parsed,
@@ -208,6 +210,7 @@ def _import_lines(
 def _static_import_info(
     parsed: ParsedFile,
     diagnostics: TranslationDiagnostics,
+    cfg: TranslationConfig,
 ) -> tuple[dict[str, str], dict[str, str], list[str]]:
     field_aliases: dict[str, str] = {}
     method_imports: dict[str, str] = {}
@@ -248,4 +251,13 @@ def _static_import_info(
             reason=f"unknown static import {imported_name}",
         )
         todos.append(f"# TODO(j2py): static import {imported_name} - resolve manually")
+        # Register a syntax-safe fallback so the name always resolves to valid Python.
+        # - field_alias: ClassName.member for identifier uses
+        # - method_imports: FQN for call sites (handled via qualified fallback in expr_calls)
+        declaring_class = imported_name.rsplit(".", 2)[-2] if imported_name.count(".") >= 2 else ""
+        if declaring_class:
+            py_class = translate_class_name(declaring_class)
+            py_member = translate_field_name(member, snake_case=cfg.snake_case_fields)
+            field_aliases[member] = f"{py_class}.{py_member}"
+        method_imports[member] = imported_name
     return field_aliases, method_imports, todos
