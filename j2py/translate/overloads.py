@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_emit import record_annotation_diagnostics
 from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import (
     _IMMUTABLE_LITERAL_NODES,
     method_body,
     parameter_infos,
-    record_annotation_diagnostics,
     register_param,
     translate_method,
 )
@@ -60,7 +60,15 @@ def translate_overloaded_members(
 ) -> list[str]:
     name = member_python_name(members[0])
     for member in members:
-        record_annotation_diagnostics(member, cfg, diagnostics)
+        py_name = member_python_name(member)
+        target_kind = "constructor" if member.type == "constructor_declaration" else "method"
+        record_annotation_diagnostics(
+            member,
+            cfg,
+            diagnostics,
+            target_kind=target_kind,
+            target_name=py_name,
+        )
 
     field_types = class_field_types or {f: "object" for f in class_fields}
     field_java_types = class_field_java_types or {}
