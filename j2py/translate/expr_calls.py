@@ -279,6 +279,8 @@ def _translate_static_method_invocation(
             return f"math.floor({args[0]} + 0.5)"
 
     if receiver == "Integer":
+        if method_name == "compare" and len(args) == 2:
+            return f"({args[0]} > {args[1]}) - ({args[0]} < {args[1]})"
         if method_name == "parseInt" and len(args) in {1, 2}:
             return f"int({', '.join(args)})"
         if method_name == "valueOf" and len(args) == 1:
