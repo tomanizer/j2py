@@ -109,6 +109,20 @@ def test_summarize_includes_enterprise_block() -> None:
     assert enterprise["total_annotation_warnings"] == 1
 
 
+def test_counter_summary_escapes_semicolons_in_diagnostic_reasons() -> None:
+    summary = corpus._counter_summary(
+        {
+            "unsupported expression; fallback emitted": 2,
+            "method_invocation": 1,
+        },
+    )
+
+    assert corpus._parse_counter_summary(summary) == {
+        "unsupported expression; fallback emitted": 2,
+        "method_invocation": 1,
+    }
+
+
 def test_compare_baseline_reports_per_file_regressions(tmp_path: Path) -> None:
     baseline_metrics = [
         _metric("A.java", coverage=1.0),

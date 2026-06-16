@@ -136,59 +136,81 @@ def translate_method(
     modifiers = _modifiers(node)
     is_static = "static" in modifiers
     is_abstract = "abstract" in modifiers
+    previous_in_instance_method = ctx.in_instance_method
+    previous_in_method = ctx.in_method
+    previous_in_method_body = ctx.in_method_body
+    previous_body_local_imports = set(ctx.body_local_imports)
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
+    try:
+        method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
+        if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(method_return_type)
+        params = params_for_method(node, ctx)
+        injected_params = _render_extra_params(ctx, extra_params or [])
+        params = injected_params + params
+        if not is_static:
+            params.insert(0, "self")
 
-    method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
-    if ctx.cfg.emit_type_hints:
-        ctx.diagnostics.imports.need_type_annotation(method_return_type)
-    params = params_for_method(node, ctx)
-    injected_params = _render_extra_params(ctx, extra_params or [])
-    params = injected_params + params
-    if not is_static:
-        params.insert(0, "self")
+        if unsupported_reason is not None:
+            return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
-    if unsupported_reason is not None:
-        return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
+        lines: list[str] = []
+        lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
+        lines.extend(
+            method_annotation_decorator_lines(node, ctx.cfg, ctx.diagnostics, indent="    "),
+        )
+        if is_static:
+            lines.append("    @staticmethod")
+        lines.extend(decorator_lines or [])
+        if is_abstract:
+            ctx.diagnostics.imports.need_abc()
+            lines.append("    @abstractmethod")
+        returns = f" -> {method_return_type}" if ctx.cfg.emit_type_hints else ""
+        lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
 
-    lines: list[str] = []
-    lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
-    lines.extend(
-        method_annotation_decorator_lines(node, ctx.cfg, ctx.diagnostics, indent="    "),
-    )
-    if is_static:
-        lines.append("    @staticmethod")
-    lines.extend(decorator_lines or [])
-    if is_abstract:
-        ctx.diagnostics.imports.need_abc()
-        lines.append("    @abstractmethod")
-    returns = f" -> {method_return_type}" if ctx.cfg.emit_type_hints else ""
-    lines.append(f"    def {py_name}({', '.join(params)}){returns}:{def_line_suffix}")
+        if is_abstract:
+            if docstring_lines:
+                lines.extend(docstring_lines)
+            lines.append("        ...")
+            return lines
 
-    if is_abstract:
+        body = node.child_by_field("body")
+        if body is None:
+            body = first_child_by_type(node, "block", "constructor_body")
+
+        ctx.allow_local_helpers = True
+        ctx.body_local_imports.clear()
+        ctx.in_method_body = True
+        body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+        ctx.in_method_body = False
+        local_import_lines = sorted(ctx.body_local_imports)
+        ctx.body_local_imports.clear()
+
         if docstring_lines:
             lines.extend(docstring_lines)
-        lines.append("        ...")
+            if local_import_lines or pre_body_lines or body_lines != ["        pass"]:
+                lines.append("")
+
+        if local_import_lines:
+            for imp in local_import_lines:
+                lines.append(f"        {imp}")
+            lines.append("")
+
+        lines.extend(pre_body_lines or [])
+
+        if ctx.pending_local_helpers:
+            for helper in ctx.pending_local_helpers:
+                lines.append("")
+                lines.extend(helper)
+
+        lines.extend(body_lines)
         return lines
-
-    body = node.child_by_field("body")
-    if body is None:
-        body = first_child_by_type(node, "block", "constructor_body")
-
-    ctx.allow_local_helpers = True
-    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
-    if docstring_lines:
-        lines.extend(docstring_lines)
-        if pre_body_lines or body_lines != ["        pass"]:
-            lines.append("")
-    lines.extend(pre_body_lines or [])
-
-    if ctx.pending_local_helpers:
-        for helper in ctx.pending_local_helpers:
-            lines.append("")
-            lines.extend(helper)
-
-    lines.extend(body_lines)
-    return lines
+    finally:
+        ctx.in_instance_method = previous_in_instance_method
+        ctx.in_method = previous_in_method
+        ctx.in_method_body = previous_in_method_body
+        ctx.body_local_imports = previous_body_local_imports
 
 
 def signature(

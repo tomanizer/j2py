@@ -7,7 +7,7 @@ from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
-from j2py.translate.name_resolution import scope_from_context
+from j2py.translate.name_resolution import NameScope, scope_from_context
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
@@ -16,8 +16,21 @@ from j2py.translate.rules.types import java_default_value, translate_type
 def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
     resolved = ctx.name_resolver.resolve_identifier(raw_name, scope_from_context(ctx))
     if resolved.import_line:
-        ctx.diagnostics.imports.need_line(resolved.import_line)
+        request_type_import(resolved.import_line, resolved.kind, ctx)
     return resolved.python_name
+
+
+def request_type_import(import_line: str, kind: str, ctx: TranslationContext) -> None:
+    """Route a type import to module-level or body-local depending on context.
+
+    Same-package sibling type references (kind ``"package_type"``) inside method
+    bodies are emitted as function-local imports to break base↔derived circular
+    import cycles (issue #325). All other imports remain at module level.
+    """
+    if ctx.in_method_body and kind == "package_type":
+        ctx.body_local_imports.add(import_line)
+    else:
+        ctx.diagnostics.imports.need_line(import_line)
 
 
 def _translate_field_access(node: JavaNode, ctx: TranslationContext) -> str:
@@ -208,6 +221,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
         return base
 
     py_type = translate_type(type_node.text, ctx.cfg)
+    cast_target = _runtime_safe_cast_target(type_node, py_type, ctx)
     ctx.diagnostics.imports.need_typing("cast")
     ctx.diagnostics.imports.need_type_annotation(py_type)
     ctx.diagnostics.record(node, supported=True, reason="translated reference cast to typing.cast")
@@ -215,7 +229,34 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
         node,
         reason="Java reference cast translated to typing.cast; verify runtime type",
     )
-    return f"cast({py_type}, {value_expr})"
+    return f"cast({cast_target}, {value_expr})"
+
+
+def _runtime_safe_cast_target(type_node: JavaNode, py_type: str, ctx: TranslationContext) -> str:
+    if "[" not in py_type:
+        return py_type
+    scope = NameScope(
+        containing_class_name=ctx.containing_class_name,
+        nested_class_names=ctx.nested_class_names,
+        snake_case_fields=ctx.cfg.snake_case_fields,
+    )
+    translated_type_kinds = {
+        "containing_type",
+        "nested_type",
+        "package_type",
+        "compilation_unit_type",
+    }
+    for candidate in type_node.walk():
+        if candidate.type not in {"type_identifier", "scoped_type_identifier"}:
+            continue
+        raw_name = candidate.text.rsplit(".", 1)[-1]
+        py_name = translate_class_name(raw_name)
+        if py_name not in py_type:
+            continue
+        resolved = ctx.name_resolver.resolve_identifier(raw_name, scope)
+        if resolved.kind in translated_type_kinds:
+            return repr(py_type)
+    return py_type
 
 
 def _translate_instanceof_expression(node: JavaNode, ctx: TranslationContext) -> str:
