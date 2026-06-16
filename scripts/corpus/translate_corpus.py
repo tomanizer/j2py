@@ -37,11 +37,20 @@ _CORPUS_SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_CORPUS_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_CORPUS_SCRIPT_DIR))
 
-from corpus_presets import (  # noqa: E402
+from corpus_presets import (  # noqa: E402, I001
     apply_preset,
     corpus_checkout_root,
     get_preset,
     list_preset_names,
+)
+from annotation_filter import (  # noqa: E402
+    DEFAULT_ENTERPRISE_ANNOTATIONS as _DEFAULT_ANNOTATIONS,
+    annotation_family_file_counts,
+    passes_annotation_filter,
+)
+from enterprise_metrics import (  # noqa: E402
+    file_enterprise_signals,
+    summarize_enterprise,
 )
 
 LEGACY_DEFAULT_REPO = corpus_checkout_root() / "spring-framework"
@@ -52,7 +61,7 @@ LEGACY_DEFAULT_BASELINE = (
 )
 LEGACY_DEFAULT_REMOTE = "https://github.com/spring-projects/spring-framework.git"
 LEGACY_DEFAULT_REF = "0c60266986197a191ff33eb498ebc8bac3dc933f"
-DEFAULT_LIMIT = 100
+DEFAULT_LIMIT = 200
 SMOKE_LIMIT = 25
 COVERAGE_THRESHOLD = 0.80
 LEGACY_DEFAULT_MODULES = (
@@ -64,6 +73,16 @@ LEGACY_DEFAULT_MODULES = (
 # These are small files targeting things like interface defaults, text blocks, anonymous classes,
 # switch fall-through, advanced enums, etc. They can be mixed in for "construct coverage" runs.
 CONSTRUCTS_DIR = REPO_ROOT / "tests" / "fixtures" / "corpus" / "constructs"
+
+
+def is_package_info_path(path: Path) -> bool:
+    """Return True for Java package descriptor files (no real class body to translate)."""
+    return path.name == "package-info.java"
+
+
+def matches_path_prefix(relative_path: str, prefixes: tuple[str, ...]) -> bool:
+    """Return True when ``relative_path`` starts with any pinned corpus prefix."""
+    return any(relative_path.startswith(prefix) for prefix in prefixes)
 
 
 @dataclass(frozen=True)
@@ -78,6 +97,9 @@ class FileMetric:
     warning_count: int
     unhandled_node_types: str
     unhandled_reasons: str
+    method_body_count: int = 0
+    annotation_use_count: int = 0
+    annotation_warning_count: int = 0
     error: str = ""
 
 
@@ -169,6 +191,15 @@ def parse_args() -> argparse.Namespace:
         help="Maximum source lines per file (0 = unlimited). Encourages minimal-size test files.",
     )
     parser.add_argument(
+        "--min-loc",
+        type=int,
+        default=None,
+        help=(
+            "Minimum source lines per file (0 = no floor). Excludes trivial one-liner stubs "
+            "from density sampling."
+        ),
+    )
+    parser.add_argument(
         "--min-constructs",
         type=int,
         default=None,
@@ -184,6 +215,33 @@ def parse_args() -> argparse.Namespace:
             "Include (and prioritize) curated minimal construct files from "
             "tests/fixtures/corpus/constructs/. Useful for ensuring broad coverage of "
             "specific Java features."
+        ),
+    )
+    parser.add_argument(
+        "--include-package-info",
+        action="store_true",
+        help=(
+            "Include package-info.java files in the sample. By default these package "
+            "descriptors are excluded so the corpus measures real class sources."
+        ),
+    )
+    parser.add_argument(
+        "--require-annotation",
+        action="append",
+        dest="require_annotations",
+        default=None,
+        help=(
+            "Annotation simple name that must appear as @Name in a file (repeatable). "
+            "Used with --min-annotation-hits for enterprise Spring sampling."
+        ),
+    )
+    parser.add_argument(
+        "--min-annotation-hits",
+        type=int,
+        default=None,
+        help=(
+            "Minimum total @annotation occurrences from --require-annotation names "
+            "(0 = no annotation filter)."
         ),
     )
     parser.add_argument(
@@ -226,10 +284,15 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
         "limit": args.limit,
         "strategy": args.strategy,
         "max_loc": args.max_loc,
+        "min_loc": args.min_loc,
         "min_constructs": args.min_constructs,
         "include_constructs": True if args.include_constructs else None,
         "include_tests": True if args.include_tests else None,
+        "skip_package_info": False if args.include_package_info else None,
         "exclude_paths": None,
+        "include_path_prefixes": None,
+        "require_annotations": None,
+        "min_annotation_hits": None,
         "baseline": args.baseline,
         "json_out": args.json_out,
         "csv_out": args.csv_out,
@@ -237,6 +300,10 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
 
     if args.preset:
         resolved = apply_preset(get_preset(args.preset), raw)
+        if raw["require_annotations"] is not None:
+            resolved["require_annotations"] = raw["require_annotations"]
+        if raw["min_annotation_hits"] is not None:
+            resolved["min_annotation_hits"] = raw["min_annotation_hits"]
     else:
         resolved = {
             **raw,
@@ -247,10 +314,17 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
             "limit": raw["limit"] if raw["limit"] is not None else DEFAULT_LIMIT,
             "strategy": raw["strategy"] or "lexical",
             "max_loc": raw["max_loc"] if raw["max_loc"] is not None else 0,
+            "min_loc": raw["min_loc"] if raw["min_loc"] is not None else 0,
             "min_constructs": raw["min_constructs"] if raw["min_constructs"] is not None else 0,
             "include_constructs": bool(raw["include_constructs"]),
             "include_tests": bool(raw["include_tests"]),
+            "skip_package_info": (
+                raw["skip_package_info"] if raw["skip_package_info"] is not None else True
+            ),
             "exclude_paths": [],
+            "include_path_prefixes": [],
+            "require_annotations": [],
+            "min_annotation_hits": 0,
             "baseline": raw["baseline"] or LEGACY_DEFAULT_BASELINE,
             "json_out": raw["json_out"] or LEGACY_DEFAULT_JSON_OUT,
             "csv_out": raw["csv_out"] or LEGACY_DEFAULT_CSV_OUT,
@@ -264,10 +338,15 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
     args.limit = resolved["limit"]
     args.strategy = resolved["strategy"]
     args.max_loc = resolved["max_loc"]
+    args.min_loc = resolved["min_loc"]
     args.min_constructs = resolved["min_constructs"]
     args.include_constructs = resolved["include_constructs"]
     args.include_tests = resolved["include_tests"]
+    args.skip_package_info = resolved["skip_package_info"]
     args.exclude_paths = tuple(resolved["exclude_paths"])
+    args.include_path_prefixes = tuple(resolved["include_path_prefixes"])
+    args.require_annotations = tuple(resolved["require_annotations"])
+    args.min_annotation_hits = resolved["min_annotation_hits"]
     args.baseline = resolved["baseline"]
     args.json_out = resolved["json_out"]
     args.csv_out = resolved["csv_out"]
@@ -318,6 +397,9 @@ def main() -> int:
 
     modules = tuple(args.modules)
     exclude_paths = tuple(args.exclude_paths)
+    include_path_prefixes = tuple(args.include_path_prefixes)
+    require_annotations = tuple(args.require_annotations)
+    min_annotation_hits = args.min_annotation_hits
     files = collect_java_files(
         repo,
         modules=modules,
@@ -325,17 +407,35 @@ def main() -> int:
         include_tests=args.include_tests,
         strategy=args.strategy,
         max_loc=args.max_loc,
+        min_loc=args.min_loc,
         min_constructs=args.min_constructs,
         include_constructs=args.include_constructs,
+        skip_package_info=args.skip_package_info,
         exclude_paths=exclude_paths,
+        include_path_prefixes=include_path_prefixes,
+        require_annotations=require_annotations,
+        min_annotation_hits=min_annotation_hits,
     )
     if not files:
         print(f"No Java files found under {repo}", file=sys.stderr)
         return 2
 
     cfg = ConfigLoader().add_defaults().build()
-    metrics = [measure_file(path, repo=repo, cfg=cfg) for path in files]
+    metrics = [
+        measure_file(
+            path,
+            repo=repo,
+            cfg=cfg,
+            annotation_names=require_annotations or _DEFAULT_ANNOTATIONS,
+        )
+        for path in files
+    ]
     summary = summarize(metrics)
+    annotation_counts = _annotation_family_counts_for_sample(
+        repo,
+        files,
+        require_annotations=require_annotations,
+    )
     metadata = build_metadata(
         repo=repo,
         preset=args.preset_name,
@@ -346,9 +446,15 @@ def main() -> int:
         include_tests=args.include_tests,
         strategy=args.strategy,
         max_loc=args.max_loc,
+        min_loc=args.min_loc,
         min_constructs=args.min_constructs,
         include_constructs=args.include_constructs,
+        skip_package_info=args.skip_package_info,
         exclude_paths=exclude_paths,
+        include_path_prefixes=include_path_prefixes,
+        require_annotations=require_annotations,
+        min_annotation_hits=min_annotation_hits,
+        annotation_family_file_counts=annotation_counts,
     )
 
     write_json(args.json_out, metadata=metadata, summary=summary, metrics=metrics)
@@ -404,9 +510,14 @@ def collect_java_files(
     include_tests: bool,
     strategy: str = "lexical",
     max_loc: int = 0,
+    min_loc: int = 0,
     min_constructs: int = 0,
     include_constructs: bool = False,
+    skip_package_info: bool = True,
     exclude_paths: tuple[str, ...] = (),
+    include_path_prefixes: tuple[str, ...] = (),
+    require_annotations: tuple[str, ...] = (),
+    min_annotation_hits: int = 0,
 ) -> list[Path]:
     """Collect Java files with improved strategies for minimal size + broad construct coverage.
 
@@ -414,8 +525,8 @@ def collect_java_files(
     - lexical: original deterministic order (for stable baselines)
     - random: shuffled with fixed seed (reproducible)
     - density: prefer small files with high ratio of distinct tree-sitter Java node types.
-      Combined with max_loc / min_constructs this produces the "minimal but rich" files
-      the user wants.
+      Combined with max_loc / min_loc / min_constructs this produces construct-rich files
+      without trivial stubs or oversized sources.
     """
     roots: list[Path] = []
     for module in modules:
@@ -434,6 +545,8 @@ def collect_java_files(
     for root in roots:
         for path in sorted(root.rglob("*.java")):
             if path not in seen:
+                if skip_package_info and is_package_info_path(path):
+                    continue
                 rel = path.relative_to(repo).as_posix()
                 if rel in excluded:
                     continue
@@ -449,6 +562,36 @@ def collect_java_files(
                 construct_paths.append(path)
                 candidates.append(path)
     construct_set = set(construct_paths)
+    pinned_prefix_set: set[Path] = set()
+    if include_path_prefixes:
+        for path in candidates:
+            if path in construct_set:
+                continue
+            try:
+                relative = path.relative_to(repo).as_posix()
+            except ValueError:
+                continue
+            if matches_path_prefix(relative, include_path_prefixes):
+                pinned_prefix_set.add(path)
+    priority_set = construct_set | pinned_prefix_set
+
+    if require_annotations and min_annotation_hits > 0:
+        annotation_filtered: list[Path] = []
+        for path in candidates:
+            if path in priority_set:
+                annotation_filtered.append(path)
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if passes_annotation_filter(
+                text,
+                require_annotations=require_annotations,
+                min_annotation_hits=min_annotation_hits,
+            ):
+                annotation_filtered.append(path)
+        candidates = annotation_filtered
 
     # Apply size / density filters (these enforce "minimal size" while keeping breadth)
     filtered: list[tuple[Path, int, int]] = []  # (path, loc, construct_count)
@@ -456,37 +599,41 @@ def collect_java_files(
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
             loc = len(text.splitlines())
-            is_curated_construct = path in construct_set
-            if not is_curated_construct and max_loc > 0 and loc > max_loc:
+            is_priority = path in priority_set
+            if not is_priority and max_loc > 0 and loc > max_loc:
+                continue
+            if not is_priority and min_loc > 0 and loc < min_loc:
                 continue
             # Quick parse to count constructs (distinct node types + total handled/unhandled proxy)
             parsed = parse_file(path)  # cheap enough for corpus runs
             node_types = {n.type for n in parsed.root.walk()}
             # Rough construct count: number of interesting nodes (decls, stmts, exprs)
             construct_count = len(node_types)
-            if not is_curated_construct and min_constructs > 0 and construct_count < min_constructs:
+            if not is_priority and min_constructs > 0 and construct_count < min_constructs:
                 continue
             filtered.append((path, loc, construct_count))
         except Exception:
             # Skip unparsable for selection purposes; measure_file will still report them
-            if min_constructs == 0 or path in construct_set:
+            if min_constructs == 0 or path in priority_set:
                 filtered.append((path, 999999, 0))
 
     if not filtered:
         return []
 
-    if include_constructs and construct_set:
-        selected = [
-            path for path, _, _ in sorted(item for item in filtered if item[0] in construct_set)
-        ]
-        remaining_limit = limit - len(selected)
-        if remaining_limit <= 0:
+    if priority_set:
+        selected: list[Path] = []
+        for path in sorted(p for p, _, _ in filtered if p in construct_set):
+            selected.append(path)
+        for path in sorted(p for p, _, _ in filtered if p in pinned_prefix_set):
+            if path not in selected:
+                selected.append(path)
+        if len(selected) >= limit:
             return selected[:limit]
         selected.extend(
             _select_files(
-                [item for item in filtered if item[0] not in construct_set],
+                [item for item in filtered if item[0] not in set(selected)],
                 strategy=strategy,
-                limit=remaining_limit,
+                limit=limit - len(selected),
             ),
         )
         return selected
@@ -524,7 +671,13 @@ def _select_files(
     return selected
 
 
-def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
+def measure_file(
+    path: Path,
+    *,
+    repo: Path,
+    cfg: Any,
+    annotation_names: tuple[str, ...] = _DEFAULT_ANNOTATIONS,
+) -> FileMetric:
     try:
         relative = path.relative_to(repo).as_posix()
     except ValueError:
@@ -535,12 +688,19 @@ def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
         else:
             relative = path.as_posix()
     try:
+        source_text = path.read_text(encoding="utf-8", errors="ignore")
         parsed = parse_file(path)
         symbols = extract_symbols(parsed)
         result = translate_skeleton_with_diagnostics(parsed, symbols, cfg)
         syntax_ok = _syntax_ok(result.source)
         unhandled_types = Counter(d.node_type for d in result.diagnostics.unhandled)
         unhandled_reasons = Counter(d.reason for d in result.diagnostics.unhandled)
+        enterprise = file_enterprise_signals(
+            parsed=parsed,
+            source_text=source_text,
+            warnings=result.diagnostics.warnings,
+            annotation_names=annotation_names,
+        )
         return FileMetric(
             path=relative,
             parse_ok=not parsed.has_errors,
@@ -550,6 +710,9 @@ def measure_file(path: Path, *, repo: Path, cfg: Any) -> FileMetric:
             handled_count=len(result.diagnostics.handled),
             unhandled_count=len(result.diagnostics.unhandled),
             warning_count=len(result.diagnostics.warnings),
+            method_body_count=enterprise.method_body_count,
+            annotation_use_count=enterprise.annotation_use_count,
+            annotation_warning_count=enterprise.annotation_warning_count,
             unhandled_node_types=_counter_summary(unhandled_types),
             unhandled_reasons=_counter_summary(unhandled_reasons),
         )
@@ -596,6 +759,7 @@ def summarize(metrics: list[FileMetric]) -> dict[str, Any]:
         ),
         "top_unhandled_node_types": unhandled_types.most_common(20),
         "top_unhandled_reasons": unhandled_reasons.most_common(20),
+        "enterprise": summarize_enterprise(metrics),
     }
 
 
@@ -610,9 +774,15 @@ def build_metadata(
     include_tests: bool,
     strategy: str = "lexical",
     max_loc: int = 0,
+    min_loc: int = 0,
     min_constructs: int = 0,
     include_constructs: bool = False,
+    skip_package_info: bool = True,
     exclude_paths: tuple[str, ...] = (),
+    include_path_prefixes: tuple[str, ...] = (),
+    require_annotations: tuple[str, ...] = (),
+    min_annotation_hits: int = 0,
+    annotation_family_file_counts: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     checkout = _git_head(repo)
     metadata: dict[str, Any] = {
@@ -625,10 +795,17 @@ def build_metadata(
         "include_tests": include_tests,
         "strategy": strategy,
         "max_loc": max_loc,
+        "min_loc": min_loc,
         "min_constructs": min_constructs,
         "include_constructs": include_constructs,
+        "skip_package_info": skip_package_info,
         "exclude_paths": list(exclude_paths),
+        "include_path_prefixes": list(include_path_prefixes),
+        "require_annotations": list(require_annotations),
+        "min_annotation_hits": min_annotation_hits,
     }
+    if require_annotations and annotation_family_file_counts is not None:
+        metadata["annotation_family_file_counts"] = annotation_family_file_counts
     if remote == LEGACY_DEFAULT_REMOTE:
         metadata["spring_remote"] = remote
         metadata["spring_ref"] = requested_ref
@@ -690,6 +867,18 @@ def print_human_summary(summary: dict[str, Any], json_out: Path, csv_out: Path) 
         f"{summary['coverage_threshold']:.0%} coverage: "
         f"{summary['files_below_coverage_threshold']}"
     )
+    enterprise = summary.get("enterprise") or {}
+    if enterprise:
+        print(
+            "Enterprise readiness: "
+            f"method_body_files={enterprise['files_with_method_bodies']}"
+            f"/{summary['files_scanned']} "
+            f"({enterprise['method_body_file_rate']:.1%}), "
+            f"annotation_stubs={enterprise['annotation_only_stub_files']} "
+            f"({enterprise['annotation_only_stub_rate']:.1%}), "
+            f"annotation_warnings={enterprise['files_with_annotation_warnings']} files "
+            f"({enterprise['total_annotation_warnings']} total)"
+        )
     print(f"JSON report: {json_out}")
     print(f"CSV report: {csv_out}")
 
@@ -706,9 +895,14 @@ def _metadata_comparable_keys(
         "include_tests",
         "strategy",
         "max_loc",
+        "min_loc",
         "min_constructs",
         "include_constructs",
+        "skip_package_info",
         "exclude_paths",
+        "include_path_prefixes",
+        "require_annotations",
+        "min_annotation_hits",
     ]
     if baseline_metadata.get("preset") and metadata.get("preset"):
         return ["preset", *keys]
@@ -733,7 +927,44 @@ def _metadata_values_match(
 ) -> bool:
     if key == "exclude_paths":
         return set(baseline_metadata.get(key) or []) == set(metadata.get(key) or [])
+    if key == "require_annotations":
+        return set(baseline_metadata.get(key) or []) == set(metadata.get(key) or [])
+    if key in {"skip_package_info", "include_path_prefixes"}:
+        if key == "include_path_prefixes":
+            return set(baseline_metadata.get(key) or []) == set(metadata.get(key) or [])
+        return bool(baseline_metadata.get(key, False)) == bool(metadata.get(key, False))
+    if key == "min_loc":
+        return int(baseline_metadata.get(key) or 0) == int(metadata.get(key) or 0)
+    if key == "min_annotation_hits":
+        return int(baseline_metadata.get(key) or 0) == int(metadata.get(key) or 0)
     return baseline_metadata.get(key) == metadata.get(key)
+
+
+def _annotation_family_counts_for_sample(
+    repo: Path,
+    files: list[Path],
+    *,
+    require_annotations: tuple[str, ...],
+) -> dict[str, int]:
+    if not require_annotations:
+        return {}
+    file_texts: list[tuple[str, str]] = []
+    for path in files:
+        try:
+            if path.is_relative_to(repo):
+                relative = path.relative_to(repo).as_posix()
+            elif path.is_relative_to(REPO_ROOT):
+                relative = path.relative_to(REPO_ROOT).as_posix()
+            else:
+                relative = path.as_posix()
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except (OSError, ValueError):
+            continue
+        file_texts.append((relative, text))
+    return annotation_family_file_counts(
+        file_texts,
+        require_annotations=require_annotations,
+    )
 
 
 def compare_baseline(
@@ -750,6 +981,7 @@ def compare_baseline(
     metadata_mismatches = _metadata_mismatches(baseline_metadata, metadata)
 
     deltas: dict[str, dict[str, Any]] = {}
+    enterprise_deltas: dict[str, dict[str, Any]] = {}
     regressions: list[str] = []
     improvements: list[str] = []
 
@@ -762,6 +994,12 @@ def compare_baseline(
             "full_coverage_files": "higher",
             "files_with_unhandled": "lower",
             "files_below_coverage_threshold": "lower",
+        }
+        enterprise_specs = {
+            "method_body_file_rate": "higher",
+            "annotation_only_stub_rate": "lower",
+            "annotation_warning_file_rate": "lower",
+            "total_annotation_warnings": "lower",
         }
         for metric, direction in metric_specs.items():
             baseline_value = baseline_summary[metric]
@@ -778,6 +1016,22 @@ def compare_baseline(
             elif _is_improvement(delta, direction):
                 improvements.append(metric)
 
+        baseline_enterprise = baseline_summary.get("enterprise") or {}
+        current_enterprise = summary.get("enterprise") or {}
+        if baseline_enterprise and current_enterprise:
+            for metric, direction in enterprise_specs.items():
+                baseline_value = baseline_enterprise.get(metric)
+                current_value = current_enterprise.get(metric)
+                if baseline_value is None or current_value is None:
+                    continue
+                delta = current_value - baseline_value
+                enterprise_deltas[metric] = {
+                    "baseline": baseline_value,
+                    "current": current_value,
+                    "delta": delta,
+                    "direction": direction,
+                }
+
     file_regressions = (
         _empty_file_regressions()
         if metadata_mismatches
@@ -790,6 +1044,7 @@ def compare_baseline(
     return {
         "baseline_path": str(path),
         "deltas": deltas,
+        "enterprise_deltas": enterprise_deltas,
         "improvements": improvements,
         "regressions": regressions,
         "metadata_mismatches": metadata_mismatches,
@@ -823,6 +1078,14 @@ def print_comparison(comparison: dict[str, Any]) -> None:
             print(f"Regressions: {', '.join(comparison['regressions'])}")
         else:
             print("Regressions: none")
+        enterprise_deltas = comparison.get("enterprise_deltas") or {}
+        if enterprise_deltas:
+            print("Enterprise readiness deltas:")
+            for metric, values in enterprise_deltas.items():
+                print(
+                    f"  {metric}: {_format_metric(values['baseline'])} -> "
+                    f"{_format_metric(values['current'])} ({_format_delta(values['delta'])})"
+                )
     print("Top unhandled node types:")
     print(f"  baseline: {_top_list(comparison['baseline_top_unhandled_node_types'])}")
     print(f"  current:  {_top_list(comparison['current_top_unhandled_node_types'])}")
