@@ -1,4 +1,4 @@
-# ADR 0019 — JDK lowering vs platform boundary stubs
+# ADR 0020 — JDK lowering vs platform boundary stubs
 
 **Date:** 2026-06-16
 **Status:** Accepted

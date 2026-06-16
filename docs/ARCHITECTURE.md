@@ -28,6 +28,7 @@ Java source file(s)
 │   ├── class_enums.py       Enum emission
 │   ├── class_interfaces.py  Protocol (interface) emission
 │   ├── class_annotations.py Annotation type emission
+│   ├── framework_annotations.py Config-driven annotation_map lowering
 │   ├── class_members.py     Member index, Javadoc, static dispatch
 │   ├── class_methods.py     Method/constructor emission
 │   ├── class_nested.py      Nested type emission
@@ -95,6 +96,10 @@ Java source file(s)
 - `classes.py` is the class-declaration facade; `class_enums.py`, `class_interfaces.py`,
   `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
   hold declaration-kind emitters and shared helpers.
+- `framework_annotations.py` owns opt-in `annotation_map` lowering: configured Java
+  annotations can emit Python decorators, base classes, field comments, constructor
+  injection parameters, imports, and mapped diagnostics. Unmapped annotations keep the
+  Tier 1 visibility behavior.
 - `statements.py` is the statement facade/router. It owns simple statement forms
   directly (for example returns, local variables, `break`, `continue`, and nested type
   declarations) and delegates larger families to focused modules:
@@ -204,7 +209,8 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
 | LLM harvest for rule-layer backlog | [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md), [LLM_HARVEST.md](LLM_HARVEST.md) |
 | Cross-file class hierarchies | [ADR 0018](decisions/0018-cross-file-class-hierarchies.md), [CASE_STUDY.md](CASE_STUDY.md) |
-| JDK lowering vs platform boundary stubs | [ADR 0019](decisions/0019-jdk-lowering-vs-platform-boundary-stubs.md) |
+| Annotation map framework lowering | [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) |
+| JDK lowering vs platform boundary stubs | [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) |
 
 ## Quality measurement
 

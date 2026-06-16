@@ -22,6 +22,20 @@ class ConfigError(ValueError):
     """Raised when a user config file cannot be parsed or validated."""
 
 
+class AnnotationMapEntry(BaseModel):
+    """User-supplied lowering behavior for one Java annotation."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    python_decorator: str | None = None
+    import_: str | None = Field(default=None, alias="import")
+    python_base: str | None = None
+    field_comment: str | None = None
+    emit_init_param: bool = False
+    drop: bool = False
+    preserve_comment: bool | None = None
+
+
 class TranslationConfig(BaseModel):
     """Merged, validated configuration for the translation pipeline."""
 
@@ -32,6 +46,7 @@ class TranslationConfig(BaseModel):
     exception_map: dict[str, str] = Field(default_factory=dict)
     literal_map: dict[str, str] = Field(default_factory=dict)
     import_map: dict[str, str] = Field(default_factory=dict)
+    annotation_map: dict[str, AnnotationMapEntry] = Field(default_factory=dict)
     drop_imports: set[str] = Field(default_factory=set)
     drop_annotations: set[str] = Field(default_factory=set)
     strip_modifiers: set[str] = Field(default_factory=set)

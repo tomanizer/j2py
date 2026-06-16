@@ -131,6 +131,7 @@ def base_suffix(
     *,
     resolver: NameResolver | None = None,
     scope: NameScope | None = None,
+    extra_bases: list[str] | None = None,
 ) -> str:
     bases: list[str] = []
     superclass = node.child_by_field("superclass")
@@ -138,6 +139,7 @@ def base_suffix(
         type_node = _superclass_type_node(superclass)
         if type_node is not None:
             bases.append(_superclass_binding(type_node.text, diagnostics, resolver, scope))
+    bases.extend(extra_bases or [])
     if "abstract" in _modifiers(node):
         bases.append("ABC")
     if not bases:

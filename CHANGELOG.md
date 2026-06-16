@@ -7,6 +7,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- Opt-in `annotation_map` config for framework annotation lowering: mapped annotations can
+  emit decorators, imports, class bases, field comments, and constructor-injection
+  parameters while unmapped annotations keep Tier 1 visibility behavior (#335).
+
 ## 0.5.0b1 - 2026-06-16
 
 First beta pre-release. Feature set and rule-layer breadth are largely in place for

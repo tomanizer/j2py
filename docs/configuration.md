@@ -43,6 +43,20 @@ drop_imports:
 drop_annotations:
   - Override
   - SuppressWarnings
+
+annotation_map:
+  RestController:
+    python_decorator: rest_controller
+    import: "from myapp.spring_shim import rest_controller"
+  GetMapping:
+    python_decorator: 'router.get("{value}")'
+    import: "from myapp.web import router"
+  Autowired:
+    field_comment: "# injected: {field_type} {field_name}"
+    emit_init_param: true
+  Entity:
+    python_base: Base
+    import: "from myapp.db import Base"
 ```
 
 ## TOML
@@ -71,6 +85,10 @@ model = "gemini-3.5-flash"
 
 [tool.j2py.type_map]
 MyType = "mymodule.MyType"
+
+[tool.j2py.annotation_map.RestController]
+python_decorator = "rest_controller"
+import = "from myapp.spring_shim import rest_controller"
 ```
 
 ## Python
@@ -83,6 +101,12 @@ uv run j2py translate src/main/java --config j2py_config.py
 
 ```python
 type_map = {"MyType": "mymodule.MyType"}
+annotation_map = {
+    "RestController": {
+        "python_decorator": "rest_controller",
+        "import": "from myapp.spring_shim import rest_controller",
+    },
+}
 drop_imports = {"java.io.Serializable"}
 target_python = "3.12"
 llm_provider = "gemini"
@@ -117,6 +141,26 @@ Mapping options:
 - `exception_map`: map Java exception names to Python exception names
 - `literal_map`: map Java literal tokens to Python literal tokens
 - `import_map`: map Java imports to Python import statements
+- `annotation_map`: map Java annotation simple names or fully qualified names to explicit
+  Python lowering behavior
+
+Each `annotation_map` entry is strict. Supported entry fields:
+
+- `python_decorator`: emit `@<value>` above mapped classes or methods. Annotation member
+  placeholders such as `{value}` and `{path}` are substituted from annotation arguments.
+- `import`: add one or more Python import lines required by the mapped output.
+- `python_base`: append a base class to mapped class declarations.
+- `field_comment`: emit a formatted comment above the field initialization. Field
+  placeholders include `{field_name}`, `{field_type}`, and `{java_type}`.
+- `emit_init_param`: for instance fields, add the field to `__init__` and assign
+  `self.<field> = <field>` instead of emitting a `None` default.
+- `drop`: explicitly drop the annotation.
+- `preserve_comment`: controls whether the original `# @Annotation(...)` audit comment is
+  emitted for mapped annotations. The default follows `emit_line_comments`.
+
+`annotation_map` is opt-in project policy. j2py does not ship a default Spring, FastAPI,
+JPA, or DI mapping. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus
+optional line comments.
 
 Set/list options:
 
@@ -129,3 +173,7 @@ Unknown keys are rejected with suggestions. For example, `type_maps` raises:
 ```text
 Unknown config key: 'type_maps'. Did you mean 'type_map'?
 ```
+
+See [docs/examples/spring-to-fastapi.yaml](examples/spring-to-fastapi.yaml) for a
+reference profile showing how a project might map common Spring annotations to its own
+Python shims.

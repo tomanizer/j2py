@@ -51,6 +51,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
+from j2py.translate.framework_annotations import class_annotation_mapping, field_init_parameter
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
@@ -228,11 +229,19 @@ def translate_class(
         target_kind="class",
         target_name=class_name,
     )
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
+    injected_init_params = _annotation_init_params(fields, cfg)
     lines: list[str] = []
     lines.extend(annotation_comment_lines(node, cfg))
-    lines.append(
-        f"class {class_name}{base_suffix(node, diagnostics, resolver=resolver, scope=base_scope)}:",
+    lines.extend(class_mapping.decorators)
+    class_bases = base_suffix(
+        node,
+        diagnostics,
+        resolver=resolver,
+        scope=base_scope,
+        extra_bases=class_mapping.bases,
     )
+    lines.append(f"class {class_name}{class_bases}:")
     if docstring_lines:
         lines.extend(docstring_lines)
     lines.extend(metadata_lines)
@@ -293,8 +302,11 @@ def translate_class(
     if needs_synthetic_init:
         if static_field_lines or docstring_lines or metadata_lines:
             lines.append("")
-        init_params = "self, _outer_self: object" if requires_outer_self else "self"
-        lines.append(f"    def __init__({init_params}) -> None:")
+        init_params = ["self"]
+        if requires_outer_self:
+            init_params.append("_outer_self: object" if cfg.emit_type_hints else "_outer_self")
+        init_params.extend(_render_init_params(injected_init_params, cfg, diagnostics))
+        lines.append(f"    def __init__({', '.join(init_params)}) -> None:")
         if requires_outer_self:
             lines.append("        self._outer_self = _outer_self")
         lines.extend(lock_init_lines)
@@ -331,6 +343,9 @@ def translate_class(
                         lock_init_lines + instance_init_lines
                         if group[0].type == "constructor_declaration"
                         else []
+                    ),
+                    extra_params=(
+                        injected_init_params if group[0].type == "constructor_declaration" else []
                     ),
                     class_state=class_state,
                     docstring_lines=docstring_for_group(group, member_docstring_map),
@@ -375,6 +390,9 @@ def translate_class(
                 member,
                 ctx,
                 pre_body_lines=pre_body_lines,
+                extra_params=(
+                    injected_init_params if member.type == "constructor_declaration" else []
+                ),
                 docstring_lines=member_docstring_map.get(node_key(member)),
             )
         )
@@ -410,9 +428,12 @@ def _translate_record(
         target_kind="class",
         target_name=class_name,
     )
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
     lines: list[str] = []
     lines.extend(annotation_comment_lines(node, cfg))
-    lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
+    lines.extend(class_mapping.decorators)
+    base_text = f"({', '.join(class_mapping.bases)})" if class_mapping.bases else ""
+    lines.extend(["@dataclass(frozen=True)", f"class {class_name}{base_text}:"])
     if docstring_lines:
         lines.extend(docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
@@ -424,6 +445,33 @@ def _translate_record(
     for param in params:
         lines.append(f"    {param.py_name}: {param.py_type}")
     return lines
+
+
+def _annotation_init_params(fields: list[FieldInfo], cfg: TranslationConfig) -> list[ParameterInfo]:
+    params: list[ParameterInfo] = []
+    seen: set[str] = set()
+    for field in fields:
+        param = field_init_parameter(field, cfg)
+        if param is None or param.py_name in seen:
+            continue
+        params.append(param)
+        seen.add(param.py_name)
+    return params
+
+
+def _render_init_params(
+    params: list[ParameterInfo],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    rendered: list[str] = []
+    for param in params:
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(param.py_type)
+            rendered.append(f"{param.py_name}: {param.py_type}")
+        else:
+            rendered.append(param.py_name)
+    return rendered
 
 
 def translate_overloaded_members(
@@ -446,6 +494,7 @@ def translate_overloaded_members(
     static_method_imports: dict[str, str] | None = None,
     name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
+    extra_params: list[ParameterInfo] | None = None,
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -471,6 +520,7 @@ def translate_overloaded_members(
         static_method_imports=static_method_imports,
         name_resolver=name_resolver,
         pre_body_lines=pre_body_lines,
+        extra_params=extra_params or [],
         class_state=class_state,
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
