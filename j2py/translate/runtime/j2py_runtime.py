@@ -36,6 +36,7 @@ _T_contra = TypeVar("_T_contra", contravariant=True)
 
 __all__ = [
     "Comparator",
+    "Consumer",
     "MalformedObjectNameException",
     "ObjectName",
     "__j2py_todo__",
@@ -49,6 +50,12 @@ class Comparator(Protocol[_T_contra]):
     """Protocol placeholder for ``java.util.Comparator``."""
 
     def compare(self, left: _T_contra, right: _T_contra) -> int: ...
+
+
+class Consumer(Protocol[_T_contra]):
+    """Protocol placeholder for ``java.util.function.Consumer``."""
+
+    def accept(self, value: _T_contra) -> None: ...
 
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/
