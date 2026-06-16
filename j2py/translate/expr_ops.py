@@ -10,10 +10,79 @@ from j2py.translate.expr_types import (
     _java_type_of_value,
 )
 from j2py.translate.expressions import translate_expression
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.literals import java_string_literal_value
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
+
+
+_ASSIGN_OR_UPDATE = {"assignment_expression", "update_expression"}
+
+
+def _desugar_embedded_assign(node: JavaNode, ctx: TranslationContext) -> str:
+    """Translate an assignment/update node that appears in expression position.
+
+    Java permits assignments as expressions (return, condition, subscript
+    index).  Python does not — walrus (:=) covers plain-= with a simple-name
+    LHS; compound operators and attribute targets are hoisted into
+    ctx.hoisted_pre_stmts so the caller can emit them before the enclosing
+    statement.  The return value is the Python expression that produces the
+    assigned value.
+    """
+    if node.type == "update_expression":
+        return _desugar_update_in_expr(node, ctx)
+    # assignment_expression
+    children = node.children
+    if len(children) < 3:
+        return translate_expression(node, ctx)
+    left_node = children[0]
+    operator = children[1].text
+    right_node = children[-1]
+    left = translate_expression(left_node, ctx)
+    right = translate_expression(right_node, ctx)
+    if operator == "=" and left_node.type == "identifier" and "." not in left:
+        # Simple name that didn't resolve to a dotted path: walrus is idiomatic.
+        return f"({left} := {right})"
+    # Compound operator or attribute/subscript LHS: hoist.
+    if operator == "=":
+        ctx.hoisted_pre_stmts.append(f"{left} = {right}")
+    elif operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
+        ctx.diagnostics.imports.need_idiv()
+        ctx.hoisted_pre_stmts.append(f"{left} = _j2py_idiv({left}, {right})")
+    else:
+        ctx.hoisted_pre_stmts.append(f"{left} {operator} {right}")
+    ctx.diagnostics.warn(
+        node,
+        reason="assignment in expression position hoisted to preceding statement; verify semantics",
+    )
+    return left
+
+
+def _desugar_update_in_expr(node: JavaNode, ctx: TranslationContext) -> str:
+    """Hoist i++/i--/++i/--i into ctx.hoisted_pre_stmts; return the value."""
+    children = node.children
+    named_children = node.named_children
+    if len(children) < 2 or not named_children:
+        return translate_expression(node, ctx)
+    operator = next(
+        (c.text for c in children if c.text in {"++", "--"}), children[-1].text
+    )
+    target = translate_expression(named_children[0], ctx)
+    is_prefix = children[0].text in {"++", "--"}
+    delta = "1" if operator == "++" else "-1"
+    op_stmt = f"{target} {'+'  if operator == '++' else '-'}= 1"
+    ctx.hoisted_pre_stmts.append(op_stmt)
+    if is_prefix:
+        # ++i / --i: value IS the new value
+        return target
+    else:
+        # i++ / i--: value is old value.  Semantically approximate: we hoist
+        # the mutation before the expression and adjust the returned value.
+        ctx.diagnostics.warn(
+            node,
+            reason="post-increment/decrement in expression position desugared approximately; verify",
+        )
+        return f"({target} - {delta})"  # delta=1 for ++, -1 for --
 
 
 def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) -> str:
@@ -117,6 +186,11 @@ def _translate_unary_expression(node: JavaNode, ctx: TranslationContext) -> str:
     operand_node = named_children[-1]
     operand = _translate_unary_operand(operand_node, ctx)
     if operator == "!":
+        operand_inner = unwrap_parens(operand_node)
+        if operand_inner.type in _ASSIGN_OR_UPDATE:
+            expr = _desugar_embedded_assign(operand_inner, ctx)
+            return f"not ({expr})"
+        operand = _translate_unary_operand(operand_node, ctx)
         if operand.startswith("not "):
             return operand.removeprefix("not ")
         return f"not {operand}"
@@ -166,9 +240,21 @@ def _translate_ternary_expression(node: JavaNode, ctx: TranslationContext) -> st
     if len(children) != 3:
         ctx.diagnostics.record(node, supported=False, reason="malformed ternary expression")
         return f"__j2py_todo__({node.text!r})"
-    condition = translate_expression(children[0], ctx)
-    if_true = translate_expression(children[1], ctx)
-    if_false = translate_expression(children[2], ctx)
+    cond_inner = unwrap_parens(children[0])
+    if cond_inner.type in _ASSIGN_OR_UPDATE:
+        condition = _desugar_embedded_assign(cond_inner, ctx)
+    else:
+        condition = translate_expression(children[0], ctx)
+    true_inner = unwrap_parens(children[1])
+    if true_inner.type in _ASSIGN_OR_UPDATE:
+        if_true = _desugar_embedded_assign(true_inner, ctx)
+    else:
+        if_true = translate_expression(children[1], ctx)
+    false_inner = unwrap_parens(children[2])
+    if false_inner.type in _ASSIGN_OR_UPDATE:
+        if_false = _desugar_embedded_assign(false_inner, ctx)
+    else:
+        if_false = translate_expression(children[2], ctx)
     return f"{if_true} if {condition} else {if_false}"
 
 
@@ -490,18 +576,18 @@ def _translate_binary_operand(
     *,
     is_right: bool,
 ) -> str:
+    # Assignment/update nodes — whether bare or wrapped in parens — must be desugared.
+    inner = unwrap_parens(node)
+    if inner.type in _ASSIGN_OR_UPDATE:
+        return _desugar_embedded_assign(inner, ctx)
     if node.type != "parenthesized_expression" or len(node.named_children) != 1:
         return translate_expression(node, ctx)
-
-    inner = node.named_children[0]
-    while inner.type == "parenthesized_expression" and len(inner.named_children) == 1:
-        inner = inner.named_children[0]
+    # Parenthesized non-assignment: decide whether to keep parens for precedence.
     expression = translate_expression(inner, ctx)
     if inner.type in {"switch_expression", "ternary_expression"}:
         return f"({expression})"
     if inner.type != "binary_expression" or len(inner.children) < 3:
         return expression
-
     inner_operator = inner.children[1].text
     if _binary_parentheses_change_meaning(
         parent_operator,
@@ -790,12 +876,21 @@ def _translate_null_comparison(
 ) -> str | None:
     if operator not in {"==", "!="}:
         return None
+    null_op = "is" if operator == "==" else "is not"
     if right_node.type == "null_literal":
-        left = translate_expression(left_node, ctx)
-        return f"{left} {'is' if operator == '==' else 'is not'} None"
+        inner = unwrap_parens(left_node)
+        if inner.type in _ASSIGN_OR_UPDATE:
+            expr = _desugar_embedded_assign(inner, ctx)
+        else:
+            expr = translate_expression(left_node, ctx)
+        return f"{expr} {null_op} None"
     if left_node.type == "null_literal":
-        right = translate_expression(right_node, ctx)
-        return f"{right} {'is' if operator == '==' else 'is not'} None"
+        inner = unwrap_parens(right_node)
+        if inner.type in _ASSIGN_OR_UPDATE:
+            expr = _desugar_embedded_assign(inner, ctx)
+        else:
+            expr = translate_expression(right_node, ctx)
+        return f"{expr} {null_op} None"
     return None
 
 

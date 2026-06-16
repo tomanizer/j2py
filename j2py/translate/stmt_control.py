@@ -9,6 +9,7 @@ from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import element_type_from_container, is_var_type
 from j2py.translate.statements import (
+    _flush_hoisted_pre_stmts,
     _translate_local_variable_declaration,
     _with_expression_comments,
     translate_body,
@@ -72,7 +73,9 @@ def _translate_if(
     finally:
         ctx.pattern_bindings = previous_bindings
 
-    lines = [_with_expression_comments(f"{indent}{keyword} {condition_text}:", ctx)]
+    # Compound assigns in conditions (rare) are hoisted before the if/elif.
+    pre = _flush_hoisted_pre_stmts(ctx, indent)
+    lines = pre + [_with_expression_comments(f"{indent}{keyword} {condition_text}:", ctx)]
     if consequence is None:
         ctx.diagnostics.record(node, supported=False, reason="if statement without a body")
         lines.append(f"{indent}    pass")
@@ -146,6 +149,7 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
 
     if condition is not None:
         while_expr = translate_expression(condition, ctx)
+        out.extend(_flush_hoisted_pre_stmts(ctx, indent))
     else:
         ctx.diagnostics.warn(
             node,
@@ -272,12 +276,10 @@ def _translate_while(node: JavaNode, ctx: TranslationContext, *, indent: str) ->
     ctx.diagnostics.record(node, supported=True, reason="translated while statement")
     condition = node.child_by_field("condition") or node.named_children[0]
     body = node.child_by_field("body") or node.named_children[-1]
-    lines = [
-        _with_expression_comments(
-            f"{indent}while {translate_expression(condition, ctx)}:",
-            ctx,
-        )
-    ]
+    while_expr = translate_expression(condition, ctx)
+    # Compound assigns in conditions (rare) are hoisted before the while.
+    pre = _flush_hoisted_pre_stmts(ctx, indent)
+    lines = pre + [_with_expression_comments(f"{indent}while {while_expr}:", ctx)]
     lines.extend(translate_body(body, ctx, indent=f"{indent}    "))
     return lines
 

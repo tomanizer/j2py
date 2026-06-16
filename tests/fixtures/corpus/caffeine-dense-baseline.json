@@ -2,7 +2,7 @@
   "files": [
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 13,
@@ -14,11 +14,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 5,
       "coverage": 0.9629629629629629,
       "error": "",
       "handled_count": 26,
@@ -30,7 +30,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument:1",
-      "warning_count": 5
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
@@ -50,7 +50,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -62,7 +62,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
@@ -114,7 +114,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 0.9722222222222222,
       "error": "",
       "handled_count": 35,
@@ -126,14 +126,14 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo:1",
-      "warning_count": 9
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 86,
+      "handled_count": 87,
       "method_body_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -142,11 +142,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 19
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 40,
@@ -158,11 +158,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -174,11 +174,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 77,
@@ -190,11 +190,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -206,11 +206,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 7,
       "coverage": 0.984375,
       "error": "",
       "handled_count": 63,
@@ -222,11 +222,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.UNSET_INT:1",
-      "warning_count": 3
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 308,
@@ -238,11 +238,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 14,
       "coverage": 1.0,
       "error": "",
       "handled_count": 73,
@@ -254,11 +254,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 14
+      "warning_count": 17
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 32,
+      "annotation_warning_count": 16,
       "coverage": 0.9863013698630136,
       "error": "",
       "handled_count": 72,
@@ -270,14 +270,14 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1",
-      "warning_count": 32
+      "warning_count": 16
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 13,
-      "coverage": 0.9848484848484849,
+      "annotation_warning_count": 7,
+      "coverage": 0.9850746268656716,
       "error": "",
-      "handled_count": 130,
+      "handled_count": 132,
       "method_body_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -286,11 +286,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1;unknown static import com.github.benmanes.caffeine.cache.LocalAsyncCache.composeResult:1",
-      "warning_count": 16
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 19,
+      "annotation_warning_count": 21,
       "coverage": 1.0,
       "error": "",
       "handled_count": 74,
@@ -302,7 +302,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 24
+      "warning_count": 26
     },
     {
       "annotation_use_count": 0,
@@ -322,7 +322,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 10,
+      "annotation_warning_count": 11,
       "coverage": 0.9859154929577465,
       "error": "",
       "handled_count": 70,
@@ -334,7 +334,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.BoundedLocalCache.MAXIMUM_EXPIRY:1",
-      "warning_count": 19
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
@@ -346,7 +346,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/StripedBuffer.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo:1",
@@ -354,7 +354,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 90,
@@ -366,7 +366,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 17
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
@@ -378,7 +378,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/FrequencySketch.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument:1",
@@ -418,19 +418,19 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 16,
-      "coverage": 0.9776536312849162,
+      "annotation_warning_count": 19,
+      "coverage": 0.9779005524861878,
       "error": "",
-      "handled_count": 175,
+      "handled_count": 177,
       "method_body_count": 15,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/LocalAsyncLoadingCache.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 4,
       "unhandled_node_types": "import_declaration:2;method_invocation:2",
       "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;unknown static import com.github.benmanes.caffeine.cache.Caffeine.calculateHashMapCapacity:1;unknown static import com.github.benmanes.caffeine.cache.LocalAsyncCache.composeResult:1",
-      "warning_count": 39
+      "warning_count": 43
     },
     {
       "annotation_use_count": 0,
@@ -450,7 +450,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 25,
@@ -462,7 +462,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
@@ -482,7 +482,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
       "handled_count": 54,
@@ -494,11 +494,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 14
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 27,
+      "annotation_warning_count": 28,
       "coverage": 0.9914529914529915,
       "error": "",
       "handled_count": 116,
@@ -510,14 +510,14 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.util.Locale.US:1",
-      "warning_count": 36
+      "warning_count": 37
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
-      "coverage": 0.9748427672955975,
+      "annotation_warning_count": 9,
+      "coverage": 0.975,
       "error": "",
-      "handled_count": 155,
+      "handled_count": 156,
       "method_body_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -526,7 +526,7 @@
       "unhandled_count": 4,
       "unhandled_node_types": "import_declaration:4",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.UNSET_INT:1;unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireArgument:1;unknown static import com.github.benmanes.caffeine.cache.Caffeine.requireState:1;unknown static import java.util.Locale.US:1",
-      "warning_count": 26
+      "warning_count": 31
     },
     {
       "annotation_use_count": 0,
@@ -562,7 +562,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 43,
+      "annotation_warning_count": 46,
       "coverage": 0.9917355371900827,
       "error": "",
       "handled_count": 240,
@@ -570,11 +570,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/TimerWheel.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "array_creation_expression:1;import_declaration:1",
       "unhandled_reasons": "array creation with unsized dimensions requires allocation handling:1;unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo:1",
-      "warning_count": 69
+      "warning_count": 72
     },
     {
       "annotation_use_count": 0,
@@ -594,7 +594,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 62,
+      "annotation_warning_count": 66,
       "coverage": 1.0,
       "error": "",
       "handled_count": 186,
@@ -606,14 +606,14 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 79
+      "warning_count": 83
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 17,
+      "annotation_warning_count": 18,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 79,
+      "handled_count": 80,
       "method_body_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -622,11 +622,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 41
+      "warning_count": 42
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 19,
+      "annotation_warning_count": 25,
       "coverage": 0.996,
       "error": "",
       "handled_count": 747,
@@ -634,11 +634,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "caffeine/src/main/java/com/github/benmanes/caffeine/cache/MpscGrowableArrayQueue.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 3,
       "unhandled_node_types": "binary_expression:2;import_declaration:1",
       "unhandled_reasons": "division requires numeric type certainty:2;unknown static import com.github.benmanes.caffeine.cache.Caffeine.ceilingPowerOfTwo:1",
-      "warning_count": 84
+      "warning_count": 90
     },
     {
       "annotation_use_count": 0,
@@ -674,7 +674,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 10,
       "coverage": 0.9908256880733946,
       "error": "",
       "handled_count": 108,
@@ -686,7 +686,7 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.github.benmanes.caffeine.cache.Caffeine.saturatedToNanos:1",
-      "warning_count": 24
+      "warning_count": 20
     }
   ],
   "metadata": {
@@ -711,27 +711,27 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9945112146841523,
+    "average_coverage": 0.9945258727288699,
     "coverage_file_count": 43,
     "coverage_threshold": 0.8,
     "enterprise": {
       "annotation_only_stub_files": 0,
       "annotation_only_stub_rate": 0.0,
-      "annotation_warning_file_rate": 0.8837209302325582,
+      "annotation_warning_file_rate": 0.9534883720930233,
       "avg_annotation_uses_per_file": 0.0,
-      "avg_annotation_warnings_per_file": 10.837209302325581,
-      "files_with_annotation_warnings": 38,
+      "avg_annotation_warnings_per_file": 11.046511627906977,
+      "files_with_annotation_warnings": 41,
       "files_with_method_bodies": 37,
       "method_body_file_rate": 0.8604651162790697,
       "total_annotation_uses": 0,
-      "total_annotation_warnings": 466
+      "total_annotation_warnings": 475
     },
     "files_below_coverage_threshold": 0,
     "files_scanned": 43,
     "files_with_unhandled": 15,
     "full_coverage_files": 28,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.8837209302325582,
+    "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
       [
         "import_declaration",

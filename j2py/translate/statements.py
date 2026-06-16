@@ -6,7 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import infer_expression_py_type, translate_expression
-from j2py.translate.node_utils import direct_children_by_type, first_child_by_type
+from j2py.translate.node_utils import direct_children_by_type, first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import is_var_type, translate_type
 
@@ -100,6 +100,15 @@ def _with_expression_comments(line: str, ctx: TranslationContext) -> str:
     return f"{line}  # {comment}"
 
 
+def _flush_hoisted_pre_stmts(ctx: TranslationContext, indent: str) -> list[str]:
+    """Return indented pre-statements accumulated during expression translation and clear."""
+    if not ctx.hoisted_pre_stmts:
+        return []
+    stmts = [f"{indent}{s}" for s in ctx.hoisted_pre_stmts]
+    ctx.hoisted_pre_stmts.clear()
+    return stmts
+
+
 def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
     if is_comment(node):
         ctx.diagnostics.warn(node, reason="preserved comment")
@@ -110,18 +119,27 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "expression_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated expression statement")
         expr = node.named_children[0] if node.named_children else node
-        return [_with_expression_comments(f"{indent}{translate_expression(expr, ctx)}", ctx)]
+        line = _with_expression_comments(f"{indent}{translate_expression(expr, ctx)}", ctx)
+        # Nested assignment/update inside a complex LHS (e.g. arr[i+=1] = v)
+        # may have deposited hoisted mutations; emit them first.
+        pre = _flush_hoisted_pre_stmts(ctx, indent)
+        return pre + [line]
 
     if node.type == "return_statement":
         ctx.diagnostics.record(node, supported=True, reason="translated return statement")
         if not node.named_children:
             return [f"{indent}return"]
-        return [
-            _with_expression_comments(
-                f"{indent}return {translate_expression(node.named_children[0], ctx)}",
-                ctx,
-            )
-        ]
+        val_node = node.named_children[0]
+        inner = unwrap_parens(val_node)
+        if inner.type in {"assignment_expression", "update_expression"}:
+            from j2py.translate.expr_ops import _desugar_embedded_assign
+            value_expr = _desugar_embedded_assign(inner, ctx)
+        else:
+            value_expr = translate_expression(val_node, ctx)
+        # Flush hoisted stmts from any assign/update nested inside expressions
+        # (ternary branches, binary operands, etc.) regardless of where they arose.
+        pre = _flush_hoisted_pre_stmts(ctx, indent)
+        return pre + [_with_expression_comments(f"{indent}return {value_expr}", ctx)]
 
     if node.type == "assert_statement":
         return _translate_assert_statement(node, ctx, indent=indent)

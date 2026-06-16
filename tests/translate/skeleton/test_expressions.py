@@ -2580,3 +2580,104 @@ def test_method_named_forecast_does_not_trigger_cast_import() -> None:
     )
     assert "from typing import cast" not in result.source
     assert_valid_python(result.source)
+
+
+# ---------------------------------------------------------------------------
+# Assignment-as-expression desugaring (#353)
+# ---------------------------------------------------------------------------
+
+
+def test_simple_assignment_in_null_check_becomes_walrus() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Drain {
+            public void drain(java.util.Queue<String> q) {
+                String item;
+                while ((item = q.poll()) != null) {
+                    process(item);
+                }
+            }
+            private void process(String s) {}
+        }
+        """,
+    )
+    assert "(item := q.poll()) is not None" in result.source
+    assert_valid_python(result.source)
+
+
+def test_compound_assign_in_binary_condition_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class FreqSketch {
+            private int size;
+            private int sampleSize;
+            public void tryReset(boolean added) {
+                if (added && (size += 1) == sampleSize) {
+                    doReset();
+                }
+            }
+            private void doReset() {}
+        }
+        """,
+    )
+    src = result.source
+    assert "self.size += 1" in src
+    assert "self.size == self.sample_size" in src
+    assert_valid_python(src)
+
+
+def test_prefix_update_in_binary_condition_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Timer {
+            private int steps;
+            private int limit;
+            public String nextBucket() {
+                return ++steps < limit ? "a" : null;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.steps += 1" in src
+    assert '"a" if self.steps < self.limit else None' in src
+    assert_valid_python(src)
+
+
+def test_field_assignment_in_ternary_branch_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Lazy {
+            private Object cache;
+            public Object get() {
+                Object v = cache;
+                return v != null ? v : (cache = compute());
+            }
+            private Object compute() { return new Object(); }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.cache = self.compute()" in src
+    assert "v if v is not None else self.cache" in src
+    assert_valid_python(src)
+
+
+def test_local_var_assignment_in_not_operand_becomes_walrus() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Strip {
+            public void offer(Object e, java.util.Queue<Object> buf) {
+                boolean uncontended;
+                if (!(uncontended = buf.offer(e))) {
+                    retry(e);
+                }
+            }
+            private void retry(Object e) {}
+        }
+        """,
+    )
+    src = result.source
+    assert "uncontended := buf.offer(e)" in src
+    assert "not " in src
+    assert_valid_python(src)

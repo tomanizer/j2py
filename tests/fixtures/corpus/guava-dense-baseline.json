@@ -2,7 +2,7 @@
   "files": [
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -14,11 +14,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -30,11 +30,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -46,11 +46,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 25,
@@ -62,11 +62,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 21,
@@ -78,7 +78,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
@@ -98,7 +98,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -110,11 +110,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -126,11 +126,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -142,11 +142,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -158,11 +158,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -174,11 +174,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 30,
@@ -190,11 +190,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -206,11 +206,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
       "handled_count": 13,
@@ -222,11 +222,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 1,
@@ -238,11 +238,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 35,
@@ -254,11 +254,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 10
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -270,11 +270,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -286,11 +286,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -302,11 +302,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -318,11 +318,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -334,11 +334,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -350,11 +350,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 25,
@@ -366,11 +366,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 18,
@@ -382,11 +382,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -398,11 +398,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 1,
@@ -414,11 +414,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
       "handled_count": 12,
@@ -430,11 +430,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -446,11 +446,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 17,
@@ -462,11 +462,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -478,11 +478,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -494,11 +494,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -510,11 +510,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -526,11 +526,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 16
+      "warning_count": 23
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -542,11 +542,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 12,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -558,11 +558,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 13
+      "warning_count": 16
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -574,11 +574,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 12,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -590,11 +590,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 13
+      "warning_count": 16
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -606,11 +606,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -622,11 +622,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -638,11 +638,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -654,27 +654,27 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 12,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 39,
+      "handled_count": 40,
       "method_body_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 15
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 9,
       "coverage": 0.972972972972973,
       "error": "",
       "handled_count": 36,
@@ -686,11 +686,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.base.NullnessCasts.uncheckedCastNullableTToT:1",
-      "warning_count": 9
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -702,11 +702,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 10
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -718,11 +718,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -734,11 +734,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 1,
@@ -750,11 +750,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 18,
@@ -766,11 +766,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 15,
       "coverage": 1.0,
       "error": "",
       "handled_count": 21,
@@ -782,11 +782,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 12
+      "warning_count": 18
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 13,
       "coverage": 0.9230769230769231,
       "error": "",
       "handled_count": 24,
@@ -798,11 +798,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.Iterators.singletonIterator:1;unknown static import java.util.Collections.singleton:1",
-      "warning_count": 14
+      "warning_count": 16
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 13,
@@ -814,11 +814,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 24,
@@ -826,15 +826,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/Count.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 14,
       "coverage": 0.96,
       "error": "",
       "handled_count": 24,
@@ -846,11 +846,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Iterators.singletonIterator:1",
-      "warning_count": 17
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -862,11 +862,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 35,
@@ -878,11 +878,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 16
+      "warning_count": 18
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -894,11 +894,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 18,
+      "annotation_warning_count": 19,
       "coverage": 1.0,
       "error": "",
       "handled_count": 31,
@@ -910,11 +910,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 20
+      "warning_count": 21
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 22,
@@ -926,11 +926,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 24,
@@ -942,11 +942,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -958,11 +958,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -974,11 +974,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -990,11 +990,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 17,
@@ -1006,11 +1006,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 22,
+      "annotation_warning_count": 25,
       "coverage": 1.0,
       "error": "",
       "handled_count": 40,
@@ -1022,11 +1022,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 25
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 18,
       "coverage": 0.9666666666666667,
       "error": "",
       "handled_count": 29,
@@ -1038,11 +1038,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.lang.System.arraycopy:1",
-      "warning_count": 22
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 9,
       "coverage": 0.8666666666666667,
       "error": "",
       "handled_count": 26,
@@ -1054,11 +1054,11 @@
       "unhandled_count": 4,
       "unhandled_node_types": "import_declaration:4",
       "unhandled_reasons": "unknown static import com.google.common.base.Predicates.and:1;unknown static import com.google.common.base.Predicates.in:1;unknown static import com.google.common.base.Predicates.not:1;unknown static import com.google.common.collect.Maps.valuePredicateOnEntries:1",
-      "warning_count": 7
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 5,
@@ -1070,11 +1070,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -1086,11 +1086,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 17,
@@ -1102,11 +1102,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
       "handled_count": 25,
@@ -1118,11 +1118,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 22
+      "warning_count": 24
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 36,
@@ -1134,11 +1134,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 15
+      "warning_count": 18
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 1,
@@ -1150,11 +1150,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 11,
@@ -1166,11 +1166,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 29,
@@ -1182,11 +1182,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 13
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -1198,11 +1198,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 24
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 22,
@@ -1214,11 +1214,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 30,
@@ -1230,11 +1230,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 13
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 30,
@@ -1246,11 +1246,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 17
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 18,
+      "annotation_warning_count": 21,
       "coverage": 1.0,
       "error": "",
       "handled_count": 34,
@@ -1262,11 +1262,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 20
+      "warning_count": 23
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 13,
       "coverage": 0.9824561403508771,
       "error": "",
       "handled_count": 56,
@@ -1274,15 +1274,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/JdkBackedImmutableMap.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.RegularImmutableMap.makeImmutable:1",
-      "warning_count": 20
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -1294,11 +1294,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 11
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 18,
+      "annotation_warning_count": 19,
       "coverage": 1.0,
       "error": "",
       "handled_count": 11,
@@ -1310,11 +1310,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 19
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -1326,11 +1326,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 11,
@@ -1342,11 +1342,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1358,11 +1358,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -1374,11 +1374,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 16,
+      "annotation_warning_count": 21,
       "coverage": 0.9743589743589743,
       "error": "",
       "handled_count": 38,
@@ -1386,15 +1386,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/UnmodifiableSortedMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Sets.unmodifiableNavigableSet:1",
-      "warning_count": 18
+      "warning_count": 24
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1406,11 +1406,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -1422,11 +1422,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -1438,11 +1438,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 19,
       "coverage": 0.98,
       "error": "",
       "handled_count": 49,
@@ -1454,11 +1454,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Iterables.getOnlyElement:1",
-      "warning_count": 17
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 6,
       "coverage": 0.9545454545454546,
       "error": "",
       "handled_count": 21,
@@ -1470,11 +1470,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
-      "warning_count": 4
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 22,
@@ -1486,11 +1486,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 27,
@@ -1502,11 +1502,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 16
+      "warning_count": 18
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 20,
       "coverage": 0.9534883720930233,
       "error": "",
       "handled_count": 41,
@@ -1514,15 +1514,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SingletonImmutableBiMap.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1;unknown static import com.google.common.collect.Maps.immutableEntry:1",
-      "warning_count": 16
+      "warning_count": 23
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 17,
+      "annotation_warning_count": 21,
       "coverage": 0.9807692307692307,
       "error": "",
       "handled_count": 51,
@@ -1534,210 +1534,34 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.lang.System.arraycopy:1",
-      "warning_count": 24
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.25,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 4,
       "method_body_count": 0,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/IgnoreJRERequirement.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:3",
-      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.CONSTRUCTOR:1;unknown static import java.lang.annotation.ElementType.METHOD:1;unknown static import java.lang.annotation.ElementType.TYPE:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 1
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.25,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 4,
       "method_body_count": 0,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/IgnoreJRERequirement.java",
-      "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "import_declaration:3",
-      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.CONSTRUCTOR:1;unknown static import java.lang.annotation.ElementType.METHOD:1;unknown static import java.lang.annotation.ElementType.TYPE:1",
-      "warning_count": 1
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 9,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 15,
-      "method_body_count": 6,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/ForwardingListIterator.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 10
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 9,
-      "coverage": 0.9615384615384616,
-      "error": "",
-      "handled_count": 25,
-      "method_body_count": 8,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/AbstractIndexedListIterator.java",
-      "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndex:1",
-      "warning_count": 12
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 8,
-      "coverage": 0.96875,
-      "error": "",
-      "handled_count": 31,
-      "method_body_count": 11,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/ImmutableMapEntry.java",
-      "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1",
-      "warning_count": 13
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 12,
-      "coverage": 0.956989247311828,
-      "error": "",
-      "handled_count": 89,
-      "method_body_count": 12,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/CartesianList.java",
-      "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "binary_expression:1;import_declaration:1;method_invocation:2",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;division requires numeric type certainty:1;unknown static import com.google.common.base.Preconditions.checkElementIndex:1",
-      "warning_count": 16
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 15,
-      "coverage": 0.9655172413793104,
-      "error": "",
-      "handled_count": 56,
-      "method_body_count": 15,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/RegularImmutableSortedMultiset.java",
-      "syntax_ok": false,
-      "unhandled_count": 2,
-      "unhandled_node_types": "import_declaration:2",
-      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndexes:1;unknown static import com.google.common.collect.BoundType.CLOSED:1",
-      "warning_count": 16
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 22,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 53,
-      "method_body_count": 18,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/ImmutableMapEntrySet.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 24
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 0,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 2,
-      "method_body_count": 0,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/Interner.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 0
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 18,
-      "coverage": 0.9818181818181818,
-      "error": "",
-      "handled_count": 54,
-      "method_body_count": 13,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/JdkBackedImmutableBiMap.java",
-      "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "import_declaration:1",
-      "unhandled_reasons": "unknown static import com.google.common.collect.Maps.immutableEntry:1",
-      "warning_count": 21
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 3,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 3,
-      "method_body_count": 0,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/base/Function.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 3
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 3,
-      "coverage": 0.9841269841269841,
-      "error": "",
-      "handled_count": 62,
-      "method_body_count": 7,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/base/SmallCharMatcher.java",
-      "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
-      "warning_count": 19
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 1,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 3,
-      "method_body_count": 0,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "guava/src/com/google/common/collect/ClassToInstanceMap.java",
       "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
@@ -1749,6 +1573,182 @@
       "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
+      "handled_count": 15,
+      "method_body_count": 6,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/ForwardingListIterator.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 11
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 10,
+      "coverage": 0.9615384615384616,
+      "error": "",
+      "handled_count": 25,
+      "method_body_count": 8,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/AbstractIndexedListIterator.java",
+      "syntax_ok": false,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndex:1",
+      "warning_count": 13
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 11,
+      "coverage": 0.96875,
+      "error": "",
+      "handled_count": 31,
+      "method_body_count": 11,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/ImmutableMapEntry.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1",
+      "warning_count": 16
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 13,
+      "coverage": 0.9583333333333334,
+      "error": "",
+      "handled_count": 92,
+      "method_body_count": 12,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/CartesianList.java",
+      "syntax_ok": true,
+      "unhandled_count": 4,
+      "unhandled_node_types": "binary_expression:1;import_declaration:1;method_invocation:2",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:2;division requires numeric type certainty:1;unknown static import com.google.common.base.Preconditions.checkElementIndex:1",
+      "warning_count": 17
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 18,
+      "coverage": 0.9655172413793104,
+      "error": "",
+      "handled_count": 56,
+      "method_body_count": 15,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/RegularImmutableSortedMultiset.java",
+      "syntax_ok": false,
+      "unhandled_count": 2,
+      "unhandled_node_types": "import_declaration:2",
+      "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndexes:1;unknown static import com.google.common.collect.BoundType.CLOSED:1",
+      "warning_count": 19
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 27,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 53,
+      "method_body_count": 18,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/ImmutableMapEntrySet.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 29
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 3,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 2,
+      "method_body_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/Interner.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 23,
+      "coverage": 0.9818181818181818,
+      "error": "",
+      "handled_count": 54,
+      "method_body_count": 13,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/JdkBackedImmutableBiMap.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "import_declaration:1",
+      "unhandled_reasons": "unknown static import com.google.common.collect.Maps.immutableEntry:1",
+      "warning_count": 26
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 5,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "method_body_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/base/Function.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 5
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 4,
+      "coverage": 0.9841269841269841,
+      "error": "",
+      "handled_count": 62,
+      "method_body_count": 7,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/base/SmallCharMatcher.java",
+      "syntax_ok": true,
+      "unhandled_count": 1,
+      "unhandled_node_types": "method_invocation:1",
+      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "warning_count": 20
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 3,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "method_body_count": 0,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "guava/src/com/google/common/collect/ClassToInstanceMap.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 3
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 11,
+      "coverage": 1.0,
+      "error": "",
       "handled_count": 26,
       "method_body_count": 8,
       "parse_error_count": 0,
@@ -1758,11 +1758,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 16
+      "warning_count": 17
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 25,
+      "annotation_warning_count": 26,
       "coverage": 1.0,
       "error": "",
       "handled_count": 41,
@@ -1774,11 +1774,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 26
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -1790,11 +1790,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 15,
       "coverage": 1.0,
       "error": "",
       "handled_count": 48,
@@ -1806,11 +1806,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 14
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 21,
       "coverage": 0.9824561403508771,
       "error": "",
       "handled_count": 56,
@@ -1818,15 +1818,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ImmutableEnumSet.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Iterables.getOnlyElement:1",
-      "warning_count": 21
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 26,
       "coverage": 1.0,
       "error": "",
       "handled_count": 45,
@@ -1838,11 +1838,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 22
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 14,
       "coverage": 1.0,
       "error": "",
       "handled_count": 36,
@@ -1854,11 +1854,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 17,
+      "annotation_warning_count": 22,
       "coverage": 0.9827586206896551,
       "error": "",
       "handled_count": 57,
@@ -1866,15 +1866,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/AbstractSortedMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "field_access:1",
       "unhandled_reasons": "qualified outer this requires captured outer self:1",
-      "warning_count": 21
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 14,
       "coverage": 1.0,
       "error": "",
       "handled_count": 29,
@@ -1886,11 +1886,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 12
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 13,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 34,
@@ -1902,11 +1902,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 21
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 12,
       "coverage": 1.0,
       "error": "",
       "handled_count": 65,
@@ -1914,15 +1914,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/SparseImmutableTable.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 15
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -1934,11 +1934,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -1950,11 +1950,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -1966,11 +1966,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 10
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -1982,11 +1982,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 8,
@@ -1998,11 +1998,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 4,
       "coverage": 0.9846153846153847,
       "error": "",
       "handled_count": 64,
@@ -2014,11 +2014,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.util.Collections.emptyList:1",
-      "warning_count": 10
+      "warning_count": 12
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 13,
       "coverage": 1.0,
       "error": "",
       "handled_count": 35,
@@ -2030,7 +2030,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 15
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
@@ -2050,7 +2050,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 14,
       "coverage": 0.9743589743589743,
       "error": "",
       "handled_count": 38,
@@ -2062,11 +2062,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.ForwardingSortedMap.unsafeCompare:1",
-      "warning_count": 20
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 11,
       "coverage": 0.9824561403508771,
       "error": "",
       "handled_count": 56,
@@ -2078,27 +2078,27 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Platform.getDeclaringClassOrObjectForJ2cl:1",
-      "warning_count": 18
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 19,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 91,
+      "handled_count": 92,
       "method_body_count": 12,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/RegularImmutableMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 17
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 29,
+      "annotation_warning_count": 37,
       "coverage": 0.9818181818181818,
       "error": "",
       "handled_count": 54,
@@ -2106,15 +2106,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/DescendingMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "field_access:1",
       "unhandled_reasons": "qualified outer this requires captured outer self:1",
-      "warning_count": 29
+      "warning_count": 40
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 32,
+      "annotation_warning_count": 38,
       "coverage": 0.9838709677419355,
       "error": "",
       "handled_count": 61,
@@ -2126,11 +2126,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Iterators.emptyIterator:1",
-      "warning_count": 33
+      "warning_count": 39
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 31,
@@ -2142,11 +2142,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 10
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 10,
       "coverage": 0.9743589743589743,
       "error": "",
       "handled_count": 38,
@@ -2158,11 +2158,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
-      "warning_count": 15
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 27,
+      "annotation_warning_count": 31,
       "coverage": 0.9636363636363636,
       "error": "",
       "handled_count": 53,
@@ -2174,11 +2174,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.BoundType.CLOSED:1;unknown static import com.google.common.collect.BoundType.OPEN:1",
-      "warning_count": 29
+      "warning_count": 33
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 32,
@@ -2190,11 +2190,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 17
+      "warning_count": 18
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 15,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -2206,11 +2206,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 19
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 5,
@@ -2222,11 +2222,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 14,
       "coverage": 0.9512195121951219,
       "error": "",
       "handled_count": 39,
@@ -2238,11 +2238,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.Sets.unmodifiableNavigableSet:1;unknown static import java.util.Collections.unmodifiableSortedSet:1",
-      "warning_count": 25
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 10,
       "coverage": 0.9743589743589743,
       "error": "",
       "handled_count": 38,
@@ -2254,11 +2254,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.NullnessCasts.uncheckedCastNullableTToT:1",
-      "warning_count": 15
+      "warning_count": 17
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 13,
+      "annotation_warning_count": 16,
       "coverage": 0.9722222222222222,
       "error": "",
       "handled_count": 35,
@@ -2270,11 +2270,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.util.Collections.emptyList:1",
-      "warning_count": 27
+      "warning_count": 30
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
       "handled_count": 40,
@@ -2286,11 +2286,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 19
+      "warning_count": 23
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
+      "annotation_warning_count": 13,
       "coverage": 1.0,
       "error": "",
       "handled_count": 59,
@@ -2302,11 +2302,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 25
+      "warning_count": 29
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 32,
+      "annotation_warning_count": 33,
       "coverage": 1.0,
       "error": "",
       "handled_count": 43,
@@ -2318,11 +2318,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 33
+      "warning_count": 34
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 30,
+      "annotation_warning_count": 34,
       "coverage": 0.9578947368421052,
       "error": "",
       "handled_count": 91,
@@ -2334,11 +2334,11 @@
       "unhandled_count": 4,
       "unhandled_node_types": "binary_expression:1;import_declaration:3",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndex:1;unknown static import java.util.Collections.emptyList:1;unknown static import java.util.Collections.emptySet:1;unsupported binary operator // if this holds, then we know entry.getKey() is a K:1",
-      "warning_count": 32
+      "warning_count": 36
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 15,
       "coverage": 1.0,
       "error": "",
       "handled_count": 8,
@@ -2350,11 +2350,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 21
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 64,
@@ -2366,11 +2366,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 25
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 17,
       "coverage": 0.95,
       "error": "",
       "handled_count": 38,
@@ -2382,11 +2382,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import java.util.Collections.emptySet:1;unknown static import java.util.Collections.unmodifiableSet:1",
-      "warning_count": 29
+      "warning_count": 32
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 13,
       "coverage": 1.0,
       "error": "",
       "handled_count": 50,
@@ -2398,7 +2398,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 24
+      "warning_count": 26
     },
     {
       "annotation_use_count": 0,
@@ -2418,7 +2418,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 21,
+      "annotation_warning_count": 24,
       "coverage": 1.0,
       "error": "",
       "handled_count": 33,
@@ -2430,11 +2430,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 22
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 0.9315068493150684,
       "error": "",
       "handled_count": 68,
@@ -2442,15 +2442,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/Utf8.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 5,
       "unhandled_node_types": "binary_expression:2;import_declaration:3",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndexes:1;unknown static import java.lang.Character.MAX_SURROGATE:1;unknown static import java.lang.Character.MIN_SURROGATE:1;unsupported binary operator // Fourth byte trailing-byte test:1;unsupported binary operator // Third byte trailing-byte test.:1",
-      "warning_count": 22
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 23,
       "coverage": 0.9710144927536232,
       "error": "",
       "handled_count": 67,
@@ -2462,11 +2462,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "binary_expression:1;import_declaration:1",
       "unhandled_reasons": "division requires numeric type certainty:1;unknown static import java.util.Collections.sort:1",
-      "warning_count": 30
+      "warning_count": 33
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 89,
@@ -2478,11 +2478,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 35
+      "warning_count": 36
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -2494,11 +2494,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 16,
+      "annotation_warning_count": 18,
       "coverage": 0.9710144927536232,
       "error": "",
       "handled_count": 67,
@@ -2506,15 +2506,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ObjectArrays.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndexes:1;unknown static import java.lang.System.arraycopy:1",
-      "warning_count": 29
+      "warning_count": 32
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 27,
+      "annotation_warning_count": 28,
       "coverage": 1.0,
       "error": "",
       "handled_count": 45,
@@ -2526,11 +2526,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 28
+      "warning_count": 29
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 71,
@@ -2542,11 +2542,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 18
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 38,
+      "annotation_warning_count": 44,
       "coverage": 0.9826086956521739,
       "error": "",
       "handled_count": 113,
@@ -2558,11 +2558,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkElementIndex:1;unknown static import com.google.common.collect.BoundType.CLOSED:1",
-      "warning_count": 47
+      "warning_count": 53
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 72,
@@ -2574,11 +2574,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 57,
@@ -2590,11 +2590,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 34
+      "warning_count": 37
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 39,
+      "annotation_warning_count": 40,
       "coverage": 1.0,
       "error": "",
       "handled_count": 56,
@@ -2606,11 +2606,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 39
+      "warning_count": 40
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 13,
@@ -2622,11 +2622,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 84,
@@ -2638,11 +2638,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 25
+      "warning_count": 27
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 36,
+      "annotation_warning_count": 38,
       "coverage": 1.0,
       "error": "",
       "handled_count": 37,
@@ -2654,11 +2654,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 37
+      "warning_count": 39
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -2670,11 +2670,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 8,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -2686,11 +2686,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 42,
+      "annotation_warning_count": 54,
       "coverage": 0.9594594594594594,
       "error": "",
       "handled_count": 142,
@@ -2698,15 +2698,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/RegularImmutableBiMap.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 6,
       "unhandled_node_types": "import_declaration:6",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndex:1;unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1;unknown static import com.google.common.collect.ImmutableMapEntry.createEntryArray:1;unknown static import com.google.common.collect.Maps.immutableEntry:1;unknown static import com.google.common.collect.RegularImmutableMap.MAX_HASH_BUCKET_LENGTH:1;unknown static import com.google.common.collect.RegularImmutableMap.checkNoConflictInKeyBucket:1",
-      "warning_count": 51
+      "warning_count": 64
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 35,
+      "annotation_warning_count": 42,
       "coverage": 0.979381443298969,
       "error": "",
       "handled_count": 95,
@@ -2714,15 +2714,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/AbstractTable.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.Maps.immutableEntry:1;unknown static import com.google.common.collect.Maps.safeGet:1",
-      "warning_count": 38
+      "warning_count": 47
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 30,
+      "annotation_warning_count": 32,
       "coverage": 0.9365079365079365,
       "error": "",
       "handled_count": 59,
@@ -2734,11 +2734,11 @@
       "unhandled_count": 4,
       "unhandled_node_types": "method_declaration:4",
       "unhandled_reasons": "overloaded method closed requires manual dispatch:2;overloaded method closed_open requires manual dispatch:2",
-      "warning_count": 47
+      "warning_count": 49
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 23,
+      "annotation_warning_count": 28,
       "coverage": 0.9874213836477987,
       "error": "",
       "handled_count": 157,
@@ -2750,11 +2750,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1;unknown static import com.google.common.collect.CollectPreconditions.checkRemove:1",
-      "warning_count": 38
+      "warning_count": 43
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 22,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 98,
@@ -2766,11 +2766,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 37
+      "warning_count": 38
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 43,
+      "annotation_warning_count": 50,
       "coverage": 0.9841269841269841,
       "error": "",
       "handled_count": 62,
@@ -2782,11 +2782,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Multisets.setCountImpl:1",
-      "warning_count": 53
+      "warning_count": 60
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 21,
       "coverage": 1.0,
       "error": "",
       "handled_count": 60,
@@ -2798,11 +2798,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 30
+      "warning_count": 31
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 29,
+      "annotation_warning_count": 30,
       "coverage": 1.0,
       "error": "",
       "handled_count": 57,
@@ -2814,11 +2814,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 42
+      "warning_count": 43
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -2830,14 +2830,14 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 35,
+      "annotation_warning_count": 37,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 152,
+      "handled_count": 153,
       "method_body_count": 32,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2846,11 +2846,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 49
+      "warning_count": 51
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 35,
+      "annotation_warning_count": 49,
       "coverage": 1.0,
       "error": "",
       "handled_count": 98,
@@ -2858,15 +2858,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/AbstractMultimap.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 41
+      "warning_count": 60
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 5,
       "coverage": 0.9615384615384616,
       "error": "",
       "handled_count": 100,
@@ -2874,11 +2874,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/TopKSelector.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 4,
       "unhandled_node_types": "binary_expression:1;import_declaration:3",
       "unhandled_reasons": "division requires numeric type certainty:1;unknown static import com.google.common.collect.NullnessCasts.uncheckedCastNullableTToT:1;unknown static import java.util.Arrays.asList:1;unknown static import java.util.Arrays.sort:1",
-      "warning_count": 28
+      "warning_count": 33
     },
     {
       "annotation_use_count": 0,
@@ -2898,7 +2898,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 9,
       "coverage": 1.0,
       "error": "",
       "handled_count": 13,
@@ -2910,11 +2910,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 52,
+      "annotation_warning_count": 62,
       "coverage": 0.9861111111111112,
       "error": "",
       "handled_count": 142,
@@ -2926,11 +2926,11 @@
       "unhandled_count": 2,
       "unhandled_node_types": "for_statement:1;import_declaration:1",
       "unhandled_reasons": "malformed for statement:1;unknown static import com.google.common.collect.Maps.immutableEntry:1",
-      "warning_count": 67
+      "warning_count": 77
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 35,
+      "annotation_warning_count": 41,
       "coverage": 0.9916666666666667,
       "error": "",
       "handled_count": 119,
@@ -2942,11 +2942,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "object_creation_expression:1",
       "unhandled_reasons": "non-empty collection constructor requires LLM completion:1",
-      "warning_count": 48
+      "warning_count": 54
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 12,
       "coverage": 0.9767441860465116,
       "error": "",
       "handled_count": 126,
@@ -2954,15 +2954,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/GeneralRange.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 3,
       "unhandled_node_types": "import_declaration:3",
       "unhandled_reasons": "unknown static import com.google.common.collect.BoundType.CLOSED:1;unknown static import com.google.common.collect.BoundType.OPEN:1;unknown static import com.google.common.collect.NullnessCasts.uncheckedCastNullableTToT:1",
-      "warning_count": 23
+      "warning_count": 29
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 31,
+      "annotation_warning_count": 34,
       "coverage": 0.9743589743589743,
       "error": "",
       "handled_count": 152,
@@ -2974,11 +2974,11 @@
       "unhandled_count": 4,
       "unhandled_node_types": "import_declaration:3;method_invocation:1",
       "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1;unknown static import com.google.common.collect.CollectPreconditions.checkRemove:1;unknown static import com.google.common.collect.Maps.safeGet:1",
-      "warning_count": 45
+      "warning_count": 48
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 6,
       "coverage": 0.9905660377358491,
       "error": "",
       "handled_count": 105,
@@ -2986,15 +2986,15 @@
       "parse_error_count": 2,
       "parse_ok": false,
       "path": "guava/src/com/google/common/base/Strings.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import java.util.logging.Level.WARNING:1",
-      "warning_count": 27
+      "warning_count": 31
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 5,
       "coverage": 0.98,
       "error": "",
       "handled_count": 49,
@@ -3006,11 +3006,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
-      "warning_count": 19
+      "warning_count": 20
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 10,
+      "annotation_warning_count": 12,
       "coverage": 0.9113924050632911,
       "error": "",
       "handled_count": 72,
@@ -3022,43 +3022,43 @@
       "unhandled_count": 7,
       "unhandled_node_types": "import_declaration:7",
       "unhandled_reasons": "unknown static import java.util.concurrent.TimeUnit.DAYS:1;unknown static import java.util.concurrent.TimeUnit.HOURS:1;unknown static import java.util.concurrent.TimeUnit.MICROSECONDS:1;unknown static import java.util.concurrent.TimeUnit.MILLISECONDS:1;unknown static import java.util.concurrent.TimeUnit.MINUTES:1;unknown static import java.util.concurrent.TimeUnit.NANOSECONDS:1;unknown static import java.util.concurrent.TimeUnit.SECONDS:1",
-      "warning_count": 23
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 3,
-      "coverage": 0.2,
+      "coverage": 0.4,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "method_body_count": 0,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/ParametricNullness.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "import_declaration:4",
-      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.FIELD:1;unknown static import java.lang.annotation.ElementType.METHOD:1;unknown static import java.lang.annotation.ElementType.PARAMETER:1;unknown static import java.lang.annotation.RetentionPolicy.CLASS:1",
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:3",
+      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.FIELD:1;unknown static import java.lang.annotation.ElementType.PARAMETER:1;unknown static import java.lang.annotation.RetentionPolicy.CLASS:1",
       "warning_count": 3
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 3,
-      "coverage": 0.2,
+      "coverage": 0.4,
       "error": "",
-      "handled_count": 1,
+      "handled_count": 2,
       "method_body_count": 0,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/ParametricNullness.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "import_declaration:4",
-      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.FIELD:1;unknown static import java.lang.annotation.ElementType.METHOD:1;unknown static import java.lang.annotation.ElementType.PARAMETER:1;unknown static import java.lang.annotation.RetentionPolicy.CLASS:1",
+      "unhandled_count": 3,
+      "unhandled_node_types": "import_declaration:3",
+      "unhandled_reasons": "unknown static import java.lang.annotation.ElementType.FIELD:1;unknown static import java.lang.annotation.ElementType.PARAMETER:1;unknown static import java.lang.annotation.RetentionPolicy.CLASS:1",
       "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 23,
+      "annotation_warning_count": 31,
       "coverage": 0.9745762711864406,
       "error": "",
       "handled_count": 115,
@@ -3070,11 +3070,11 @@
       "unhandled_count": 3,
       "unhandled_node_types": "import_declaration:2;method_invocation:1",
       "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1;unknown static import com.google.common.collect.Iterables.transform:1;unknown static import com.google.common.collect.Iterators.mergeSorted:1",
-      "warning_count": 41
+      "warning_count": 49
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 16,
       "coverage": 1.0,
       "error": "",
       "handled_count": 74,
@@ -3086,11 +3086,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 28
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 89,
@@ -3098,15 +3098,15 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/base/FinalizableReferenceQueue.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 34
+      "warning_count": 37
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 27,
+      "annotation_warning_count": 35,
       "coverage": 0.9904761904761905,
       "error": "",
       "handled_count": 104,
@@ -3118,11 +3118,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.CollectPreconditions.checkNonnegative:1",
-      "warning_count": 40
+      "warning_count": 48
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 28,
+      "annotation_warning_count": 48,
       "coverage": 0.967948717948718,
       "error": "",
       "handled_count": 151,
@@ -3130,18 +3130,18 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/RegularImmutableMap.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 5,
       "unhandled_node_types": "import_declaration:3;method_declaration:2",
       "unhandled_reasons": "overloaded method get requires manual dispatch:2;unknown static import com.google.common.base.Preconditions.checkPositionIndex:1;unknown static import com.google.common.collect.CollectPreconditions.checkEntryNotNull:1;unknown static import com.google.common.collect.ImmutableMapEntry.createEntryArray:1",
-      "warning_count": 71
+      "warning_count": 92
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
-      "coverage": 0.9879518072289156,
+      "annotation_warning_count": 13,
+      "coverage": 0.9880952380952381,
       "error": "",
-      "handled_count": 82,
+      "handled_count": 83,
       "method_body_count": 12,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -3150,11 +3150,11 @@
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.collect.Lists.transform:1",
-      "warning_count": 31
+      "warning_count": 32
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 21,
+      "annotation_warning_count": 22,
       "coverage": 1.0,
       "error": "",
       "handled_count": 48,
@@ -3166,11 +3166,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 33
+      "warning_count": 34
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 21,
+      "annotation_warning_count": 22,
       "coverage": 0.7636363636363637,
       "error": "",
       "handled_count": 42,
@@ -3182,11 +3182,11 @@
       "unhandled_count": 13,
       "unhandled_node_types": "method_declaration:13",
       "unhandled_reasons": "overloaded method compare requires manual dispatch:13",
-      "warning_count": 34
+      "warning_count": 35
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 22,
+      "annotation_warning_count": 23,
       "coverage": 1.0,
       "error": "",
       "handled_count": 66,
@@ -3198,7 +3198,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 39
+      "warning_count": 40
     }
   ],
   "metadata": {
@@ -3226,31 +3226,31 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9717155448753083,
+    "average_coverage": 0.9812229824597475,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
       "annotation_only_stub_files": 0,
       "annotation_only_stub_rate": 0.0,
-      "annotation_warning_file_rate": 0.86,
+      "annotation_warning_file_rate": 0.995,
       "avg_annotation_uses_per_file": 0.0,
-      "avg_annotation_warnings_per_file": 10.195,
-      "files_with_annotation_warnings": 172,
+      "avg_annotation_warnings_per_file": 12.845,
+      "files_with_annotation_warnings": 199,
       "files_with_method_bodies": 166,
       "method_body_file_rate": 0.83,
       "total_annotation_uses": 0,
-      "total_annotation_warnings": 2039
+      "total_annotation_warnings": 2569
     },
-    "files_below_coverage_threshold": 6,
+    "files_below_coverage_threshold": 4,
     "files_scanned": 200,
-    "files_with_unhandled": 58,
-    "full_coverage_files": 142,
+    "files_with_unhandled": 56,
+    "full_coverage_files": 144,
     "parse_success_rate": 0.99,
-    "syntax_success_rate": 0.885,
+    "syntax_success_rate": 0.985,
     "top_unhandled_node_types": [
       [
         "import_declaration",
-        100
+        92
       ],
       [
         "method_declaration",
@@ -3299,10 +3299,6 @@
         4
       ],
       [
-        "unknown static import java.lang.annotation.ElementType.METHOD",
-        4
-      ],
-      [
         "unknown static import com.google.common.base.Preconditions.checkPositionIndex",
         4
       ],
@@ -3347,15 +3343,19 @@
         2
       ],
       [
-        "unknown static import java.lang.annotation.ElementType.CONSTRUCTOR",
-        2
-      ],
-      [
-        "unknown static import java.lang.annotation.ElementType.TYPE",
-        2
-      ],
-      [
         "unknown static import com.google.common.base.Preconditions.checkElementIndex",
+        2
+      ],
+      [
+        "qualified outer this requires captured outer self",
+        2
+      ],
+      [
+        "unknown static import com.google.common.collect.BoundType.OPEN",
+        2
+      ],
+      [
+        "unknown static import java.util.Collections.emptySet",
         2
       ]
     ]

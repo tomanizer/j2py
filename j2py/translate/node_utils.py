@@ -5,6 +5,13 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 
 
+def unwrap_parens(node: JavaNode) -> JavaNode:
+    """Strip nested parenthesized_expression wrappers, returning the inner node."""
+    while node.type == "parenthesized_expression" and len(node.named_children) == 1:
+        node = node.named_children[0]
+    return node
+
+
 def first_child_by_type(node: JavaNode, *types: str) -> JavaNode | None:
     for child in node.named_children:
         if child.type in types:
