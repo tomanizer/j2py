@@ -630,3 +630,36 @@ def test_compare_baseline_still_mismatches_unrelated_metadata(tmp_path: Path) ->
 
     assert comparison["metadata_mismatches"] == ["strategy"]
     assert comparison["deltas"] == {}
+
+
+def test_has_file_regressions_is_true_on_per_file_syntax_failure(tmp_path: Path) -> None:
+    """A single file flipping syntax_ok: true → false must make _has_file_regressions return True,
+    even when the global syntax_success_rate does not change (e.g. another file improved)."""
+    baseline_metrics = [
+        _metric("A.java", syntax_ok=True),
+        _metric("B.java", syntax_ok=False),
+    ]
+    baseline_path = tmp_path / "baseline.json"
+    corpus.write_baseline(
+        baseline_path,
+        metadata={"spring_ref": "ref", "modules": ["m"], "limit": 2, "include_tests": False},
+        summary=corpus.summarize(baseline_metrics),
+        metrics=baseline_metrics,
+    )
+
+    # A regresses; B improves.  Global syntax_success_rate stays 50% → 50%.
+    current_metrics = [
+        _metric("A.java", syntax_ok=False),
+        _metric("B.java", syntax_ok=True),
+    ]
+    comparison = corpus.compare_baseline(
+        baseline_path,
+        metadata={"spring_ref": "ref", "modules": ["m"], "limit": 2, "include_tests": False},
+        summary=corpus.summarize(current_metrics),
+        metrics=current_metrics,
+    )
+
+    assert comparison["file_regressions"]["syntax_failures"] == [{"path": "A.java", "error": ""}]
+    assert corpus._has_file_regressions(comparison["file_regressions"]) is True
+    # The aggregate syntax_success_rate did NOT change, so it's not in regressions.
+    assert "syntax_success_rate" not in comparison["regressions"]
