@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_emit import (
+    annotation_comment_lines,
+    record_annotation_diagnostics,
+)
 from j2py.translate.class_members import (
     member_method_names,
     member_python_name,
@@ -15,7 +19,6 @@ from j2py.translate.class_methods import (
     class_method_return_types,
     method_body,
     parameter_infos,
-    record_annotation_diagnostics,
     return_type,
     signature,
     translate_method,
@@ -65,7 +68,16 @@ def translate_interface(
     )
     sealed_alias_lines = sealed_type_alias_lines(node, body, class_name, indent="    ")
 
-    lines = [f"class {class_name}(Protocol):"]
+    record_annotation_diagnostics(
+        node,
+        cfg,
+        diagnostics,
+        target_kind="class",
+        target_name=class_name,
+    )
+    lines: list[str] = []
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.append(f"class {class_name}(Protocol):")
     if docstring_lines:
         lines.extend(docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
@@ -84,7 +96,6 @@ def translate_interface(
     for method in methods:
         if wrote_member:
             lines.append("")
-        record_annotation_diagnostics(method, cfg, diagnostics)
         method_body_node = method_body(method)
         if method_body_node is not None:
             reason = (
@@ -113,6 +124,15 @@ def translate_interface(
             continue
 
         diagnostics.record(method, supported=True, reason="translated abstract interface method")
+        py_name = member_python_name(method)
+        record_annotation_diagnostics(
+            method,
+            cfg,
+            diagnostics,
+            target_kind="method",
+            target_name=py_name,
+        )
+        lines.extend(annotation_comment_lines(method, cfg, indent="    "))
         params = parameter_infos(method, cfg)
         method_return_type = return_type(method, cfg)
         if cfg.emit_type_hints:

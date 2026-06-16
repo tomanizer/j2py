@@ -6,10 +6,14 @@ from collections.abc import Iterable
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_emit import (
+    annotation_comment_lines,
+    record_annotation_diagnostics,
+)
 from j2py.translate.class_members import raw_member_name
 from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
-from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name, translate_method_name
 from j2py.translate.rules.types import translate_type
@@ -72,7 +76,21 @@ def translate_method(
     supported_reason: str | None = None,
     docstring_lines: list[str] | None = None,
 ) -> list[str]:
-    record_annotation_diagnostics(node, ctx.cfg, ctx.diagnostics)
+    name_node = node.child_by_field("name")
+    raw_name = name_node.text if name_node is not None else "unknown"
+    py_name = (
+        "__init__"
+        if node.type == "constructor_declaration"
+        else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+    )
+    target_kind = "constructor" if node.type == "constructor_declaration" else "method"
+    record_annotation_diagnostics(
+        node,
+        ctx.cfg,
+        ctx.diagnostics,
+        target_kind=target_kind,
+        target_name=py_name,
+    )
     supported = node.type in {"constructor_declaration", "method_declaration"}
     ctx.diagnostics.record(
         node,
@@ -86,13 +104,6 @@ def translate_method(
     is_abstract = "abstract" in modifiers
     ctx.in_instance_method = not is_static
 
-    name_node = node.child_by_field("name")
-    raw_name = name_node.text if name_node is not None else "unknown"
-    py_name = (
-        "__init__"
-        if is_constructor
-        else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
-    )
     method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
     if ctx.cfg.emit_type_hints:
         ctx.diagnostics.imports.need_type_annotation(method_return_type)
@@ -104,6 +115,7 @@ def translate_method(
         return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
     lines: list[str] = []
+    lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
     if is_static:
         lines.append("    @staticmethod")
     lines.extend(decorator_lines or [])
@@ -167,32 +179,6 @@ def signature(
 
 def method_body(node: JavaNode) -> JavaNode | None:
     return node.child_by_field("body") or first_child_by_type(node, "block", "constructor_body")
-
-
-def record_annotation_diagnostics(
-    node: JavaNode,
-    cfg: TranslationConfig,
-    diagnostics: TranslationDiagnostics,
-) -> None:
-    for annotation_name in annotation_names(node):
-        if annotation_name in cfg.drop_annotations:
-            diagnostics.warn(node, reason=f"dropped annotation @{annotation_name}")
-        else:
-            diagnostics.warn(node, reason=f"unsupported annotation @{annotation_name}")
-
-
-def annotation_names(node: JavaNode) -> list[str]:
-    names: list[str] = []
-    for modifiers in node.children_by_type("modifiers"):
-        for annotation in modifiers.named_children:
-            if annotation.type not in {"annotation", "marker_annotation"}:
-                continue
-            name_node = annotation.child_by_field("name")
-            if name_node is None:
-                name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
-            if name_node is not None:
-                names.append(name_node.text)
-    return names
 
 
 def return_type(node: JavaNode, cfg: TranslationConfig) -> str:

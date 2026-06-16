@@ -270,25 +270,34 @@ def _anonymous_method_lines(
     nested_helper_indent: str = "        ",
     supported_reason: str = "translated anonymous class method",
 ) -> list[str]:
+    from j2py.translate.annotation_emit import (
+        annotation_comment_lines,
+        record_annotation_diagnostics,
+    )
     from j2py.translate.class_methods import (
         method_body,
         parameter_infos,
-        record_annotation_diagnostics,
         return_type,
     )
     from j2py.translate.class_model import _modifiers
     from j2py.translate.statements import translate_body
 
-    record_annotation_diagnostics(method, ctx.cfg, ctx.diagnostics)
+    name_node = method.child_by_field("name")
+    raw_name = name_node.text if name_node is not None else "unknown"
+    py_name = translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+    record_annotation_diagnostics(
+        method,
+        ctx.cfg,
+        ctx.diagnostics,
+        target_kind="method",
+        target_name=py_name,
+    )
     ctx.diagnostics.record(
         method,
         supported=True,
         reason=supported_reason,
     )
 
-    name_node = method.child_by_field("name")
-    raw_name = name_node.text if name_node is not None else "unknown"
-    py_name = translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
     is_static = "static" in _modifiers(method)
     params = parameter_infos(method, ctx.cfg)
     rendered_params = [
@@ -299,6 +308,7 @@ def _anonymous_method_lines(
         rendered_params.insert(0, "self")
     returns = f" -> {return_type(method, ctx.cfg)}" if ctx.cfg.emit_type_hints else ""
     lines: list[str] = []
+    lines.extend(annotation_comment_lines(method, ctx.cfg, indent=member_indent))
     if is_static:
         lines.append(f"{member_indent}@staticmethod")
     lines.append(f"{member_indent}def {py_name}({', '.join(rendered_params)}){returns}:")
