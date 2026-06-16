@@ -15,7 +15,6 @@ from j2py.translate.rules.literals import java_string_literal_value
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
 
-
 _ASSIGN_OR_UPDATE = {"assignment_expression", "update_expression"}
 
 
@@ -80,7 +79,9 @@ def _desugar_update_in_expr(node: JavaNode, ctx: TranslationContext) -> str:
         # the mutation before the expression and adjust the returned value.
         ctx.diagnostics.warn(
             node,
-            reason="post-increment/decrement in expression position desugared approximately; verify",
+            reason=(
+                "post-increment/decrement in expression position desugared approximately; verify"
+            ),
         )
         return f"({target} - {delta})"  # delta=1 for ++, -1 for --
 
