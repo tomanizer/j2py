@@ -1381,6 +1381,62 @@ def test_nested_holder_map_field_get_is_map_like() -> None:
     assert_valid_python(python_source)
 
 
+def test_class_keyed_registry_get_is_api_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        public class ClassKeyedRegistryGet {
+            public int count(CustomizerRegistry registry) {
+                int total = 0;
+                for (Customizer customizer : registry.get(Customizer.class)) {
+                    total += customizer.weight();
+                }
+                return total;
+            }
+
+            static class CustomizerRegistry {
+                <T> List<T> get(Class<T> klass) {
+                    return null;
+                }
+            }
+
+            interface Customizer {
+                int weight();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "for customizer in registry.get(Customizer):" in result.source
+    assert "registry[Customizer]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_unknown_registry_class_literal_get_receiver_stays_ambiguous() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class UnknownClassKeyedGet {
+            public Object lookup(Object registry) {
+                return registry.get(Customizer.class);
+            }
+
+            interface Customizer {
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "return registry.get(Customizer)" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    assert_valid_python(result.source)
+
+
 def test_inner_class_can_use_outer_map_field_get() -> None:
     """Inner classes can resolve enclosing map fields such as bytesCache.get(name)."""
     python_source, coverage = translate_source(
