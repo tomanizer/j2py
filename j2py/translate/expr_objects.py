@@ -105,6 +105,7 @@ def _translate_anonymous_class(
     helper_id = len(ctx.pending_local_helpers) + 1
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
+    base_clause = "" if base_name in {"Comparator"} else f"({base_name})"
     needs_outer_self = _uses_qualified_this(body_node)
     outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
     if needs_outer_self and outer_self_alias is None:
@@ -118,7 +119,7 @@ def _translate_anonymous_class(
     helper_lines: list[str] = []
     if outer_self_alias is not None:
         helper_lines.extend([f"        {outer_self_alias} = self", ""])
-    helper_lines.append(f"        class {helper_name}({base_name}):")
+    helper_lines.append(f"        class {helper_name}{base_clause}:")
 
     instance_fields: list[FieldInfo] = []
     methods: list[JavaNode] = []

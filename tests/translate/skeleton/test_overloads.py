@@ -71,6 +71,62 @@ def test_static_overloads_emit_runtime_dispatcher_with_staticmethod_wrapping() -
     assert_module_executes(python_source)
 
 
+def test_object_name_static_overloads_emit_typing_dispatcher() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Hashtable;
+        import javax.management.MalformedObjectNameException;
+        import javax.management.ObjectName;
+
+        public class ObjectNameManagerProbe {
+            public static ObjectName getInstance(Object name) throws MalformedObjectNameException {
+                if (name instanceof ObjectName objectName) {
+                    return objectName;
+                }
+                if (name instanceof String text) {
+                    return getInstance(text);
+                }
+                throw new MalformedObjectNameException();
+            }
+
+            public static ObjectName getInstance(String objectName)
+                    throws MalformedObjectNameException {
+                return ObjectName.getInstance(objectName);
+            }
+
+            public static ObjectName getInstance(String domainName, String key, String value)
+                    throws MalformedObjectNameException {
+                return ObjectName.getInstance(domainName, key, value);
+            }
+
+            public static ObjectName getInstance(
+                    String domainName, Hashtable<String, String> properties)
+                    throws MalformedObjectNameException {
+                return ObjectName.getInstance(domainName, properties);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from j2py_runtime import ObjectName" in result.source
+    assert "from j2py_runtime import MalformedObjectNameException" in result.source
+    assert "from typing import overload" in result.source
+    assert "from j2py_runtime import overloaded" not in result.source
+    assert "from javax." not in result.source
+    assert result.source.count("    @staticmethod\n    @overload") == 4
+    assert "def get_instance(*args: object) -> ObjectName:" in result.source
+    assert "if len(args) == 1 and isinstance(args[0], str):" in result.source
+    assert "if len(args) == 1:" in result.source
+    assert "if len(args) == 2:" in result.source
+    assert "if len(args) == 3:" in result.source
+    assert "return ObjectNameManagerProbe.get_instance(text)" in result.source
+    assert "return ObjectName.get_instance(object_name)" in result.source
+    assert "NotImplementedError" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
     python_source, coverage = translate_source(
         """
@@ -203,6 +259,46 @@ def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
     assert "def width(self, *args: object) -> object:" in python_source
     assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
     assert_valid_python(python_source)
+
+
+def test_append_char_string_overload_uses_value_dispatcher() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class StringBuilder {
+            public void addChar(char value) {
+            }
+
+            public void addString(Object value) {
+            }
+        }
+
+        public class OverloadDispatchProbe {
+            public OverloadDispatchProbe append(StringBuilder builder, char value) {
+                builder.addChar(value);
+                return this;
+            }
+
+            public OverloadDispatchProbe append(StringBuilder builder, String value) {
+                builder.addString(value);
+                return this;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import Self, overload" in result.source
+    assert "from j2py_runtime import overloaded" not in result.source
+    assert result.source.count("    @overload") == 2
+    assert "def append(self, builder: StringBuilder, value: str) -> Self:" in result.source
+    assert "def append(self, builder: StringBuilder, value: str | None) -> Self:" in result.source
+    assert "if isinstance(value, str) and len(value) == 1:" in result.source
+    assert "builder.add_char(value)" in result.source
+    assert "builder.add_string(value)" in result.source
+    assert "overloaded method append requires manual dispatch" not in result.source
+    assert "NotImplementedError" not in result.source
+    assert_valid_python(result.source)
 
 
 def test_overload_default_expression_diagnostics_are_preserved() -> None:

@@ -70,12 +70,12 @@ PLATFORM_PLACEHOLDER_TYPES: frozenset[str] = frozenset(
 
 
 PLACEHOLDER_IMPORTS: dict[str, str] = {
-    "java.util.Comparator": "from typing import Protocol as Comparator",
+    "java.util.Comparator": "from j2py_runtime import Comparator",
     "java.util.concurrent.Callable": "from collections.abc import Callable",
     "javax.management.MalformedObjectNameException": (
-        "from typing import Any as MalformedObjectNameException"
+        "from j2py_runtime import MalformedObjectNameException"
     ),
-    "javax.management.ObjectName": "from typing import Any as ObjectName",
+    "javax.management.ObjectName": "from j2py_runtime import ObjectName",
     "org.springframework.core.NativeDetector": "from typing import Any as NativeDetector",
 }
 
