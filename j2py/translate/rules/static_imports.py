@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 KNOWN_STATIC_FIELD_ALIASES: dict[str, str] = {
+    "java.lang.annotation.ElementType.CONSTRUCTOR": "ElementType.CONSTRUCTOR",
+    "java.lang.annotation.ElementType.METHOD": "ElementType.METHOD",
+    "java.lang.annotation.ElementType.TYPE": "ElementType.TYPE",
     "java.lang.Math.PI": "math.pi",
     "java.lang.Math.E": "math.e",
     "java.lang.Integer.MAX_VALUE": "2**31 - 1",
