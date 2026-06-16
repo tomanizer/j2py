@@ -168,6 +168,7 @@ API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
         "ByteBuffer",
         "Calendar",
         "CompletableFuture",
+        "CustomizerRegistry",
         "Field",
         "ForkJoinTask",
         "Future",

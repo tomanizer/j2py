@@ -164,6 +164,16 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
     if method_name in MAP_RETURNING_METHOD_NAMES:
         return "dict"
 
+    if receiver_nodes:
+        receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
+        declared_return_type = _declared_type_method_return_type(
+            receiver_type,
+            method_name,
+            ctx,
+        )
+        if declared_return_type is not None:
+            return declared_return_type
+
     if method_name == "apply" and receiver_nodes:
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None:
@@ -202,6 +212,30 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
+    return None
+
+
+def _declared_type_method_return_type(
+    receiver_type: str | None,
+    method_name: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if receiver_type is None:
+        return None
+    candidates = (
+        part.strip() for part in receiver_type.split("|") if part.strip() and part.strip() != "None"
+    )
+    for candidate in candidates:
+        simple = type_simple_name(candidate)
+        type_methods = ctx.declared_type_method_return_types.get(simple)
+        if type_methods is None:
+            for type_name, methods in ctx.declared_type_method_return_types.items():
+                if simple == type_name or candidate.endswith(f".{type_name}"):
+                    type_methods = methods
+                    break
+        if type_methods is None:
+            continue
+        return type_methods.get(method_name)
     return None
 
 
