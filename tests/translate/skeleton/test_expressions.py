@@ -2681,3 +2681,38 @@ def test_local_var_assignment_in_not_operand_becomes_walrus() -> None:
     assert "uncontended := buf.offer(e)" in src
     assert "not " in src
     assert_valid_python(src)
+
+
+def test_compound_assign_in_method_argument_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Iter {
+            private int position;
+            public String nextValue() {
+                return get(position += 1);
+            }
+            private String get(int idx) { return ""; }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.position += 1" in src
+    assert "self.get(self.position)" in src
+    assert_valid_python(src)
+
+
+def test_field_assignment_in_expression_lambda_is_promoted_to_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Splitter {
+            private String prefix;
+            private java.util.function.Function<String,String> fn;
+            public void process(java.util.Spliterator<String> src) {
+                src.tryAdvance(elem -> this.prefix = fn.apply(elem));
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.prefix = self.fn.apply(elem)" in src
+    assert_valid_python(src)

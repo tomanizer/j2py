@@ -6,7 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_class_name,
     translate_field_name,
@@ -141,18 +141,94 @@ def _translate_lambda_expression(node: JavaNode, ctx: TranslationContext) -> str
             ctx.variable_types[raw_name] = py_type
         elif _lambda_body_is_map_get_on_param(body_node, raw_name):
             ctx.variable_types[raw_name] = "dict"
+    promoted_helper_name: str | None = None
     try:
-        body = translate_expression(body_node, ctx)
+        body_inner = unwrap_parens(body_node)
+        if body_inner.type in {"assignment_expression", "update_expression"}:
+            result = _desugar_lambda_body_assign(node, body_inner, params, ctx)
+            if isinstance(result, str) and result.startswith("_j2py_lambda_"):
+                # Promoted to helper def — skip the lambda wrapping below.
+                promoted_helper_name = result
+                body = result  # placeholder, won't be used
+            else:
+                body = result
+        else:
+            body = translate_expression(body_node, ctx)
     finally:
         ctx.local_names = previous_locals
         ctx.variable_types = previous_types
         ctx.variable_java_types = previous_java_types
         ctx.expression_aliases = previous_aliases
 
+    if promoted_helper_name is not None:
+        return promoted_helper_name
+
     rendered_params = ", ".join(py_name for _raw_name, py_name, _py_type in params)
     if rendered_params:
         return f"lambda {rendered_params}: {body}"
     return f"lambda: {body}"
+
+
+def _desugar_lambda_body_assign(
+    node: JavaNode,
+    body_inner: JavaNode,
+    params: list[tuple[str, str, str | None]],
+    ctx: TranslationContext,
+) -> str:
+    """Desugar an assignment/update in an expression-lambda body.
+
+    Python lambda bodies must be pure expressions; assignments are not.
+    - Simple dotless-name ``=``: use walrus (:=) — stays a lambda.
+    - Field assignment or compound operator: promote to a named helper def so the
+      assignment can appear as a statement; returns the helper name.
+    """
+    from j2py.translate.expr_ops import _desugar_embedded_assign
+
+    expr = _desugar_embedded_assign(body_inner, ctx)
+    if not ctx.hoisted_pre_stmts:
+        # Walrus path: no hoist, body is the walrus expression.
+        return expr
+
+    # Hoist path: clear and promote to helper def.
+    ctx.hoisted_pre_stmts.clear()
+    if not ctx.allow_local_helpers:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="expression lambda with field-assignment body requires local helper scope",
+        )
+        return f"__j2py_todo__({node.text!r})"
+
+    helper_id = len(ctx.pending_local_helpers) + 1
+    helper_name = f"_j2py_lambda_{helper_id}"
+
+    if params:
+        sig_parts: list[str] = []
+        for _raw, py_name, py_type in params:
+            if ctx.cfg.emit_type_hints and py_type:
+                ctx.diagnostics.imports.need_type_annotation(py_type)
+                sig_parts.append(f"{py_name}: {py_type}")
+            else:
+                sig_parts.append(py_name)
+        sig = f"{helper_name}({', '.join(sig_parts)})"
+    else:
+        sig = f"{helper_name}()"
+
+    assign_stmt = translate_expression(body_inner, ctx)
+    helper_lines: list[str] = [f"        def {sig}:", f"            {assign_stmt}"]
+    ctx.pending_local_helpers.append(helper_lines)
+    ctx.diagnostics.record(
+        node,
+        supported=True,
+        reason="expression lambda with field-assignment body promoted to local helper",
+    )
+    ctx.diagnostics.warn(
+        node,
+        reason=(
+            "expression lambda with field-assignment body promoted to named def; verify semantics"
+        ),
+    )
+    return helper_name
 
 
 def _lambda_parameters(

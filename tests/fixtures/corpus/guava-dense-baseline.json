@@ -1594,11 +1594,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/AbstractIndexedListIterator.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 1,
       "unhandled_node_types": "import_declaration:1",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndex:1",
-      "warning_count": 13
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
@@ -3246,7 +3246,7 @@
     "files_with_unhandled": 56,
     "full_coverage_files": 144,
     "parse_success_rate": 0.99,
-    "syntax_success_rate": 0.985,
+    "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
       [
         "import_declaration",

@@ -6,7 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_attribute_method_name,
     translate_method_name,
@@ -33,7 +33,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return f"__j2py_todo__({node.text!r})"
 
     arg_nodes = _argument_nodes(args_node)
-    arg_expressions = [translate_expression(child, ctx) for child in arg_nodes]
+    arg_expressions = [_translate_argument(child, ctx) for child in arg_nodes]
     args = ", ".join(arg_expressions)
 
     args_index = named.index(args_node)
@@ -236,6 +236,18 @@ def _receiver_is_declared_type(node: JavaNode, ctx: TranslationContext) -> bool:
 
 def _argument_nodes(args_node: JavaNode) -> list[JavaNode]:
     return [child for child in args_node.named_children if not is_comment(child)]
+
+
+_ASSIGN_OR_UPDATE = frozenset({"assignment_expression", "update_expression"})
+
+
+def _translate_argument(node: JavaNode, ctx: TranslationContext) -> str:
+    inner = unwrap_parens(node)
+    if inner.type in _ASSIGN_OR_UPDATE:
+        from j2py.translate.expr_ops import _desugar_embedded_assign
+
+        return _desugar_embedded_assign(inner, ctx)
+    return translate_expression(node, ctx)
 
 
 def _translate_static_method_invocation(
