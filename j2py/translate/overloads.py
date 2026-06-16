@@ -162,6 +162,31 @@ def translate_overloaded_members(
         if forwarded_method is not None:
             return forwarded_method
 
+    static_factory_dispatch = _static_object_name_factory_dispatch_overload(
+        members,
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=field_types,
+        class_field_java_types=field_java_types,
+        declared_type_fields=nested_type_fields,
+        declared_type_java_fields=nested_type_java_fields,
+        class_methods=class_methods or set(),
+        class_static_methods=static_class_methods,
+        enclosing_static_dispatch=enclosing_dispatch,
+        class_method_return_types=method_return_types,
+        static_field_aliases=static_fields,
+        static_method_imports=static_methods,
+        name_resolver=resolver,
+        class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_capture_names,
+        nested_class_names=direct_nested_names,
+    )
+    if static_factory_dispatch is not None:
+        return static_factory_dispatch
+
     char_string_append = _char_string_append_dispatch_overload(
         members,
         cfg=cfg,
@@ -1105,6 +1130,215 @@ def _char_string_append_overload_stubs(
             emit_type_hints=cfg.emit_type_hints,
         )
         lines.append(f"    {signature}: ...")
+    return lines
+
+
+def _static_object_name_factory_dispatch_overload(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
+) -> list[str] | None:
+    """Emit typing overload stubs plus one dispatcher for JMX ObjectName factories."""
+    if len(members) < 2:
+        return None
+    if any(member.type != "method_declaration" for member in members):
+        return None
+    if any(member_python_name(member) != "get_instance" for member in members):
+        return None
+    if any("static" not in _modifiers(member) for member in members):
+        return None
+    if any(method_return_type(member, cfg) != "ObjectName" for member in members):
+        return None
+
+    params_by_member = [parameter_infos(member, cfg) for member in members]
+    if any(any(param.is_spread for param in params) for params in params_by_member):
+        return None
+    if not _has_object_name_factory_shape(params_by_member):
+        return None
+
+    for member in members:
+        diagnostics.record(
+            member,
+            supported=True,
+            reason="translated ObjectName static factory overload via arity dispatch",
+        )
+
+    lines = _static_object_name_overload_stubs(members, cfg, diagnostics)
+    lines.append("    @staticmethod  # type: ignore[misc]")
+    lines.append("    def get_instance(*args: object) -> ObjectName:")
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        lines.append("")
+
+    ordered = sorted(
+        zip(members, params_by_member, strict=True),
+        key=lambda item: _object_name_member_sort_key(item[0], cfg),
+    )
+    for member, params in ordered:
+        arity = len(params)
+        names = [param.py_name for param in params]
+        condition = f"len(args) == {arity}"
+        if arity == 1 and _java_simple_type(params[0].java_type) == "String":
+            condition += " and isinstance(args[0], str)"
+        lines.append(f"        if {condition}:")
+        if arity == 1:
+            lines.append(f"            {names[0]} = args[0]")
+        else:
+            lines.append(f"            {', '.join(names)} = args")
+        lines.extend(
+            _translate_static_overload_branch_body(
+                member,
+                cfg=cfg,
+                diagnostics=diagnostics,
+                containing_class_name=containing_class_name,
+                class_fields=class_fields,
+                class_field_types=class_field_types,
+                class_field_java_types=class_field_java_types,
+                declared_type_fields=declared_type_fields,
+                declared_type_java_fields=declared_type_java_fields,
+                class_methods=class_methods,
+                class_static_methods=class_static_methods,
+                enclosing_static_dispatch=enclosing_static_dispatch,
+                class_method_return_types=class_method_return_types,
+                static_field_aliases=static_field_aliases,
+                static_method_imports=static_method_imports,
+                name_resolver=name_resolver,
+                class_state=class_state,
+                inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+                nested_class_names=nested_class_names or set(),
+                indent="            ",
+            ),
+        )
+    lines.append('        raise TypeError("ObjectName.getInstance overload dispatch failed")')
+    return lines
+
+
+def _has_object_name_factory_shape(params_by_member: list[list[ParameterInfo]]) -> bool:
+    signatures = {
+        tuple(_java_simple_type(param.java_type) for param in params) for params in params_by_member
+    }
+    required = {
+        ("Object",),
+        ("String",),
+        ("String", "String", "String"),
+        ("String", "Hashtable"),
+    }
+    return required.issubset(signatures)
+
+
+def _static_object_name_overload_stubs(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.imports.need_typing("overload")
+    lines: list[str] = []
+    for member in sorted(members, key=lambda item: _object_name_member_sort_key(item, cfg)):
+        lines.append("    @staticmethod")
+        lines.append("    @overload")
+        params = parameter_infos(member, cfg)
+        if cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation("ObjectName")
+            for param in params:
+                diagnostics.imports.need_type_annotation(param.py_type)
+        signature = render_method_signature(
+            "get_instance",
+            params,
+            return_type="ObjectName",
+            include_self=False,
+            emit_type_hints=cfg.emit_type_hints,
+        )
+        lines.append(f"    {signature}: ...")
+    return lines
+
+
+def _object_name_member_sort_key(member: JavaNode, cfg: TranslationConfig) -> tuple[int, int]:
+    params = parameter_infos(member, cfg)
+    if len(params) == 1 and _java_simple_type(params[0].java_type) == "String":
+        return (1, 0)
+    if len(params) == 1 and _java_simple_type(params[0].java_type) == "Object":
+        return (1, 1)
+    return (len(params), 0)
+
+
+def _translate_static_overload_branch_body(
+    member: JavaNode,
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    class_state: ClassTranslationState | None,
+    inner_class_names_requiring_outer: set[str],
+    nested_class_names: set[str],
+    indent: str,
+) -> list[str]:
+    name_node = member.child_by_field("name")
+    java_name = name_node.text if name_node is not None else ""
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=dict(enclosing_static_dispatch),
+        class_field_types=dict(class_field_types),
+        class_field_java_types=dict(class_field_java_types),
+        declared_type_fields=dict(declared_type_fields),
+        declared_type_java_fields=dict(declared_type_java_fields),
+        class_method_return_types=dict(class_method_return_types),
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
+        allow_local_helpers=True,
+        static_dispatch_methods={java_name} if java_name else set(),
+        static_dispatch_class_name=containing_class_name,
+        class_state=class_state,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        containing_class_name=containing_class_name,
+        nested_class_names=nested_class_names,
+    )
+    ctx.in_instance_method = False
+    for param in parameter_infos(member, cfg):
+        register_param(ctx, param)
+    body = method_body(member)
+    body_lines = translate_body(body, ctx, indent=indent) if body else [f"{indent}pass"]
+    if not ctx.pending_local_helpers:
+        return body_lines
+    lines: list[str] = []
+    for helper in ctx.pending_local_helpers:
+        lines.extend(helper)
+        lines.append("")
+    lines.extend(body_lines)
     return lines
 
 
