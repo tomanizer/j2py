@@ -10,6 +10,7 @@ from pathlib import Path
 
 from j2py.translate.runtime.j2py_runtime import (
     Comparator,
+    Consumer,
     MalformedObjectNameException,
     ObjectName,
     __j2py_todo__,
@@ -31,6 +32,7 @@ __all__ = [
     "RUNTIME_MODULE_NAME",
     "RUNTIME_TODO_IMPORT_LINE",
     "Comparator",
+    "Consumer",
     "MalformedObjectNameException",
     "ObjectName",
     "__j2py_todo__",

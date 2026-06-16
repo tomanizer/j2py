@@ -168,7 +168,7 @@ IMPORT_MAP: dict[str, str] = {
     "java.util.Iterator": "from typing import Iterator",
     "java.util.function.Function": "from typing import Callable",
     "java.util.function.Predicate": "from typing import Callable",
-    "java.util.function.Consumer": "from typing import Callable",
+    "java.util.function.Consumer": "from j2py_runtime import Consumer",
     "java.util.function.Supplier": "from typing import Callable",
     "java.util.stream.Collectors": "",  # handled inline
     "java.io.IOException": "",  # maps to OSError (builtin)
