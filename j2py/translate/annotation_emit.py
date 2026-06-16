@@ -59,7 +59,12 @@ def annotation_comment_lines(
 ) -> list[str]:
     if not cfg.emit_line_comments:
         return []
-    return [f"{indent}# {annotation.text.strip()}" for annotation in annotation_nodes(node)]
+    lines: list[str] = []
+    for annotation in annotation_nodes(node):
+        for line in annotation.text.strip().splitlines():
+            stripped = line.strip()
+            lines.append(f"{indent}# {stripped}" if stripped else f"{indent}#")
+    return lines
 
 
 def record_annotation_diagnostics(

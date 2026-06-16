@@ -108,6 +108,44 @@ def test_unknown_annotation_keeps_unsupported_reason() -> None:
     assert_valid_python(result.source)
 
 
+def test_multiline_annotation_emits_commented_lines() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Annotated {
+            @SuppressWarnings({
+                "unchecked",
+                "rawtypes"
+            })
+            private String value;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "# @SuppressWarnings({" in result.source
+    assert '# "unchecked",' in result.source
+    assert '# "rawtypes"' in result.source
+    assert "# })" in result.source
+    assert_valid_python(result.source)
+
+
+def test_nested_empty_annotated_class_emits_pass() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Outer {
+            @SuppressWarnings("serial")
+            private static class EarlyExitException extends RuntimeException {
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "class EarlyExitException(RuntimeException):" in result.source
+    assert "    pass" in result.source
+    assert_valid_python(result.source)
+
+
 def test_method_framework_annotation_uses_stripped_reason() -> None:
     result = translate_source_with_diagnostics(
         """
