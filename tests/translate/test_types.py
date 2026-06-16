@@ -8,6 +8,7 @@ from j2py.translate.rules.types import (
     is_api_get_receiver_type,
     is_map_like_type,
     is_var_type,
+    static_factory_return_type,
     translate_type,
 )
 
@@ -108,6 +109,7 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
         ("AtomicLongArray", True),
         ("java.util.concurrent.atomic.AtomicReferenceArray[object]", True),
         ("CustomizerRegistry", True),
+        ("MergedAnnotations", True),
         ("Field", True),
         ("BeanPropertyWriter", True),
         ("Calendar", True),
@@ -121,3 +123,20 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
 )
 def test_is_api_get_receiver_type(py_type: str, expected: bool) -> None:
     assert is_api_get_receiver_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("receiver_name", "method_name", "expected"),
+    [
+        ("MergedAnnotations", "from", "MergedAnnotations"),
+        ("org.springframework.core.annotation.MergedAnnotations", "from", "MergedAnnotations"),
+        ("UnknownFactory", "from", None),
+        ("MergedAnnotations", "of", None),
+    ],
+)
+def test_static_factory_return_type(
+    receiver_name: str,
+    method_name: str,
+    expected: str | None,
+) -> None:
+    assert static_factory_return_type(receiver_name, method_name) == expected
