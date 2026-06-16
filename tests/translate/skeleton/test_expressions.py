@@ -2683,6 +2683,24 @@ def test_local_var_assignment_in_not_operand_becomes_walrus() -> None:
     assert_valid_python(src)
 
 
+def test_length_field_on_assignment_lhs_is_not_rewritten_to_len_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ByteBuffer {
+            private int length;
+
+            public ByteBuffer(int n) {
+                this.length = n;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.length = n" in src
+    assert "len(self) = " not in src
+    assert_valid_python(src)
+
+
 def test_compound_assign_in_method_argument_is_hoisted() -> None:
     result = translate_source_with_diagnostics(
         """

@@ -86,6 +86,24 @@ def _desugar_update_in_expr(node: JavaNode, ctx: TranslationContext) -> str:
         return f"({target} - {delta})"  # delta=1 for ++, -1 for --
 
 
+def _translate_assignment_lhs(node: JavaNode, ctx: TranslationContext) -> str:
+    """Translate the left-hand side of an assignment, skipping read-only shorthands.
+
+    ``_translate_field_access`` converts ``.length`` to ``len(target)``, which is
+    correct for reads but produces an un-assignable call expression on the LHS.
+    For field-access LHS nodes with a ``.length`` field we fall back to a plain
+    attribute reference so the assignment is valid Python.
+    """
+    if node.type == "field_access":
+        children = node.named_children
+        if children and children[-1].text == "length":
+            target = translate_expression(children[0], ctx)
+            from j2py.translate.rules.naming import translate_field_name
+            field = translate_field_name("length", snake_case=ctx.cfg.snake_case_fields)
+            return f"{target}.{field}"
+    return translate_expression(node, ctx)
+
+
 def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) -> str:
     children = node.children
     if len(children) >= 3:
@@ -127,7 +145,7 @@ def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) ->
                 ),
             )
             return f"{left} = _j2py_idiv({left}, {right})"
-        left = translate_expression(left_node, ctx)
+        left = _translate_assignment_lhs(left_node, ctx)
         right = translate_expression(right_node, ctx)
         return f"{left} {operator} {right}"
 

@@ -1642,7 +1642,7 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "guava/src/com/google/common/collect/RegularImmutableSortedMultiset.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 2,
       "unhandled_node_types": "import_declaration:2",
       "unhandled_reasons": "unknown static import com.google.common.base.Preconditions.checkPositionIndexes:1;unknown static import com.google.common.collect.BoundType.CLOSED:1",
@@ -3246,7 +3246,7 @@
     "files_with_unhandled": 56,
     "full_coverage_files": 144,
     "parse_success_rate": 0.99,
-    "syntax_success_rate": 0.99,
+    "syntax_success_rate": 0.995,
     "top_unhandled_node_types": [
       [
         "import_declaration",
