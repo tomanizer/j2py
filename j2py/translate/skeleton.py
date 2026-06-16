@@ -11,10 +11,7 @@ from j2py.translate.class_fields import (
     _collect_declared_type_fields,
     _collect_declared_type_java_fields,
 )
-from j2py.translate.class_interfaces import (
-    interface_conflicted_type_var_names,
-    interface_type_var_declaration_lines,
-)
+from j2py.translate.class_interfaces import interface_type_var_plan
 from j2py.translate.class_methods import collect_declared_type_method_return_types
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
@@ -85,7 +82,7 @@ def translate_skeleton_with_diagnostics(
         cfg,
     )
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
-    conflicted_type_vars = interface_conflicted_type_var_names(parsed.root, cfg)
+    type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
     for class_node in parsed.root.named_children:
@@ -111,12 +108,10 @@ def translate_skeleton_with_diagnostics(
                     module_declared_type_method_return_types
                 ),
                 file_class_static_methods=file_class_static_methods,
-                conflicted_type_vars=conflicted_type_vars,
+                interface_type_var_maps=type_var_plan.interface_type_var_maps,
             )
         )
         pending_docstring = None
-
-    type_var_lines = interface_type_var_declaration_lines(parsed.root, cfg, diagnostics)
 
     lines = ["from __future__ import annotations"]
     import_lines = _import_lines(parsed, cfg, diagnostics, static_import_todos)
@@ -125,8 +120,8 @@ def translate_skeleton_with_diagnostics(
         lines.extend(import_lines)
     lines.extend(["", ""])
 
-    if type_var_lines:
-        lines.extend(type_var_lines)
+    if type_var_plan.declaration_lines:
+        lines.extend(type_var_plan.declaration_lines)
         lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):

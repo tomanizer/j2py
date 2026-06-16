@@ -27,6 +27,7 @@ def nested_type_lines(
     outer_capture_names: set[str] | None = None,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
+    interface_type_var_maps: dict[tuple[int, int, int, int, str], dict[str, str]] | None = None,
 ) -> list[str]:
     if body is None:
         return []
@@ -71,6 +72,7 @@ def nested_type_lines(
             ),
             file_class_static_methods=file_class_static_methods,
             enclosing_static_dispatch=enclosing_static_dispatch,
+            interface_type_var_maps=interface_type_var_maps,
         )
         pending_docstring = None
         lines.extend(f"    {line}" if line else line for line in child_lines)

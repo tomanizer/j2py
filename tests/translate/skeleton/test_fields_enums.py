@@ -419,12 +419,12 @@ def test_conflicting_variance_interfaces_get_distinct_type_vars() -> None:
     )
 
     assert result.coverage == 1.0
-    assert 'T_co = TypeVar("T_co", covariant=True)' in result.source
-    assert 'T_contra = TypeVar("T_contra", contravariant=True)' in result.source
-    assert "class Producer(Protocol[T_co]):" in result.source
-    assert "class Sink(Protocol[T_contra]):" in result.source
-    assert "def get(self) -> T_co: ..." in result.source
-    assert "def put(self, value: T_contra) -> None: ..." in result.source
+    assert 'ProducerT = TypeVar("ProducerT", covariant=True)' in result.source
+    assert 'SinkT = TypeVar("SinkT", contravariant=True)' in result.source
+    assert "class Producer(Protocol[ProducerT]):" in result.source
+    assert "class Sink(Protocol[SinkT]):" in result.source
+    assert "def get(self) -> ProducerT: ..." in result.source
+    assert "def put(self, value: SinkT) -> None: ..." in result.source
     assert not result.diagnostics.unhandled
     assert_validated_python(result.source)
 
@@ -460,6 +460,47 @@ def test_mixed_generic_interface_type_var_is_invariant() -> None:
     assert 'T = TypeVar("T")' in result.source
     assert 'T = TypeVar("T",' not in result.source
     assert "class Box(Protocol[T]):" in result.source
+    assert not result.diagnostics.unhandled
+    assert_validated_python(result.source)
+
+
+def test_empty_generic_marker_interface_type_var_is_covariant() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public interface Marker<T> {
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'T = TypeVar("T", covariant=True)' in result.source
+    assert "class Marker(Protocol[T]):" in result.source
+    assert not result.diagnostics.unhandled
+    assert_validated_python(result.source)
+
+
+def test_method_type_parameter_shadows_remapped_interface_type_parameter() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public interface Producer<T> {
+            T get();
+            default <T> T identity(T value) {
+                return value;
+            }
+        }
+
+        interface Sink<T> {
+            void put(T value);
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'ProducerT = TypeVar("ProducerT", covariant=True)' in result.source
+    assert 'T = TypeVar("T")' in result.source
+    assert "class Producer(Protocol[ProducerT]):" in result.source
+    assert "def get(self) -> ProducerT: ..." in result.source
+    assert "def identity(self, value: T) -> T:" in result.source
     assert not result.diagnostics.unhandled
     assert_validated_python(result.source)
 

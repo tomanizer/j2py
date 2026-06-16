@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from j2py.config.loader import TranslationConfig
@@ -109,6 +110,7 @@ def translate_method(
     def_line_suffix: str = "",
     supported_reason: str | None = None,
     docstring_lines: list[str] | None = None,
+    type_var_map: dict[str, str] | None = None,
 ) -> list[str]:
     name_node = node.child_by_field("name")
     raw_name = name_node.text if name_node is not None else "unknown"
@@ -144,9 +146,11 @@ def translate_method(
     ctx.in_method = True
     try:
         method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
+        if type_var_map:
+            method_return_type = _map_type_vars(method_return_type, type_var_map)
         if ctx.cfg.emit_type_hints:
             ctx.diagnostics.imports.need_type_annotation(method_return_type)
-        params = params_for_method(node, ctx)
+        params = params_for_method(node, ctx, type_var_map=type_var_map)
         injected_params = _render_extra_params(ctx, extra_params or [])
         params = injected_params + params
         if not is_static:
@@ -319,9 +323,22 @@ def _recover_error_parameter_info(node: JavaNode, cfg: TranslationConfig) -> Par
     )
 
 
-def params_for_method(node: JavaNode, ctx: TranslationContext) -> list[str]:
+def params_for_method(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    type_var_map: dict[str, str] | None = None,
+) -> list[str]:
     params: list[str] = []
     for param in parameter_infos(node, ctx.cfg):
+        if type_var_map:
+            param = ParameterInfo(
+                raw_name=param.raw_name,
+                py_name=param.py_name,
+                py_type=_map_type_vars(param.py_type, type_var_map),
+                java_type=param.java_type,
+                is_spread=param.is_spread,
+            )
         register_param(ctx, param)
         prefix = "*" if param.is_spread else ""
         if ctx.cfg.emit_type_hints:
@@ -330,6 +347,13 @@ def params_for_method(node: JavaNode, ctx: TranslationContext) -> list[str]:
         else:
             params.append(f"{prefix}{param.py_name}")
     return params
+
+
+def _map_type_vars(py_type: str, type_var_map: dict[str, str]) -> str:
+    result = py_type
+    for source, target in type_var_map.items():
+        result = re.sub(rf"\b{re.escape(source)}\b", target, result)
+    return result
 
 
 def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
