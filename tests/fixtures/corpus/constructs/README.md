@@ -31,6 +31,7 @@ under-covered or challenging for deterministic translation.
 | InterfaceDefaults.java      | Interface `default` methods, `static` methods on interfaces | Interface default + static methods (#48) |
 | LineCommentInExpression.java | Line comments inside array initializers/expression lists | Line comments in expression contexts (#286) |
 | SealedClasses.java          | `sealed` interfaces, `permits`, `non-sealed`, records as permitted types | Sealed classes |
+| StaticFactoryGetChain.java  | Static factory receiver typing before chained `.get(...)` | Static factory `.get(...)` disambiguation (#306) |
 | SuperMethodCalls.java       | `super.method(...)` as statement and return-expression receiver | Super method receiver calls |
 | SwitchFallthrough.java      | Intentional fall-through (colon style), complex blocks, switch expressions | Improved switch fall-through + complex rules (#51) |
 | TextBlocks.java             | Text blocks with indentation stripping, formatting, `.formatted()`, escapes | Text blocks (#49) |
