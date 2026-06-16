@@ -103,6 +103,10 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
 @pytest.mark.parametrize(
     ("py_type", "expected"),
     [
+        ("ByteBuffer", True),
+        ("java.nio.ByteBuffer", True),
+        ("AtomicLongArray", True),
+        ("java.util.concurrent.atomic.AtomicReferenceArray[object]", True),
         ("Field", True),
         ("BeanPropertyWriter", True),
         ("Calendar", True),

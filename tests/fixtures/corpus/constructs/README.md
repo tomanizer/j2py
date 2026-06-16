@@ -22,6 +22,7 @@ under-covered or challenging for deterministic translation.
 | AdvancedStreams.java        | flatMap, reduce, groupingBy+downstream, block lambdas in streams, long chains | Advanced streams |
 | AnonymousAndInner.java      | Anonymous classes (expression + stateful), local classes, non-static inner classes with capture | Anonymous + sophisticated inner classes (#50) |
 | AmbiguousGetProbe.java      | Calendar API `.get(...)`, list indexing `.get(...)`, map `.get(...)` | Non-collection `.get(...)` disambiguation (#288) |
+| ApiGetReceivers.java        | ByteBuffer and atomic-array API `.get(...)` receivers | JDK API `.get(...)` receivers (#305) |
 | ArrayTypeClassLiteral.java  | Array type class literals in runtime class comparisons | Array type class literals (#287) |
 | ComplexRecords.java         | Records with compact constructor (validation), custom accessors, static factories, implementing interfaces | Records (modern Java completeness) |
 | EnumConstantClassBody.java  | Enum constants with anonymous class bodies overriding abstract methods | Enum constant class bodies (#157) |

@@ -1097,6 +1097,42 @@ def test_calendar_get_is_api_call() -> None:
     assert_valid_python(result.source)
 
 
+def test_buffer_and_atomic_get_receivers_are_api_calls() -> None:
+    """ByteBuffer and atomic-array get(index) calls are API methods."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.nio.ByteBuffer;
+        import java.util.concurrent.atomic.AtomicLongArray;
+        import java.util.concurrent.atomic.AtomicReferenceArray;
+
+        public class Calls {
+            private ByteBuffer byteBuffer;
+            private AtomicLongArray counts;
+
+            public byte byteAt(int index) {
+                return this.byteBuffer.get(index);
+            }
+
+            public long countAt(int index) {
+                return this.counts.get(index);
+            }
+
+            public Object valueAt(AtomicReferenceArray<Object> values, int index) {
+                return values.get(index);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.byte_buffer.get(index)" in result.source
+    assert "return self.counts.get(index)" in result.source
+    assert "return values.get(index)" in result.source
+    assert "byte_buffer[index]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(
