@@ -7,6 +7,16 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.5.0b1 - 2026-06-16
+
+First beta pre-release. Feature set and rule-layer breadth are largely in place for
+reviewable multi-file translation, but correctness gaps remain — see **Known limitations**
+below. Closes the beta-readiness checklist ([#268](https://github.com/tomanizer/j2py/issues/268)).
+
+### Changed
+- PyPI trove classifier `Development Status :: 3 - Alpha` → `4 - Beta`.
+- Exclude `.cursor/**` from source distributions so tracked agent skill docs do not ship on PyPI.
+
 ### Added
 - End-to-end **case study** translating the multi-file Apache Commons Lang
   `org.apache.commons.lang3.tuple` package (6 files) with rule-layer-only output, linked
@@ -49,6 +59,30 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   diagnostics or `__j2py_todo__` placeholders (#286).
 - `Calendar.get(...)` now stays a Java API method call instead of being reported as an
   ambiguous collection `.get(...)` invocation (#288).
+
+### Known limitations
+
+The multi-file Commons Lang `tuple` case study ([docs/CASE_STUDY.md](docs/CASE_STUDY.md))
+translates at 100% node coverage with zero `__j2py_todo__` markers, yet end-to-end
+execution surfaced correctness gaps that coverage alone cannot see. The following remain
+open at this release:
+
+- **Static field reads inside methods** are emitted as bare names instead of
+  class-qualified references (`return NULL` vs `return ImmutablePair.NULL`) — #322.
+- **Bitwise `|`, `&`, and `^` with comparison operands** can drop Java precedence when
+  lowered to Python (`!=` tighter than `|` in Java; `|` tighter than `is not` in Python)
+  — #323.
+- **`cast()` to a generic translated class** evaluates a subscripted type at runtime;
+  translated classes without `Generic[...]` / `__class_getitem__` raise `TypeError` — #324.
+- **Cross-file base⇄derived class hierarchies** can form circular imports when a base
+  factory delegates to a concrete subclass and the subclass extends the base (e.g.
+  `Pair` ↔ `ImmutablePair`). Directory translation emits eager module-level imports on
+  both edges; multi-file inheritance projects may need manual import fixups until
+  function-local sibling imports land — #325.
+
+Multi-file translation is **not** flawless at beta: the case study harness links modules
+into a single namespace to exercise the output; that is test scaffolding, not a general
+import fix.
 
 ## 0.4.0a1 - 2026-06-15
 

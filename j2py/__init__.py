@@ -1,3 +1,3 @@
 """j2py — Java to Python source converter."""
 
-__version__ = "0.4.0a1"
+__version__ = "0.5.0b1"
