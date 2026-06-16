@@ -225,6 +225,7 @@ def build_report(baseline_dir: Path) -> HotspotReport:
                 "files_with_unhandled": summary["files_with_unhandled"],
                 "full_coverage_files": summary["full_coverage_files"],
                 "coverage_file_count": summary.get("coverage_file_count", 0),
+                "enterprise": summary.get("enterprise") or {},
             },
         )
 
@@ -298,12 +299,20 @@ def print_report(report: HotspotReport, *, top: int) -> None:
     print("CORPUS SCORECARD (committed baselines)")
     print("=" * 72)
     for summary in sorted(report.corpus_summaries, key=lambda item: item["preset"]):
-        print(
+        line = (
             f"{summary['preset']:22} cov={_format_pct(summary['average_coverage'])}  "
             f"syntax={_format_pct(summary['syntax_success_rate'])}  "
             f"unhandled_files={summary['files_with_unhandled']:3}/{summary['files_scanned']:<3}  "
-            f"full_cov={summary['full_coverage_files']}/{summary['coverage_file_count']}",
+            f"full_cov={summary['full_coverage_files']}/{summary['coverage_file_count']}"
         )
+        enterprise = summary.get("enterprise") or {}
+        if enterprise:
+            line += (
+                f"  bodies={enterprise.get('method_body_file_rate', 0):.0%}"
+                f" stubs={enterprise.get('annotation_only_stub_rate', 0):.0%}"
+                f" ann_warn={enterprise.get('total_annotation_warnings', 0)}"
+            )
+        print(line)
 
     print("\n" + "=" * 72)
     print("SYNTAX FAILURES (parse ok, generated Python invalid)")

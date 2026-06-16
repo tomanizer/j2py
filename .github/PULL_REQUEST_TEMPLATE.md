@@ -46,5 +46,5 @@ Skip if this PR does not change `j2py/translate/` or corpus baselines.
 - [ ] `make corpus-spring-dense-check` run when construct-mix behavior may shift
 - [ ] `make corpus-hotspots` (required when any `tests/fixtures/corpus/*-baseline.json` changed)
 
-CI runs every committed dense baseline (`spring-dense`, `guava-dense`,
+CI runs every committed dense baseline (`spring-dense`, `spring-app-dense`, `guava-dense`,
 `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.

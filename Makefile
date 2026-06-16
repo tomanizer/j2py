@@ -2,6 +2,7 @@
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
+	corpus-spring-app-dense corpus-spring-app-dense-check corpus-spring-app-dense-update-baseline \
 	corpus-guava-dense corpus-guava-dense-check corpus-guava-dense-update-baseline \
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
@@ -186,6 +187,15 @@ corpus-spring-dense-update-baseline:  ## Regenerate the spring-dense + construct
 
 corpus-spring-broad:  ## Exploratory spring-context sample + constructs (no committed baseline)
 	$(CORPUS) --preset spring-broad
+
+corpus-spring-app-dense:  ## Run spring-app-dense REST/JPA/transactional samples without baseline comparison
+	$(CORPUS) --preset spring-app-dense
+
+corpus-spring-app-dense-check:  ## Compare spring-app-dense against its baseline
+	$(CORPUS) --preset spring-app-dense --compare-baseline --fail-on-regression
+
+corpus-spring-app-dense-update-baseline:  ## Regenerate the spring-app-dense baseline intentionally
+	$(CORPUS) --preset spring-app-dense --update-baseline
 
 corpus-guava-dense:  ## Run the Guava dense corpus without baseline comparison
 	$(CORPUS) --preset guava-dense

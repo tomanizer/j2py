@@ -15,6 +15,7 @@ from j2py.translate.name_resolution import (
 )
 from j2py.translate.rules.imports import java_import_policy
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+from tests.conftest import CORPUS_CONSTRUCT_FIXTURES
 from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_with_diagnostics
 
 
@@ -25,19 +26,19 @@ from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_wit
         (
             "java.util.Comparator",
             "Comparator",
-            ("from typing import Protocol as Comparator",),
+            ("from j2py_runtime import Comparator",),
             "platform_placeholder",
         ),
         (
             "javax.management.ObjectName",
             "ObjectName",
-            ("from typing import Any as ObjectName",),
+            ("from j2py_runtime import ObjectName",),
             "platform_placeholder",
         ),
         (
             "javax.management.MalformedObjectNameException",
             "MalformedObjectNameException",
-            ("from typing import Any as MalformedObjectNameException",),
+            ("from j2py_runtime import MalformedObjectNameException",),
             "platform_placeholder",
         ),
         (
@@ -82,12 +83,12 @@ def test_platform_import_bindings_do_not_request_java_module_imports() -> None:
     assert bindings["Comparator"] == TypeBinding(
         raw_name="Comparator",
         python_name="Comparator",
-        import_line="from typing import Protocol as Comparator",
+        import_line="from j2py_runtime import Comparator",
         source="platform_placeholder",
     )
-    assert bindings["ObjectName"].import_line == "from typing import Any as ObjectName"
+    assert bindings["ObjectName"].import_line == "from j2py_runtime import ObjectName"
     assert bindings["MalformedObjectNameException"].import_line == (
-        "from typing import Any as MalformedObjectNameException"
+        "from j2py_runtime import MalformedObjectNameException"
     )
     assert bindings["NativeDetector"].source == "external_placeholder"
     assert bindings["ProjectType"] == TypeBinding(
@@ -129,8 +130,34 @@ def test_anonymous_comparator_fixture_has_no_bogus_platform_imports() -> None:
     assert "from java." not in result.source
     assert "from javax." not in result.source
     assert "from com.example.Integer import Integer" not in result.source
-    assert "from typing import Protocol as Comparator" in result.source
+    assert "from j2py_runtime import Comparator" in result.source
+    assert "class _J2pyAnonymous1:" in result.source
+    assert "class _J2pyAnonymous1(Comparator):" not in result.source
     assert "return (len(a) > len(b)) - (len(a) < len(b))" in result.source
+
+
+@pytest.mark.parametrize(
+    "fixture_path",
+    [
+        FIXTURES / "llm" / "AnonymousComparator.java",
+        CORPUS_CONSTRUCT_FIXTURES / "JdkComparatorAnonymousClass.java",
+    ],
+    ids=["AnonymousComparator", "JdkComparatorAnonymousClass"],
+)
+def test_comparator_anonymous_class_uses_runtime_protocol_without_subclassing(
+    fixture_path,
+) -> None:
+    parsed = parse_file(fixture_path)
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from j2py_runtime import Comparator" in result.source
+    assert "from java." not in result.source
+    assert "class _J2pyAnonymous1:" in result.source
+    assert "class _J2pyAnonymous1(Comparator):" not in result.source
+    assert "def compare(self, a: str, b: str) -> int:" in result.source
 
 
 def test_object_name_probe_has_no_bogus_platform_imports() -> None:
@@ -152,7 +179,7 @@ def test_object_name_probe_has_no_bogus_platform_imports() -> None:
     ast.parse(result.source)
     assert "from java." not in result.source
     assert "from javax." not in result.source
-    assert "from typing import Any as ObjectName" in result.source
-    assert "from typing import Any as MalformedObjectNameException" in result.source
+    assert "from j2py_runtime import ObjectName" in result.source
+    assert "from j2py_runtime import MalformedObjectNameException" in result.source
     assert "def get_instance(self, name: str) -> ObjectName:" in result.source
     assert "return ObjectName.get_instance(name)" in result.source
