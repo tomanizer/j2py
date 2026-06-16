@@ -1248,6 +1248,39 @@ def test_chained_declared_method_return_type_get_uses_indexing() -> None:
     assert_valid_python(result.source)
 
 
+def test_static_factory_get_chain_preserves_api_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.lang.annotation.Annotation;
+
+        public class StaticFactoryGetChain {
+            public Object lookup(Annotation annotation, Class<?> annotationType) {
+                return MergedAnnotations.from(annotation).get(annotationType);
+            }
+
+            static class MergedAnnotations {
+                static MergedAnnotations from(Annotation annotation) {
+                    return new MergedAnnotations();
+                }
+
+                MergedAnnotation get(Class<?> annotationType) {
+                    return new MergedAnnotation();
+                }
+            }
+
+            static class MergedAnnotation {
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return MergedAnnotations.from_(annotation).get(annotation_type)" in result.source
+    assert "MergedAnnotations.from_(annotation)[" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_unknown_chained_method_return_type_get_stays_ambiguous() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -1261,6 +1294,31 @@ def test_unknown_chained_method_return_type_get_stays_ambiguous() -> None:
 
     assert result.coverage < 1.0
     assert "mapping.get_attributes().get(attribute_index)" in result.source
+    assert result.diagnostics.unhandled[-1].reason == (
+        "ambiguous get invocation requires receiver collection type"
+    )
+    assert_valid_python(result.source)
+
+
+def test_unknown_static_factory_get_chain_stays_ambiguous() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class UnknownFactoryGetChain {
+            public Object lookup(Object annotationType) {
+                return UnknownFactory.from().get(annotationType);
+            }
+
+            static class UnknownFactory {
+                static UnknownFactory from() {
+                    return new UnknownFactory();
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "return UnknownFactory.from_().get(annotation_type)" in result.source
     assert result.diagnostics.unhandled[-1].reason == (
         "ambiguous get invocation requires receiver collection type"
     )

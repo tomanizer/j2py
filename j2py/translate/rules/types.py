@@ -172,6 +172,7 @@ API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
         "Field",
         "ForkJoinTask",
         "Future",
+        "MergedAnnotations",
         "Optional",
         "ScheduledFuture",
     },
@@ -197,6 +198,10 @@ MAP_RETURNING_METHOD_NAMES: frozenset[str] = frozenset(
         "loadAll",
     },
 )
+
+STATIC_FACTORY_METHOD_RETURN_TYPES: dict[tuple[str, str], str] = {
+    ("MergedAnnotations", "from"): "MergedAnnotations",
+}
 
 # Null-check helpers that return their first argument unchanged.
 NULL_PASS_THROUGH_METHOD_NAMES: frozenset[str] = frozenset(
@@ -239,6 +244,12 @@ def is_api_get_receiver_type(py_type: str) -> bool:
     if simple in API_GET_RECEIVER_SIMPLE_NAMES:
         return True
     return simple.endswith("Property") or simple.endswith("PropertyWriter")
+
+
+def static_factory_return_type(receiver_name: str, method_name: str) -> str | None:
+    """Return the explicit type for known static factory method calls."""
+    simple = type_simple_name(receiver_name)
+    return STATIC_FACTORY_METHOD_RETURN_TYPES.get((simple, method_name))
 
 
 def is_list_like_type(py_type: str) -> bool:

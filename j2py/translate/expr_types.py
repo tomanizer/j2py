@@ -14,6 +14,7 @@ from j2py.translate.rules.types import (
     is_list_like_type,
     is_map_like_type,
     return_type_from_function,
+    static_factory_return_type,
     translate_type,
     type_simple_name,
 )
@@ -173,6 +174,9 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         )
         if declared_return_type is not None:
             return declared_return_type
+        factory_return = static_factory_return_type(receiver_nodes[0].text, method_name)
+        if factory_return is not None:
+            return factory_return
 
     if method_name == "apply" and receiver_nodes:
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
