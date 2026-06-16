@@ -180,6 +180,7 @@ class TranslationContext:
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False
+    in_method: bool = False
     allow_local_helpers: bool = False
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
