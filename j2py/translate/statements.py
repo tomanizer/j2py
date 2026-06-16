@@ -262,7 +262,17 @@ def _translate_local_variable_declaration(
             ctx.diagnostics.imports.need_type_annotation(py_type)
         ctx.variable_types[raw_name] = py_type
         ctx.variable_java_types[raw_name] = java_type
-        value = translate_expression(value_node, ctx) if value_node else "None"
+        if value_node is None:
+            value = "None"
+        else:
+            inner_val = unwrap_parens(value_node)
+            if inner_val.type in {"assignment_expression", "update_expression"}:
+                from j2py.translate.expr_ops import _desugar_embedded_assign
+                value = _desugar_embedded_assign(inner_val, ctx)
+            else:
+                value = translate_expression(value_node, ctx)
+        pre = _flush_hoisted_pre_stmts(ctx, indent)
+        lines.extend(pre)
         if not ctx.cfg.emit_type_hints:
             lines.append(_with_expression_comments(f"{indent}{py_name} = {value}", ctx))
         elif value in {"[]", "{}", "set()"}:

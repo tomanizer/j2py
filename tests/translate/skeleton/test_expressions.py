@@ -2683,6 +2683,43 @@ def test_local_var_assignment_in_not_operand_becomes_walrus() -> None:
     assert_valid_python(src)
 
 
+def test_nested_assignment_in_assignment_rhs_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Queue {
+            private int size;
+            public int insertNext() {
+                int insertIndex = size += 1;
+                return insertIndex;
+            }
+        }
+        """,
+    )
+    src = result.source
+    assert "self.size += 1" in src
+    assert "insert_index = self.size" in src
+    assert_valid_python(src)
+
+
+def test_update_in_local_var_declaration_is_hoisted() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Agg {
+            private int i;
+            public int nextIndex() {
+                int index = i++;
+                return index;
+            }
+        }
+        """,
+    )
+    src = result.source
+    # post-increment hoisted; index gets the old value
+    assert "self.i += 1" in src
+    assert "index = " in src
+    assert_valid_python(src)
+
+
 def test_length_field_on_assignment_lhs_is_not_rewritten_to_len_call() -> None:
     result = translate_source_with_diagnostics(
         """

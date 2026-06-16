@@ -146,7 +146,11 @@ def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) ->
             )
             return f"{left} = _j2py_idiv({left}, {right})"
         left = _translate_assignment_lhs(left_node, ctx)
-        right = translate_expression(right_node, ctx)
+        inner_right = unwrap_parens(right_node)
+        if inner_right.type in _ASSIGN_OR_UPDATE:
+            right = _desugar_embedded_assign(inner_right, ctx)
+        else:
+            right = translate_expression(right_node, ctx)
         return f"{left} {operator} {right}"
 
     ctx.diagnostics.record(node, supported=False, reason="malformed assignment expression")
