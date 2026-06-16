@@ -23,6 +23,7 @@ class OuterThisCapture:
         _outer_self = self
 
         class _J2pyAnonymous1(Task):
+            # @Override
             def run(self) -> None:
                 print(_outer_self.name)
                 _outer_self.process()

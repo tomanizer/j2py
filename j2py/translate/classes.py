@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_emit import (
+    annotation_comment_lines,
+    record_annotation_diagnostics,
+)
 from j2py.translate.class_fields import (
     _class_field_java_types,
     _class_field_types,
@@ -217,9 +221,18 @@ def translate_class(
         nested_class_names=direct_nested_names,
         snake_case_fields=cfg.snake_case_fields,
     )
-    lines = [
+    record_annotation_diagnostics(
+        node,
+        cfg,
+        diagnostics,
+        target_kind="class",
+        target_name=class_name,
+    )
+    lines: list[str] = []
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.append(
         f"class {class_name}{base_suffix(node, diagnostics, resolver=resolver, scope=base_scope)}:",
-    ]
+    )
     if docstring_lines:
         lines.extend(docstring_lines)
     lines.extend(metadata_lines)
@@ -390,7 +403,16 @@ def _translate_record(
     for param in params:
         diagnostics.imports.need_type_annotation(param.py_type)
 
-    lines = ["@dataclass(frozen=True)", f"class {class_name}:"]
+    record_annotation_diagnostics(
+        node,
+        cfg,
+        diagnostics,
+        target_kind="class",
+        target_name=class_name,
+    )
+    lines: list[str] = []
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
     if docstring_lines:
         lines.extend(docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")

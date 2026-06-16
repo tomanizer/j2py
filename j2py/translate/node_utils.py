@@ -17,7 +17,13 @@ def direct_children_by_type(node: JavaNode, *types: str) -> list[JavaNode]:
 
 
 def class_body_needs_pass(lines: list[str]) -> bool:
-    class_body_lines = lines[1:]
+    class_header_index = next(
+        (index for index, line in enumerate(lines) if line.lstrip().startswith("class ")),
+        None,
+    )
+    if class_header_index is None:
+        return True
+    class_body_lines = lines[class_header_index + 1 :]
     if not class_body_lines:
         return True
     return all(not line.strip() or line.lstrip().startswith("#") for line in class_body_lines)
