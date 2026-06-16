@@ -134,14 +134,20 @@ def base_suffix(
     extra_bases: list[str] | None = None,
 ) -> str:
     bases: list[str] = []
+
+    def add_base(base: str) -> None:
+        if base not in bases:
+            bases.append(base)
+
     superclass = node.child_by_field("superclass")
     if superclass is not None:
         type_node = _superclass_type_node(superclass)
         if type_node is not None:
-            bases.append(_superclass_binding(type_node.text, diagnostics, resolver, scope))
-    bases.extend(extra_bases or [])
+            add_base(_superclass_binding(type_node.text, diagnostics, resolver, scope))
+    for base in extra_bases or []:
+        add_base(base)
     if "abstract" in _modifiers(node):
-        bases.append("ABC")
+        add_base("ABC")
     if not bases:
         return ""
     return f"({', '.join(bases)})"
