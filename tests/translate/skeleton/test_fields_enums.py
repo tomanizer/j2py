@@ -405,6 +405,30 @@ def test_multiple_generic_interfaces_share_one_type_var_declaration() -> None:
     assert_validated_python(result.source)
 
 
+def test_conflicting_variance_interfaces_get_distinct_type_vars() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public interface Producer<T> {
+            T get();
+        }
+
+        interface Sink<T> {
+            void put(T value);
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'T_co = TypeVar("T_co", covariant=True)' in result.source
+    assert 'T_contra = TypeVar("T_contra", contravariant=True)' in result.source
+    assert "class Producer(Protocol[T_co]):" in result.source
+    assert "class Sink(Protocol[T_contra]):" in result.source
+    assert "def get(self) -> T_co: ..." in result.source
+    assert "def put(self, value: T_contra) -> None: ..." in result.source
+    assert not result.diagnostics.unhandled
+    assert_validated_python(result.source)
+
+
 def test_producer_generic_interface_type_var_is_covariant() -> None:
     result = translate_source_with_diagnostics(
         """

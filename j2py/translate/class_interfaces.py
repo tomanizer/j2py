@@ -37,21 +37,48 @@ from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.statements import translate_body
 
 
+def interface_conflicted_type_var_names(root: JavaNode, cfg: TranslationConfig) -> frozenset[str]:
+    """Return Java type parameter names whose required variance conflicts across interfaces."""
+    by_name: dict[str, set[str]] = {}
+    for interface in _interface_declarations(root):
+        variances = _interface_type_param_variances(interface, cfg)
+        for type_param in _type_parameter_names(interface):
+            by_name.setdefault(type_param, set()).add(variances.get(type_param, "invariant"))
+        for method in _interface_methods(interface):
+            for type_param in _type_parameter_names(method):
+                by_name.setdefault(type_param, set()).add("invariant")
+    return frozenset(name for name, vs in by_name.items() if len(vs) > 1)
+
+
+def _type_var_py_name(java_name: str, variance: str, conflicted: frozenset[str]) -> str:
+    """Return the Python TypeVar name, adding a variance suffix when the name is conflicted."""
+    if java_name not in conflicted:
+        return java_name
+    if variance == "covariant":
+        return f"{java_name}_co"
+    if variance == "contravariant":
+        return f"{java_name}_contra"
+    return java_name
+
+
 def interface_type_var_declaration_lines(
     root: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
 ) -> list[str]:
     """Return module-level TypeVar declarations needed by translated interfaces."""
+    conflicted = interface_conflicted_type_var_names(root, cfg)
     declarations: dict[str, str] = {}
     for interface in _interface_declarations(root):
         variances = _interface_type_param_variances(interface, cfg)
         for type_param in _type_parameter_names(interface):
-            _register_type_var(declarations, type_param, variances.get(type_param, "invariant"))
-
+            variance = variances.get(type_param, "invariant")
+            py_name = _type_var_py_name(type_param, variance, conflicted)
+            declarations.setdefault(py_name, variance)
         for method in _interface_methods(interface):
             for type_param in _type_parameter_names(method):
-                _register_type_var(declarations, type_param, "invariant")
+                py_name = _type_var_py_name(type_param, "invariant", conflicted)
+                declarations.setdefault(py_name, "invariant")
 
     if declarations:
         diagnostics.imports.need_typing("TypeVar")
@@ -67,6 +94,7 @@ def translate_interface(
     static_method_imports: dict[str, str],
     name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
+    conflicted_type_vars: frozenset[str] | None = None,
 ) -> list[str]:
     from j2py.translate.class_nested import nested_type_lines
 
@@ -81,6 +109,15 @@ def translate_interface(
         else [child for child in body.named_children if child.type == "method_declaration"]
     )
     interface_type_params = _type_parameter_names(node)
+    conflicted = conflicted_type_vars or frozenset()
+    if interface_type_params and conflicted:
+        own_variances = _interface_type_param_variances(node, cfg)
+        _typevar_rename: dict[str, str] = {
+            p: _type_var_py_name(p, own_variances.get(p, "invariant"), conflicted)
+            for p in interface_type_params
+        }
+    else:
+        _typevar_rename = {}
     class_method_names = member_method_names(methods, cfg)
     class_static_method_names = member_static_method_names(methods, cfg)
     method_return_types = class_method_return_types(methods, cfg)
@@ -110,8 +147,9 @@ def translate_interface(
     lines: list[str] = []
     lines.extend(annotation_comment_lines(node, cfg))
     lines.extend(class_mapping.decorators)
+    py_type_params = [_typevar_rename.get(p, p) for p in interface_type_params]
     protocol_base = (
-        f"Protocol[{', '.join(interface_type_params)}]" if interface_type_params else "Protocol"
+        f"Protocol[{', '.join(py_type_params)}]" if py_type_params else "Protocol"
     )
     bases = [*class_mapping.bases, protocol_base]
     lines.append(f"class {class_name}({', '.join(bases)}):")
@@ -198,6 +236,9 @@ def translate_interface(
         lines.extend(method_annotation_decorator_lines(method, cfg, diagnostics, indent="    "))
         params = parameter_infos(method, cfg)
         method_return_type = return_type(method, cfg)
+        if _typevar_rename:
+            params = [_map_parameter_type(p, _typevar_rename) for p in params]
+            method_return_type = _map_type_vars(method_return_type, _typevar_rename)
         if cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(method_return_type)
             for param in params:

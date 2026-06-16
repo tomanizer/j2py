@@ -93,6 +93,7 @@ def translate_class(
     requires_outer_self: bool = False,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
+    conflicted_type_vars: frozenset[str] | None = None,
 ) -> list[str]:
     resolver = name_resolver or NameResolver.empty()
     if node.type == "interface_declaration":
@@ -106,6 +107,7 @@ def translate_class(
             static_method_imports=static_method_imports or {},
             name_resolver=resolver,
             docstring_lines=docstring_lines,
+            conflicted_type_vars=conflicted_type_vars,
         )
     if node.type == "enum_declaration":
         from j2py.translate.class_enums import translate_enum
