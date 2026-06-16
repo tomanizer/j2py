@@ -136,6 +136,21 @@ def test_list_field_add_still_lowers_to_append() -> None:
     assert "self.values.add(value)" not in src
 
 
+def test_overload_dispatch_probe_append_char_string_translates_cleanly() -> None:
+    parsed = parse_file(CFG_FIXTURES / "corpus" / "constructs" / "OverloadDispatchProbe.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import Self, overload" in result.source
+    assert "if isinstance(value, str) and len(value) == 1:" in result.source
+    assert "overloaded method append requires manual dispatch" not in {
+        diagnostic.reason for diagnostic in result.diagnostics.unhandled
+    }
+    assert "NotImplementedError" not in result.source
+
+
 # ---------------------------------------------------------------------------
 # Bug 4: Builtin-clash rename renames def but not call site
 # ---------------------------------------------------------------------------
