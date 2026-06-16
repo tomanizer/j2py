@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-import ast
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from j2py.translate.rules.imports import java_import_policy
+from j2py.translate.rules.imports import (
+    python_binding_from_import_map as _python_binding_from_import_map,
+)
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 
 if TYPE_CHECKING:
@@ -33,6 +36,9 @@ TypeBindingSource = Literal[
     "explicit_import",
     "drop_import",
     "import_map",
+    "java_lang_builtin",
+    "platform_placeholder",
+    "external_placeholder",
     "package",
     "compilation_unit",
 ]
@@ -252,22 +258,21 @@ def imported_type_bindings(
         if not imported_name:
             continue
         raw_name = imported_name.rsplit(".", 1)[-1]
-        if imported_name in cfg.drop_imports:
+        policy = java_import_policy(imported_name, cfg)
+        if policy is not None:
+            if policy.source == "import_map" and not policy.import_lines:
+                continue
+            import_line = (
+                "\n".join(policy.import_lines)
+                if policy.source in {"platform_placeholder", "external_placeholder"}
+                else ""
+            ) or None
             bindings[raw_name] = TypeBinding(
                 raw_name=raw_name,
-                python_name=translate_class_name(raw_name),
-                source="drop_import",
+                python_name=policy.python_name,
+                import_line=import_line,
+                source=policy.source,
             )
-            continue
-        mapped = cfg.import_map.get(imported_name)
-        if mapped is not None:
-            binding = python_binding_from_import_map(mapped)
-            if binding is not None:
-                bindings[raw_name] = TypeBinding(
-                    raw_name=raw_name,
-                    python_name=binding,
-                    source="import_map",
-                )
             continue
         py_name = translate_class_name(raw_name)
         package, _, _ = imported_name.rpartition(".")
@@ -280,24 +285,7 @@ def imported_type_bindings(
 
 
 def python_binding_from_import_map(import_text: str) -> str | None:
-    for line in import_text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            module = ast.parse(stripped)
-        except SyntaxError:
-            continue
-        if len(module.body) != 1:
-            continue
-        statement = module.body[0]
-        if isinstance(statement, ast.ImportFrom) and statement.names:
-            alias = statement.names[0]
-            return alias.asname or alias.name
-        if isinstance(statement, ast.Import) and statement.names:
-            alias = statement.names[0]
-            return alias.asname or alias.name.split(".", 1)[0]
-    return None
+    return _python_binding_from_import_map(import_text)
 
 
 def java_import_name(node: JavaNode) -> str:
