@@ -7,6 +7,7 @@ import re
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_methods import _IMMUTABLE_LITERAL_NODES
+from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
@@ -14,7 +15,7 @@ from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import java_default_value, translate_type
 
 _ANNOTATION_META_NAMES = frozenset(
     {"Target", "Retention", "Documented", "Inherited", "Repeatable", "Native"}
@@ -87,6 +88,31 @@ def translate_annotation_declaration(
                     )
                 )
                 continue
+            if member.type == "constant_declaration":
+                member_lines.extend(
+                    _translate_annotation_constant(
+                        member,
+                        cfg,
+                        diagnostics,
+                        static_field_aliases=static_field_aliases,
+                        static_method_imports=static_method_imports,
+                        name_resolver=name_resolver,
+                        containing_class_name=class_name,
+                    )
+                )
+                continue
+            if member.type in TYPE_DECLARATION_NODES:
+                member_lines.extend(
+                    _translate_annotation_nested_type(
+                        member,
+                        cfg,
+                        diagnostics,
+                        static_field_aliases=static_field_aliases,
+                        static_method_imports=static_method_imports,
+                        name_resolver=name_resolver,
+                    )
+                )
+                continue
             if is_comment(member):
                 diagnostics.warn(member, reason="preserved comment")
                 if cfg.emit_line_comments:
@@ -106,6 +132,81 @@ def translate_annotation_declaration(
 
     diagnostics.record(node, supported=True, reason="translated annotation type declaration")
     return lines
+
+
+def _translate_annotation_constant(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    containing_class_name: str,
+) -> list[str]:
+    type_node = _annotation_element_type_node(node)
+    if type_node is None:
+        diagnostics.record(node, supported=False, reason="malformed annotation constant")
+        return ["    # TODO(j2py): malformed annotation constant"]
+
+    py_type = translate_type(type_node.text, cfg)
+    annotation = f"ClassVar[{py_type}]"
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(annotation)
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        name_resolver=name_resolver,
+        containing_class_name=containing_class_name,
+    )
+    ctx.static_field_aliases = dict(static_field_aliases)
+    ctx.static_method_imports = dict(static_method_imports)
+
+    lines: list[str] = []
+    for declarator in node.children_by_type("variable_declarator"):
+        name_node = declarator.child_by_field("name")
+        if name_node is None:
+            continue
+        py_name = translate_field_name(name_node.text, snake_case=cfg.snake_case_fields)
+        value_node = declarator.child_by_field("value")
+        value = (
+            translate_expression(value_node, ctx)
+            if value_node is not None
+            else java_default_value(type_node.text)
+        )
+        if cfg.emit_type_hints:
+            lines.append(f"    {py_name}: {annotation} = {value}")
+        else:
+            lines.append(f"    {py_name} = {value}")
+
+    if not lines:
+        diagnostics.record(node, supported=False, reason="malformed annotation constant")
+        return ["    # TODO(j2py): malformed annotation constant"]
+
+    diagnostics.record(node, supported=True, reason="translated annotation constant")
+    return lines
+
+
+def _translate_annotation_nested_type(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    *,
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+) -> list[str]:
+    from j2py.translate.classes import translate_class
+
+    nested_lines = translate_class(
+        node,
+        cfg,
+        diagnostics,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+    )
+    return [f"    {line}" if line else line for line in nested_lines]
 
 
 def _annotation_node_name(annotation: JavaNode) -> str | None:

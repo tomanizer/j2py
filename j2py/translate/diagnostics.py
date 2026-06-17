@@ -260,6 +260,7 @@ _TYPING_ANNOTATION_NAMES = frozenset(
     {
         "Any",
         "Callable",
+        "ClassVar",
         "Iterable",
         "Iterator",
         "Optional",
