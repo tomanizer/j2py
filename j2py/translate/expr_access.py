@@ -154,15 +154,32 @@ def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> s
         return None
     receiver = _receiver_simple_name(children[0].text)
     field = children[-1].text
+    jdk_integral_constant = _jdk_integral_static_field_value(receiver, field)
+    if jdk_integral_constant is not None:
+        return jdk_integral_constant
     if receiver == "Math" and field == "PI":
         ctx.diagnostics.imports.need_math()
         return "math.pi"
     if receiver == "Math" and field == "E":
         ctx.diagnostics.imports.need_math()
         return "math.e"
-    if receiver == "Integer" and field == "MAX_VALUE":
-        return "2**31 - 1"
     return None
+
+
+def _jdk_integral_static_field_value(receiver: str, field: str) -> str | None:
+    if receiver == "Byte":
+        values = {"SIZE": "8", "BYTES": "1", "MIN_VALUE": "-128", "MAX_VALUE": "127"}
+    elif receiver == "Short":
+        values = {"SIZE": "16", "BYTES": "2", "MIN_VALUE": "-2**15", "MAX_VALUE": "2**15 - 1"}
+    elif receiver == "Integer":
+        values = {"SIZE": "32", "BYTES": "4", "MIN_VALUE": "-2**31", "MAX_VALUE": "2**31 - 1"}
+    elif receiver == "Long":
+        values = {"SIZE": "64", "BYTES": "8", "MIN_VALUE": "-2**63", "MAX_VALUE": "2**63 - 1"}
+    elif receiver == "Character":
+        values = {"SIZE": "16", "BYTES": "2", "MIN_VALUE": "0", "MAX_VALUE": "0xFFFF"}
+    else:
+        return None
+    return values.get(field)
 
 
 def _receiver_simple_name(raw_receiver: str) -> str:

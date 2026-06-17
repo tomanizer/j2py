@@ -2123,6 +2123,106 @@ def test_ambiguous_division_drops_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_integral_division_uses_method_return_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            private int divisor() {
+                return 2;
+            }
+
+            public int scale(int value) {
+                return value / divisor();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return value // self.divisor()" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_length_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int lengths(int[] values, String text) {
+                return values.length / text.length();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return len(values) // len(text)" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_jdk_integral_constant_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int words(int bitCount) {
+                return bitCount / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return bit_count // 64" in result.source
+    assert "Long.SIZE" not in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_nested_numeric_expression_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int words(int[] values) {
+                return (values.length - 1) / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (len(values) - 1) // 64" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_ordinal_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int bucket(Thread.State state) {
+                return state.ordinal() / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return state.ordinal() // 64" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
 def test_field_compound_integer_division_uses_truncating_helper() -> None:
     result = translate_source_with_diagnostics(
         """
