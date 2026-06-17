@@ -13,6 +13,8 @@ from j2py.translate.rules.naming import (
 )
 from j2py.translate.rules.types import (
     is_api_get_receiver_type,
+    is_indexed_predicate_get_receiver_java_type,
+    is_indexed_predicate_get_receiver_type,
     is_map_like_type,
     type_simple_name,
 )
@@ -221,7 +223,12 @@ def _translate_get_invocation(
     args: str,
     ctx: TranslationContext,
 ) -> str:
-    from j2py.translate.expr_types import _expression_py_type, _is_list_type, _is_this_receiver
+    from j2py.translate.expr_types import (
+        _expression_py_type,
+        _is_list_type,
+        _is_this_receiver,
+        _java_type_of_value,
+    )
 
     if len(arg_expressions) != 1:
         return f"{receiver}.get({args})"
@@ -244,6 +251,14 @@ def _translate_get_invocation(
         return f"{receiver}.get({args})"
     if receiver_type is not None and is_api_get_receiver_type(receiver_type):
         return f"{receiver}.get({args})"
+    if receiver_type is not None and is_indexed_predicate_get_receiver_type(receiver_type):
+        return f"{receiver}.get({args})"
+    if receiver_nodes:
+        java_receiver_type = _java_type_of_value(receiver_nodes[0], ctx)
+        if java_receiver_type is not None and is_indexed_predicate_get_receiver_java_type(
+            java_receiver_type,
+        ):
+            return f"{receiver}.get({args})"
     if raw_receiver.split(".")[-1][:1].isupper():
         return f"{receiver}.get({args})"
     ctx.diagnostics.record(

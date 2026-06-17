@@ -3091,17 +3091,17 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 4,
-      "coverage": 0.992,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 124,
+      "handled_count": 125,
       "method_body_count": 44,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/util/FluentBitSet.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 48
     },
     {
@@ -3333,10 +3333,6 @@
       ],
       [
         "unsupported anonymous class static field_declaration",
-        1
-      ],
-      [
-        "ambiguous get invocation requires receiver collection type",
         1
       ]
     ]
