@@ -33,6 +33,61 @@ def test_type_dispatch_overloads_emit_value_dispatcher() -> None:
     assert_valid_python(python_source)
 
 
+def test_value_dispatch_widens_int_arguments_to_float_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public String pick(double value) { return "float"; }
+            public String pick(String value) { return "str"; }
+            public String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "isinstance(args[0], (int, float)) and not isinstance(args[0], bool)" in python_source
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"]().run() == "float"  # type: ignore[index,operator]
+
+
+def test_static_value_dispatch_widens_int_arguments_to_float_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public static String pick(double value) { return "float"; }
+            public static String pick(String value) { return "str"; }
+            public static String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"].run() == "float"  # type: ignore[index,union-attr]
+
+
+def test_value_dispatch_prefers_int_over_float_for_integer_arguments() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public String pick(int value) { return "int"; }
+            public String pick(double value) { return "float"; }
+            public String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.index("isinstance(args[0], int)") < python_source.index(
+        "isinstance(args[0], (int, float))",
+    )
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"]().run() == "int"  # type: ignore[index,operator]
+
+
 def test_static_overloads_emit_value_dispatcher_with_staticmethod_wrapping() -> None:
     python_source, coverage = translate_source(
         """

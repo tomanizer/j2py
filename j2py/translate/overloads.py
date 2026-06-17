@@ -1183,17 +1183,21 @@ def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None
         return _DispatchGuard("str", 40, "isinstance({arg}, str)")
 
     erased = _erase_py_type(param.py_type).removeprefix("*")
-    base = erased.split(".", 1)[-1]
+    base = erased.split(".")[-1]
     if base == "bool":
         return _DispatchGuard("bool", 45, "isinstance({arg}, bool)")
     if base == "int":
         return _DispatchGuard(
             "int",
-            35,
+            36,
             "isinstance({arg}, int) and not isinstance({arg}, bool)",
         )
     if base == "float":
-        return _DispatchGuard("float", 35, "isinstance({arg}, float)")
+        return _DispatchGuard(
+            "float",
+            35,
+            "isinstance({arg}, (int, float)) and not isinstance({arg}, bool)",
+        )
     if base == "str":
         return _DispatchGuard("str", 40, "isinstance({arg}, str)")
     if base == "list":
