@@ -161,10 +161,10 @@ test-cov:  ## Run tests with coverage report
 
 test-ci-py311:  ## Run the Python 3.11 CI test leg: tests, coverage floors, and equivalence surface floor
 	mkdir -p corpus-reports
-	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
-	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
-	uv run python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
-	uv run python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --python 3.11 --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run --python 3.11 python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
+	uv run --python 3.11 python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
+	uv run --python 3.11 python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
 test-ci-py312:  ## Run the Python 3.12 CI test leg
 	uv run --python 3.12 --extra test pytest --tb=short -m "not behavior and not live_llm and not target_translation"

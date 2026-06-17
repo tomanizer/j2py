@@ -25,9 +25,11 @@ runs:
         prune-cache: false
     - name: Sync dev environment
       shell: bash
+      env:
+        EXTRAS: ${{ inputs.extras }}
       run: |
         args=(uv sync --locked --python "$(python -c 'import sys; print(sys.executable)')")
-        for extra in ${{ inputs.extras }}; do
+        for extra in $EXTRAS; do
           if [[ "$extra" != "none" ]]; then
             args+=(--extra "$extra")
           fi
