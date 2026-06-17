@@ -24,6 +24,13 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   `--llm-provider gemini` without the extra now reports the install command (#278).
 
 ### Fixed
+- Numeric `compare(byte/short/int/long)` overload families that erase to one Python
+  signature now collapse to a single method instead of emitting an impossible
+  manual-dispatch TODO: the difference form (`x - y`) and the explicit sign form
+  (`x < y ? -1 : 1`) are recognised as provably equivalent under unbounded Python `int`,
+  and the explicit sign form is kept as the representative. A group reduced to one member
+  is emitted as a plain method rather than a lone `@overloaded` registration, which would
+  raise an ambiguous-dispatch error at call time (#379).
 - Same-class static field reads in method bodies now qualify through the containing
   class, bitwise `|`/`&`/`^` operands preserve Java comparison precedence, and generic
   `typing.cast(...)` targets for translated classes are runtime-safe strings; the
