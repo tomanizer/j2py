@@ -10,7 +10,11 @@ from j2py.translate.expr_types import (
     _java_type_of_value,
 )
 from j2py.translate.expressions import translate_expression
-from j2py.translate.node_utils import first_child_by_type, unwrap_parens
+from j2py.translate.node_utils import (
+    first_child_by_type,
+    ternary_expression_operands,
+    unwrap_parens,
+)
 from j2py.translate.rules.literals import java_string_literal_value
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
@@ -258,25 +262,26 @@ def _translate_update_expression(node: JavaNode, ctx: TranslationContext) -> str
 
 
 def _translate_ternary_expression(node: JavaNode, ctx: TranslationContext) -> str:
-    children = node.named_children
-    if len(children) != 3:
+    operands = ternary_expression_operands(node)
+    if operands is None:
         ctx.diagnostics.record(node, supported=False, reason="malformed ternary expression")
         return f"__j2py_todo__({node.text!r})"
-    cond_inner = unwrap_parens(children[0])
+    condition_node, true_node, false_node = operands
+    cond_inner = unwrap_parens(condition_node)
     if cond_inner.type in _ASSIGN_OR_UPDATE:
         condition = _desugar_embedded_assign(cond_inner, ctx)
     else:
-        condition = translate_expression(children[0], ctx)
-    true_inner = unwrap_parens(children[1])
+        condition = translate_expression(condition_node, ctx)
+    true_inner = unwrap_parens(true_node)
     if true_inner.type in _ASSIGN_OR_UPDATE:
         if_true = _desugar_embedded_assign(true_inner, ctx)
     else:
-        if_true = translate_expression(children[1], ctx)
-    false_inner = unwrap_parens(children[2])
+        if_true = translate_expression(true_node, ctx)
+    false_inner = unwrap_parens(false_node)
     if false_inner.type in _ASSIGN_OR_UPDATE:
         if_false = _desugar_embedded_assign(false_inner, ctx)
     else:
-        if_false = translate_expression(children[2], ctx)
+        if_false = translate_expression(false_node, ctx)
     return f"{if_true} if {condition} else {if_false}"
 
 
