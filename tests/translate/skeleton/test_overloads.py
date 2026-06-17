@@ -572,3 +572,41 @@ def test_differing_non_comparison_bodies_do_not_collapse() -> None:
     assert coverage < 1.0
     assert "TODO(j2py): overloaded method pick requires manual dispatch" in python_source
     assert_valid_python(python_source)
+
+
+def test_comparison_collapse_tolerates_comments_braceless_if_and_parens() -> None:
+    # Robustness (review feedback on #379): the comparison-form recogniser must see through
+    # comment nodes, a braceless `if` consequence, and parenthesized expressions — these are
+    # all the same two sign-contract shapes, just spelled differently.
+    python_source, coverage = translate_source(
+        """
+        public class Cmp {
+            public static int compare(byte x, byte y) {
+                // narrow overload returns the difference form
+                return (x - y);
+            }
+            public static int compare(int x, int y) {
+                if (x == y) return 0;
+                return (x < y) ? -1 : 1;
+            }
+            public static int compare(long x, long y) {
+                if (x == y) {
+                    return 0;
+                }
+                return x < y ? -1 : 1;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("def compare(") == 1
+    assert "TODO(j2py): overloaded method compare" not in python_source
+    assert "NotImplementedError" not in python_source
+    assert_module_executes(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<cmp>", "exec"), namespace)
+    cmp = namespace["Cmp"]
+    assert cmp.compare(5, 2) > 0
+    assert cmp.compare(2, 5) < 0
+    assert cmp.compare(3, 3) == 0

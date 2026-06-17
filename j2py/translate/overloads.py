@@ -1573,7 +1573,7 @@ def _comparison_body_form(member: JavaNode, cfg: TranslationConfig) -> str | Non
     body = method_body(member)
     if body is None or body.type != "block":
         return None
-    stmts = body.named_children
+    stmts = _code_children(body)
 
     if len(stmts) == 1 and stmts[0].type == "return_statement":
         expr = _return_value(stmts[0])
@@ -1592,9 +1592,43 @@ def _comparison_body_form(member: JavaNode, cfg: TranslationConfig) -> str | Non
     return None
 
 
+_COMMENT_NODE_TYPES = frozenset({"line_comment", "block_comment"})
+
+
+def _code_children(node: JavaNode) -> list[JavaNode]:
+    """Named children with tree-sitter comment nodes removed.
+
+    tree-sitter-java keeps ``line_comment`` / ``block_comment`` as named children, so a
+    comment inside a body or block would otherwise inflate the statement count and defeat
+    the exact shape match.
+    """
+    return [child for child in node.named_children if child.type not in _COMMENT_NODE_TYPES]
+
+
+def _unwrap_parens(node: JavaNode | None) -> JavaNode | None:
+    """Strip any ``(...)`` wrappers so the inner expression can be matched directly."""
+    while node is not None and node.type == "parenthesized_expression":
+        children = _code_children(node)
+        node = children[0] if children else None
+    return node
+
+
 def _return_value(return_stmt: JavaNode) -> JavaNode | None:
-    children = return_stmt.named_children
+    children = _code_children(return_stmt)
     return children[0] if children else None
+
+
+def _single_return(node: JavaNode | None) -> JavaNode | None:
+    """The lone return of a consequence — a bare ``return ...;`` or a block with one."""
+    if node is None:
+        return None
+    if node.type == "return_statement":
+        return node
+    if node.type == "block":
+        body = _code_children(node)
+        if len(body) == 1 and body[0].type == "return_statement":
+            return body[0]
+    return None
 
 
 def _is_param_identifier(node: JavaNode | None, name: str) -> bool:
@@ -1603,6 +1637,7 @@ def _is_param_identifier(node: JavaNode | None, name: str) -> bool:
 
 def _is_param_binary(node: JavaNode | None, operator: str, left: str, right: str) -> bool:
     """True when ``node`` is ``left <operator> right`` over the two named parameters."""
+    node = _unwrap_parens(node)
     if node is None or node.type != "binary_expression":
         return False
     op = node.child_by_field("operator")
@@ -1614,27 +1649,22 @@ def _is_param_binary(node: JavaNode | None, operator: str, left: str, right: str
 
 
 def _is_zero_guard(if_stmt: JavaNode, p0: str, p1: str) -> bool:
-    """True for ``if (p0 == p1) { return 0; }`` with no else branch (== is symmetric)."""
+    """True for ``if (p0 == p1) return 0;`` — braced or not, ``==`` symmetric, no else."""
     if if_stmt.child_by_field("alternative") is not None:
         return False
     condition = if_stmt.child_by_field("condition")
-    if condition is None or condition.type != "parenthesized_expression":
+    if not (_is_param_binary(condition, "==", p0, p1) or _is_param_binary(condition, "==", p1, p0)):
         return False
-    inner = condition.named_children[0] if condition.named_children else None
-    if not (_is_param_binary(inner, "==", p0, p1) or _is_param_binary(inner, "==", p1, p0)):
+    return_stmt = _single_return(if_stmt.child_by_field("consequence"))
+    if return_stmt is None:
         return False
-    consequence = if_stmt.child_by_field("consequence")
-    if consequence is None or consequence.type != "block":
-        return False
-    body = consequence.named_children
-    if len(body) != 1 or body[0].type != "return_statement":
-        return False
-    value = _return_value(body[0])
+    value = _return_value(return_stmt)
     return value is not None and value.text.strip() == "0"
 
 
 def _is_sign_ternary(node: JavaNode | None, p0: str, p1: str) -> bool:
     """True for ``p0 < p1 ? -1 : 1``."""
+    node = _unwrap_parens(node)
     if node is None or node.type != "ternary_expression":
         return False
     if not _is_param_binary(node.child_by_field("condition"), "<", p0, p1):
