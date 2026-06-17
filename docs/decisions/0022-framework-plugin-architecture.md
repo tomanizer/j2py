@@ -161,11 +161,17 @@ catching this **structural, not a convention** an implementer can forget:
 def _safe_invoke(plugin: FrameworkPlugin, hook: str,
                  ctx: FrameworkContext) -> FrameworkTransformResult:
     try:
-        return getattr(plugin, hook)(ctx)
+        hook_func = getattr(plugin, hook, None)
+        if hook_func is None:
+            return FrameworkTransformResult()
+        res = hook_func(ctx)
+        if not isinstance(res, FrameworkTransformResult):
+            raise TypeError(f"Expected FrameworkTransformResult, got {type(res).__name__}")
+        return res
     except Exception as exc:  # trusted code, but never crash a translation run
         ctx.diagnostics.warn(
             ctx.node,
-            reason=f"framework plugin {plugin.name!r} raised in {hook}: {exc!r}",
+            reason=f"framework plugin {plugin.name!r} failed in {hook}: {exc!r}",
         )
         return FrameworkTransformResult()  # claims nothing -> falls through to Tier 2/1
 ```
@@ -178,7 +184,8 @@ falls through to Tier 2 then Tier 1 for that element — a broken plugin yields 
 diagnostic and unmapped-but-correct output, never a hard failure. This matches j2py's
 reviewable-degradation ethos. Combined with the ABC's no-op default hooks (which prevent
 *missing*-hook errors), the only way a plugin affects an element is by returning a
-well-formed result; raising and not-implementing are both absorbed. (A future strict mode
+well-formed `FrameworkTransformResult`; raising, returning `None`/wrong types, and
+not-implementing are all absorbed. (A future strict mode
 could opt into fail-fast; out of scope for v1.)
 
 A Phase 1 test asserts this contract directly: a deliberately-throwing reference plugin
