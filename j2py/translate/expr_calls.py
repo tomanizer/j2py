@@ -409,13 +409,24 @@ _CHARACTER_CHAR_PREDICATES: dict[str, str] = {
 }
 
 
-def _translate_character_char_predicate(method_name: str, args: list[str]) -> str | None:
+def _translate_character_char_predicate(
+    node: JavaNode,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
     if len(args) != 1:
         return None
     predicate = _CHARACTER_CHAR_PREDICATES.get(method_name)
     if predicate is None:
         return None
     arg = args[0]
+    if arg_nodes and arg_nodes[0].type not in {"identifier", "field_access", "character_literal", "string_literal"}:
+        ctx.diagnostics.warn(
+            node,
+            reason=f"Character.{method_name} argument evaluated twice in Python translation; verify side effects",
+        )
     return f"(len({arg}) == 1 and {arg}.{predicate}())"
 
 
