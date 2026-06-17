@@ -238,121 +238,43 @@ def _translate_fields(
             for field in fields
         ]
     )
-    for field, transform in zip(fields, transforms, strict=True):
-        if field.is_static:
-            static_lines.extend(_translate_static_field(field, static_ctx, diagnostics, transform))
-            continue
-
-        if not transform.handled:
-            record_annotation_diagnostics(
-                field.node,
-                cfg,
-                diagnostics,
-                target_kind="field",
-                target_name=field.py_name,
-            )
-        if transform.init_params:
-            init_param = transform.init_params[0]
-            if len(transform.init_params) > 1:
-                diagnostics.warn(
-                    field.node,
-                    reason=(
-                        f"framework plugin returned multiple init_params for field "
-                        f"{field.py_name}; only the first one ({init_param.py_name}) "
-                        "will be assigned"
-                    ),
-                )
-            diagnostics.record(
-                field.node,
-                supported=True,
-                reason=(
-                    "translated framework plugin constructor injection field"
-                    if transform.handled
-                    else "translated annotation-mapped constructor injection field"
-                ),
-            )
-            if cfg.emit_type_hints:
-                diagnostics.imports.need_type_annotation(field.py_type)
-            target = _field_assignment(f"self.{field.py_name}", field.py_type, cfg)
-            if not transform.handled:
-                instance_init_lines.extend(
-                    annotation_comment_lines(field.node, cfg, indent="        "),
-                )
-            instance_init_lines.extend(transform.prefix_lines)
-            instance_init_lines.append(f"        {target} = {init_param.py_name}")
-            continue
-
-        if field.initializer is not None:
-            diagnostics.record(
-                field.node,
-                supported=True,
-                reason="translated instance field initializer",
-            )
-            if cfg.emit_type_hints:
-                diagnostics.imports.need_type_annotation(field.py_type)
-            initializer = translate_expression(field.initializer, instance_ctx)
-            helper_lines: list[str] = []
-            _extend_with_local_helpers(helper_lines, instance_ctx, base_indent="        ")
-            instance_init_lines.extend(helper_lines)
-            if helper_lines:
-                instance_init_lines.append("")
-            if not transform.handled:
-                instance_init_lines.extend(
-                    annotation_comment_lines(field.node, cfg, indent="        "),
-                )
-            instance_init_lines.extend(transform.prefix_lines)
-            instance_init_lines.append(
-                f"        {_field_assignment(f'self.{field.py_name}', field.py_type, cfg)} = "
-                f"{initializer}",
-            )
-            continue
-
-        if field.name in assigned_fields:
-            diagnostics.record(
-                field.node,
-                supported=True,
-                reason="represented field declaration via constructor assignment",
-            )
-            continue
-
-        diagnostics.record(
-            field.node,
-            supported=True,
-            reason="translated Java default value for instance field",
-        )
-        default_value = java_default_value(field.java_type)
-        annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
-        if cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(annotation)
-        target = _field_assignment(f"self.{field.py_name}", annotation, cfg)
-        if not transform.handled:
-            instance_init_lines.extend(annotation_comment_lines(field.node, cfg, indent="        "))
-        instance_init_lines.extend(transform.prefix_lines)
-        instance_init_lines.append(f"        {target} = {default_value}")
-
+    transform_index = 0
     supported_members = {
         "field_declaration",
         "constructor_declaration",
         "method_declaration",
         "static_initializer",
+        "block",
         *TYPE_DECLARATION_NODES,
     }
     body_children = body.named_children
     for index, child in enumerate(body_children):
+        if child.type == "field_declaration":
+            for field in field_infos_from_declaration(child, cfg):
+                transform = transforms[transform_index]
+                transform_index += 1
+                if field.is_static:
+                    static_lines.extend(
+                        _translate_static_field(field, static_ctx, diagnostics, transform)
+                    )
+                else:
+                    instance_init_lines.extend(
+                        _translate_instance_field(
+                            field,
+                            assigned_fields,
+                            instance_ctx,
+                            diagnostics,
+                            transform,
+                        ),
+                    )
+            continue
         if child.type == "static_initializer":
-            diagnostics.record(child, supported=True, reason="translated static initializer")
-            static_body = first_child_by_type(child, "block")
-            body_lines = (
-                translate_body(
-                    static_body,
-                    static_ctx,
-                    indent="    ",
-                )
-                if static_body is not None
-                else ["    pass"]
+            static_lines.extend(_translate_static_initializer(child, static_ctx, diagnostics))
+            continue
+        if child.type == "block":
+            instance_init_lines.extend(
+                _translate_instance_initializer(child, instance_ctx, diagnostics),
             )
-            _extend_with_local_helpers(static_lines, static_ctx, base_indent="    ")
-            static_lines.extend(body_lines)
             continue
         if child.type in supported_members:
             continue
@@ -371,6 +293,136 @@ def _translate_fields(
         static_lines.append(f"    # TODO(j2py): unsupported class member {child.type}")
 
     return static_lines, instance_init_lines
+
+
+def _translate_instance_field(
+    field: FieldInfo,
+    assigned_fields: set[str],
+    ctx: TranslationContext,
+    diagnostics: TranslationDiagnostics,
+    transform: FrameworkTransformResult,
+) -> list[str]:
+    if not transform.handled:
+        record_annotation_diagnostics(
+            field.node,
+            ctx.cfg,
+            diagnostics,
+            target_kind="field",
+            target_name=field.py_name,
+        )
+    if transform.init_params:
+        init_param = transform.init_params[0]
+        if len(transform.init_params) > 1:
+            diagnostics.warn(
+                field.node,
+                reason=(
+                    f"framework plugin returned multiple init_params for field "
+                    f"{field.py_name}; only the first one ({init_param.py_name}) "
+                    "will be assigned"
+                ),
+            )
+        diagnostics.record(
+            field.node,
+            supported=True,
+            reason=(
+                "translated framework plugin constructor injection field"
+                if transform.handled
+                else "translated annotation-mapped constructor injection field"
+            ),
+        )
+        if ctx.cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(field.py_type)
+        target = _field_assignment(f"self.{field.py_name}", field.py_type, ctx.cfg)
+        injection_lines: list[str] = []
+        if not transform.handled:
+            injection_lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="        "))
+        injection_lines.extend(transform.prefix_lines)
+        injection_lines.append(f"        {target} = {init_param.py_name}")
+        return injection_lines
+
+    if field.initializer is not None:
+        diagnostics.record(
+            field.node,
+            supported=True,
+            reason="translated instance field initializer",
+        )
+        if ctx.cfg.emit_type_hints:
+            diagnostics.imports.need_type_annotation(field.py_type)
+        initializer = translate_expression(field.initializer, ctx)
+        initializer_lines: list[str] = []
+        _extend_with_local_helpers(initializer_lines, ctx, base_indent="        ")
+        if initializer_lines:
+            initializer_lines.append("")
+        if not transform.handled:
+            initializer_lines.extend(
+                annotation_comment_lines(field.node, ctx.cfg, indent="        "),
+            )
+        initializer_lines.extend(transform.prefix_lines)
+        initializer_lines.append(
+            f"        {_field_assignment(f'self.{field.py_name}', field.py_type, ctx.cfg)} = "
+            f"{initializer}",
+        )
+        return initializer_lines
+
+    if field.name in assigned_fields:
+        diagnostics.record(
+            field.node,
+            supported=True,
+            reason="represented field declaration via constructor assignment",
+        )
+        return []
+
+    diagnostics.record(
+        field.node,
+        supported=True,
+        reason="translated Java default value for instance field",
+    )
+    default_value = java_default_value(field.java_type)
+    annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+    if ctx.cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(annotation)
+    target = _field_assignment(f"self.{field.py_name}", annotation, ctx.cfg)
+    default_lines = []
+    if not transform.handled:
+        default_lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="        "))
+    default_lines.extend(transform.prefix_lines)
+    default_lines.append(f"        {target} = {default_value}")
+    return default_lines
+
+
+def _translate_static_initializer(
+    node: JavaNode,
+    ctx: TranslationContext,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(node, supported=True, reason="translated static initializer")
+    static_body = first_child_by_type(node, "block")
+    body_lines = (
+        translate_body(
+            static_body,
+            ctx,
+            indent="    ",
+        )
+        if static_body is not None
+        else ["    pass"]
+    )
+    lines: list[str] = []
+    _extend_with_local_helpers(lines, ctx, base_indent="    ")
+    lines.extend(body_lines)
+    return lines
+
+
+def _translate_instance_initializer(
+    node: JavaNode,
+    ctx: TranslationContext,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    diagnostics.record(node, supported=True, reason="translated instance initializer")
+    body_lines = translate_body(node, ctx, indent="        ")
+    lines: list[str] = []
+    _extend_with_local_helpers(lines, ctx, base_indent="        ")
+    lines.extend(body_lines)
+    return lines
 
 
 def _javadoc_is_consumed_by_declaration(children: list[JavaNode], index: int) -> bool:

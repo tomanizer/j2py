@@ -75,6 +75,128 @@ def test_instance_field_initializer_can_reference_another_field() -> None:
     assert_valid_python(python_source)
 
 
+def test_static_initializer_block_populates_class_collection() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.HashSet;
+        import java.util.Set;
+
+        public class StaticInit {
+            private static Set<String> NAMES = new HashSet<>();
+            static {
+                NAMES.add("alpha");
+                NAMES.add("beta");
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "unsupported class member block" not in result.source
+    assert "NAMES: set[str] = set()" in result.source
+    assert 'NAMES.add("alpha")' in result.source
+    assert 'NAMES.add("beta")' in result.source
+    assert result.source.index("NAMES: set[str] = set()") < result.source.index(
+        'NAMES.add("alpha")',
+    )
+    assert_valid_python(result.source)
+
+
+def test_static_initializer_preserves_order_with_static_fields() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class StaticOrder {
+            private static int count = 1;
+            static {
+                count += 2;
+            }
+            private static int after = count;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    count_index = result.source.index("count: int = 1")
+    increment_index = result.source.index("count += 2")
+    after_index = result.source.index("after: int = count")
+    assert count_index < increment_index < after_index
+    assert_valid_python(result.source)
+
+
+def test_static_initializer_block_lambda_emits_helper_before_use() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class StaticInitializerLambda {
+            private static Runnable task;
+
+            static {
+                task = () -> { System.out.println("ready"); };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def _j2py_lambda_1()" in result.source
+    assert "task = _j2py_lambda_1" in result.source
+    assert result.source.index("def _j2py_lambda_1(") < result.source.index(
+        "task = _j2py_lambda_1",
+    )
+    assert_valid_python(result.source)
+
+
+def test_instance_initializer_block_runs_before_constructor_body() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class InstanceInit {
+            private int count = 1;
+            {
+                count += 2;
+            }
+
+            public InstanceInit() {
+                count += 3;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "unsupported class member block" not in result.source
+    field_index = result.source.index("self.count: int = 1")
+    initializer_index = result.source.index("self.count += 2")
+    constructor_index = result.source.index("self.count += 3")
+    assert field_index < initializer_index < constructor_index
+    assert_valid_python(result.source)
+
+
+def test_instance_initializer_block_lambda_emits_helper_before_use() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class InstanceInitializerLambda {
+            private Runnable task;
+
+            {
+                task = () -> { System.out.println("ready"); };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def _j2py_lambda_1()" in result.source
+    assert "self.task = _j2py_lambda_1" in result.source
+    assert result.source.index("def _j2py_lambda_1(") < result.source.index(
+        "self.task = _j2py_lambda_1",
+    )
+    assert_valid_python(result.source)
+
+
 def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
     result = translate_source_with_diagnostics(
         """
