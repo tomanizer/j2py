@@ -35,9 +35,10 @@
 | Document | Description |
 |----------|-------------|
 | [decisions/0001-record-architecture-decisions.md](decisions/0001-record-architecture-decisions.md) | ADR process template |
-| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0018 (parser, pipeline, LLM providers, overloads, equivalence, harvest, ...) |
-| [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Dated maturity and gap audit snapshot |
-| [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Prior rule-layer breadth snapshot |
+| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0023 (parser, pipeline, LLM providers, overloads, equivalence, harvest, ...) |
+| [decisions/AUDIT-2026-06-17.md](decisions/AUDIT-2026-06-17.md) | Latest dated maturity and gap audit snapshot |
+| [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Prior maturity and gap audit snapshot |
+| [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Earliest rule-layer breadth snapshot |
 
 ## Agent onboarding
 

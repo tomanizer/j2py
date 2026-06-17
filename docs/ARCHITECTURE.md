@@ -96,6 +96,11 @@ Java source file(s)
 - `classes.py` is the class-declaration facade; `class_enums.py`, `class_interfaces.py`,
   `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
   hold declaration-kind emitters and shared helpers.
+- Overload translation (ADR 0006/0009/0013) lives in the `overloads.py` facade plus the
+  focused `overload_classification.py`, `overload_merge.py`, `overload_dispatch.py`, and
+  `overload_signatures.py` modules; `class_methods.py` routes overloaded method groups
+  through it. Smaller shared helpers include `annotation_emit.py`, `comments.py`,
+  `node_utils.py`, and `diagnostics.py`.
 - `framework_annotations.py` owns opt-in `annotation_map` lowering: configured Java
   annotations can emit Python decorators, base classes, field comments, constructor
   injection parameters, imports, and mapped diagnostics. Unmapped annotations keep the
@@ -183,7 +188,8 @@ Java source file(s)
 - Directory mode builds the dependency graph and translates files in dependency order
 
 ### `cli/` — User interface
-- `typer`-based CLI; `j2py translate`, `j2py analyze`, and `j2py compare`
+- `typer`-based CLI; `j2py translate`, `j2py analyze`, `j2py compare`, `j2py watch`
+  (incremental re-translate on file changes), and `j2py dashboard` (HTML review report)
 - All output via `rich`; directory translation reports order, per-file confidence,
   diagnostics counts, validation status, and cycle warnings
 - `compare` is a single-file review shortcut that reuses an existing Python file or
@@ -207,10 +213,12 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Equivalence verification (differential testing) | [ADR 0014](decisions/0014-equivalence-differential-testing.md) |
 | `synchronized(this)` translation | [ADR 0015](decisions/0015-synchronized-this-translation.md) |
 | Class-reference expression imports | [ADR 0016](decisions/0016-class-reference-expression-imports.md) |
-| LLM harvest for rule-layer backlog | [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md), [LLM_HARVEST.md](LLM_HARVEST.md) |
+| LLM harvest for rule-layer backlog | [ADR 0023](decisions/0023-llm-harvest-for-rule-layer-backlog.md), [LLM_HARVEST.md](LLM_HARVEST.md) |
 | Cross-file class hierarchies | [ADR 0018](decisions/0018-cross-file-class-hierarchies.md), [CASE_STUDY.md](CASE_STUDY.md) |
 | Annotation map framework lowering | [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) |
 | JDK lowering vs platform boundary stubs | [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) |
+| Sibling type refs as body-local imports | [ADR 0021](decisions/0021-sibling-type-refs-as-body-local-imports.md) |
+| Framework plugin architecture (Tier 4, Proposed) | [ADR 0022](decisions/0022-framework-plugin-architecture.md) |
 
 ## Quality measurement
 
