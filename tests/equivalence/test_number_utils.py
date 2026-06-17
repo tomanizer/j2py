@@ -193,6 +193,22 @@ def test_to_double_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_double(None, 5.1) == approx_double(5.1)
 
 
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.compare(byte,byte)")
+@surface(JAVA_CLASS, "NumberUtils.compare(int,int)")
+@surface(JAVA_CLASS, "NumberUtils.compare(long,long)")
+@surface(JAVA_CLASS, "NumberUtils.compare(short,short)")
+def test_compare_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_compare")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+    # from Apache Commons Lang NumberUtilsTest.java lines 59-98:
+    # https://github.com/apache/commons-lang/blob/master/src/test/java/org/apache/commons/lang3/math/NumberUtilsTest.java#L59-L98
+    assert NumberUtils.compare(5, 2) > 0
+    assert NumberUtils.compare(2, 5) < 0
+    assert NumberUtils.compare(3, 3) == 0
+    assert NumberUtils.compare(-128, 127) < 0
+
+
 # ── Phase 2 converters (toFloat / toByte / toShort) ───────────────────────────
 #
 # Literal-oracle source: NumberUtilsTest.java testToFloatString / testToFloatStringF,

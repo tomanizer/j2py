@@ -11,7 +11,7 @@ criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
 float approximation, integer overflow semantics, exception mapping). Overloaded methods
 are explicitly excluded (same-arity Java `char`/`Character` overloads both erase to
 Python `str`, making dispatch ambiguous at the rule layer). `make test-equivalence`
-currently selects **1,641 equivalence tests**: 1,639 passing tests plus two documented
+currently selects **1,649 equivalence tests**: 1,647 passing tests plus two documented
 `StringUtils` strict-xfail contracts. Run alone with:
 
 ```bash
@@ -274,9 +274,9 @@ By library:
 
 | Library | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
-| `commons-lang` | 20/95 | 21.1% | 20/81 (24.7%) | 14 |
+| `commons-lang` | 30/95 | 31.6% | 30/81 (37.0%) | 14 |
 | `guava` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| **Total** | 22/97 | 22.7% | 22/83 (26.5%) | 14 |
+| **Total** | 32/97 | 33.0% | 32/83 (38.6%) | 14 |
 
 By fixture:
 
@@ -284,9 +284,9 @@ By fixture:
 |---|---:|---:|---:|---:|
 | `CharUtils.java` | 9/23 | 39.1% | 9/9 (100.0%) | 14 |
 | `GuavaPrecedenceMath.java` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| `NumberUtils.java` | 6/61 | 9.8% | 6/61 (9.8%) | 0 |
+| `NumberUtils.java` | 16/61 | 26.2% | 16/61 (26.2%) | 0 |
 | `StringUtils.java` | 5/11 | 45.5% | 5/11 (45.5%) | 0 |
-| **Total** | 22/97 | 22.7% | 22/83 (26.5%) | 14 |
+| **Total** | 32/97 | 33.0% | 32/83 (38.6%) | 14 |
 
 ## 10. Open questions
 
