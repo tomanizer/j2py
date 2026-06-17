@@ -376,7 +376,35 @@ def test_outer_capturing_nested_class_constructor_passes_self_with_args() -> Non
         }
     }
     """)
+    assert "def __init__(self, _outer_self: object, value: int) -> None:" in src
+    assert "self._outer_self = _outer_self" in src
     assert "inner = self.Inner(self, 3)" in src
+    assert "return self._outer_self.base + self.value" in src
+
+
+def test_outer_capturing_local_class_constructor_passes_self() -> None:
+    src, coverage = translate_source("""
+    public class Outer {
+        private int base = 2;
+        private void touch() {}
+
+        public Object make() {
+            class Local {
+                int total() { return Outer.this.base; }
+                void call() { Outer.this.touch(); }
+            }
+            return new Local();
+        }
+    }
+    """)
+    assert coverage == 1.0
+    assert "class Local:" in src
+    assert "def __init__(self, _outer_self: object) -> None:" in src
+    assert "self._outer_self = _outer_self" in src
+    assert "return self._outer_self.base" in src
+    assert "self._outer_self.touch()" in src
+    assert "return Local(self)" in src
+    assert "qualified outer this requires captured outer self" not in src
 
 
 # ---------------------------------------------------------------------------
