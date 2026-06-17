@@ -1,0 +1,29 @@
+{
+  "description": "Ratcheting floor for the equivalence-verified Java public method surface. Raise this file with scripts/equivalence/check_surface_floor.py --update-floor after adding passing equivalence tests.",
+  "libraries": [
+    {
+      "library": "commons-lang",
+      "testable_public_methods": 81,
+      "total_public_methods": 95,
+      "verified_methods": 20,
+      "verified_public_surface_percent": 0.21052631578947367,
+      "verified_testable_surface_percent": 0.24691358024691357
+    },
+    {
+      "library": "guava",
+      "testable_public_methods": 2,
+      "total_public_methods": 2,
+      "verified_methods": 2,
+      "verified_public_surface_percent": 1.0,
+      "verified_testable_surface_percent": 1.0
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "testable_public_methods": 83,
+    "total_public_methods": 97,
+    "verified_methods": 22,
+    "verified_public_surface_percent": 0.2268041237113402,
+    "verified_testable_surface_percent": 0.26506024096385544
+  }
+}

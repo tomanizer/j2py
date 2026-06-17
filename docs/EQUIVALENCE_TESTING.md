@@ -239,11 +239,34 @@ The implemented report publishes both denominators:
   explicitly untestable bucket.
 
 Run `make equivalence-report` to generate `corpus-reports/equivalence-surface.json` and
-print the per-fixture table. CI writes and uploads the same JSON artifact from the Python
-3.11 test job. Tests opt into the numerator with
+print the per-fixture table. The target also checks the generated report against the
+checked-in ratchet floor at
+`tests/fixtures/equivalence/equivalence-surface-floor.json`. CI writes the same JSON
+artifact from the Python 3.11 test job, checks it against that floor, and uploads the
+artifact. Tests opt into the numerator with
 `@pytest.mark.equivalence_surface("<Fixture>.java", "<Class.method(Signature)>")`; the
 pytest hook records only markers from passing test items, so strict xfail divergences and
 failed assertions do not inflate the metric.
+
+### Ratchet workflow
+
+The floor enforces both verified method counts and the verified public/testable ratios for
+the total surface and each library. A PR can increase the denominator by adding measured
+surface, but it must either add enough passing literal-oracle tests to preserve the floor
+or intentionally update the floor after review.
+
+To raise the floor after new equivalence tests land:
+
+```bash
+make equivalence-report
+uv run --extra dev python scripts/equivalence/check_surface_floor.py \
+  corpus-reports/equivalence-surface.json --update-floor
+git diff tests/fixtures/equivalence/equivalence-surface-floor.json
+```
+
+Do not lower the floor in ordinary feature work. If the measured Java fixture surface
+changes for a legitimate reason, call that out in the PR and keep the generated
+`equivalence-surface.json` artifact as evidence.
 
 Current snapshot:
 
