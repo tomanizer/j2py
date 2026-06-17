@@ -93,6 +93,7 @@ def translate_class(
     requires_outer_self: bool = False,
     file_class_static_methods: dict[str, set[str]] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
+    interface_type_var_maps: dict[tuple[int, int, int, int, str], dict[str, str]] | None = None,
 ) -> list[str]:
     resolver = name_resolver or NameResolver.empty()
     if node.type == "interface_declaration":
@@ -106,6 +107,7 @@ def translate_class(
             static_method_imports=static_method_imports or {},
             name_resolver=resolver,
             docstring_lines=docstring_lines,
+            interface_type_var_maps=interface_type_var_maps,
         )
     if node.type == "enum_declaration":
         from j2py.translate.class_enums import translate_enum
@@ -277,6 +279,7 @@ def translate_class(
         outer_capture_names=nested_outer_capture_names,
         file_class_static_methods=file_class_static_methods,
         enclosing_static_dispatch=nested_enclosing_dispatch,
+        interface_type_var_maps=interface_type_var_maps,
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (

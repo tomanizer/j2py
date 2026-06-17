@@ -11,6 +11,7 @@ from j2py.translate.class_fields import (
     _collect_declared_type_fields,
     _collect_declared_type_java_fields,
 )
+from j2py.translate.class_interfaces import interface_type_var_plan
 from j2py.translate.class_methods import collect_declared_type_method_return_types
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
@@ -81,6 +82,7 @@ def translate_skeleton_with_diagnostics(
         cfg,
     )
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
+    type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
     for class_node in parsed.root.named_children:
@@ -106,6 +108,7 @@ def translate_skeleton_with_diagnostics(
                     module_declared_type_method_return_types
                 ),
                 file_class_static_methods=file_class_static_methods,
+                interface_type_var_maps=type_var_plan.interface_type_var_maps,
             )
         )
         pending_docstring = None
@@ -116,6 +119,10 @@ def translate_skeleton_with_diagnostics(
         lines.append("")
         lines.extend(import_lines)
     lines.extend(["", ""])
+
+    if type_var_plan.declaration_lines:
+        lines.extend(type_var_plan.declaration_lines)
+        lines.extend(["", ""])
 
     for index, block in enumerate(class_blocks):
         if index:
