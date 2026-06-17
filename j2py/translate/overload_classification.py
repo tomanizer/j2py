@@ -15,6 +15,8 @@ from j2py.translate.overload_dispatch import (
     _comparison_body_form,
     _deduplicate_same_body_erased_sig,
     _dispatch_guard_for_parameter,
+    _member_dispatch_key,
+    _varargs_value_guards_checkable,
 )
 from j2py.translate.overload_merge import (
     _constructor_forward_args,
@@ -32,6 +34,7 @@ class OverloadKind(Enum):
     MERGE_FORWARDING = "merge_forwarding"
     MERGE_IDENTICAL_OR_EQUIVALENT = "merge_identical_or_equivalent"
     VALUE_DISPATCH_SAFE = "value_dispatch_safe"
+    VALUE_DISPATCH_VARARGS_SAFE = "value_dispatch_varargs_safe"
     RUNTIME_DISPATCH_SAFE = "runtime_dispatch_safe"
     STATIC_INSTANCE_COLLISION = "static_instance_collision"
     ERASURE_COLLISION_UNSAFE = "erasure_collision_unsafe"
@@ -113,6 +116,17 @@ def classify_overload_group(
             "runtime-checkable value guards are pairwise distinct",
             erased,
             guard_signatures,
+        )
+
+    varargs_guard_signatures = _varargs_guard_signatures(members, cfg)
+    if varargs_guard_signatures is not None and len(set(varargs_guard_signatures)) == len(
+        varargs_guard_signatures
+    ):
+        return OverloadClassification(
+            OverloadKind.VALUE_DISPATCH_VARARGS_SAFE,
+            "runtime-checkable fixed and varargs guards are pairwise distinct",
+            erased,
+            varargs_guard_signatures,
         )
 
     if len(set(erased)) == len(erased):
@@ -229,4 +243,31 @@ def _guard_signatures(
                 for guard in guards
             ),
         )
+    return tuple(signatures)
+
+
+def _varargs_guard_signatures(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[tuple[str, ...], ...] | None:
+    if any(member.type != "method_declaration" for member in members):
+        return None
+    params_by_member = [parameter_infos(member, cfg) for member in members]
+    if not any(any(param.is_spread for param in params) for params in params_by_member):
+        return None
+
+    signatures: list[tuple[str, ...]] = []
+    for params in params_by_member:
+        guards = []
+        for param in params:
+            guard = _dispatch_guard_for_parameter(param)
+            if guard is None:
+                return None
+            guards.append(guard)
+        if not _varargs_value_guards_checkable(params, guards):
+            return None
+        signatures.append(_member_dispatch_key(params, guards))
+
+    if len(set(signatures)) != len(signatures):
+        return None
     return tuple(signatures)

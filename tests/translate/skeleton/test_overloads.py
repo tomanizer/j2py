@@ -555,6 +555,69 @@ def test_erased_numeric_comparison_overloads_collapse_to_single_method() -> None
     assert cmp.compare(-128, 127) < 0
 
 
+def test_fixed_arity_beats_varargs_in_value_dispatcher() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Stats {
+            public static int max(int a, int b, int c) {
+                return a > b ? (a > c ? a : c) : (b > c ? b : c);
+            }
+
+            public static int max(int... values) {
+                return values[0];
+            }
+
+            public static int runThree() {
+                return max(1, 2, 3);
+            }
+
+            public static int runVarargs() {
+                return max(4, 5);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "from typing import overload" in python_source
+    assert "from j2py_runtime import overloaded" not in python_source
+    assert "def max_(a: int, b: int, c: int) -> int:" in python_source
+    assert "def max_(*values: int) -> int:" in python_source
+    assert "def max_(*args: object) -> int:" in python_source
+    assert (
+        "if len(args) == 3 and isinstance(args[0], int) and not isinstance(args[0], bool)"
+    ) in python_source
+    assert "if len(args) >= 0 and all(isinstance(value, int)" in python_source
+    assert python_source.index("len(args) == 3") < python_source.index("len(args) >= 0")
+    assert "NotImplementedError" not in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<stats>", "exec"), namespace)
+    stats = namespace["Stats"]
+    assert stats.run_three() == 3  # type: ignore[attr-defined]
+    assert stats.run_varargs() == 4  # type: ignore[attr-defined]
+
+
+def test_varargs_erasure_collision_keeps_manual_dispatch_fallback() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Unsafe {
+            public static int pick(int... values) {
+                return 1;
+            }
+
+            public static int pick(long... values) {
+                return 2;
+            }
+        }
+        """,
+    )
+
+    assert coverage < 1.0
+    assert "TODO(j2py): overloaded method pick requires manual dispatch" in python_source
+    assert_valid_python(python_source)
+
+
 def test_differing_non_comparison_bodies_do_not_collapse() -> None:
     # Guard: same erased signature but genuinely different (non-comparison) bodies must
     # still fall back to a manual-dispatch TODO — the comparison collapse must not
