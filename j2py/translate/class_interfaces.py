@@ -551,7 +551,7 @@ def _record_type_var_usages(
     for type_param in usages:
         if not re.search(rf"\b{re.escape(type_param)}\b", stripped):
             continue
-        if stripped == type_param:
+        if stripped == type_param or _is_optional_type_var(stripped, type_param):
             usages[type_param].add(position)
         else:
             usages[type_param].add("invariant")
@@ -567,6 +567,32 @@ def _variance_for_usages(usages: set[str]) -> str:
     if "parameter" in usages:
         return "contravariant"
     return "invariant"
+
+
+def _is_optional_type_var(py_type: str, type_param: str) -> bool:
+    parts = _split_python_union(py_type)
+    if len(parts) != 2 or "None" not in parts:
+        return False
+    return next(part for part in parts if part != "None") == type_param
+
+
+def _split_python_union(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in text:
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+        if char == "|" and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if current:
+        parts.append("".join(current).strip())
+    return parts
 
 
 def _register_type_var(

@@ -446,6 +446,44 @@ def test_producer_generic_interface_type_var_is_covariant() -> None:
     assert_validated_python(result.source)
 
 
+def test_optional_return_generic_interface_type_var_is_covariant() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Optional;
+
+        public interface MaybeBox<T> {
+            Optional<T> get();
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'T = TypeVar("T", covariant=True)' in result.source
+    assert "class MaybeBox(Protocol[T]):" in result.source
+    assert "def get(self) -> T | None: ..." in result.source
+    assert not result.diagnostics.unhandled
+    assert_validated_python(result.source)
+
+
+def test_optional_parameter_generic_interface_type_var_is_contravariant() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Optional;
+
+        public interface MaybeSink<T> {
+            void put(Optional<T> value);
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'T = TypeVar("T", contravariant=True)' in result.source
+    assert "class MaybeSink(Protocol[T]):" in result.source
+    assert "def put(self, value: T | None) -> None: ..." in result.source
+    assert not result.diagnostics.unhandled
+    assert_validated_python(result.source)
+
+
 def test_mixed_generic_interface_type_var_is_invariant() -> None:
     result = translate_source_with_diagnostics(
         """
