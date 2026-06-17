@@ -261,6 +261,62 @@ def test_anonymous_class_instance_field_translates_to_helper_init() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_static_field_translates_to_helper_class_attr() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class AnonymousStaticField {
+            public Object make() {
+                return new Object() {
+                    private static final long serialVersionUID = 1L;
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "unsupported anonymous class static field" not in result.source
+    assert "class _J2pyAnonymous1:" in result.source
+    assert "serial_version_uid: int = 1" in result.source
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_member_block_translates_to_helper_init() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public abstract class AnonymousInitializer {
+            public Object make() {
+                return new Object() {
+                    private boolean ready;
+
+                    {
+                        ready = true;
+                        configure(false);
+                    }
+
+                    public void configure(boolean value) {
+                        ready = value;
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "unsupported anonymous class member block" not in result.source
+    assert "def __init__(self):" in result.source
+    assert "self.ready: bool = False" in result.source
+    assert "self.ready = True" in result.source
+    assert "self.configure(False)" in result.source
+    assert result.source.index("self.ready: bool = False") < result.source.index(
+        "self.ready = True",
+    )
+    assert_valid_python(result.source)
+
+
 def test_static_field_anonymous_class_translates_with_local_helper() -> None:
     result = translate_source_with_diagnostics(
         """
