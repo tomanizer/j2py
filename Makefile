@@ -279,4 +279,4 @@ import-smoke:  ## Verify core imports and CLI entry point
 
 release-test: lock-check check test-targets test-behavior version-check import-smoke  ## Release tests without building dist
 
-release-check: release-test dist-check  ## Run alpha release readiness checks
+release-check: release-test dist-check  ## Run beta/pre-release readiness checks

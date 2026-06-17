@@ -16,11 +16,13 @@ the logic from scratch.
 
 ## Status
 
-**Alpha** (`0.3.0a1` on PyPI as `j2py-converter`). The deterministic rule layer achieves
-near-complete **node coverage** on pinned multi-library dense samples (see
+**Beta pre-release** (`0.5.0b2` on PyPI as `j2py-converter`). The deterministic rule layer
+achieves near-complete **node coverage** on pinned multi-library dense samples (see
 [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
-library scale is still early — see [ADR 0014](decisions/0014-equivalence-differential-testing.md)
-and [docs/EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md).
+library scale is still early. Corpus coverage is a rule-layer breadth signal, not an
+enterprise framework-readiness claim; see [docs/POSITIONING.md](POSITIONING.md),
+[ADR 0014](decisions/0014-equivalence-differential-testing.md), and
+[docs/EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md).
 
 ## Functional requirements
 

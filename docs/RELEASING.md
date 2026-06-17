@@ -17,7 +17,7 @@ Keep `google-genai` out of core dependencies so the default install remains the
 Anthropic path only; keep the repository `dev` extra able to run live Gemini probes and
 harvest workflows.
 
-## Alpha release checklist
+## Beta/pre-release checklist
 
 1. Verify the release version in `pyproject.toml` and `j2py/__init__.py`.
 2. Move changelog entries from `## Unreleased` to the release heading.
@@ -28,7 +28,7 @@ harvest workflows.
    ```
 
 4. Open and merge the release PR.
-5. Create a GitHub release tag, for example `v0.1.0a1`.
+5. Create a GitHub release tag, for example `v0.5.0b3`.
 6. Confirm PyPI trusted publishing remains configured for:
 
    - Owner/repository: `tomanizer/j2py`
