@@ -53,6 +53,7 @@ target/
 .gradle-cache/
 
 # --- Agent / IDE tool state (includes nested worktrees) ---
+.agent-session
 .claude/
 .codex/
 .claire/
