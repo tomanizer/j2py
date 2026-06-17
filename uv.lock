@@ -631,6 +631,14 @@ dev = [
 gemini = [
     { name = "google-genai" },
 ]
+test = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-snapshot" },
+    { name = "pyyaml" },
+    { name = "ruff" },
+]
 validate = [
     { name = "mypy" },
     { name = "ruff" },
@@ -649,16 +657,22 @@ requires-dist = [
     { name = "google-genai", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "google-genai", marker = "extra == 'gemini'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "mypy", marker = "extra == 'test'", specifier = ">=1.10" },
     { name = "mypy", marker = "extra == 'validate'", specifier = ">=1.10" },
     { name = "networkx", specifier = ">=3.3" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.2" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=5.0" },
     { name = "pytest-snapshot", marker = "extra == 'dev'", specifier = ">=0.9" },
+    { name = "pytest-snapshot", marker = "extra == 'test'", specifier = ">=0.9" },
     { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "pyyaml", marker = "extra == 'test'", specifier = ">=6.0" },
     { name = "pyyaml", marker = "extra == 'yaml'", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
+    { name = "ruff", marker = "extra == 'test'", specifier = ">=0.4" },
     { name = "ruff", marker = "extra == 'validate'", specifier = ">=0.4" },
     { name = "tenacity", specifier = ">=8.3" },
     { name = "tree-sitter", specifier = ">=0.23" },
@@ -667,7 +681,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "watchdog", marker = "extra == 'watch'", specifier = ">=4.0" },
 ]
-provides-extras = ["yaml", "watch", "validate", "gemini", "dev"]
+provides-extras = ["yaml", "watch", "validate", "gemini", "test", "dev"]
 
 [[package]]
 name = "jaraco-classes"
