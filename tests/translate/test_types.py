@@ -6,6 +6,8 @@ from j2py.config.loader import ConfigLoader
 from j2py.translate.rules.types import (
     element_type_from_container,
     is_api_get_receiver_type,
+    is_indexed_predicate_get_receiver_java_type,
+    is_indexed_predicate_get_receiver_type,
     is_map_like_type,
     is_var_type,
     static_factory_return_type,
@@ -123,6 +125,36 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
 )
 def test_is_api_get_receiver_type(py_type: str, expected: bool) -> None:
     assert is_api_get_receiver_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("py_type", "expected"),
+    [
+        ("BitSet", True),
+        ("java.util.BitSet", True),
+        ("BitSet | None", True),
+        ("SparseBitSet", True),
+        ("list[str]", False),
+        ("dict[str, int]", False),
+        ("ByteBuffer", False),
+    ],
+)
+def test_is_indexed_predicate_get_receiver_type(py_type: str, expected: bool) -> None:
+    assert is_indexed_predicate_get_receiver_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("java_type", "expected"),
+    [
+        ("java.util.BitSet", True),
+        ("BitSet", True),
+        ("org.apache.commons.lang3.util.SparseBitSet", True),
+        ("java.util.List<String>", False),
+        ("Map<String, Object>", False),
+    ],
+)
+def test_is_indexed_predicate_get_receiver_java_type(java_type: str, expected: bool) -> None:
+    assert is_indexed_predicate_get_receiver_java_type(java_type) is expected
 
 
 @pytest.mark.parametrize(
