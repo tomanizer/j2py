@@ -163,3 +163,52 @@ def test_classifies_static_instance_same_name_collision_separately() -> None:
 
     assert classification.kind is OverloadKind.STATIC_INSTANCE_COLLISION
     assert classification.reason == "static and instance members share one Python name"
+
+
+def test_classifies_fixed_arity_beats_varargs_as_value_dispatch_varargs_safe() -> None:
+    group = _overload_group(
+        """
+        public class Stats {
+            public static int max(int a, int b, int c) {
+                return a > b ? (a > c ? a : c) : (b > c ? b : c);
+            }
+
+            public static int max(int... values) {
+                return values[0];
+            }
+        }
+        """,
+        "max_",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.VALUE_DISPATCH_VARARGS_SAFE
+    assert "fixed and varargs guards are pairwise distinct" in classification.reason
+    assert classification.guard_signatures == (
+        ("fixed", "3", "int", "int", "int"),
+        ("varargs", "0", "int:spread"),
+    )
+
+
+def test_classifies_varargs_erasure_collisions_as_unsafe() -> None:
+    group = _overload_group(
+        """
+        public class Unsafe {
+            public static int pick(int... values) {
+                return 1;
+            }
+
+            public static int pick(long... values) {
+                return 2;
+            }
+        }
+        """,
+        "pick",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
+    assert classification.erased_signatures == (("*int",), ("*int",))
+    assert "indistinguishable Python runtime shapes" in classification.reason

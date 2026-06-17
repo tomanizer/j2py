@@ -85,8 +85,7 @@ def _value_dispatch_overload(
         return None
 
     params_by_member = [parameter_infos(member, cfg) for member in members]
-    if any(any(param.is_spread for param in params) for params in params_by_member):
-        return None
+    has_varargs = any(any(param.is_spread for param in params) for params in params_by_member)
 
     guards_by_member: list[list[_DispatchGuard]] = []
     for params in params_by_member:
@@ -98,11 +97,30 @@ def _value_dispatch_overload(
             guards.append(guard)
         guards_by_member.append(guards)
 
-    guard_signatures = [
-        tuple(guard.condition_template for guard in guards) for guards in guards_by_member
-    ]
-    if len(set(guard_signatures)) != len(guard_signatures):
-        return None
+    if has_varargs:
+        for params in params_by_member:
+            spread_indices = [index for index, param in enumerate(params) if param.is_spread]
+            if len(spread_indices) > 1:
+                return None
+            if spread_indices and spread_indices[0] != len(params) - 1:
+                return None
+        dispatch_keys = [
+            _member_dispatch_key(params, guards)
+            for params, guards in zip(params_by_member, guards_by_member, strict=True)
+        ]
+        if len(set(dispatch_keys)) != len(dispatch_keys):
+            return None
+        if not all(
+            _varargs_value_guards_checkable(params, guards)
+            for params, guards in zip(params_by_member, guards_by_member, strict=True)
+        ):
+            return None
+    else:
+        guard_signatures = [
+            tuple(guard.condition_template for guard in guards) for guards in guards_by_member
+        ]
+        if len(set(guard_signatures)) != len(guard_signatures):
+            return None
 
     for member in members:
         diagnostics.record(
@@ -153,10 +171,10 @@ def _value_dispatch_overload(
 
     ordered = sorted(
         enumerate(zip(members, params_by_member, guards_by_member, strict=True)),
-        key=lambda item: (-sum(guard.specificity for guard in item[1][2]), item[0]),
+        key=lambda item: (*_value_dispatch_branch_order_key(item[1]), item[0]),
     )
     for _, (member, params, guards) in ordered:
-        condition = _value_dispatch_condition(guards)
+        condition = _value_dispatch_condition(guards, params)
         lines.append(f"        if {condition}:")
         lines.extend(_value_dispatch_assignments(params, indent="            "))
         branch_lines = (
@@ -265,16 +283,76 @@ def _value_dispatch_member_return_type(
     return return_type
 
 
-def _value_dispatch_condition(guards: list[_DispatchGuard]) -> str:
-    parts = [f"len(args) == {len(guards)}"]
-    for index, guard in enumerate(guards):
+def _member_dispatch_key(
+    params: list[ParameterInfo],
+    guards: list[_DispatchGuard],
+) -> tuple[str, ...]:
+    spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
+    if spread_index is None:
+        return ("fixed", str(len(params))) + tuple(guard.key for guard in guards)
+    if spread_index != len(params) - 1:
+        return ("invalid",)
+    return (
+        ("varargs", str(spread_index))
+        + tuple(guard.key for guard in guards[:spread_index])
+        + (f"{guards[spread_index].key}:spread",)
+    )
+
+
+def _varargs_value_guards_checkable(
+    params: list[ParameterInfo],
+    guards: list[_DispatchGuard],
+) -> bool:
+    spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
+    if spread_index is None:
+        return all(guard.condition_template is not None for guard in guards)
+    if len(guards) > 1 and spread_index != len(params) - 1:
+        return False
+    if not all(guard.condition_template is not None for guard in guards[:spread_index]):
+        return False
+    spread_guard = guards[spread_index]
+    return spread_guard.condition_template is not None and spread_guard.specificity > 0
+
+
+def _value_dispatch_branch_order_key(
+    branch: tuple[JavaNode, list[ParameterInfo], list[_DispatchGuard]],
+) -> tuple[int, int, int, int]:
+    _, params, guards = branch
+    spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
+    if spread_index is None:
+        return (0, -sum(guard.specificity for guard in guards), len(params), 0)
+    return (1, -spread_index, -sum(guard.specificity for guard in guards), len(params))
+
+
+def _value_dispatch_condition(guards: list[_DispatchGuard], params: list[ParameterInfo]) -> str:
+    spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
+    if spread_index is None:
+        parts = [f"len(args) == {len(guards)}"]
+        for index, guard in enumerate(guards):
+            if guard.condition_template is not None:
+                parts.append(guard.condition_template.format(arg=f"args[{index}]"))
+        return " and ".join(parts)
+
+    parts = [f"len(args) >= {spread_index}"]
+    for index in range(spread_index):
+        guard = guards[index]
         if guard.condition_template is not None:
             parts.append(guard.condition_template.format(arg=f"args[{index}]"))
+    spread_guard = guards[spread_index]
+    if spread_guard.condition_template is not None and spread_guard.specificity > 0:
+        element_check = spread_guard.condition_template.format(arg="value")
+        parts.append(f"all({element_check} for value in args[{spread_index}:])")
     return " and ".join(parts)
 
 
 def _value_dispatch_assignments(params: list[ParameterInfo], *, indent: str) -> list[str]:
-    return [f"{indent}{param.py_name} = args[{index}]" for index, param in enumerate(params)]
+    spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
+    if spread_index is None:
+        return [f"{indent}{param.py_name} = args[{index}]" for index, param in enumerate(params)]
+    lines = [f"{indent}{params[index].py_name} = args[{index}]" for index in range(spread_index)]
+    spread_param = params[spread_index]
+    lines.append(f"{indent}{spread_param.py_name} = args[{spread_index}:]")
+    return lines
 
 
 def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None:

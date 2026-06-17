@@ -9,7 +9,7 @@ from j2py.translate.class_members import member_python_name
 from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.diagnostics import ClassTranslationState, TranslationDiagnostics
 from j2py.translate.name_resolution import NameResolver
-from j2py.translate.overload_classification import classify_overload_group
+from j2py.translate.overload_classification import OverloadKind, classify_overload_group
 from j2py.translate.overload_dispatch import (
     _deduplicate_same_body_erased_sig,
     _dispatch_overload_members,
@@ -76,9 +76,8 @@ def translate_overloaded_members(
     method_return_types = dict(class_method_return_types or {})
     injected_params = extra_params or []
 
-    # Classify first so future overload-family rules have a single decision table.
-    # Emission below remains behavior-preserving for this first slice (#394).
-    _ = classify_overload_group(members, cfg)
+    # Classify first so overload-family rules share one decision table (#394 / #408).
+    classification = classify_overload_group(members, cfg)
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(
@@ -157,34 +156,35 @@ def translate_overloaded_members(
         if forwarded_method is not None:
             return forwarded_method
 
-    value_dispatch = _value_dispatch_overload(
-        members,
-        cfg=cfg,
-        diagnostics=diagnostics,
-        containing_class_name=containing_class_name,
-        class_fields=class_fields,
-        class_field_types=field_types,
-        class_field_java_types=field_java_types,
-        declared_type_fields=nested_type_fields,
-        declared_type_java_fields=nested_type_java_fields,
-        class_methods=class_methods or set(),
-        class_static_methods=static_class_methods,
-        enclosing_static_dispatch=enclosing_dispatch,
-        class_method_return_types=method_return_types,
-        static_field_aliases=static_fields,
-        static_method_imports=static_methods,
-        name_resolver=resolver,
-        class_state=class_state,
-        docstring_lines=docstring_lines,
-        inner_class_names_requiring_outer=inner_capture_names,
-        nested_class_names=direct_nested_names,
-    )
-    if value_dispatch is not None:
-        return value_dispatch
+    if classification.kind in {
+        OverloadKind.VALUE_DISPATCH_SAFE,
+        OverloadKind.VALUE_DISPATCH_VARARGS_SAFE,
+    }:
+        value_dispatch = _value_dispatch_overload(
+            members,
+            cfg=cfg,
+            diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
+            class_fields=class_fields,
+            class_field_types=field_types,
+            class_field_java_types=field_java_types,
+            declared_type_fields=nested_type_fields,
+            declared_type_java_fields=nested_type_java_fields,
+            class_methods=class_methods or set(),
+            class_static_methods=static_class_methods,
+            enclosing_static_dispatch=enclosing_dispatch,
+            class_method_return_types=method_return_types,
+            static_field_aliases=static_fields,
+            static_method_imports=static_methods,
+            name_resolver=resolver,
+            class_state=class_state,
+            docstring_lines=docstring_lines,
+            inner_class_names_requiring_outer=inner_capture_names,
+            nested_class_names=direct_nested_names,
+        )
+        if value_dispatch is not None:
+            return value_dispatch
 
-    # When same-erased-signature overloads have identical Java bodies (e.g. sort(int[])
-    # and sort(long[]) both do Arrays.sort(array)), deduplicate to one representative so
-    # _dispatch_overload_members can proceed with a distinct-signature set.
     deduped_members = _deduplicate_same_body_erased_sig(members, cfg)
     dispatch_input = deduped_members if deduped_members is not None else members
 
