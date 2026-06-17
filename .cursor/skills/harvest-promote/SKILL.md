@@ -110,4 +110,4 @@ cat .j2py/harvest/state.json
 
 - [docs/LLM_HARVEST.md](../../../docs/LLM_HARVEST.md)
 - [docs/TRANSLATION_TARGETS.md](../../../docs/TRANSLATION_TARGETS.md)
-- [docs/decisions/0017-llm-harvest-for-rule-layer-backlog.md](../../../docs/decisions/0017-llm-harvest-for-rule-layer-backlog.md)
+- [docs/decisions/0023-llm-harvest-for-rule-layer-backlog.md](../../../docs/decisions/0023-llm-harvest-for-rule-layer-backlog.md)
