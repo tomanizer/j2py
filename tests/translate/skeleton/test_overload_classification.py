@@ -121,6 +121,28 @@ def test_classifies_erasure_collisions_as_unsafe() -> None:
     assert "indistinguishable Python runtime shapes" in classification.reason
 
 
+def test_constructor_pass_through_forwarding_does_not_claim_merge_support() -> None:
+    group = _overload_group(
+        """
+        public class Box {
+            public Box(int value) {
+                this(Integer.valueOf(value));
+            }
+
+            public Box(Integer value) {
+                value.toString();
+            }
+        }
+        """,
+        "__init__",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
+    assert classification.erased_signatures == (("int",), ("int",))
+
+
 def test_classifies_static_instance_same_name_collision_separately() -> None:
     group = _overload_group(
         """

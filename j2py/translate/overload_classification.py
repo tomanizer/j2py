@@ -139,10 +139,7 @@ def _is_forwarding_merge_candidate(members: list[JavaNode], cfg: TranslationConf
             )
             for member in members
         ]
-        return (
-            _has_default_forwarding_merge(forwards)
-            or _resolve_pass_through_forwarding(forwards) is not None
-        )
+        return _has_default_forwarding_merge(forwards)
     if any(member.type != "method_declaration" for member in members):
         return False
     forwards = [
