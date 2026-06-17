@@ -380,6 +380,22 @@ def test_wiring_metadata_payload_is_empty_without_metadata(tmp_path: Path) -> No
     assert pipeline.write_wiring_metadata_sidecar(result) is None
 
 
+def test_wiring_metadata_sidecar_is_removed_when_metadata_disappears(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Plain.java"
+    output = tmp_path / "Plain.py"
+    sidecar = output.with_suffix(".wiring.json")
+    source.write_text("public class Plain {}")
+    sidecar.write_text('{"stale": true}\n')
+
+    result = translate_file(source, cfg=CFG, use_llm=False, validate=False)
+    result.output_path = output
+
+    assert pipeline.write_wiring_metadata_sidecar(result) is None
+    assert not sidecar.exists()
+
+
 def test_config_fingerprint_handles_framework_plugins() -> None:
     cfg = CFG.model_copy(update={"framework_plugins": [ReferenceFrameworkPlugin()]})
 

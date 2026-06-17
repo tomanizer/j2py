@@ -95,9 +95,13 @@ def wiring_metadata_payload(result: TranslationResult) -> dict[str, object] | No
 
 def write_wiring_metadata_sidecar(result: TranslationResult) -> Path | None:
     payload = wiring_metadata_payload(result)
-    if payload is None or result.output_path is None:
+    if result.output_path is None:
         return None
     sidecar = wiring_metadata_sidecar_path(result.output_path)
+    if payload is None:
+        if sidecar.exists():
+            sidecar.unlink()
+        return None
     sidecar.parent.mkdir(parents=True, exist_ok=True)
     sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return sidecar

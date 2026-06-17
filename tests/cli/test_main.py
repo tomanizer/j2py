@@ -305,6 +305,59 @@ def test_cli_translate_writes_wiring_metadata_sidecar(tmp_path: Path) -> None:
     assert payload["elements"][0]["metadata"] == {"controller": "Orders"}
 
 
+def test_cli_translate_removes_stale_wiring_metadata_sidecar(tmp_path: Path) -> None:
+    source = tmp_path / "Orders.java"
+    output = tmp_path / "Orders.py"
+    config = tmp_path / "j2py_config.py"
+    source.write_text(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "from tests.fixtures.framework.reference_plugin import (",
+                "    ReferenceFrameworkPlugin as _ReferenceFrameworkPlugin,",
+                ")",
+                "framework_plugins = [_ReferenceFrameworkPlugin()]",
+                "emit_wiring_metadata = True",
+            ],
+        ),
+    )
+    runner = CliRunner()
+    args = [
+        "translate",
+        str(source),
+        "--output",
+        str(output),
+        "--config",
+        str(config),
+        "--no-llm",
+        "--no-validate",
+    ]
+
+    first = runner.invoke(app, args)
+    sidecar = output.with_suffix(".wiring.json")
+    assert first.exit_code == 0
+    assert sidecar.exists()
+
+    source.write_text(
+        """
+        public class Orders {
+        }
+        """,
+    )
+    second = runner.invoke(app, args)
+
+    assert second.exit_code == 0
+    assert not sidecar.exists()
+
+
 def test_cli_analyze_prints_record_and_nested_inventory() -> None:
     runner = CliRunner()
     target = FIXTURES / "java" / "targets" / "NestedTypes.java"
