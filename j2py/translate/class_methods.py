@@ -15,7 +15,7 @@ from j2py.translate.class_members import raw_member_name
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.framework_annotations import method_annotation_decorator_lines
+from j2py.translate.framework_dispatch import resolve_method
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name, translate_method_name
 from j2py.translate.rules.types import translate_type
@@ -120,13 +120,22 @@ def translate_method(
         else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
     )
     target_kind = "constructor" if node.type == "constructor_declaration" else "method"
-    record_annotation_diagnostics(
+    method_transform = resolve_method(
         node,
         ctx.cfg,
         ctx.diagnostics,
-        target_kind=target_kind,
-        target_name=py_name,
+        java_name=raw_name,
+        py_name=py_name,
+        indent="    ",
     )
+    if not method_transform.handled:
+        record_annotation_diagnostics(
+            node,
+            ctx.cfg,
+            ctx.diagnostics,
+            target_kind=target_kind,
+            target_name=py_name,
+        )
     supported = node.type in {"constructor_declaration", "method_declaration"}
     ctx.diagnostics.record(
         node,
@@ -160,10 +169,9 @@ def translate_method(
             return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
         lines: list[str] = []
-        lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
-        lines.extend(
-            method_annotation_decorator_lines(node, ctx.cfg, ctx.diagnostics, indent="    "),
-        )
+        if not method_transform.handled:
+            lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
+        lines.extend(method_transform.prefix_lines)
         if is_static:
             lines.append("    @staticmethod")
         lines.extend(decorator_lines or [])
