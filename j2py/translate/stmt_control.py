@@ -5,7 +5,7 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import infer_expression_py_type, translate_expression
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import direct_children_by_type, first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import element_type_from_container, is_var_type
 from j2py.translate.statements import (
@@ -126,9 +126,14 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
         ctx.diagnostics.record(node, supported=False, reason="malformed for statement")
         return [f"{indent}# TODO(j2py): malformed for statement", f"{indent}pass"]
 
-    initializer, condition, update, body = parts
-    if initializer is not None and condition is not None and update is not None:
-        range_loop = _range_loop_parts(initializer, condition, update, ctx)
+    initializers, condition, updates, body = parts
+    if (
+        len(initializers) == 1
+        and condition is not None
+        and len(updates) == 1
+        and _initializer_supports_range_loop(initializers[0])
+    ):
+        range_loop = _range_loop_parts(initializers[0], condition, updates[0], ctx)
         if range_loop is not None:
             raw_name, py_name, start, stop = range_loop
             previous_locals = set(ctx.local_names)
@@ -144,7 +149,7 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
             return lines
 
     out: list[str] = []
-    if initializer is not None:
+    for initializer in initializers:
         out.extend(_translate_for_initializer(initializer, ctx, indent=indent))
 
     if condition is not None:
@@ -159,7 +164,7 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
 
     out.append(_with_expression_comments(f"{indent}while {while_expr}:", ctx))
     out.extend(translate_body(body, ctx, indent=f"{indent}    "))
-    if update is not None:
+    for update in updates:
         out.append(
             _with_expression_comments(
                 f"{indent}    {translate_expression(update, ctx)}",
@@ -171,19 +176,40 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
 
 _FOR_INITIALIZER_TYPES = frozenset({"local_variable_declaration", "assignment_expression"})
 _FOR_UPDATE_TYPES = frozenset({"update_expression", "assignment_expression"})
+_FOR_EXPRESSION_CLAUSE_TYPES = frozenset(
+    {
+        "method_invocation",
+        "object_creation_expression",
+        "array_creation_expression",
+        "field_access",
+        "identifier",
+    },
+)
 
 
-def _is_for_initializer(node: JavaNode) -> bool:
-    return node.type in _FOR_INITIALIZER_TYPES
+def _peel_for_initializers(rest: list[JavaNode]) -> list[JavaNode]:
+    initializers: list[JavaNode] = []
+    while rest:
+        if rest[0].type in _FOR_INITIALIZER_TYPES or rest[0].type == "expression_statement":
+            initializers.append(rest.pop(0))
+            continue
+        if len(rest) >= 2 and rest[0].type in _FOR_EXPRESSION_CLAUSE_TYPES:
+            initializers.append(rest.pop(0))
+            continue
+        break
+    return initializers
 
 
-def _is_for_update_clause(node: JavaNode) -> bool:
-    return node.type in _FOR_UPDATE_TYPES
+def _initializer_supports_range_loop(initializer: JavaNode) -> bool:
+    """Range lowering only applies to a single declarator in one local declaration."""
+    if initializer.type != "local_variable_declaration":
+        return False
+    return len(direct_children_by_type(initializer, "variable_declarator")) == 1
 
 
 def _traditional_for_parts(
     node: JavaNode,
-) -> tuple[JavaNode | None, JavaNode | None, JavaNode | None, JavaNode] | None:
+) -> tuple[list[JavaNode], JavaNode | None, list[JavaNode], JavaNode] | None:
     """Parse a traditional for_statement by clause role, not fixed child count."""
     children = node.named_children
     if not children:
@@ -193,35 +219,33 @@ def _traditional_for_parts(
     if body.type != "block":
         return None
 
-    rest = children[:-1]
+    rest = list(children[:-1])
+    initializers = _peel_for_initializers(rest)
+
     if not rest:
-        return None, None, None, body
+        return initializers, None, [], body
 
     if len(rest) == 1:
         clause = rest[0]
-        if _is_for_update_clause(clause):
-            return None
-        return None, clause, None, body
+        if _is_strict_for_update(clause):
+            return initializers, None, [clause], body
+        return initializers, clause, [], body
 
-    if len(rest) == 2:
-        first, second = rest
-        if _is_for_update_clause(second):
-            if _is_for_initializer(first):
-                return first, None, second, body
-            return None, first, second, body
-        if _is_for_initializer(first):
-            return first, second, None, body
-        return None, first, None, body
+    condition = rest[0]
+    updates = rest[1:]
+    if not all(_is_for_update_like(node) for node in updates):
+        return None
+    return initializers, condition, updates, body
 
-    if len(rest) == 3:
-        initializer, condition, update = rest
-        if not _is_for_update_clause(update):
-            return None
-        if not _is_for_initializer(initializer):
-            return None
-        return initializer, condition, update, body
 
-    return None
+def _is_strict_for_update(node: JavaNode) -> bool:
+    """Updates that can appear as the sole remaining clause (no condition)."""
+    return node.type in _FOR_UPDATE_TYPES
+
+
+def _is_for_update_like(node: JavaNode) -> bool:
+    """Expressions allowed in the update clause list after the condition."""
+    return node.type in _FOR_UPDATE_TYPES or node.type in _FOR_EXPRESSION_CLAUSE_TYPES
 
 
 def _translate_for_initializer(
@@ -232,6 +256,12 @@ def _translate_for_initializer(
 ) -> list[str]:
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
+    if node.type == "expression_statement":
+        from j2py.translate.statements import translate_statement
+
+        return translate_statement(node, ctx, indent=indent)
+    if node.type in _FOR_EXPRESSION_CLAUSE_TYPES:
+        return [_with_expression_comments(f"{indent}{translate_expression(node, ctx)}", ctx)]
     if node.type == "assignment_expression":
         return [_with_expression_comments(f"{indent}{translate_expression(node, ctx)}", ctx)]
     return [_with_expression_comments(f"{indent}{translate_expression(node, ctx)}", ctx)]
