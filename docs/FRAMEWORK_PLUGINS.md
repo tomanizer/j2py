@@ -334,9 +334,8 @@ def _route(ctx: FrameworkContext) -> tuple[str, str] | None:
         "PutMapping": "PUT",
         "DeleteMapping": "DELETE",
     }.items():
-        path = _value(ctx, simple_name, default="")
-        if path:
-            return method, path
+        if _has(ctx, simple_name):
+            return method, _value(ctx, simple_name, default="")
     return None
 ```
 
