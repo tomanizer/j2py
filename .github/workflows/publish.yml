@@ -21,10 +21,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/setup-python-uv
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv sync --locked --extra dev
+          extras: test
       - run: make release-test
 
   release-dist:
@@ -33,10 +33,10 @@ jobs:
     needs: release-test
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.11"
-      - run: uv sync --locked --extra dev
+          extras: dev
       - run: make dist-check
       - uses: actions/upload-artifact@v7
         with:
