@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov test-ci-py311 test-ci-py312 \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -8,7 +8,7 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
-	clean clean-dist ci-local-pr ci-local-governance build sdist-hygiene-check dist-check \
+	clean clean-dist ci-local-pr ci-local-pr-full ci-local-governance build sdist-hygiene-check dist-check \
 	lock-check version-check import-smoke release-test release-check
 
 CORPUS := uv run python scripts/corpus/translate_corpus.py
@@ -22,35 +22,35 @@ SPRING_DENSE_ARGS := --preset spring-dense
 check: lint typecheck test  ## Run the normal local gate: lint + typecheck + test
 
 lint:  ## Lint with ruff (includes format check)
-	uv run --extra dev ruff check j2py/ tests/ scripts/equivalence/
-	uv run --extra dev ruff format --check j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
+	uv run --extra validate ruff check j2py/ tests/ scripts/equivalence/
+	uv run --extra validate ruff format --check j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 format:  ## Format with ruff
-	uv run --extra dev ruff format j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
+	uv run --extra validate ruff format j2py/ tests/ scripts/equivalence/ --exclude tests/fixtures/python
 
 typecheck:  ## Type-check with mypy (strict)
-	uv run --extra dev mypy j2py/
+	uv run --extra validate mypy j2py/
 
 test:  ## Run test suite
-	uv run --extra dev pytest -m "not behavior and not live_llm and not target_translation"
+	uv run --extra test pytest -m "not behavior and not live_llm and not target_translation"
 
 test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
-	uv run --extra dev pytest tests/equivalence -m equivalence -v
+	uv run --extra test pytest tests/equivalence -m equivalence -v
 
 equivalence-report:  ## Run equivalence gate and print the verified-surface metric table
 	mkdir -p corpus-reports
-	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra dev pytest tests/equivalence -m equivalence -q
-	uv run --extra dev python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
-	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra test pytest tests/equivalence -m equivalence -q
+	uv run --extra test python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
+	uv run --extra test python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
 equivalence-surface-floor-check:  ## Check the latest equivalence report against the committed ratchet floor
-	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+	uv run --extra test python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
-	uv run --extra dev pytest tests/behavior -m behavior
+	uv run --extra test pytest tests/behavior -m behavior
 
 test-targets:  ## Run future Java-to-Python roadmap xfail targets only
-	uv run --extra dev pytest tests/targets -m target_translation -rxXs; status=$$?; if [ $$status -eq 5 ]; then exit 0; fi; exit $$status
+	uv run --extra test pytest tests/targets -m target_translation -rxXs; status=$$?; if [ $$status -eq 5 ]; then exit 0; fi; exit $$status
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
 	@echo "Running live LLM exploratory test. This is excluded from normal make check."
@@ -156,8 +156,18 @@ harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draf
 	$(MAKE) harvest-prune
 
 test-cov:  ## Run tests with coverage report
-	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
 	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
+
+test-ci-py311:  ## Run the Python 3.11 CI test leg: tests, coverage floors, and equivalence surface floor
+	mkdir -p corpus-reports
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --python 3.11 --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run --python 3.11 python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
+	uv run --python 3.11 python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
+	uv run --python 3.11 python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+
+test-ci-py312:  ## Run the Python 3.12 CI test leg
+	uv run --python 3.12 --extra test pytest --tb=short -m "not behavior and not live_llm and not target_translation"
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
@@ -242,10 +252,12 @@ corpus-caffeine-dense-update-baseline:  ## Regenerate the Caffeine dense corpus 
 	$(CORPUS) --preset caffeine-dense --update-baseline
 
 # ── CI local presets ─────────────────────────────────────────────────────────
-# These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,
-# CI will pass.
+# ci-local-pr mirrors the required Python 3.11 GitHub Actions gate.
+# ci-local-pr-full also runs the remote Python 3.12 test matrix leg.
 
-ci-local-pr: check test-cov  ## For code/test/docs PRs — normal gate + coverage floors
+ci-local-pr: import-smoke lint typecheck test-ci-py311  ## For code/test/docs PRs — local required CI gate
+
+ci-local-pr-full: ci-local-pr test-ci-py312  ## Run the full remote CI Python matrix locally
 
 ci-local-governance: ci-local-pr  ## For CI/tooling/dependency PRs — same gates, explicit label
 

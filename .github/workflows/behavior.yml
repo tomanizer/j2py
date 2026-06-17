@@ -34,9 +34,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.11"
-      - run: uv sync --locked --extra dev
+          extras: test
       - name: Run behavior-equivalence corpus
         run: make test-behavior
