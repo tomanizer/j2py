@@ -6,6 +6,7 @@ Java ASTs and extracting node text/metadata.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,6 +15,9 @@ import tree_sitter_java as ts_java
 from tree_sitter import Language, Node, Parser
 
 JAVA_LANGUAGE = Language(ts_java.language())
+_TYPE_USE_VARARGS_ANNOTATION = re.compile(
+    r"(?<=[\w>\]])(?:\s+@[\w.]+(?:\([^)]*\))?)+\s*\.\.\.",
+)
 
 
 @dataclass(frozen=True)
@@ -98,6 +102,7 @@ def parse_source(source: bytes | str, *, path: Path | None = None) -> ParsedFile
     if isinstance(source, str):
         source = source.encode("utf-8")
 
+    source = _normalize_type_use_varargs_annotations(source)
     parser = Parser(JAVA_LANGUAGE)
     tree = parser.parse(source)
     root = JavaNode(tree.root_node, source)
@@ -109,3 +114,23 @@ def parse_source(source: bytes | str, *, path: Path | None = None) -> ParsedFile
         root=root,
         errors=errors,
     )
+
+
+def _normalize_type_use_varargs_annotations(source: bytes) -> bytes:
+    """Remove type-use annotations before varargs ellipses that tree-sitter rejects."""
+    try:
+        text = source.decode("utf-8")
+    except UnicodeDecodeError:
+        return source
+    normalized = _TYPE_USE_VARARGS_ANNOTATION.sub(
+        _blank_type_use_varargs_annotation,
+        text,
+    )
+    if normalized == text:
+        return source
+    return normalized.encode("utf-8")
+
+
+def _blank_type_use_varargs_annotation(match: re.Match[str]) -> str:
+    prefix = match.group(0)[:-3]
+    return "".join(char if char in "\r\n" else " " for char in prefix) + "..."
