@@ -5,6 +5,7 @@
 | Document | Description |
 |----------|-------------|
 | [PRD.md](PRD.md) | Product goals, functional requirements, non-goals, success criteria |
+| [POSITIONING.md](POSITIONING.md) | Useful scope, enterprise framework boundaries, and how to read corpus metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
 | [configuration.md](configuration.md) | Config file schema (`j2py.yaml`, TOML, pyproject) |
 
@@ -25,7 +26,7 @@
 |----------|-------------|
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Branch workflow, fixtures, material-change rules |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history |
-| [RELEASING.md](RELEASING.md) | Alpha release checklist |
+| [RELEASING.md](RELEASING.md) | Beta/pre-release checklist |
 | [../SECURITY.md](../SECURITY.md) | Vulnerability reporting |
 
 ## Architecture decisions and audits
