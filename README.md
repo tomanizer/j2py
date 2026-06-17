@@ -60,6 +60,10 @@ Known gaps include:
 - runtime/framework behavior (dependency injection, persistence mappings, container
   lifecycle) — j2py translates source structure, not application frameworks
 
+For Spring migrators, the [Spring → FastAPI/SQLAlchemy mapping cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md)
+documents opt-in `annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`)
+with verified before/after pairs and explicit manual-port callouts.
+
 ## Quick start
 
 Install the alpha from PyPI:
