@@ -17,6 +17,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Optional `openjdk-java-base` corpus preset and manual Makefile target sample selected
   OpenJDK `java.base` API files from a gitignored external checkout as a scoreboard/demo,
   with no committed OpenJDK source or runtime-compatibility claim (#364).
+- Expanded the `NumberUtils` equivalence surface with literal-oracle tests for
+  `toFloat`/`toByte`/`toShort` (both overloads each), lifting the fixture from 6/61 to
+  12/61 verified signatures and the total verified surface from 22.7% to 28.9% (#377,
+  case study #372).
 
 ### Changed
 - Gemini SDK support now installs through the optional `gemini` extra
