@@ -8,6 +8,7 @@ from j2py.translate.annotation_emit import record_annotation_diagnostics
 from j2py.translate.class_members import (
     member_python_name,
     static_instance_collision_static_python_name,
+    static_instance_collision_zero_arg_names,
 )
 from j2py.translate.class_methods import translate_method
 from j2py.translate.class_model import ParameterInfo, _modifiers
@@ -60,6 +61,8 @@ def _emit_static_instance_collision_split(
     inner_class_names_requiring_outer: set[str],
     nested_class_names: set[str],
     static_instance_static_aliases: dict[str, str],
+    static_instance_instance_zero_arg_names: set[str] | None = None,
+    static_instance_static_zero_arg_names: set[str] | None = None,
 ) -> list[str]:
     """Emit static and instance overload members under distinct Python names."""
     static_members = [member for member in members if "static" in _modifiers(member)]
@@ -85,6 +88,10 @@ def _emit_static_instance_collision_split(
             ),
         )
 
+    own_instance_zero, own_static_zero = static_instance_collision_zero_arg_names(members, cfg)
+    instance_zero_arg = set(static_instance_instance_zero_arg_names or ()) | set(own_instance_zero)
+    static_zero_arg = set(static_instance_static_zero_arg_names or ()) | set(own_static_zero)
+
     def translation_context() -> TranslationContext:
         return TranslationContext(
             cfg=cfg,
@@ -107,6 +114,8 @@ def _emit_static_instance_collision_split(
             containing_class_name=containing_class_name,
             nested_class_names=nested_class_names,
             static_instance_static_aliases=dict(static_instance_static_aliases),
+            static_instance_instance_zero_arg_names=instance_zero_arg,
+            static_instance_static_zero_arg_names=static_zero_arg,
         )
 
     emitted_static = False
@@ -155,6 +164,8 @@ def _emit_static_instance_collision_split(
                         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
                         nested_class_names=nested_class_names,
                         static_instance_static_aliases=static_instance_static_aliases,
+                        static_instance_instance_zero_arg_names=instance_zero_arg,
+                        static_instance_static_zero_arg_names=static_zero_arg,
                         python_name_override=static_name,
                     ),
                 )
@@ -194,11 +205,13 @@ def _emit_static_instance_collision_split(
                         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
                         nested_class_names=nested_class_names,
                         static_instance_static_aliases=static_instance_static_aliases,
+                        static_instance_instance_zero_arg_names=instance_zero_arg,
+                        static_instance_static_zero_arg_names=static_zero_arg,
                     ),
                 )
             emitted_instance = True
 
-        if member is not members[-1]:
+        if not (emitted_static and emitted_instance) and member is not members[-1]:
             lines.append("")
 
     return lines
@@ -229,6 +242,8 @@ def translate_overloaded_members(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    static_instance_instance_zero_arg_names: set[str] | None = None,
+    static_instance_static_zero_arg_names: set[str] | None = None,
     python_name_override: str | None = None,
 ) -> list[str]:
     name = python_name_override or member_python_name(members[0])
@@ -257,6 +272,8 @@ def translate_overloaded_members(
     method_return_types = dict(class_method_return_types or {})
     injected_params = extra_params or []
     collision_aliases = dict(static_instance_static_aliases or {})
+    instance_zero_arg = set(static_instance_instance_zero_arg_names or ())
+    static_zero_arg = set(static_instance_static_zero_arg_names or ())
 
     # Classify first so overload-family rules share one decision table (#394 / #408).
     classification = classify_overload_group(members, cfg)
@@ -287,6 +304,8 @@ def translate_overloaded_members(
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
             static_instance_static_aliases=collision_aliases,
+            static_instance_instance_zero_arg_names=instance_zero_arg,
+            static_instance_static_zero_arg_names=static_zero_arg,
         )
         if split:
             return split

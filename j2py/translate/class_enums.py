@@ -19,6 +19,7 @@ from j2py.translate.class_members import (
     member_method_names,
     member_static_method_names,
     static_instance_collision_static_aliases,
+    static_instance_collision_zero_arg_names,
 )
 from j2py.translate.class_methods import (
     class_method_return_types,
@@ -77,6 +78,7 @@ def translate_enum(
     class_method_names = member_method_names(members, cfg)
     class_static_method_names = member_static_method_names(members, cfg)
     static_instance_aliases = static_instance_collision_static_aliases(members, cfg)
+    instance_zero, static_zero = static_instance_collision_zero_arg_names(members, cfg)
     method_return_types = class_method_return_types(members, cfg)
 
     interfaces = _enum_interface_names(node)
@@ -168,6 +170,8 @@ def translate_enum(
                     name_resolver=name_resolver,
                     pre_body_lines=[],
                     static_instance_static_aliases=static_instance_aliases,
+                    static_instance_instance_zero_arg_names=set(instance_zero),
+                    static_instance_static_zero_arg_names=set(static_zero),
                 ),
             )
             continue
@@ -212,6 +216,8 @@ def translate_enum(
             containing_class_name=class_name,
             allow_local_helpers=True,
             static_instance_static_aliases=static_instance_aliases,
+            static_instance_instance_zero_arg_names=set(instance_zero),
+            static_instance_static_zero_arg_names=set(static_zero),
         )
         lines.extend(translate_method(group[0], ctx))
     return module_prefix + lines

@@ -27,6 +27,7 @@ from j2py.translate.class_members import (
     enclosing_static_dispatch_for_nested_types,
     inherited_static_dispatch,
     inherited_static_instance_static_aliases,
+    inherited_static_instance_zero_arg_names,
     member_docstrings,
     member_groups,
     member_method_names,
@@ -37,6 +38,7 @@ from j2py.translate.class_members import (
     nested_type_names_using_qualified_this,
     node_key,
     static_instance_collision_static_aliases,
+    static_instance_collision_zero_arg_names,
     type_metadata_comment_lines,
 )
 from j2py.translate.class_methods import (
@@ -231,6 +233,14 @@ def translate_class(
         cfg,
     )
     static_instance_aliases = {**inherited_collision_aliases, **own_collision_aliases}
+    own_instance_zero, own_static_zero = static_instance_collision_zero_arg_names(members, cfg)
+    inherited_instance_zero, inherited_static_zero = inherited_static_instance_zero_arg_names(
+        node,
+        merged_class_declarations,
+        cfg,
+    )
+    static_instance_instance_zero_arg = set(own_instance_zero) | set(inherited_instance_zero)
+    static_instance_static_zero_arg = set(own_static_zero) | set(inherited_static_zero)
     method_return_types = class_method_return_types(members, cfg)
     enclosing_dispatch = dict(enclosing_static_dispatch or {})
     enclosing_dispatch.update(
@@ -399,6 +409,8 @@ def translate_class(
                     nested_class_names=direct_nested_names,
                     enclosing_static_dispatch=enclosing_dispatch,
                     static_instance_static_aliases=static_instance_aliases,
+                    static_instance_instance_zero_arg_names=static_instance_instance_zero_arg,
+                    static_instance_static_zero_arg_names=static_instance_static_zero_arg,
                 ),
             )
             continue
@@ -427,6 +439,8 @@ def translate_class(
             nested_class_names=direct_nested_names,
             enclosing_static_dispatch=enclosing_dispatch,
             static_instance_static_aliases=static_instance_aliases,
+            static_instance_instance_zero_arg_names=static_instance_instance_zero_arg,
+            static_instance_static_zero_arg_names=static_instance_static_zero_arg,
         )
         pre_body_lines = (
             lock_init_lines + instance_init_lines
@@ -548,6 +562,8 @@ def translate_overloaded_members(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    static_instance_instance_zero_arg_names: set[str] | None = None,
+    static_instance_static_zero_arg_names: set[str] | None = None,
     python_name_override: str | None = None,
 ) -> list[str]:
     from j2py.translate.overloads import translate_overloaded_members as impl
@@ -576,5 +592,7 @@ def translate_overloaded_members(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         nested_class_names=nested_class_names or set(),
         static_instance_static_aliases=static_instance_static_aliases,
+        static_instance_instance_zero_arg_names=static_instance_instance_zero_arg_names,
+        static_instance_static_zero_arg_names=static_instance_static_zero_arg_names,
         python_name_override=python_name_override,
     )

@@ -188,6 +188,17 @@ def _superclass_binding(
 STATIC_INSTANCE_STATIC_SUFFIX = "_static"
 
 
+def _member_java_parameter_count(member: JavaNode) -> int:
+    params_node = member.child_by_field("parameters")
+    if params_node is None:
+        return 0
+    return sum(1 for child in params_node.named_children if child.type == "formal_parameter")
+
+
+def _member_translated_python_name(member: JavaNode, cfg: TranslationConfig) -> str:
+    return translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
+
+
 def static_instance_collision_python_names(
     members: Iterable[JavaNode],
     cfg: TranslationConfig,
@@ -197,7 +208,7 @@ def static_instance_collision_python_names(
     for member in members:
         if member.type != "method_declaration":
             continue
-        name = member_python_name(member)
+        name = _member_translated_python_name(member, cfg)
         grouped.setdefault(name, []).append(member)
     collisions: set[str] = set()
     for name, group in grouped.items():
@@ -226,6 +237,34 @@ def static_instance_collision_static_aliases(
     }
 
 
+def static_instance_collision_zero_arg_names(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Return collision names with a zero-parameter overload on each side."""
+    grouped: dict[str, list[JavaNode]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        name = _member_translated_python_name(member, cfg)
+        grouped.setdefault(name, []).append(member)
+
+    instance_zero: set[str] = set()
+    static_zero: set[str] = set()
+    for name, group in grouped.items():
+        if len(group) < 2:
+            continue
+        static_members = [item for item in group if "static" in _modifiers(item)]
+        instance_members = [item for item in group if "static" not in _modifiers(item)]
+        if not static_members or not instance_members:
+            continue
+        if any(_member_java_parameter_count(item) == 0 for item in static_members):
+            static_zero.add(name)
+        if any(_member_java_parameter_count(item) == 0 for item in instance_members):
+            instance_zero.add(name)
+    return frozenset(instance_zero), frozenset(static_zero)
+
+
 def member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
     return {
         translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
@@ -239,7 +278,7 @@ def member_static_method_names(members: Iterable[JavaNode], cfg: TranslationConf
     for member in members:
         if member.type != "method_declaration" or "static" not in _modifiers(member):
             continue
-        py_name = member_python_name(member)
+        py_name = _member_translated_python_name(member, cfg)
         if py_name in collisions:
             names.add(static_instance_collision_static_python_name(py_name))
         else:
@@ -443,6 +482,46 @@ def inherited_static_instance_static_aliases(
         file_class_declarations,
     )
     return aliases
+
+
+def inherited_static_instance_zero_arg_names(
+    node: JavaNode,
+    file_class_declarations: dict[str, JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Collect inherited zero-argument collision metadata across ``extends``."""
+    instance_zero: set[str] = set()
+    static_zero: set[str] = set()
+    current: JavaNode | None = node
+    seen: set[str] = set()
+    while current is not None:
+        super_simple = superclass_simple_name(current)
+        if super_simple is None:
+            break
+        super_py = translate_class_name(super_simple)
+        if super_py in seen:
+            break
+        seen.add(super_py)
+        parent_node = file_class_declarations.get(super_py)
+        if parent_node is not None:
+            body = parent_node.child_by_field("body")
+            members = (
+                []
+                if body is None
+                else [
+                    child
+                    for child in body.named_children
+                    if child.type in {"constructor_declaration", "method_declaration"}
+                ]
+            )
+            parent_instance_zero, parent_static_zero = static_instance_collision_zero_arg_names(
+                members,
+                cfg,
+            )
+            instance_zero.update(parent_instance_zero)
+            static_zero.update(parent_static_zero)
+        current = parent_node
+    return frozenset(instance_zero), frozenset(static_zero)
 
 
 def enclosing_static_dispatch_for_nested_types(

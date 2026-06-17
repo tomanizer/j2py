@@ -987,6 +987,35 @@ def test_static_instance_collision_zero_arg_static_call_skips_renamed_static() -
     assert_valid_python(result.source)
 
 
+def test_static_instance_collision_zero_arg_static_routes_to_renamed_static() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widget {
+            public static boolean isReady() {
+                return true;
+            }
+
+            public boolean isReady(int code) {
+                return code > 0;
+            }
+
+            public static boolean run() {
+                return isReady();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return Widget.is_ready_static()" in result.source
+    assert "self.is_ready()" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<widget>", "exec"), namespace)
+    widget = namespace["Widget"]
+    assert widget.run() is True  # type: ignore[attr-defined]
+
+
 def test_static_instance_collision_module_index_merges_parent_from_other_unit() -> None:
     from j2py.analyze.symbols import extract_symbols
     from j2py.config.loader import ConfigLoader
