@@ -966,24 +966,51 @@ def test_annotation_type_declaration_applies_static_import_aliases_to_meta_comme
     assert_valid_python(result.source)
 
 
-def test_annotation_type_declaration_records_unsupported_members() -> None:
+def test_annotation_type_declaration_translates_constants() -> None:
     result = translate_source_with_diagnostics(
         """
         public @interface WithConstant {
             int CONSTANT = 1;
-            String value();
+            String DEFAULT_NAME = "item";
+            String value() default DEFAULT_NAME;
         }
         """,
     )
 
-    assert result.coverage < 1.0
+    assert result.coverage == 1.0
     assert "class WithConstant:" in result.source
-    assert "TODO(j2py): unsupported annotation member constant_declaration" in result.source
-    assert "value: str" in result.source
-    assert any(
-        item.reason == "unsupported annotation member constant_declaration"
-        for item in result.diagnostics.unhandled
+    assert "CONSTANT: ClassVar[int] = 1" in result.source
+    assert 'DEFAULT_NAME: ClassVar[str] = "item"' in result.source
+    assert "value: str = DEFAULT_NAME" in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_annotation_type_declaration_translates_nested_helper_class() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public @interface WithHelper {
+            String DEFAULT_NAME = "item";
+            String value() default DEFAULT_NAME;
+
+            public class Value {
+                public final String name;
+                public Value(String name) {
+                    this.name = name;
+                }
+            }
+        }
+        """,
     )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'DEFAULT_NAME: ClassVar[str] = "item"' in result.source
+    assert "value: str = DEFAULT_NAME" in result.source
+    assert "class Value:" in result.source
+    assert "def __init__(self, name: str) -> None:" in result.source
+    assert "self.name = name" in result.source
+    assert "unsupported annotation member" not in result.source
     assert_valid_python(result.source)
 
 

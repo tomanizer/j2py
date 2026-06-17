@@ -8,6 +8,7 @@
 | [POSITIONING.md](POSITIONING.md) | Useful scope, enterprise framework boundaries, and how to read corpus metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
 | [configuration.md](configuration.md) | Config file schema (`j2py.yaml`, TOML, pyproject) |
+| [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) | Tier 4 framework plugin guide, quick start, and Spring migration example |
 
 ## Quality, measurement, and roadmap
 

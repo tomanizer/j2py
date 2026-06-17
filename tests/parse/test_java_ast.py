@@ -36,8 +36,8 @@ def test_malformed_source_sets_has_errors() -> None:
     assert result.errors
 
 
-def test_nullable_varargs_type_use_annotation_is_parser_error() -> None:
-    """Guava Platform.java: tree-sitter-java ERROR on Jspecify varargs annotations (#160)."""
+def test_nullable_varargs_type_use_annotation_parses_cleanly() -> None:
+    """Guava parse failures: JSpecify type-use annotation before varargs ellipsis (#407)."""
     result = parse_source(
         b"""class Platform {
   static String lenientFormat(String template, @Nullable Object @Nullable ... args) {
@@ -46,6 +46,8 @@ def test_nullable_varargs_type_use_annotation_is_parser_error() -> None:
 }""",
     )
 
-    assert result.has_errors
-    assert any(error.type == "ERROR" for error in result.errors)
-    assert any("... args" in error.text for error in result.errors)
+    assert not result.has_errors
+    methods = list(result.root.find_all("method_declaration"))
+    assert len(methods) == 1
+    assert "@Nullable Object" in methods[0].text
+    assert "... args" in methods[0].text

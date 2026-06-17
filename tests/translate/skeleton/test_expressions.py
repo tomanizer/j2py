@@ -2609,21 +2609,51 @@ def test_multidimensional_array_creation_reports_full_coverage() -> None:
     assert not result.diagnostics.unhandled
 
 
-def test_partially_unsized_array_creation_stays_unsupported() -> None:
+def test_trailing_unsized_array_creation_allocates_outer_shape() -> None:
     result = translate_source_with_diagnostics(
         """
         public class Arrays {
             public int[][] jagged(int rows) {
                 return new int[rows][];
             }
+
+            public String[][] names(int rows) {
+                return new String[rows][];
+            }
+
+            public int[][][] cube(int planes, int rows) {
+                return new int[planes][rows][];
+            }
         }
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "__j2py_todo__('new int[rows][]')" in result.source
-    assert result.diagnostics.unhandled[0].reason == (
-        "array creation with unsized dimensions requires allocation handling"
+    assert result.coverage == 1.0
+    assert "return [None] * rows" in result.source
+    assert "return [[None] * rows for _ in range(planes)]" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_caffeine_timerwheel_array_creation_allocates_outer_bucket_shape() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class TimerWheel {
+            private static final int[] BUCKETS = new int[] { 2, 4, 8 };
+            private Object[][] wheel;
+            public TimerWheel() {
+                wheel = new Object[BUCKETS.length][];
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "self.wheel = [None] * len(TimerWheel.BUCKETS)" in result.source
+    assert not any(
+        item.reason == "array creation with unsized dimensions requires allocation handling"
+        for item in result.diagnostics.unhandled
     )
     assert_valid_python(result.source)
 

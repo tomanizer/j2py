@@ -113,18 +113,43 @@ def _translate_array_creation(node: JavaNode, ctx: TranslationContext) -> str:
     initializer = first_child_by_type(node, "array_initializer")
     if initializer is not None:
         return translate_expression(initializer, ctx)
-    dimensions = [child for child in node.named_children if child.type == "dimensions_expr"]
-    if any(child.type == "dimensions" for child in node.named_children):
+    dimension_nodes = [
+        child for child in node.named_children if child.type in {"dimensions", "dimensions_expr"}
+    ]
+    sized_dimensions: list[JavaNode] = []
+    has_unsized_dimension = False
+    for dimension in dimension_nodes:
+        if dimension.type == "dimensions_expr":
+            if has_unsized_dimension:
+                ctx.diagnostics.record(
+                    node,
+                    supported=False,
+                    reason=(
+                        "array creation with interleaved unsized dimensions requires "
+                        "allocation handling"
+                    ),
+                )
+                return f"__j2py_todo__({node.text!r})"
+            sized_dimensions.append(dimension)
+        else:
+            has_unsized_dimension = True
+    if has_unsized_dimension and not sized_dimensions:
         ctx.diagnostics.record(
             node,
             supported=False,
             reason="array creation with unsized dimensions requires allocation handling",
         )
         return f"__j2py_todo__({node.text!r})"
-    if dimensions and all(dimension.named_children for dimension in dimensions):
+    if sized_dimensions and all(dimension.named_children for dimension in sized_dimensions):
         type_node = _array_creation_type_node(node)
-        default = java_default_value(type_node.text if type_node is not None else "Object")
-        sizes = [translate_expression(dimension.named_children[0], ctx) for dimension in dimensions]
+        default = (
+            "None"
+            if has_unsized_dimension
+            else java_default_value(type_node.text if type_node is not None else "Object")
+        )
+        sizes = [
+            translate_expression(dimension.named_children[0], ctx) for dimension in sized_dimensions
+        ]
         return _sized_array_allocation(default, sizes)
     ctx.diagnostics.record(
         node,

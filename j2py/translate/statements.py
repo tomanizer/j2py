@@ -222,11 +222,37 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
         return [f"{indent}continue"]
 
     if node.type in TYPE_DECLARATION_NODES:
+        from j2py.translate.class_members import type_name_of, uses_qualified_this
         from j2py.translate.classes import translate_class
+
+        type_name = type_name_of(node=node)
+        requires_outer_self = (
+            node.type == "class_declaration"
+            and type_name is not None
+            and ctx.in_instance_method
+            and uses_qualified_this(node)
+        )
+        if requires_outer_self and type_name is not None:
+            ctx.local_class_names_requiring_outer.add(type_name)
 
         return [
             f"{indent}{line}" if line else line
-            for line in translate_class(node, ctx.cfg, ctx.diagnostics)
+            for line in translate_class(
+                node,
+                ctx.cfg,
+                ctx.diagnostics,
+                inherited_class_field_types=ctx.class_field_types,
+                inherited_class_field_java_types=ctx.class_field_java_types,
+                inherited_declared_type_fields=ctx.declared_type_fields,
+                inherited_declared_type_java_fields=ctx.declared_type_java_fields,
+                inherited_declared_type_method_return_types=(ctx.declared_type_method_return_types),
+                static_field_aliases=ctx.static_field_aliases,
+                static_method_imports=ctx.static_method_imports,
+                name_resolver=ctx.name_resolver,
+                outer_self_alias="self._outer_self" if requires_outer_self else None,
+                requires_outer_self=requires_outer_self,
+                enclosing_static_dispatch=ctx.enclosing_static_dispatch,
+            )
         ]
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported statement {node.type}")

@@ -54,6 +54,16 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
 
     py_base_type = translate_class_name(base_type)
     _request_constructor_import(base_type, ctx)
+    if py_base_type in ctx.local_class_names_requiring_outer:
+        if ctx.in_instance_method:
+            constructor_args = f"self, {args}" if args else "self"
+            return f"{py_base_type}({constructor_args})"
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="qualified outer this in static context requires manual capture",
+        )
+        return f"__j2py_todo__({node.text!r})"
     if ctx.containing_class_name and py_base_type in ctx.nested_class_names:
         if ctx.in_instance_method and py_base_type in ctx.inner_class_names_requiring_outer:
             constructor_args = f"self, {args}" if args else "self"

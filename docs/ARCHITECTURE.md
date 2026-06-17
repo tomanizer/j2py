@@ -218,7 +218,7 @@ See [docs/decisions/](decisions/) for full ADR context.
 | Annotation map framework lowering | [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) |
 | JDK lowering vs platform boundary stubs | [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) |
 | Sibling type refs as body-local imports | [ADR 0021](decisions/0021-sibling-type-refs-as-body-local-imports.md) |
-| Framework plugin architecture (Tier 4, Proposed) | [ADR 0022](decisions/0022-framework-plugin-architecture.md) |
+| Framework plugin architecture (Tier 4) | [ADR 0022](decisions/0022-framework-plugin-architecture.md), [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) |
 
 ## Quality measurement
 

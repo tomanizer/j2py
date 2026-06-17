@@ -388,6 +388,8 @@ def translate_class(
         lines.extend(nested_lines)
 
     member_docstring_map = member_docstrings(body, cfg)
+    outer_self_params = _outer_self_init_params() if requires_outer_self else []
+    outer_self_init_lines = _outer_self_init_lines() if requires_outer_self else []
     for group in member_groups(members):
         lines.append("")
         if len(group) > 1:
@@ -410,12 +412,14 @@ def translate_class(
                     static_method_imports=static_method_imports or {},
                     name_resolver=resolver,
                     pre_body_lines=(
-                        lock_init_lines + instance_init_lines
+                        outer_self_init_lines + lock_init_lines + instance_init_lines
                         if group[0].type == "constructor_declaration"
                         else []
                     ),
                     extra_params=(
-                        injected_init_params if group[0].type == "constructor_declaration" else []
+                        outer_self_params + injected_init_params
+                        if group[0].type == "constructor_declaration"
+                        else []
                     ),
                     class_state=class_state,
                     docstring_lines=docstring_for_group(group, member_docstring_map),
@@ -457,7 +461,7 @@ def translate_class(
             static_instance_static_zero_arg_names=static_instance_static_zero_arg,
         )
         pre_body_lines = (
-            lock_init_lines + instance_init_lines
+            outer_self_init_lines + lock_init_lines + instance_init_lines
             if member.type == "constructor_declaration"
             else []
         )
@@ -467,7 +471,9 @@ def translate_class(
                 ctx,
                 pre_body_lines=pre_body_lines,
                 extra_params=(
-                    injected_init_params if member.type == "constructor_declaration" else []
+                    outer_self_params + injected_init_params
+                    if member.type == "constructor_declaration"
+                    else []
                 ),
                 docstring_lines=member_docstring_map.get(node_key(member)),
             )
@@ -554,6 +560,21 @@ def _annotation_init_params(
             )
             seen.add(init_param.py_name)
     return params
+
+
+def _outer_self_init_params() -> list[ParameterInfo]:
+    return [
+        ParameterInfo(
+            raw_name="_outer_self",
+            py_name="_outer_self",
+            py_type="object",
+            java_type="Object",
+        ),
+    ]
+
+
+def _outer_self_init_lines() -> list[str]:
+    return ["        self._outer_self = _outer_self"]
 
 
 def _render_init_params(

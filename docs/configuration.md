@@ -176,7 +176,7 @@ Each `annotation_map` entry is strict. Supported entry fields:
 JPA, or DI mapping. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus
 optional line comments.
 
-For a worked Spring example, see the [Spring → FastAPI/SQLAlchemy mapping
+For simple worked Spring mappings, see the [Spring -> FastAPI/SQLAlchemy mapping
 cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as both
 [`spring-to-fastapi.toml`](examples/spring-to-fastapi.toml) (loads via the stdlib) and
 [`spring-to-fastapi.yaml`](examples/spring-to-fastapi.yaml) (needs the `[yaml]` extra).
@@ -186,7 +186,9 @@ cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as
 `framework_plugins` is the Tier 4 extension point for framework annotations whose lowering
 needs programmatic logic rather than a one-to-one `annotation_map` entry. Plugins subclass
 `j2py.framework.FrameworkPlugin` and may implement any of `transform_class`,
-`transform_field`, or `transform_method`.
+`transform_field`, or `transform_method`. See the dedicated
+[framework plugin guide](FRAMEWORK_PLUGINS.md) for the contract, quick start, and an
+end-to-end Spring migration example.
 
 Plugins are trusted Python objects, so they can only be registered from a `.py` config file.
 YAML, TOML, and `pyproject.toml` can enable `emit_wiring_metadata`, but they cannot carry
@@ -194,11 +196,16 @@ plugin instances.
 
 ```python
 # j2py_config.py
-from my_project.j2py_plugins import MyFrameworkPlugin
+from my_project.j2py_plugins import MyFrameworkPlugin as _MyFrameworkPlugin
 
-framework_plugins = [MyFrameworkPlugin()]
+framework_plugins = [_MyFrameworkPlugin()]
 emit_wiring_metadata = True
 ```
+
+Plugin modules must be importable when the config file executes. For project-local plugin
+packages, install the package into the active environment or set `PYTHONPATH` appropriately
+when invoking `j2py`. Imported plugin classes should use a private alias, as above, because
+the Python config loader exports every public top-level name as a config key.
 
 Resolution is per element: plugins run in registration order, and the first plugin returning
 `handled=True` wins for that class, field, or method. A handled plugin suppresses later
@@ -235,4 +242,5 @@ Unknown config key: 'type_maps'. Did you mean 'type_map'?
 
 See [docs/examples/spring-to-fastapi.yaml](examples/spring-to-fastapi.yaml) for a
 reference profile showing how a project might map common Spring annotations to its own
-Python shims.
+Python shims. Use [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) when those mappings need
+programmatic logic or wiring metadata.

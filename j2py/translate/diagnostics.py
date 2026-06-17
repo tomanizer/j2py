@@ -194,6 +194,7 @@ class TranslationContext:
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
     inner_class_names_requiring_outer: set[str] = field(default_factory=set)
+    local_class_names_requiring_outer: set[str] = field(default_factory=set)
     containing_class_name: str | None = None
     nested_class_names: set[str] = field(default_factory=set)
 
@@ -259,6 +260,7 @@ _TYPING_ANNOTATION_NAMES = frozenset(
     {
         "Any",
         "Callable",
+        "ClassVar",
         "Iterable",
         "Iterator",
         "Optional",
