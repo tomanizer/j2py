@@ -25,6 +25,7 @@ from tests.translate.skeleton.helpers import (
         ("JavadocConversion", 1.0),
         ("OuterThisCapture", 1.0),
         ("PatternMatchSwitch", 1.0),
+        ("StreamFlatMap", 1.0),
     ],
 )
 def test_translate_fixture_with_rule_layer(
