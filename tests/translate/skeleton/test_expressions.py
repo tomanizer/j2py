@@ -3,7 +3,9 @@
 import pytest
 
 from j2py.analyze.symbols import extract_symbols
-from j2py.parse.java_ast import parse_file
+from j2py.parse.java_ast import parse_file, parse_source
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
@@ -1276,6 +1278,32 @@ def test_buffer_and_atomic_get_receivers_are_api_calls() -> None:
     assert_valid_python(result.source)
 
 
+def test_bitset_get_is_indexed_predicate_api_call() -> None:
+    """BitSet.get(index) is a predicate API call, not list-style indexing."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.BitSet;
+
+        public class BitSetProbe {
+            private BitSet bitSet;
+
+            public boolean isSet(int index) {
+                return bitSet.get(index);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.bit_set.get(index)" in result.source
+    assert "bit_set[index]" not in result.source
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(
@@ -2121,6 +2149,128 @@ def test_ambiguous_division_drops_coverage() -> None:
     assert "return __j2py_todo__('left / right')" in result.source
     assert result.diagnostics.unhandled[-1].reason == "division requires numeric type certainty"
     assert_valid_python(result.source)
+
+
+def test_integral_division_uses_method_return_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            private int divisor() {
+                return 2;
+            }
+
+            public int scale(int value) {
+                return value / divisor();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return value // self.divisor()" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_length_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int lengths(int[] values, String text) {
+                return values.length / text.length();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return len(values) // len(text)" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_jdk_integral_constant_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int words(int bitCount) {
+                return bitCount / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return bit_count // 64" in result.source
+    assert "Long.SIZE" not in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_nested_numeric_expression_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int words(int[] values) {
+                return (values.length - 1) / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return (len(values) - 1) // 64" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_integral_division_uses_ordinal_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int bucket(Thread.State state) {
+                return state.ordinal() / Long.SIZE;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return state.ordinal() // 64" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
+def test_floating_point_remainder_infers_float_type() -> None:
+    parsed = parse_source(
+        """
+        public class MathOps {
+            public double remainder(double left, double right) {
+                return left % right;
+            }
+        }
+        """,
+    )
+    expression = next(
+        node for node in parsed.root.walk() if node.type == "binary_expression" and "%" in node.text
+    )
+    ctx = TranslationContext(
+        cfg=CFG,
+        diagnostics=TranslationDiagnostics(),
+        variable_types={"left": "float", "right": "float"},
+    )
+
+    assert infer_expression_py_type(expression, ctx) == "float"
 
 
 def test_field_compound_integer_division_uses_truncating_helper() -> None:

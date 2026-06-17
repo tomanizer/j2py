@@ -12,6 +12,14 @@ from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
 
+_JDK_INTEGRAL_STATIC_FIELD_VALUES = {
+    "Byte": {"SIZE": "8", "BYTES": "1", "MIN_VALUE": "-128", "MAX_VALUE": "127"},
+    "Short": {"SIZE": "16", "BYTES": "2", "MIN_VALUE": "-2**15", "MAX_VALUE": "2**15 - 1"},
+    "Integer": {"SIZE": "32", "BYTES": "4", "MIN_VALUE": "-2**31", "MAX_VALUE": "2**31 - 1"},
+    "Long": {"SIZE": "64", "BYTES": "8", "MIN_VALUE": "-2**63", "MAX_VALUE": "2**63 - 1"},
+    "Character": {"SIZE": "16", "BYTES": "2", "MIN_VALUE": "0", "MAX_VALUE": "0xFFFF"},
+}
+
 
 def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
     resolved = ctx.name_resolver.resolve_identifier(raw_name, scope_from_context(ctx))
@@ -154,15 +162,21 @@ def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> s
         return None
     receiver = _receiver_simple_name(children[0].text)
     field = children[-1].text
+    jdk_integral_constant = _jdk_integral_static_field_value(receiver, field)
+    if jdk_integral_constant is not None:
+        return jdk_integral_constant
     if receiver == "Math" and field == "PI":
         ctx.diagnostics.imports.need_math()
         return "math.pi"
     if receiver == "Math" and field == "E":
         ctx.diagnostics.imports.need_math()
         return "math.e"
-    if receiver == "Integer" and field == "MAX_VALUE":
-        return "2**31 - 1"
     return None
+
+
+def _jdk_integral_static_field_value(receiver: str, field: str) -> str | None:
+    values = _JDK_INTEGRAL_STATIC_FIELD_VALUES.get(receiver)
+    return values.get(field) if values is not None else None
 
 
 def _receiver_simple_name(raw_receiver: str) -> str:

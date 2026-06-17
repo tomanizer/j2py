@@ -100,12 +100,21 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
             return consequent_type or alternate_type
     if node.type == "binary_expression" and len(node.children) == 3:
         operator = node.children[1].text
-        if operator == "+":
-            left_type = infer_expression_py_type(node.children[0], ctx)
-            right_type = infer_expression_py_type(node.children[2], ctx)
-            if left_type == "str" or right_type == "str":
-                return "str"
+        left_type = infer_expression_py_type(node.children[0], ctx)
+        right_type = infer_expression_py_type(node.children[2], ctx)
+        if operator == "+" and (left_type == "str" or right_type == "str"):
+            return "str"
+        if operator in _INTEGRAL_BINARY_OPERATORS and left_type == "int" and right_type == "int":
+            return "int"
+        if operator in _NUMERIC_BINARY_OPERATORS and (
+            left_type in {"int", "float"} and right_type in {"int", "float"}
+        ):
+            return "float" if "float" in {left_type, right_type} else "int"
     return None
+
+
+_INTEGRAL_BINARY_OPERATORS = {"&", "|", "^", "<<", ">>", ">>>"}
+_NUMERIC_BINARY_OPERATORS = {"+", "-", "*", "/", "%"}
 
 
 def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
@@ -114,6 +123,12 @@ def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None
         return None
     object_node, field_name_node = children[0], children[1]
     field_name = field_name_node.text
+
+    if field_name == "length":
+        return "int"
+
+    if _jdk_static_integral_field_type(object_node.text, field_name) is not None:
+        return "int"
 
     if object_node.type == "this":
         return ctx.class_field_types.get(field_name)
@@ -192,6 +207,7 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         "intValue",
         "longValue",
         "hashCode",
+        "ordinal",
         "compare",
         "compareTo",
         "indexOf",
@@ -216,6 +232,21 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
+    return None
+
+
+def _jdk_static_integral_field_type(raw_receiver: str, field_name: str) -> str | None:
+    receiver = type_simple_name(raw_receiver)
+    if receiver not in {
+        "Byte",
+        "Short",
+        "Integer",
+        "Long",
+        "Character",
+    }:
+        return None
+    if field_name in {"SIZE", "BYTES", "MIN_VALUE", "MAX_VALUE"}:
+        return "int"
     return None
 
 
