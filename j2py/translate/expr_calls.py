@@ -310,7 +310,7 @@ def _translate_static_method_invocation(
             return args[0]
         if method_name == "toString" and len(args) == 1:
             return f"str({args[0]})"
-        char_predicate = _translate_character_char_predicate(method_name, args)
+        char_predicate = _translate_character_char_predicate(node, method_name, arg_nodes, args, ctx)
         if char_predicate is not None:
             return char_predicate
 
