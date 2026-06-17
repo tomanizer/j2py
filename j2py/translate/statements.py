@@ -148,28 +148,48 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
 
+    # Control-flow and resource statements are emitted by the split stmt_* modules.
+    # Those modules import translate_statement/translate_body from here, so the
+    # imports stay local to break the import cycle (see also the inline imports for
+    # expr_ops and classes below).
     if node.type == "enhanced_for_statement":
+        from j2py.translate.stmt_control import _translate_enhanced_for
+
         return _translate_enhanced_for(node, ctx, indent=indent)
 
     if node.type == "if_statement":
+        from j2py.translate.stmt_control import _translate_if
+
         return _translate_if(node, ctx, indent=indent)
 
     if node.type == "for_statement":
+        from j2py.translate.stmt_control import _translate_for
+
         return _translate_for(node, ctx, indent=indent)
 
     if node.type == "while_statement":
+        from j2py.translate.stmt_control import _translate_while
+
         return _translate_while(node, ctx, indent=indent)
 
     if node.type == "do_statement":
+        from j2py.translate.stmt_control import _translate_do_while
+
         return _translate_do_while(node, ctx, indent=indent)
 
     if node.type == "try_statement":
+        from j2py.translate.stmt_exceptions import _translate_try
+
         return _translate_try(node, ctx, indent=indent)
 
     if node.type == "try_with_resources_statement":
+        from j2py.translate.stmt_exceptions import _translate_try_with_resources
+
         return _translate_try_with_resources(node, ctx, indent=indent)
 
     if node.type == "synchronized_statement":
+        from j2py.translate.stmt_sync import _translate_synchronized
+
         return _translate_synchronized(node, ctx, indent=indent)
 
     if node.type == "switch_expression":
@@ -181,12 +201,16 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
         # or the fallthrough diagnostic). Value-producing arrow switches used in
         # expression position (or as expression_statement) are handled via
         # translate_expression -> _translate_switch_expression.
+        from j2py.translate.stmt_switch import _translate_switch
+
         return _translate_switch(node, ctx, indent=indent)
 
     if node.type == "explicit_constructor_invocation":
         return _translate_explicit_constructor_invocation(node, ctx, indent=indent)
 
     if node.type == "throw_statement":
+        from j2py.translate.stmt_exceptions import _translate_throw
+
         return _translate_throw(node, ctx, indent=indent)
 
     if node.type == "break_statement":
@@ -284,76 +308,6 @@ def _translate_local_variable_declaration(
     return lines
 
 
-def _translate_enhanced_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_control import _translate_enhanced_for as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_if(
-    node: JavaNode,
-    ctx: TranslationContext,
-    *,
-    indent: str,
-    keyword: str = "if",
-) -> list[str]:
-    from j2py.translate.stmt_control import _translate_if as impl
-
-    return impl(node, ctx, indent=indent, keyword=keyword)
-
-
-def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_control import _translate_for as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_while(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_control import _translate_while as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_do_while(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_control import _translate_do_while as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_try(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_exceptions import _translate_try as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_try_with_resources(
-    node: JavaNode,
-    ctx: TranslationContext,
-    *,
-    indent: str,
-) -> list[str]:
-    from j2py.translate.stmt_exceptions import _translate_try_with_resources as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_synchronized(
-    node: JavaNode,
-    ctx: TranslationContext,
-    *,
-    indent: str,
-) -> list[str]:
-    from j2py.translate.stmt_sync import _translate_synchronized as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_switch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_switch import _translate_switch as impl
-
-    return impl(node, ctx, indent=indent)
-
-
 def _translate_explicit_constructor_invocation(
     node: JavaNode,
     ctx: TranslationContext,
@@ -372,15 +326,3 @@ def _translate_explicit_constructor_invocation(
     # mergeable delegations were already rewritten into default parameters.
     ctx.diagnostics.record(node, supported=True, reason="translated constructor delegation call")
     return [f"{indent}self.__init__({args})"]
-
-
-def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_exceptions import _translate_catch as impl
-
-    return impl(node, ctx, indent=indent)
-
-
-def _translate_throw(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
-    from j2py.translate.stmt_exceptions import _translate_throw as impl
-
-    return impl(node, ctx, indent=indent)

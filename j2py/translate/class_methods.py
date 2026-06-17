@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable
 
 from j2py.config.loader import TranslationConfig
@@ -18,7 +17,7 @@ from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.framework_dispatch import resolve_method
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name, translate_method_name
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import _map_type_vars, translate_type
 from j2py.translate.statements import translate_body
 
 # Java literal node types that are safe as Python default parameter values.
@@ -360,13 +359,6 @@ def params_for_method(
         else:
             params.append(f"{prefix}{param.py_name}")
     return params
-
-
-def _map_type_vars(py_type: str, type_var_map: dict[str, str]) -> str:
-    result = py_type
-    for source, target in type_var_map.items():
-        result = re.sub(rf"\b{re.escape(source)}\b", target, result)
-    return result
 
 
 def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:

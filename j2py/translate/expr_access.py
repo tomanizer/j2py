@@ -9,7 +9,11 @@ from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
 from j2py.translate.name_resolution import NameScope, scope_from_context
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
-from j2py.translate.rules.naming import translate_class_name, translate_field_name
+from j2py.translate.rules.naming import (
+    _receiver_simple_name,
+    translate_class_name,
+    translate_field_name,
+)
 from j2py.translate.rules.types import java_default_value, translate_type
 
 _JDK_INTEGRAL_STATIC_FIELD_VALUES = {
@@ -177,10 +181,6 @@ def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> s
 def _jdk_integral_static_field_value(receiver: str, field: str) -> str | None:
     values = _JDK_INTEGRAL_STATIC_FIELD_VALUES.get(receiver)
     return values.get(field) if values is not None else None
-
-
-def _receiver_simple_name(raw_receiver: str) -> str:
-    return raw_receiver.rsplit(".", 1)[-1]
 
 
 def _remember_cast_comment(type_node: JavaNode, ctx: TranslationContext) -> None:

@@ -133,3 +133,8 @@ def translate_field_name(name: str, *, snake_case: bool = True) -> str:
 def translate_class_name(name: str) -> str:
     """Class names stay PascalCase; only reserved-word collision needs fixing."""
     return safe_identifier(name)
+
+
+def _receiver_simple_name(raw_receiver: str) -> str:
+    """Return the trailing segment of a dotted receiver expression."""
+    return raw_receiver.rsplit(".", 1)[-1]

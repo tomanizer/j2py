@@ -33,7 +33,7 @@ from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostic
 from j2py.translate.framework_dispatch import resolve_class, resolve_method
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
-from j2py.translate.rules.types import translate_type
+from j2py.translate.rules.types import _map_type_vars, translate_type
 from j2py.translate.statements import translate_body
 
 _NodeKey = tuple[int, int, int, int, str]
@@ -895,10 +895,3 @@ def _map_parameter_type(param: ParameterInfo, type_var_map: dict[str, str]) -> P
         java_type=param.java_type,
         is_spread=param.is_spread,
     )
-
-
-def _map_type_vars(py_type: str, type_var_map: dict[str, str]) -> str:
-    result = py_type
-    for source, target in type_var_map.items():
-        result = re.sub(rf"\b{re.escape(source)}\b", target, result)
-    return result
