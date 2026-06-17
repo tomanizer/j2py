@@ -28,6 +28,7 @@ def test_list_preset_names_includes_spring_and_guava() -> None:
     names = presets.list_preset_names()
     assert "spring-dense" in names
     assert "spring-app-dense" in names
+    assert "openjdk-java-base" in names
     assert "guava-dense" in names
     assert names == sorted(names)
 
@@ -41,6 +42,25 @@ def test_spring_app_dense_preset_targets_application_samples() -> None:
     assert any("context/index/sample" in module for module in preset.modules)
     assert preset.include_path_prefixes == (
         "spring-context-indexer/src/test/java/org/springframework/context/index/sample/",
+    )
+
+
+def test_openjdk_java_base_preset_is_manual_external_scoreboard() -> None:
+    preset = presets.get_preset("openjdk-java-base")
+
+    assert preset.remote == "https://github.com/openjdk/jdk.git"
+    assert preset.ref == "jdk-21+35"
+    assert preset.checkout_dir == "openjdk"
+    assert preset.limit == 6
+    assert preset.include_constructs is False
+    assert preset.baseline.name == "openjdk-java-base-baseline.json"
+    assert preset.include_path_prefixes == (
+        "src/java.base/share/classes/java/util/Objects.java",
+        "src/java.base/share/classes/java/util/Optional.java",
+        "src/java.base/share/classes/java/util/StringJoiner.java",
+        "src/java.base/share/classes/java/util/Comparator.java",
+        "src/java.base/share/classes/java/nio/file/Path.java",
+        "src/java.base/share/classes/java/time/Duration.java",
     )
 
 
@@ -164,3 +184,4 @@ def test_clone_preset_names_are_unique_checkouts() -> None:
         "jackson-databind",
         "caffeine",
     }
+    assert "openjdk" not in checkout_dirs

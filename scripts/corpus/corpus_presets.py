@@ -224,6 +224,28 @@ PRESETS: dict[str, CorpusPreset] = {
             modules=("caffeine/src/main/java",),
             baseline_name="caffeine-dense-baseline.json",
         ),
+        _preset(
+            "openjdk-java-base",
+            "Exploratory OpenJDK java.base API-surface scoreboard (external checkout only)",
+            remote="https://github.com/openjdk/jdk.git",
+            ref="jdk-21+35",
+            checkout_dir="openjdk",
+            modules=(
+                "src/java.base/share/classes/java/util",
+                "src/java.base/share/classes/java/nio/file",
+                "src/java.base/share/classes/java/time",
+            ),
+            baseline_name="openjdk-java-base-baseline.json",
+            limit=6,
+            include_path_prefixes=(
+                "src/java.base/share/classes/java/util/Objects.java",
+                "src/java.base/share/classes/java/util/Optional.java",
+                "src/java.base/share/classes/java/util/StringJoiner.java",
+                "src/java.base/share/classes/java/util/Comparator.java",
+                "src/java.base/share/classes/java/nio/file/Path.java",
+                "src/java.base/share/classes/java/time/Duration.java",
+            ),
+        ),
     )
 }
 

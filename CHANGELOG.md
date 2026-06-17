@@ -7,6 +7,14 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- Original JDK surface behavior fixtures demonstrate ADR 0020 deterministic lowering for
+  common `String`, `Math`/`Integer`, and `List`/`Collections` usage without vendoring JDK
+  source or implying a Python JDK runtime (#363).
+- Optional `openjdk-java-base` corpus preset and manual Makefile target sample selected
+  OpenJDK `java.base` API files from a gitignored external checkout as a scoreboard/demo,
+  with no committed OpenJDK source or runtime-compatibility claim (#364).
+
 ### Fixed
 - Same-class static field reads in method bodies now qualify through the containing
   class, bitwise `|`/`&`/`^` operands preserve Java comparison precedence, and generic
