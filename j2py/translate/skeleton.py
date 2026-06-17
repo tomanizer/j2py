@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode, ParsedFile
+from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_fields import (
     _collect_declared_type_fields,
     _collect_declared_type_java_fields,
@@ -96,6 +97,21 @@ def translate_skeleton_with_diagnostics(
     )
     file_class_declarations = collect_file_class_declarations(parsed.root)
     type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
+    class_env = ClassTranslationEnvironment(
+        inherited_declared_type_fields=module_declared_type_fields,
+        inherited_declared_type_java_fields=module_declared_type_java_fields,
+        inherited_declared_type_method_return_types=module_declared_type_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+        file_class_static_methods=file_class_static_methods,
+        file_class_static_instance_aliases=file_class_static_instance_aliases,
+        file_class_declarations=file_class_declarations,
+        module_class_static_methods=module_class_static_methods or {},
+        module_class_static_instance_aliases=module_class_static_instance_aliases or {},
+        module_class_declarations=module_class_declarations or {},
+        interface_type_var_maps=type_var_plan.interface_type_var_maps,
+    )
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
     for class_node in parsed.root.named_children:
@@ -111,22 +127,7 @@ def translate_skeleton_with_diagnostics(
                 class_node,
                 cfg,
                 diagnostics,
-                static_field_aliases=static_field_aliases,
-                static_method_imports=static_method_imports,
-                name_resolver=name_resolver,
-                docstring_lines=pending_docstring,
-                inherited_declared_type_fields=module_declared_type_fields,
-                inherited_declared_type_java_fields=module_declared_type_java_fields,
-                inherited_declared_type_method_return_types=(
-                    module_declared_type_method_return_types
-                ),
-                file_class_static_methods=file_class_static_methods,
-                file_class_static_instance_aliases=file_class_static_instance_aliases,
-                file_class_declarations=file_class_declarations,
-                module_class_static_methods=module_class_static_methods,
-                module_class_static_instance_aliases=module_class_static_instance_aliases,
-                module_class_declarations=module_class_declarations,
-                interface_type_var_maps=type_var_plan.interface_type_var_maps,
+                env=class_env.with_overrides(docstring_lines=pending_docstring),
             )
         )
         pending_docstring = None

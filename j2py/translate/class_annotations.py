@@ -6,6 +6,7 @@ import re
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_methods import _IMMUTABLE_LITERAL_NODES
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.comments import is_comment, translate_comment
@@ -39,11 +40,12 @@ def translate_annotation_declaration(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    name_resolver: NameResolver,
-    docstring_lines: list[str] | None = None,
+    env: ClassTranslationEnvironment | None = None,
 ) -> list[str]:
+    env = env or ClassTranslationEnvironment()
+    static_field_aliases = env.static_field_aliases
+    static_method_imports = env.static_method_imports
+    name_resolver = env.name_resolver
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
     lines: list[str] = []
@@ -69,8 +71,8 @@ def translate_annotation_declaration(
 
     diagnostics.imports.need_dataclass()
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}:"])
-    if docstring_lines:
-        lines.extend(docstring_lines)
+    if env.docstring_lines:
+        lines.extend(env.docstring_lines)
 
     body = node.child_by_field("body")
     member_lines: list[str] = []
@@ -107,9 +109,7 @@ def translate_annotation_declaration(
                         member,
                         cfg,
                         diagnostics,
-                        static_field_aliases=static_field_aliases,
-                        static_method_imports=static_method_imports,
-                        name_resolver=name_resolver,
+                        env=env.with_overrides(docstring_lines=None),
                     )
                 )
                 continue
@@ -192,20 +192,11 @@ def _translate_annotation_nested_type(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    name_resolver: NameResolver,
+    env: ClassTranslationEnvironment,
 ) -> list[str]:
     from j2py.translate.classes import translate_class
 
-    nested_lines = translate_class(
-        node,
-        cfg,
-        diagnostics,
-        static_field_aliases=static_field_aliases,
-        static_method_imports=static_method_imports,
-        name_resolver=name_resolver,
-    )
+    nested_lines = translate_class(node, cfg, diagnostics, env=env)
     return [f"    {line}" if line else line for line in nested_lines]
 
 

@@ -11,6 +11,7 @@ from j2py.translate.annotation_emit import (
     annotation_comment_lines,
     record_annotation_diagnostics,
 )
+from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_members import (
     member_method_names,
     member_python_name,
@@ -140,14 +141,14 @@ def translate_interface(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    name_resolver: NameResolver,
-    docstring_lines: list[str] | None = None,
-    interface_type_var_maps: dict[_NodeKey, dict[str, str]] | None = None,
+    env: ClassTranslationEnvironment | None = None,
 ) -> list[str]:
     from j2py.translate.class_nested import nested_type_lines
 
+    env = env or ClassTranslationEnvironment()
+    static_field_aliases = env.static_field_aliases
+    static_method_imports = env.static_method_imports
+    name_resolver = env.name_resolver
     diagnostics.record(node, supported=True, reason="translated interface declaration")
     diagnostics.imports.need_typing("Protocol")
     name_node = node.child_by_field("name")
@@ -159,7 +160,7 @@ def translate_interface(
         else [child for child in body.named_children if child.type == "method_declaration"]
     )
     interface_type_params = _type_parameter_names(node)
-    type_var_map = (interface_type_var_maps or {}).get(node_key(node), {})
+    type_var_map = env.interface_type_var_maps.get(node_key(node), {})
     class_method_names = member_method_names(methods, cfg)
     class_static_method_names = member_static_method_names(methods, cfg)
     method_return_types = class_method_return_types(methods, cfg)
@@ -167,15 +168,16 @@ def translate_interface(
         body,
         cfg,
         diagnostics,
-        inherited_class_field_types={},
-        inherited_class_field_java_types={},
-        inherited_declared_type_fields={},
-        inherited_declared_type_java_fields={},
-        inherited_declared_type_method_return_types={},
-        static_field_aliases=static_field_aliases,
-        static_method_imports=static_method_imports,
-        name_resolver=name_resolver,
-        interface_type_var_maps=interface_type_var_maps,
+        env=env.with_overrides(
+            inherited_class_field_types={},
+            inherited_class_field_java_types={},
+            inherited_declared_type_fields={},
+            inherited_declared_type_java_fields={},
+            inherited_declared_type_method_return_types={},
+            docstring_lines=None,
+            outer_self_alias=None,
+            requires_outer_self=False,
+        ),
     )
     sealed_alias_lines = sealed_type_alias_lines(node, body, class_name, indent="    ")
 
@@ -207,11 +209,11 @@ def translate_interface(
     )
     bases = [*class_transform.base_classes, protocol_base]
     lines.append(f"class {class_name}({', '.join(bases)}):")
-    if docstring_lines:
-        lines.extend(docstring_lines)
+    if env.docstring_lines:
+        lines.extend(env.docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
     lines.extend(metadata_lines)
-    wrote_member = bool(docstring_lines or metadata_lines)
+    wrote_member = bool(env.docstring_lines or metadata_lines)
     if nested_lines:
         if wrote_member:
             lines.append("")
