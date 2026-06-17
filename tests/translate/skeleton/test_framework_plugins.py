@@ -4,8 +4,11 @@ from pathlib import Path
 
 from j2py.config.loader import ConfigLoader
 from tests.fixtures.framework.reference_plugin import (
+    CircularMetadataFrameworkPlugin,
     EmptyMetadataFrameworkPlugin,
     InvalidMetadataFrameworkPlugin,
+    MultipleInitParamsFrameworkPlugin,
+    RawStringFrameworkPlugin,
     ReferenceFrameworkPlugin,
     ThrowingFrameworkPlugin,
 )
@@ -178,6 +181,77 @@ def test_invalid_metadata_plugin_warns_and_skips_wiring_record() -> None:
     assert any(
         "framework plugin 'invalid-metadata' returned non-JSON-serializable metadata"
         in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+
+
+def test_circular_metadata_plugin_warns_and_skips_wiring_record() -> None:
+    cfg = CFG.model_copy(update={"framework_plugins": [CircularMetadataFrameworkPlugin()]})
+    result = translate_source_with_diagnostics(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "# handled with circular metadata" in result.source
+    assert result.diagnostics.framework_metadata == []
+    assert any(
+        "framework plugin 'circular-metadata' returned non-JSON-serializable metadata"
+        in warning.reason
+        and "Circular reference detected" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+
+
+def test_raw_string_plugin_result_warns_and_falls_through_to_tier_one() -> None:
+    cfg = CFG.model_copy(update={"framework_plugins": [RawStringFrameworkPlugin()]})
+    result = translate_source_with_diagnostics(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "@bad_decorator" not in result.source
+    assert "# @MappedController" in result.source
+    assert any(
+        "framework plugin 'raw-string' returned a raw string instead of a tuple of strings"
+        in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+
+
+def test_multiple_field_init_params_warns_about_assignment_limit() -> None:
+    cfg = CFG.model_copy(update={"framework_plugins": [MultipleInitParamsFrameworkPlugin()]})
+    result = translate_source_with_diagnostics(
+        """
+        @interface InjectDep {}
+        interface OrderService {}
+
+        public class Orders {
+            @InjectDep
+            private OrderService service;
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "def __init__(self, service: OrderService, service_extra: OrderService) -> None:" in (
+        result.source
+    )
+    assert "self.service: OrderService = service" in result.source
+    assert "service_extra" not in result.source.split("self.service: OrderService = service", 1)[1]
+    assert any(
+        "framework plugin returned multiple init_params for field service" in warning.reason
         for warning in result.diagnostics.warnings
     )
 

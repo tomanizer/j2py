@@ -148,6 +148,16 @@ def _safe_invoke(
             ),
         )
         return FrameworkTransformResult()
+    for field_name in ("prefix_lines", "base_classes", "imports"):
+        if isinstance(getattr(result, field_name), str):
+            ctx.diagnostics.warn(
+                ctx.node,
+                reason=(
+                    f"framework plugin {plugin.name!r} returned a raw string "
+                    f"instead of a tuple of strings for {field_name} in {hook}"
+                ),
+            )
+            return FrameworkTransformResult()
     return result
 
 
@@ -217,7 +227,7 @@ def _record_metadata(
     metadata = dict(result.metadata)
     try:
         json.dumps(metadata, sort_keys=True)
-    except TypeError as exc:
+    except (TypeError, ValueError) as exc:
         ctx.diagnostics.warn(
             ctx.node,
             reason=(

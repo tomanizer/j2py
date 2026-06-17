@@ -91,6 +91,47 @@ class InvalidMetadataFrameworkPlugin(ReferenceFrameworkPlugin):
         )
 
 
+class CircularMetadataFrameworkPlugin(ReferenceFrameworkPlugin):
+    name = "circular-metadata"
+
+    def transform_class(self, ctx: FrameworkContext) -> FrameworkTransformResult:
+        if not _has_annotation(ctx, "MappedController"):
+            return FrameworkTransformResult()
+        metadata: dict[str, object] = {}
+        metadata["self"] = metadata
+        return FrameworkTransformResult(
+            prefix_lines=("# handled with circular metadata",),
+            metadata=metadata,
+            handled=True,
+        )
+
+
+class RawStringFrameworkPlugin(ReferenceFrameworkPlugin):
+    name = "raw-string"
+
+    def transform_class(self, ctx: FrameworkContext) -> FrameworkTransformResult:
+        if not _has_annotation(ctx, "MappedController"):
+            return FrameworkTransformResult()
+        return FrameworkTransformResult(prefix_lines="@bad_decorator", handled=True)
+
+
+class MultipleInitParamsFrameworkPlugin(ReferenceFrameworkPlugin):
+    name = "multiple-init-params"
+
+    def transform_field(self, ctx: FrameworkContext) -> FrameworkTransformResult:
+        if not _has_annotation(ctx, "InjectDep"):
+            return FrameworkTransformResult()
+        py_type = ctx.py_type or "object"
+        return FrameworkTransformResult(
+            prefix_lines=(f"        # injected by multi-param plugin: {ctx.py_name}",),
+            init_params=(
+                InitParam(ctx.py_name, py_type),
+                InitParam(f"{ctx.py_name}_extra", py_type),
+            ),
+            handled=True,
+        )
+
+
 def _has_annotation(ctx: FrameworkContext, simple_name: str) -> bool:
     return _annotation(ctx, simple_name) is not None
 

@@ -103,7 +103,7 @@ def write_wiring_metadata_sidecar(result: TranslationResult) -> Path | None:
             sidecar.unlink()
         return None
     sidecar.parent.mkdir(parents=True, exist_ok=True)
-    sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return sidecar
 
 

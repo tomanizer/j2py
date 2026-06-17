@@ -230,10 +230,14 @@ def _translate_fields(
         allow_local_helpers=True,
     )
 
-    transforms = field_transforms or [
-        resolve_field(field, cfg, diagnostics, indent="    " if field.is_static else "        ")
-        for field in fields
-    ]
+    transforms = (
+        field_transforms
+        if field_transforms is not None
+        else [
+            resolve_field(field, cfg, diagnostics, indent="    " if field.is_static else "        ")
+            for field in fields
+        ]
+    )
     for field, transform in zip(fields, transforms, strict=True):
         if field.is_static:
             static_lines.extend(_translate_static_field(field, static_ctx, diagnostics, transform))
@@ -249,6 +253,15 @@ def _translate_fields(
             )
         if transform.init_params:
             init_param = transform.init_params[0]
+            if len(transform.init_params) > 1:
+                diagnostics.warn(
+                    field.node,
+                    reason=(
+                        f"framework plugin returned multiple init_params for field "
+                        f"{field.py_name}; only the first one ({init_param.py_name}) "
+                        "will be assigned"
+                    ),
+                )
             diagnostics.record(
                 field.node,
                 supported=True,
