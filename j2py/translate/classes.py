@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from j2py.config.loader import TranslationConfig
-from j2py.framework import FrameworkTransformResult
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import (
     annotation_comment_lines,
@@ -52,7 +51,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
-from j2py.translate.framework_dispatch import resolve_class, resolve_field
+from j2py.translate.framework_annotations import class_annotation_mapping, field_init_parameter
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
@@ -225,36 +224,24 @@ def translate_class(
         nested_class_names=direct_nested_names,
         snake_case_fields=cfg.snake_case_fields,
     )
-    class_transform = resolve_class(
+    record_annotation_diagnostics(
         node,
         cfg,
         diagnostics,
-        java_name=name_node.text,
-        py_name=class_name,
+        target_kind="class",
+        target_name=class_name,
     )
-    if not class_transform.handled:
-        record_annotation_diagnostics(
-            node,
-            cfg,
-            diagnostics,
-            target_kind="class",
-            target_name=class_name,
-        )
-    field_transforms = [
-        resolve_field(field, cfg, diagnostics, indent="    " if field.is_static else "        ")
-        for field in fields
-    ]
-    injected_init_params = _annotation_init_params(fields, field_transforms)
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
+    injected_init_params = _annotation_init_params(fields, cfg)
     lines: list[str] = []
-    if not class_transform.handled:
-        lines.extend(annotation_comment_lines(node, cfg))
-    lines.extend(class_transform.prefix_lines)
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.extend(class_mapping.decorators)
     class_bases = base_suffix(
         node,
         diagnostics,
         resolver=resolver,
         scope=base_scope,
-        extra_bases=list(class_transform.base_classes),
+        extra_bases=class_mapping.bases,
     )
     lines.append(f"class {class_name}{class_bases}:")
     if docstring_lines:
@@ -273,7 +260,6 @@ def translate_class(
         containing_class_name=class_name,
         enclosing_static_dispatch=enclosing_dispatch,
         name_resolver=resolver,
-        field_transforms=field_transforms,
     )
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
@@ -438,29 +424,18 @@ def _translate_record(
     for param in params:
         diagnostics.imports.need_type_annotation(param.py_type)
 
-    java_name = name_node.text if name_node is not None else "Unknown"
-    class_transform = resolve_class(
+    record_annotation_diagnostics(
         node,
         cfg,
         diagnostics,
-        java_name=java_name,
-        py_name=class_name,
+        target_kind="class",
+        target_name=class_name,
     )
-    if not class_transform.handled:
-        record_annotation_diagnostics(
-            node,
-            cfg,
-            diagnostics,
-            target_kind="class",
-            target_name=class_name,
-        )
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
     lines: list[str] = []
-    if not class_transform.handled:
-        lines.extend(annotation_comment_lines(node, cfg))
-    lines.extend(class_transform.prefix_lines)
-    base_text = (
-        f"({', '.join(class_transform.base_classes)})" if class_transform.base_classes else ""
-    )
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.extend(class_mapping.decorators)
+    base_text = f"({', '.join(class_mapping.bases)})" if class_mapping.bases else ""
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}{base_text}:"])
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -475,25 +450,15 @@ def _translate_record(
     return lines
 
 
-def _annotation_init_params(
-    fields: list[FieldInfo],
-    field_transforms: list[FrameworkTransformResult],
-) -> list[ParameterInfo]:
+def _annotation_init_params(fields: list[FieldInfo], cfg: TranslationConfig) -> list[ParameterInfo]:
     params: list[ParameterInfo] = []
     seen: set[str] = set()
-    for field, transform in zip(fields, field_transforms, strict=True):
-        for init_param in transform.init_params:
-            if init_param.py_name in seen:
-                continue
-            params.append(
-                ParameterInfo(
-                    raw_name=field.name,
-                    py_name=init_param.py_name,
-                    py_type=init_param.py_type,
-                    java_type=field.java_type,
-                ),
-            )
-            seen.add(init_param.py_name)
+    for field in fields:
+        param = field_init_parameter(field, cfg)
+        if param is None or param.py_name in seen:
+            continue
+        params.append(param)
+        seen.add(param.py_name)
     return params
 
 

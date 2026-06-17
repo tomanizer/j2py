@@ -30,7 +30,10 @@ from j2py.translate.class_methods import (
 )
 from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
-from j2py.translate.framework_dispatch import resolve_class, resolve_method
+from j2py.translate.framework_annotations import (
+    class_annotation_mapping,
+    method_annotation_decorator_lines,
+)
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.statements import translate_body
@@ -151,33 +154,24 @@ def translate_interface(
     )
     sealed_alias_lines = sealed_type_alias_lines(node, body, class_name, indent="    ")
 
-    java_name = name_node.text if name_node is not None else "Unknown"
-    class_transform = resolve_class(
+    record_annotation_diagnostics(
         node,
         cfg,
         diagnostics,
-        java_name=java_name,
-        py_name=class_name,
+        target_kind="class",
+        target_name=class_name,
     )
-    if not class_transform.handled:
-        record_annotation_diagnostics(
-            node,
-            cfg,
-            diagnostics,
-            target_kind="class",
-            target_name=class_name,
-        )
+    class_mapping = class_annotation_mapping(node, cfg, diagnostics)
     lines: list[str] = []
-    if not class_transform.handled:
-        lines.extend(annotation_comment_lines(node, cfg))
-    lines.extend(class_transform.prefix_lines)
+    lines.extend(annotation_comment_lines(node, cfg))
+    lines.extend(class_mapping.decorators)
     protocol_type_params = [
         _map_type_vars(type_param, type_var_map) for type_param in interface_type_params
     ]
     protocol_base = (
         f"Protocol[{', '.join(protocol_type_params)}]" if protocol_type_params else "Protocol"
     )
-    bases = [*class_transform.base_classes, protocol_base]
+    bases = [*class_mapping.bases, protocol_base]
     lines.append(f"class {class_name}({', '.join(bases)}):")
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -259,26 +253,15 @@ def translate_interface(
 
         diagnostics.record(method, supported=True, reason="translated abstract interface method")
         py_name = member_python_name(method)
-        raw_name_node = method.child_by_field("name")
-        raw_name = raw_name_node.text if raw_name_node is not None else py_name
-        method_transform = resolve_method(
+        record_annotation_diagnostics(
             method,
             cfg,
             diagnostics,
-            java_name=raw_name,
-            py_name=py_name,
-            indent="    ",
+            target_kind="method",
+            target_name=py_name,
         )
-        if not method_transform.handled:
-            record_annotation_diagnostics(
-                method,
-                cfg,
-                diagnostics,
-                target_kind="method",
-                target_name=py_name,
-            )
-            lines.extend(annotation_comment_lines(method, cfg, indent="    "))
-        lines.extend(method_transform.prefix_lines)
+        lines.extend(annotation_comment_lines(method, cfg, indent="    "))
+        lines.extend(method_annotation_decorator_lines(method, cfg, diagnostics, indent="    "))
         params = [
             _map_parameter_type(param, method_type_var_map)
             for param in parameter_infos(method, cfg)
@@ -339,7 +322,6 @@ def _static_interface_factory_adapter_lines(
     )
     raw_method_name_node = method.child_by_field("name")
     raw_method_name = raw_method_name_node.text if raw_method_name_node is not None else "Factory"
-    py_method_name = member_python_name(method)
     adapter_class_name = f"_{_adapter_name_part(raw_method_name)}{class_name}Adapter"
 
     params = parameter_infos(method, cfg)
@@ -350,24 +332,8 @@ def _static_interface_factory_adapter_lines(
     diagnostics.imports.need_typing("cast")
 
     lines: list[str] = []
-    method_transform = resolve_method(
-        method,
-        cfg,
-        diagnostics,
-        java_name=raw_method_name,
-        py_name=py_method_name,
-        indent="    ",
-    )
-    if not method_transform.handled:
-        record_annotation_diagnostics(
-            method,
-            cfg,
-            diagnostics,
-            target_kind="method",
-            target_name=py_method_name,
-        )
-        lines.extend(annotation_comment_lines(method, cfg, indent="    "))
-    lines.extend(method_transform.prefix_lines)
+    lines.extend(annotation_comment_lines(method, cfg, indent="    "))
+    lines.extend(method_annotation_decorator_lines(method, cfg, diagnostics, indent="    "))
     lines.append("    @staticmethod")
     lines.append(
         "    "

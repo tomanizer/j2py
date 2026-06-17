@@ -13,7 +13,6 @@ from typing import Any, Literal, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from j2py.config import default
-from j2py.framework import FrameworkPlugin
 
 T = TypeVar("T")
 LLMProvider = Literal["anthropic", "gemini"]
@@ -40,7 +39,7 @@ class AnnotationMapEntry(BaseModel):
 class TranslationConfig(BaseModel):
     """Merged, validated configuration for the translation pipeline."""
 
-    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="forbid")
 
     type_map: dict[str, str] = Field(default_factory=dict)
     collection_map: dict[str, str] = Field(default_factory=dict)
@@ -48,7 +47,6 @@ class TranslationConfig(BaseModel):
     literal_map: dict[str, str] = Field(default_factory=dict)
     import_map: dict[str, str] = Field(default_factory=dict)
     annotation_map: dict[str, AnnotationMapEntry] = Field(default_factory=dict)
-    framework_plugins: list[FrameworkPlugin] = Field(default_factory=list)
     drop_imports: set[str] = Field(default_factory=set)
     drop_annotations: set[str] = Field(default_factory=set)
     strip_modifiers: set[str] = Field(default_factory=set)
