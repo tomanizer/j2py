@@ -124,6 +124,15 @@ annotation_map:
     assert cfg.annotation_map["Autowired"].emit_init_param is True
 
 
+def test_config_loader_loads_emit_wiring_metadata_flag(tmp_path: Path) -> None:
+    config_file = tmp_path / "j2py.toml"
+    config_file.write_text("emit_wiring_metadata = true\n")
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.emit_wiring_metadata is True
+
+
 def test_config_loader_rejects_unknown_annotation_map_entry_key(tmp_path: Path) -> None:
     config_file = tmp_path / "j2py.toml"
     config_file.write_text(

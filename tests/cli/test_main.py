@@ -254,6 +254,57 @@ def test_cli_translate_rejects_unknown_llm_provider(tmp_path: Path) -> None:
     assert "unsupported LLM provider" in result.output
 
 
+def test_cli_translate_writes_wiring_metadata_sidecar(tmp_path: Path) -> None:
+    source = tmp_path / "Orders.java"
+    output = tmp_path / "Orders.py"
+    config = tmp_path / "j2py_config.py"
+    source.write_text(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "from tests.fixtures.framework.reference_plugin import (",
+                "    ReferenceFrameworkPlugin as _ReferenceFrameworkPlugin,",
+                ")",
+                "framework_plugins = [_ReferenceFrameworkPlugin()]",
+                "emit_wiring_metadata = True",
+            ],
+        ),
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--output",
+            str(output),
+            "--config",
+            str(config),
+            "--no-llm",
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert output.exists()
+    sidecar = output.with_suffix(".wiring.json")
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text())
+    assert payload["schema_version"] == 1
+    assert payload["source"] == str(source)
+    assert payload["output"] == str(output)
+    assert payload["elements"][0]["metadata"] == {"controller": "Orders"}
+
+
 def test_cli_analyze_prints_record_and_nested_inventory() -> None:
     runner = CliRunner()
     target = FIXTURES / "java" / "targets" / "NestedTypes.java"

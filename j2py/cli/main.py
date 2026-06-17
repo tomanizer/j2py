@@ -165,7 +165,7 @@ def _translate_single(
     report: Path | None,
     json_output: bool,
 ) -> None:
-    from j2py.pipeline import translate_file
+    from j2py.pipeline import translate_file, write_wiring_metadata_sidecar
 
     if not json_output:
         console.print(f"[bold]Translating[/bold] {source}")
@@ -190,7 +190,10 @@ def _translate_single(
         return
 
     dest = output or source.with_suffix(".py")
+    result.output_path = dest
     dest.write_text(result.python_source)
+    if cfg.emit_wiring_metadata:
+        write_wiring_metadata_sidecar(result)
     if not json_output:
         console.print(f"[green]Written:[/green] {dest}")
     _emit_runtime_module(dest.parent, [result.python_source], quiet=json_output)
@@ -240,7 +243,7 @@ def _translate_dir(
     llm_concurrency: int | None,
     json_output: bool,
 ) -> None:
-    from j2py.pipeline import translate_directory
+    from j2py.pipeline import translate_directory, write_wiring_metadata_sidecar
 
     java_files = sorted(source.rglob("*.java"))
     if not java_files:
@@ -281,6 +284,8 @@ def _translate_dir(
             if not dry_run and result.output_path is not None and not result.skipped:
                 result.output_path.parent.mkdir(parents=True, exist_ok=True)
                 result.output_path.write_text(result.python_source)
+                if cfg.emit_wiring_metadata:
+                    write_wiring_metadata_sidecar(result)
     else:
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -295,6 +300,8 @@ def _translate_dir(
                 elif result.output_path is not None and not result.skipped:
                     result.output_path.parent.mkdir(parents=True, exist_ok=True)
                     result.output_path.write_text(result.python_source)
+                    if cfg.emit_wiring_metadata:
+                        write_wiring_metadata_sidecar(result)
                 progress.advance(task)
 
     if not dry_run:
@@ -750,7 +757,7 @@ def _run_watch_translation(
     llm_provider: LLMProvider,
     validate: bool,
 ) -> None:
-    from j2py.pipeline import translate_directory, translate_file
+    from j2py.pipeline import translate_directory, translate_file, write_wiring_metadata_sidecar
 
     if source.is_dir():
         batch = translate_directory(
@@ -770,6 +777,8 @@ def _run_watch_translation(
             if result.output_path is not None and not result.skipped:
                 result.output_path.parent.mkdir(parents=True, exist_ok=True)
                 result.output_path.write_text(result.python_source)
+                if cfg.emit_wiring_metadata:
+                    write_wiring_metadata_sidecar(result)
         _emit_runtime_module(output, [result.python_source for result in batch.files])
         from j2py.state import entry_from_result, load_state, save_state, source_key
 
@@ -805,7 +814,10 @@ def _run_watch_translation(
         validate=validate,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
+    result.output_path = output
     output.write_text(result.python_source)
+    if cfg.emit_wiring_metadata:
+        write_wiring_metadata_sidecar(result)
     _emit_runtime_module(output.parent, [result.python_source])
     timestamp = time.strftime("%H:%M:%S")
     console.print(

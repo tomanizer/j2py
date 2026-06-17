@@ -13,6 +13,7 @@ from typing import Any, Literal, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from j2py.config import default
+from j2py.framework import FrameworkPlugin
 
 T = TypeVar("T")
 LLMProvider = Literal["anthropic", "gemini"]
@@ -39,7 +40,7 @@ class AnnotationMapEntry(BaseModel):
 class TranslationConfig(BaseModel):
     """Merged, validated configuration for the translation pipeline."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     type_map: dict[str, str] = Field(default_factory=dict)
     collection_map: dict[str, str] = Field(default_factory=dict)
@@ -47,6 +48,7 @@ class TranslationConfig(BaseModel):
     literal_map: dict[str, str] = Field(default_factory=dict)
     import_map: dict[str, str] = Field(default_factory=dict)
     annotation_map: dict[str, AnnotationMapEntry] = Field(default_factory=dict)
+    framework_plugins: list[FrameworkPlugin] = Field(default_factory=list)
     drop_imports: set[str] = Field(default_factory=set)
     drop_annotations: set[str] = Field(default_factory=set)
     strip_modifiers: set[str] = Field(default_factory=set)
@@ -58,6 +60,7 @@ class TranslationConfig(BaseModel):
     emit_line_comments: bool = True  # # java: <original line>
     emit_docstrings: bool = True  # Convert Javadoc blocks to Python docstrings
     confidence_comments: bool = True  # # TODO(j2py): low-confidence
+    emit_wiring_metadata: bool = False
     target_python: str = "3.11"
     workers: int = Field(default_factory=lambda: min(8, os.cpu_count() or 1))
     llm_concurrency: int = 4

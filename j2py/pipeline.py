@@ -25,6 +25,7 @@ from j2py.validate.checks import ValidationResult, validate_directory, validate_
 from j2py.verify.structure import StructuralVerificationResult, verify_structure
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
+WIRING_METADATA_SCHEMA_VERSION = 1
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini"]
@@ -55,6 +56,51 @@ class DirectoryTranslationResult:
     warnings: list[str]
     skipped_count: int = 0
     translated_count: int = 0
+
+
+def wiring_metadata_sidecar_path(output_path: Path) -> Path:
+    return output_path.with_suffix(".wiring.json")
+
+
+def wiring_metadata_payload(result: TranslationResult) -> dict[str, object] | None:
+    if result.output_path is None or result.diagnostics is None:
+        return None
+    records = result.diagnostics.framework_metadata
+    if not records:
+        return None
+    return {
+        "schema_version": WIRING_METADATA_SCHEMA_VERSION,
+        "source": str(result.source_path),
+        "output": str(result.output_path),
+        "elements": [
+            {
+                "plugin": record.plugin,
+                "kind": record.kind,
+                "java_name": record.java_name,
+                "python_name": record.python_name,
+                "annotations": [
+                    {
+                        "name": annotation.name,
+                        "simple_name": annotation.simple_name,
+                        "values": dict(annotation.values),
+                    }
+                    for annotation in record.annotations
+                ],
+                "metadata": dict(record.metadata),
+            }
+            for record in records
+        ],
+    }
+
+
+def write_wiring_metadata_sidecar(result: TranslationResult) -> Path | None:
+    payload = wiring_metadata_payload(result)
+    if payload is None or result.output_path is None:
+        return None
+    sidecar = wiring_metadata_sidecar_path(result.output_path)
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return sidecar
 
 
 def translate_file(
@@ -688,5 +734,7 @@ def _diagnostics_context(diagnostics: TranslationDiagnostics) -> str:
 
 
 def _config_fingerprint(cfg: TranslationConfig) -> str:
-    payload = json.dumps(cfg.model_dump(mode="json"), sort_keys=True)
+    payload_data = cfg.model_dump(mode="json", exclude={"framework_plugins"})
+    payload_data["framework_plugins"] = [plugin.name for plugin in cfg.framework_plugins]
+    payload = json.dumps(payload_data, sort_keys=True)
     return payload

@@ -1,6 +1,7 @@
 """Tests for the top-level translation pipeline."""
 
 import ast
+import json
 from pathlib import Path
 
 import j2py.llm.client as llm_client
@@ -17,6 +18,7 @@ from j2py.state import entry_from_result, save_state, source_key
 from j2py.translate.diagnostics import TranslationDiagnostic, TranslationDiagnostics
 from j2py.translate.skeleton import SkeletonTranslation
 from j2py.validate.checks import ValidationResult
+from tests.fixtures.framework.reference_plugin import ReferenceFrameworkPlugin
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CFG = ConfigLoader().add_defaults().build()
@@ -318,6 +320,73 @@ def test_translate_file_can_validate_generated_source(monkeypatch) -> None:
 
     assert result.validation is not None
     assert result.validation.ok
+
+
+def test_wiring_metadata_payload_and_sidecar_are_versioned(tmp_path: Path) -> None:
+    source = tmp_path / "Orders.java"
+    output = tmp_path / "out" / "Orders.py"
+    source.write_text(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+    )
+    cfg = CFG.model_copy(update={"framework_plugins": [ReferenceFrameworkPlugin()]})
+
+    result = translate_file(source, cfg=cfg, use_llm=False, validate=False)
+    result.output_path = output
+    payload = pipeline.wiring_metadata_payload(result)
+
+    assert payload == {
+        "schema_version": 1,
+        "source": str(source),
+        "output": str(output),
+        "elements": [
+            {
+                "plugin": "reference",
+                "kind": "class",
+                "java_name": "Orders",
+                "python_name": "Orders",
+                "annotations": [
+                    {
+                        "name": "MappedController",
+                        "simple_name": "MappedController",
+                        "values": {},
+                    },
+                ],
+                "metadata": {"controller": "Orders"},
+            },
+        ],
+    }
+
+    sidecar = pipeline.write_wiring_metadata_sidecar(result)
+
+    assert sidecar == output.with_suffix(".wiring.json")
+    assert sidecar is not None
+    assert json.loads(sidecar.read_text()) == payload
+
+
+def test_wiring_metadata_payload_is_empty_without_metadata(tmp_path: Path) -> None:
+    source = tmp_path / "Plain.java"
+    source.write_text("public class Plain {}")
+
+    result = translate_file(source, cfg=CFG, use_llm=False, validate=False)
+    result.output_path = tmp_path / "Plain.py"
+
+    assert pipeline.wiring_metadata_payload(result) is None
+    assert pipeline.write_wiring_metadata_sidecar(result) is None
+
+
+def test_config_fingerprint_handles_framework_plugins() -> None:
+    cfg = CFG.model_copy(update={"framework_plugins": [ReferenceFrameworkPlugin()]})
+
+    fingerprint = pipeline._config_fingerprint(cfg)
+
+    payload = json.loads(fingerprint)
+    assert payload["framework_plugins"] == ["reference"]
 
 
 def test_translate_file_reports_validation_failure_for_invalid_llm_output(
