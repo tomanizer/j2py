@@ -7,6 +7,19 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.5.0b3 - 2026-06-17
+
+Third beta pre-release. Extends rule-layer overload translation (generalized erased value
+dispatch, fixed-arity vs varargs routing, broader dispatcher families), adds same-package
+sibling body-local imports to break base↔derived cycles ([ADR 0021](docs/decisions/0021-sibling-type-refs-as-body-local-imports.md)),
+interface static factory adapters, and assignment-as-expression desugaring; resolves
+residual `Character`/`Objects` JDK static imports and an interface generic `TypeVar`
+variance bug. Engineering hygiene tightens — the equivalence-verified surface and line/branch
+coverage are now ratcheting CI floors — and the Spring → FastAPI/SQLAlchemy mapping cookbook
+documents opt-in `annotation_map` recipes. Correctness gaps from 0.5.0b1 remain open (overload
+manual-dispatch for erased-signature collisions, division numeric certainty, some JDK static
+imports; ~33% of the verified equivalence surface); see **Known limitations** under 0.5.0b1.
+
 ### Added
 - Positioning documentation clarifies j2py's useful scope, enterprise framework
   boundaries, and how to read Spring corpus metrics without treating node coverage as
