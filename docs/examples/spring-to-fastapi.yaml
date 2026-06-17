@@ -1,7 +1,15 @@
 # Reference profile only: copy and adapt these mappings for your project shims.
 # j2py does not enable or maintain Spring/FastAPI framework support by default.
+#
+# Every entry below uses ONLY the supported annotation_map keys
+# (python_decorator, import, python_base, field_comment, emit_init_param,
+# drop, preserve_comment). Entries are strict — unknown keys are rejected.
+# See docs/examples/SPRING_MAPPING_COOKBOOK.md for the full before/after guide
+# and the "manual port required" callouts (JPA columns, transaction
+# propagation, DI wiring).
 
 annotation_map:
+  # --- Web layer (controllers) ----------------------------------------------
   RestController:
     python_decorator: rest_controller
     import: "from myapp.spring_shim import rest_controller"
@@ -26,14 +34,42 @@ annotation_map:
     python_decorator: 'router.delete("{value}")'
     import: "from myapp.web import router"
 
+  # --- Dependency injection -------------------------------------------------
+  Service:
+    # Marker decorator for j2py-wire discovery (#338); no container in core.
+    python_decorator: service
+    import: "from myapp.spring_shim import service"
+
+  Component:
+    python_decorator: component
+    import: "from myapp.spring_shim import component"
+
+  Repository:
+    python_decorator: repository
+    import: "from myapp.spring_shim import repository"
+
   Autowired:
+    # Promote each legacy field-injected dependency to a required __init__ param
+    # (stable Java declaration order) instead of `self.x: T | None = None`.
     field_comment: "# injected: {field_type} {field_name}"
     emit_init_param: true
 
+  # --- Persistence (JPA -> SQLAlchemy) --------------------------------------
   Entity:
+    # Class becomes `class Order(Base):`. Column mapping (@Id/@Column/etc.) is
+    # a plugin (#337) concern — see cookbook section 4.
     python_base: Base
     import: "from myapp.db import Base"
 
+  Table:
+    # Shim decorator sets __tablename__ from {name}; annotation_map cannot emit
+    # a class attribute directly.
+    python_decorator: 'table("{name}")'
+    import: "from myapp.db import table"
+
+  # --- Transactions ---------------------------------------------------------
   Transactional:
+    # Passthrough to a project-owned session-scoped decorator. Propagation,
+    # rollback rules, and isolation are non-goals (manual port).
     python_decorator: transactional
     import: "from myapp.db import transactional"

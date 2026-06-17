@@ -1,0 +1,77 @@
+# Reference profile only: copy and adapt these mappings for your project shims.
+# j2py does not enable or maintain Spring/FastAPI framework support by default.
+#
+# TOML mirror of spring-to-fastapi.yaml. TOML configs load via the stdlib
+# (no PyYAML extra needed), so this form works out of the box:
+#
+#   uv run j2py translate <src> -c docs/examples/spring-to-fastapi.toml --no-llm
+#
+# Every entry uses ONLY the supported annotation_map keys (python_decorator,
+# import, python_base, field_comment, emit_init_param, drop, preserve_comment).
+# Entries are strict — unknown keys are rejected. See SPRING_MAPPING_COOKBOOK.md
+# for the full before/after guide and the "manual port required" callouts.
+
+# --- Web layer (controllers) -------------------------------------------------
+[annotation_map.RestController]
+python_decorator = "rest_controller"
+import = "from myapp.spring_shim import rest_controller"
+
+[annotation_map.RequestMapping]
+python_decorator = 'router.api_route("{value}")'
+import = "from myapp.web import router"
+
+[annotation_map.GetMapping]
+python_decorator = 'router.get("{value}")'
+import = "from myapp.web import router"
+
+[annotation_map.PostMapping]
+python_decorator = 'router.post("{value}")'
+import = "from myapp.web import router"
+
+[annotation_map.PutMapping]
+python_decorator = 'router.put("{value}")'
+import = "from myapp.web import router"
+
+[annotation_map.DeleteMapping]
+python_decorator = 'router.delete("{value}")'
+import = "from myapp.web import router"
+
+# --- Dependency injection ----------------------------------------------------
+# Marker decorator for j2py-wire discovery (#338); no container in core.
+[annotation_map.Service]
+python_decorator = "service"
+import = "from myapp.spring_shim import service"
+
+[annotation_map.Component]
+python_decorator = "component"
+import = "from myapp.spring_shim import component"
+
+[annotation_map.Repository]
+python_decorator = "repository"
+import = "from myapp.spring_shim import repository"
+
+# Promote each legacy field-injected dependency to a required __init__ param
+# (stable Java declaration order) instead of `self.x: T | None = None`.
+[annotation_map.Autowired]
+field_comment = "# injected: {field_type} {field_name}"
+emit_init_param = true
+
+# --- Persistence (JPA -> SQLAlchemy) -----------------------------------------
+# Class becomes `class Order(Base):`. Column mapping (@Id/@Column/etc.) is a
+# plugin (#337) concern — see cookbook section 4.
+[annotation_map.Entity]
+python_base = "Base"
+import = "from myapp.db import Base"
+
+# Shim decorator sets __tablename__ from {name}; annotation_map cannot emit a
+# class attribute directly.
+[annotation_map.Table]
+python_decorator = 'table("{name}")'
+import = "from myapp.db import table"
+
+# --- Transactions ------------------------------------------------------------
+# Passthrough to a project-owned session-scoped decorator. Propagation,
+# rollback rules, and isolation are non-goals (manual port).
+[annotation_map.Transactional]
+python_decorator = "transactional"
+import = "from myapp.db import transactional"
