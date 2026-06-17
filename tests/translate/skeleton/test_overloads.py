@@ -1,7 +1,10 @@
 """Skeleton translator tests — overload translation."""
 
+from pathlib import Path
+
 import pytest
 
+from j2py.validate.checks import validate_source
 from tests.translate.skeleton.helpers import (
     assert_module_executes,
     assert_valid_python,
@@ -192,6 +195,53 @@ def test_object_name_static_overloads_emit_typing_dispatcher() -> None:
     assert "return ObjectName.get_instance(object_name)" in result.source
     assert "NotImplementedError" not in result.source
     assert_valid_python(result.source)
+
+
+def test_generic_bounded_return_typevars_are_preserved_for_overload_groups() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class GenericOverloads {
+            public static <A extends Appendable & Closeable, T> A join(A out, Iterable<T> values) {
+                return out;
+            }
+
+            public static <A extends Appendable & Closeable, T> A join(A out, T value) {
+                return out;
+            }
+
+            public static <B extends Closeable, T> B collect(B target, Iterable<T> values) {
+                return target;
+            }
+
+            public static <B extends Closeable, T> B collect(B target, T value) {
+                return target;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import Iterable, Protocol, TypeVar, overload" in result.source
+    assert "class Appendable(Protocol):" in result.source
+    assert "class Closeable(Protocol):" in result.source
+    assert 'A = TypeVar("A", bound=Appendable)' in result.source
+    assert 'B = TypeVar("B", bound=Closeable)' in result.source
+    assert 'T = TypeVar("T")' in result.source
+    assert "def join(out: A, values: Iterable[T]) -> A: ..." in result.source
+    assert "def join(out: A, value: T) -> A: ..." in result.source
+    assert "def join(*args: object) -> object:" in result.source
+    assert "def collect(target: B, values: Iterable[T]) -> B: ..." in result.source
+    assert "def collect(target: B, value: T) -> B: ..." in result.source
+    assert "def collect(*args: object) -> object:" in result.source
+    assert "overloaded method join requires manual dispatch" not in {
+        item.reason for item in result.diagnostics.unhandled
+    }
+    assert "overloaded method collect requires manual dispatch" not in {
+        item.reason for item in result.diagnostics.unhandled
+    }
+    validation = validate_source(result.source, Path("GenericOverloads.py"))
+    assert validation.ok, validation.ruff_errors + validation.mypy_errors
 
 
 def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
