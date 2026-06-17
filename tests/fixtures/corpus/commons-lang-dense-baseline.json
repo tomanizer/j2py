@@ -2755,17 +2755,17 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.9940119760479041,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 166,
+      "handled_count": 169,
       "method_body_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/CharSequenceUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "for_statement:1",
-      "unhandled_reasons": "malformed for statement:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 47
     },
     {
@@ -2915,17 +2915,17 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 7,
-      "coverage": 0.9880952380952381,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 83,
+      "handled_count": 86,
       "method_body_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/text/StrMatcher.java",
       "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "for_statement:1",
-      "unhandled_reasons": "malformed for statement:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 51
     },
     {
@@ -3223,7 +3223,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9902268302655568,
+    "average_coverage": 0.9903162941948411,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
@@ -3240,8 +3240,8 @@
     },
     "files_below_coverage_threshold": 4,
     "files_scanned": 200,
-    "files_with_unhandled": 13,
-    "full_coverage_files": 187,
+    "files_with_unhandled": 11,
+    "full_coverage_files": 189,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
@@ -3256,10 +3256,6 @@
       [
         "binary_expression",
         9
-      ],
-      [
-        "for_statement",
-        2
       ],
       [
         "block",
@@ -3318,10 +3314,6 @@
       [
         "overloaded method to_int_value requires manual dispatch",
         4
-      ],
-      [
-        "malformed for statement",
-        2
       ],
       [
         "overloaded method to_string requires manual dispatch",
