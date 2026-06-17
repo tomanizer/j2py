@@ -28,7 +28,7 @@ from j2py.translate.class_methods import (
     signature,
     translate_method,
 )
-from j2py.translate.class_model import ParameterInfo, _modifiers
+from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.framework_annotations import (
     class_annotation_mapping,
@@ -36,9 +36,22 @@ from j2py.translate.framework_annotations import (
 )
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
+from j2py.translate.rules.types import translate_type
 from j2py.translate.statements import translate_body
 
 _NodeKey = tuple[int, int, int, int, str]
+_BUILTIN_BOUND_TYPES = frozenset(
+    {
+        "Any",
+        "bool",
+        "bytes",
+        "float",
+        "int",
+        "object",
+        "str",
+        "type",
+    },
+)
 
 
 @dataclass(frozen=True)
@@ -47,17 +60,22 @@ class InterfaceTypeVarPlan:
     interface_type_var_maps: dict[_NodeKey, dict[str, str]]
 
 
+@dataclass(frozen=True)
+class TypeParameter:
+    name: str
+    bound: str | None
+
+
 def interface_type_var_plan(
     root: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
 ) -> InterfaceTypeVarPlan:
     """Return module-level TypeVars and per-interface generic name mappings."""
-    declarations: dict[str, str] = {}
+    declarations: dict[str, tuple[str, str | None]] = {}
     interface_type_var_maps: dict[_NodeKey, dict[str, str]] = {}
     interface_occurrences: dict[str, list[tuple[JavaNode, str, str]]] = {}
-    method_type_params: set[str] = set()
-    ordered_method_type_params: list[str] = []
+    declared_type_names = _declared_type_names(root)
 
     for interface in _interface_declarations(root):
         class_name = _interface_class_name(interface)
@@ -67,11 +85,11 @@ def interface_type_var_plan(
                 (interface, class_name, variances.get(type_param, "covariant")),
             )
 
-        for method in _interface_methods(interface):
-            for type_param in _type_parameter_names(method):
-                if type_param not in method_type_params:
-                    method_type_params.add(type_param)
-                    ordered_method_type_params.append(type_param)
+    method_type_params = {
+        type_param.name
+        for method in _method_declarations(root)
+        for type_param in _type_parameters(method, cfg)
+    }
 
     conflicting_names = {
         name
@@ -97,14 +115,25 @@ def interface_type_var_plan(
                 type_var_map[name] = name
                 _register_type_var(declarations, name, variance)
 
-    for type_param in ordered_method_type_params:
-        _register_type_var(declarations, type_param, "invariant")
+    for method in _method_declarations(root):
+        for method_type_param in _type_parameters(method, cfg):
+            _register_type_var(
+                declarations,
+                method_type_param.name,
+                "invariant",
+                bound=method_type_param.bound,
+            )
 
     if declarations:
         diagnostics.imports.need_typing("TypeVar")
+    protocol_lines = _bound_protocol_lines(declarations, declared_type_names, diagnostics)
     return InterfaceTypeVarPlan(
         declaration_lines=[
-            _type_var_declaration_line(name, variance) for name, variance in declarations.items()
+            *protocol_lines,
+            *(
+                _type_var_declaration_line(name, variance, bound=bound)
+                for name, (variance, bound) in declarations.items()
+            ),
         ],
         interface_type_var_maps=interface_type_var_maps,
     )
@@ -481,19 +510,71 @@ def _adapter_method_lines(
 
 
 def _type_parameter_names(node: JavaNode) -> list[str]:
+    return [type_param.name for type_param in _type_parameters(node, None)]
+
+
+def _type_parameters(node: JavaNode, cfg: TranslationConfig | None) -> list[TypeParameter]:
     type_parameters = next(
         (child for child in node.named_children if child.type == "type_parameters"),
         None,
     )
     if type_parameters is None:
         return []
-    names: list[str] = []
+    params: list[TypeParameter] = []
     for child in type_parameters.named_children:
         if child.type != "type_parameter":
             continue
-        name = child.text.split(" ", 1)[0].strip()
-        if name:
-            names.append(name)
+        name_node = next(
+            (
+                grandchild
+                for grandchild in child.named_children
+                if grandchild.type in {"identifier", "type_identifier"}
+            ),
+            None,
+        )
+        if name_node is None:
+            continue
+        bound = _type_parameter_bound(child, cfg)
+        params.append(TypeParameter(name=name_node.text, bound=bound))
+    return params
+
+
+def _type_parameter_bound(node: JavaNode, cfg: TranslationConfig | None) -> str | None:
+    if cfg is None:
+        return None
+    bound_node = next(
+        (child for child in node.named_children if child.type == "type_bound"),
+        None,
+    )
+    if bound_node is None:
+        return None
+    bounds = [
+        child
+        for child in bound_node.named_children
+        if child.type
+        in {
+            "array_type",
+            "generic_type",
+            "scoped_type_identifier",
+            "type_identifier",
+        }
+    ]
+    if len(bounds) != 1:
+        return None
+    bound = translate_type(bounds[0].text, cfg)
+    if not re.fullmatch(r"[A-Za-z_]\w*", bound):
+        return None
+    return bound
+
+
+def _declared_type_names(root: JavaNode) -> set[str]:
+    names: set[str] = set()
+    for node in root.walk():
+        if node.type not in TYPE_DECLARATION_NODES:
+            continue
+        name_node = node.child_by_field("name")
+        if name_node is not None:
+            names.add(translate_class_name(name_node.text))
     return names
 
 
@@ -510,6 +591,14 @@ def _interface_methods(node: JavaNode) -> list[JavaNode]:
     if body is None:
         return []
     return [child for child in body.named_children if child.type == "method_declaration"]
+
+
+def _method_declarations(root: JavaNode) -> list[JavaNode]:
+    methods = []
+    if root.type == "method_declaration":
+        methods.append(root)
+    methods.extend(root.find_all("method_declaration"))
+    return methods
 
 
 def _interface_class_name(node: JavaNode) -> str:
@@ -596,15 +685,21 @@ def _split_python_union(text: str) -> list[str]:
 
 
 def _register_type_var(
-    declarations: dict[str, str],
+    declarations: dict[str, tuple[str, str | None]],
     name: str,
     variance: str,
+    *,
+    bound: str | None = None,
 ) -> None:
     existing = declarations.get(name)
     if existing is None:
-        declarations[name] = variance
-    elif existing != variance:
-        declarations[name] = "invariant"
+        declarations[name] = (variance, bound)
+        return
+
+    existing_variance, existing_bound = existing
+    resolved_variance = variance if existing_variance == variance else "invariant"
+    resolved_bound = existing_bound if existing_bound == bound else None
+    declarations[name] = (resolved_variance, resolved_bound)
 
 
 def _method_variance(name: str, method_type_params: set[str]) -> set[str]:
@@ -637,12 +732,45 @@ def _unique_type_var_symbol(
     return candidate
 
 
-def _type_var_declaration_line(name: str, variance: str) -> str:
+def _type_var_declaration_line(name: str, variance: str, *, bound: str | None = None) -> str:
+    options: list[str] = []
+    if bound is not None:
+        options.append(f"bound={bound}")
     if variance == "covariant":
-        return f'{name} = TypeVar("{name}", covariant=True)'
-    if variance == "contravariant":
-        return f'{name} = TypeVar("{name}", contravariant=True)'
+        options.append("covariant=True")
+    elif variance == "contravariant":
+        options.append("contravariant=True")
+    if options:
+        return f'{name} = TypeVar("{name}", {", ".join(options)})'
     return f'{name} = TypeVar("{name}")'
+
+
+def _bound_protocol_lines(
+    declarations: dict[str, tuple[str, str | None]],
+    declared_type_names: set[str],
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    custom_bounds = [
+        bound
+        for _, bound in declarations.values()
+        if bound is not None
+        and bound not in _BUILTIN_BOUND_TYPES
+        and bound not in declared_type_names
+    ]
+    unique_bounds = list(dict.fromkeys(custom_bounds))
+    if not unique_bounds:
+        return []
+
+    diagnostics.imports.need_typing("Protocol")
+    lines: list[str] = []
+    for index, bound in enumerate(unique_bounds):
+        if index:
+            lines.append("")
+        lines.append(f"class {bound}(Protocol):")
+        lines.append("    pass")
+    if lines:
+        lines.append("")
+    return lines
 
 
 def _returned_lambda(method: JavaNode) -> JavaNode | None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
@@ -197,7 +198,7 @@ def _value_dispatch_overload(
     for _, (member, params, guards) in ordered:
         condition = _value_dispatch_condition(guards, params)
         lines.append(f"        if {condition}:")
-        lines.extend(_value_dispatch_assignments(params, indent="            "))
+        lines.extend(_value_dispatch_assignments(params, member=member, indent="            "))
         branch_lines = (
             _translate_static_overload_branch_body if is_static else _translate_overload_branch_body
         )(
@@ -284,6 +285,8 @@ def _value_dispatch_return_type(
         )
         for member in members
     )
+    if _uses_method_type_parameter(return_type, members):
+        return_type = "object"
     if cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(return_type)
     return return_type
@@ -304,6 +307,35 @@ def _value_dispatch_member_return_type(
     if cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(return_type)
     return return_type
+
+
+def _uses_method_type_parameter(py_type: str, members: list[JavaNode]) -> bool:
+    type_params = {name for member in members for name in _method_type_parameter_names(member)}
+    return any(re.search(rf"\b{re.escape(name)}\b", py_type) for name in type_params)
+
+
+def _method_type_parameter_names(member: JavaNode) -> list[str]:
+    type_parameters = next(
+        (child for child in member.named_children if child.type == "type_parameters"),
+        None,
+    )
+    if type_parameters is None:
+        return []
+    names: list[str] = []
+    for child in type_parameters.named_children:
+        if child.type != "type_parameter":
+            continue
+        name_node = next(
+            (
+                grandchild
+                for grandchild in child.named_children
+                if grandchild.type in {"identifier", "type_identifier"}
+            ),
+            None,
+        )
+        if name_node is not None:
+            names.append(name_node.text)
+    return names
 
 
 def _member_dispatch_key(
@@ -368,13 +400,33 @@ def _value_dispatch_condition(guards: list[_DispatchGuard], params: list[Paramet
     return " and ".join(parts)
 
 
-def _value_dispatch_assignments(params: list[ParameterInfo], *, indent: str) -> list[str]:
+def _value_dispatch_assignments(
+    params: list[ParameterInfo],
+    *,
+    member: JavaNode,
+    indent: str,
+) -> list[str]:
+    body = method_body(member)
+    body_text = body.text if body is not None else ""
+
+    def should_assign(param: ParameterInfo) -> bool:
+        return re.search(rf"\b{re.escape(param.raw_name)}\b", body_text) is not None
+
     spread_index = next((index for index, param in enumerate(params) if param.is_spread), None)
     if spread_index is None:
-        return [f"{indent}{param.py_name} = args[{index}]" for index, param in enumerate(params)]
-    lines = [f"{indent}{params[index].py_name} = args[{index}]" for index in range(spread_index)]
+        return [
+            f"{indent}{param.py_name} = args[{index}]"
+            for index, param in enumerate(params)
+            if should_assign(param)
+        ]
+    lines = [
+        f"{indent}{params[index].py_name} = args[{index}]"
+        for index in range(spread_index)
+        if should_assign(params[index])
+    ]
     spread_param = params[spread_index]
-    lines.append(f"{indent}{spread_param.py_name} = args[{spread_index}:]")
+    if should_assign(spread_param):
+        lines.append(f"{indent}{spread_param.py_name} = args[{spread_index}:]")
     return lines
 
 

@@ -78,8 +78,9 @@ class ImportSet:
             self.lines.add(line)
 
     def need_type_annotation(self, annotation: str) -> None:
-        if _uses_typing_name(annotation, "Any"):
-            self.need_typing("Any")
+        for name in _TYPING_ANNOTATION_NAMES:
+            if _uses_typing_name(annotation, name):
+                self.need_typing(name)
 
     def update(self, other: ImportSet) -> None:
         self.lines.update(other.lines)
@@ -250,3 +251,15 @@ def _compact_text(text: str, *, limit: int = 160) -> str:
 
 def _uses_typing_name(annotation: str, name: str) -> bool:
     return re.search(rf"(?<![\w.]){re.escape(name)}(?![\w.])", annotation) is not None
+
+
+_TYPING_ANNOTATION_NAMES = frozenset(
+    {
+        "Any",
+        "Callable",
+        "Iterable",
+        "Iterator",
+        "Optional",
+        "Self",
+    },
+)
