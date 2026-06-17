@@ -146,6 +146,167 @@ def test_for_statement_without_condition_warns_and_uses_while_true() -> None:
     assert_valid_python(result.source)
 
 
+def test_for_statement_multiple_declarator_initializers_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int sumPair(int limit) {
+                int total = 0;
+                for (int left = 0, right = limit; left < right; left++, right--) {
+                    total += left + right;
+                }
+                return total;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "left = 0" in result.source
+    assert "right = limit" in result.source
+    assert "while left < right:" in result.source
+    assert "left += 1" in result.source
+    assert "right -= 1" in result.source
+    assert_valid_python(result.source)
+    loops = _load_translated_class(result.source, "Loops")
+    assert loops().sum_pair(4) == 8  # type: ignore[attr-defined,operator]
+
+
+def test_for_statement_multiple_update_expressions_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int walk(int limit) {
+                int i = 0;
+                int j = limit;
+                for (; i < j; i++, j--) {
+                    i += 0;
+                }
+                return i;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "while i < j:" in result.source
+    assert "i += 1" in result.source
+    assert "j -= 1" in result.source
+    assert_valid_python(result.source)
+
+
+def test_for_statement_bidirectional_index_pattern_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public boolean meetInMiddle(int len2) {
+                for (int i = 1, j = len2 - 1; i <= j; i++, j--) {
+                    if (i == j) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "i = 1" in result.source
+    assert "j = len2 - 1" in result.source
+    assert "while i <= j:" in result.source
+    assert "i += 1" in result.source
+    assert "j -= 1" in result.source
+    assert_valid_python(result.source)
+    loops = _load_translated_class(result.source, "Loops")
+    assert loops().meet_in_middle(2) is True  # type: ignore[attr-defined,operator]
+
+
+def test_for_statement_multi_declarator_single_update_uses_while_not_range() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int totalUp(int n) {
+                int total = 0;
+                for (int i = 0, j = 10; i < n; i++) {
+                    total += i + j;
+                }
+                return total;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "for i in range(" not in result.source
+    assert "i = 0" in result.source
+    assert "j = 10" in result.source
+    assert "while i < n:" in result.source
+    assert "i += 1" in result.source
+    assert_valid_python(result.source)
+    loops = _load_translated_class(result.source, "Loops")
+    assert loops().total_up(3) == 33  # type: ignore[attr-defined,operator]
+
+
+def test_for_statement_expression_initializer_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.ArrayList;
+        import java.util.List;
+
+        public class Loops {
+            public int drain(List<String> values) {
+                int seen = 0;
+                for (values.clear(); !values.isEmpty(); values.remove(0)) {
+                    seen += 1;
+                }
+                return seen;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "values.clear()" in result.source
+    assert "while values:" in result.source
+    assert "values.remove(0)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_for_statement_multiple_assignment_initializers_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int count(int limit) {
+                int i;
+                int j;
+                int seen = 0;
+                for (i = 0, j = limit; i < j; i++, j--) {
+                    seen += 1;
+                }
+                return seen;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "i = 0" in result.source
+    assert "j = limit" in result.source
+    assert "while i < j:" in result.source
+    assert "i += 1" in result.source
+    assert "j -= 1" in result.source
+    assert_valid_python(result.source)
+    loops = _load_translated_class(result.source, "Loops")
+    assert loops().count(4) == 2  # type: ignore[attr-defined,operator]
+
+
 def test_while_statement_translates_break_and_update() -> None:
     python_source, coverage = translate_source(
         """

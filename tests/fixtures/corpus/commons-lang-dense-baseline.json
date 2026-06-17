@@ -258,7 +258,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 21,
@@ -270,7 +270,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
@@ -722,7 +722,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -734,7 +734,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
@@ -850,7 +850,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -862,7 +862,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -1026,7 +1026,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -1038,7 +1038,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
@@ -1090,7 +1090,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 39,
@@ -1102,7 +1102,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 15
+      "warning_count": 14
     },
     {
       "annotation_use_count": 0,
@@ -1365,7 +1365,7 @@
       "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 16,
+      "handled_count": 18,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1381,7 +1381,7 @@
       "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 16,
+      "handled_count": 18,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1477,7 +1477,7 @@
       "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 16,
+      "handled_count": 18,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1717,7 +1717,7 @@
       "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 19,
+      "handled_count": 21,
       "method_body_count": 5,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2003,34 +2003,34 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.5555555555555556,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 5,
+      "handled_count": 22,
       "method_body_count": 5,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/text/FormattableUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 4,
-      "unhandled_node_types": "method_declaration:4",
-      "unhandled_reasons": "overloaded method append requires manual dispatch:4",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 8
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
-      "coverage": 0.9393939393939394,
+      "annotation_warning_count": 9,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 31,
+      "handled_count": 35,
       "method_body_count": 11,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/concurrent/AbstractCircuitBreaker.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method is_open requires manual dispatch:2",
-      "warning_count": 25
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 26
     },
     {
       "annotation_use_count": 0,
@@ -2050,7 +2050,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 6,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 31,
@@ -2062,7 +2062,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 23
+      "warning_count": 22
     },
     {
       "annotation_use_count": 0,
@@ -2082,7 +2082,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 47,
@@ -2094,7 +2094,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 21
+      "warning_count": 19
     },
     {
       "annotation_use_count": 0,
@@ -2165,7 +2165,7 @@
       "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 17,
+      "handled_count": 20,
       "method_body_count": 10,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2210,7 +2210,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 8,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 40,
@@ -2222,7 +2222,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 30
+      "warning_count": 29
     },
     {
       "annotation_use_count": 0,
@@ -2275,41 +2275,41 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 0,
-      "coverage": 0.85,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 34,
+      "handled_count": 46,
       "method_body_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/time/CalendarUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 6,
-      "unhandled_node_types": "method_declaration:6",
-      "unhandled_reasons": "overloaded method to_local_date_time requires manual dispatch:2;overloaded method to_offset_date_time requires manual dispatch:2;overloaded method to_zoned_date_time requires manual dispatch:2",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 22
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
-      "coverage": 0.9583333333333334,
+      "annotation_warning_count": 4,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 69,
+      "handled_count": 75,
       "method_body_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/AppendableJoiner.java",
       "syntax_ok": true,
-      "unhandled_count": 3,
-      "unhandled_node_types": "method_declaration:3",
-      "unhandled_reasons": "overloaded method join_a requires manual dispatch:3",
-      "warning_count": 29
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 30
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 13,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 46,
+      "handled_count": 52,
       "method_body_count": 14,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2318,7 +2318,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 19
+      "warning_count": 17
     },
     {
       "annotation_use_count": 0,
@@ -2594,7 +2594,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 7,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 63,
@@ -2606,7 +2606,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 27
+      "warning_count": 25
     },
     {
       "annotation_use_count": 0,
@@ -2755,22 +2755,22 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 1,
-      "coverage": 0.9940119760479041,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 166,
+      "handled_count": 169,
       "method_body_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/CharSequenceUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "for_statement:1",
-      "unhandled_reasons": "malformed for statement:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 47
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 80,
@@ -2782,11 +2782,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 45
+      "warning_count": 44
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 11,
+      "annotation_warning_count": 10,
       "coverage": 1.0,
       "error": "",
       "handled_count": 78,
@@ -2798,11 +2798,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 45
+      "warning_count": 44
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
       "handled_count": 80,
@@ -2814,11 +2814,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 47
+      "warning_count": 46
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 12,
+      "annotation_warning_count": 11,
       "coverage": 1.0,
       "error": "",
       "handled_count": 80,
@@ -2830,23 +2830,23 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 47
+      "warning_count": 46
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 27,
-      "coverage": 0.9915966386554622,
+      "annotation_warning_count": 25,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 118,
+      "handled_count": 117,
       "method_body_count": 33,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/ThreadUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "unsupported stream intermediate: flatMap:1",
-      "warning_count": 70
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 68
     },
     {
       "annotation_use_count": 0,
@@ -2866,7 +2866,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 12,
       "coverage": 1.0,
       "error": "",
       "handled_count": 90,
@@ -2878,7 +2878,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 47
+      "warning_count": 39
     },
     {
       "annotation_use_count": 0,
@@ -2898,7 +2898,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 10,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 123,
@@ -2910,22 +2910,22 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 48
+      "warning_count": 45
     },
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 7,
-      "coverage": 0.9880952380952381,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 83,
+      "handled_count": 86,
       "method_body_count": 23,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/text/StrMatcher.java",
       "syntax_ok": false,
-      "unhandled_count": 1,
-      "unhandled_node_types": "for_statement:1",
-      "unhandled_reasons": "malformed for statement:1",
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
       "warning_count": 51
     },
     {
@@ -2979,17 +2979,17 @@
     {
       "annotation_use_count": 0,
       "annotation_warning_count": 2,
-      "coverage": 0.6666666666666666,
+      "coverage": 0.8367346938775511,
       "error": "",
-      "handled_count": 28,
+      "handled_count": 41,
       "method_body_count": 24,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/CharUtils.java",
       "syntax_ok": true,
-      "unhandled_count": 14,
-      "unhandled_node_types": "method_declaration:14",
-      "unhandled_reasons": "overloaded method to_char requires manual dispatch:4;overloaded method to_character_object requires manual dispatch:2;overloaded method to_int_value requires manual dispatch:4;overloaded method to_string requires manual dispatch:2;overloaded method unicode_escaped requires manual dispatch:2",
+      "unhandled_count": 8,
+      "unhandled_node_types": "method_declaration:8",
+      "unhandled_reasons": "overloaded method to_int_value requires manual dispatch:4;overloaded method to_string requires manual dispatch:2;overloaded method unicode_escaped requires manual dispatch:2",
       "warning_count": 31
     },
     {
@@ -2997,7 +2997,7 @@
       "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 114,
+      "handled_count": 113,
       "method_body_count": 33,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -3122,7 +3122,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 41,
+      "annotation_warning_count": 38,
       "coverage": 1.0,
       "error": "",
       "handled_count": 100,
@@ -3134,7 +3134,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 97
+      "warning_count": 94
     },
     {
       "annotation_use_count": 0,
@@ -3170,23 +3170,23 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
-      "coverage": 0.9196428571428571,
+      "annotation_warning_count": 2,
+      "coverage": 0.984375,
       "error": "",
-      "handled_count": 103,
+      "handled_count": 126,
       "method_body_count": 35,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "src/main/java/org/apache/commons/lang3/builder/ReflectionToStringBuilder.java",
       "syntax_ok": true,
-      "unhandled_count": 9,
-      "unhandled_node_types": "method_declaration:9",
-      "unhandled_reasons": "overloaded method to_no_null_string_array requires manual dispatch:2;overloaded method to_string requires manual dispatch:7",
-      "warning_count": 55
+      "unhandled_count": 2,
+      "unhandled_node_types": "method_declaration:2",
+      "unhandled_reasons": "overloaded method to_no_null_string_array requires manual dispatch:2",
+      "warning_count": 56
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 20,
+      "annotation_warning_count": 17,
       "coverage": 1.0,
       "error": "",
       "handled_count": 112,
@@ -3198,7 +3198,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 58
+      "warning_count": 55
     }
   ],
   "metadata": {
@@ -3223,7 +3223,7 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9855272267499081,
+    "average_coverage": 0.9903162941948411,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
@@ -3231,23 +3231,23 @@
       "annotation_only_stub_rate": 0.0,
       "annotation_warning_file_rate": 0.825,
       "avg_annotation_uses_per_file": 0.0,
-      "avg_annotation_warnings_per_file": 3.29,
+      "avg_annotation_warnings_per_file": 3.11,
       "files_with_annotation_warnings": 165,
       "files_with_method_bodies": 172,
       "method_body_file_rate": 0.86,
       "total_annotation_uses": 0,
-      "total_annotation_warnings": 658
+      "total_annotation_warnings": 622
     },
-    "files_below_coverage_threshold": 6,
+    "files_below_coverage_threshold": 4,
     "files_scanned": 200,
-    "files_with_unhandled": 18,
-    "full_coverage_files": 182,
+    "files_with_unhandled": 11,
+    "full_coverage_files": 189,
     "parse_success_rate": 1.0,
     "syntax_success_rate": 0.99,
     "top_unhandled_node_types": [
       [
         "method_declaration",
-        91
+        63
       ],
       [
         "constructor_declaration",
@@ -3258,26 +3258,22 @@
         9
       ],
       [
-        "for_statement",
-        2
-      ],
-      [
-        "method_invocation",
-        2
-      ],
-      [
         "block",
         1
       ],
       [
         "field_declaration",
         1
+      ],
+      [
+        "method_invocation",
+        1
       ]
     ],
     "top_unhandled_reasons": [
       [
         "overloaded method append requires manual dispatch",
-        23
+        19
       ],
       [
         "overloaded method __init__ requires manual dispatch",
@@ -3285,10 +3281,6 @@
       ],
       [
         "division requires numeric type certainty",
-        9
-      ],
-      [
-        "overloaded method to_string requires manual dispatch",
         9
       ],
       [
@@ -3320,40 +3312,32 @@
         4
       ],
       [
-        "overloaded method to_char requires manual dispatch",
-        4
-      ],
-      [
         "overloaded method to_int_value requires manual dispatch",
         4
       ],
       [
-        "overloaded method join_a requires manual dispatch",
-        3
-      ],
-      [
-        "overloaded method is_open requires manual dispatch",
+        "overloaded method to_string requires manual dispatch",
         2
       ],
       [
-        "overloaded method to_local_date_time requires manual dispatch",
+        "overloaded method unicode_escaped requires manual dispatch",
         2
       ],
       [
-        "overloaded method to_offset_date_time requires manual dispatch",
+        "overloaded method to_no_null_string_array requires manual dispatch",
         2
       ],
       [
-        "overloaded method to_zoned_date_time requires manual dispatch",
-        2
+        "unsupported anonymous class member block",
+        1
       ],
       [
-        "malformed for statement",
-        2
+        "unsupported anonymous class static field_declaration",
+        1
       ],
       [
-        "overloaded method to_character_object requires manual dispatch",
-        2
+        "ambiguous get invocation requires receiver collection type",
+        1
       ]
     ]
   }
