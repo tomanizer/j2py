@@ -160,6 +160,13 @@ MAP_LIKE_SIMPLE_NAMES: frozenset[str] = frozenset(
     },
 )
 
+# Receivers whose single-arg get(index) is a predicate/bit/index API, not collection access.
+INDEXED_PREDICATE_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "BitSet",
+    },
+)
+
 # Receivers whose `.get(...)` is an API call (reflection, futures), not indexing.
 API_GET_RECEIVER_SIMPLE_NAMES: frozenset[str] = frozenset(
     {
@@ -218,6 +225,15 @@ def type_simple_name(py_type: str) -> str:
     return base.rsplit(".", 1)[-1]
 
 
+def java_type_simple_name(java_type: str) -> str:
+    """Return the unqualified base name from a Java type string."""
+    base = java_type.strip()
+    if "<" in base:
+        base = base.split("<", 1)[0]
+    base = base.rstrip("[]")
+    return base.rsplit(".", 1)[-1]
+
+
 def is_map_like_type(py_type: str) -> bool:
     """True when a translated type behaves like a Java Map for `.get(key)` lowering."""
     if " | " in py_type:
@@ -244,6 +260,28 @@ def is_api_get_receiver_type(py_type: str) -> bool:
     if simple in API_GET_RECEIVER_SIMPLE_NAMES:
         return True
     return simple.endswith("Property") or simple.endswith("PropertyWriter")
+
+
+def is_indexed_predicate_get_receiver_type(py_type: str) -> bool:
+    """True when single-arg `.get(index)` is a bit/predicate API, not collection access."""
+    if "|" in py_type:
+        return any(
+            is_indexed_predicate_get_receiver_type(part.strip())
+            for part in py_type.split("|")
+            if part.strip() != "None"
+        )
+    simple = type_simple_name(py_type)
+    if simple in INDEXED_PREDICATE_GET_RECEIVER_SIMPLE_NAMES:
+        return True
+    return simple.endswith("BitSet")
+
+
+def is_indexed_predicate_get_receiver_java_type(java_type: str) -> bool:
+    """True when a Java receiver type uses predicate-style single-arg get(index)."""
+    simple = java_type_simple_name(java_type)
+    if simple in INDEXED_PREDICATE_GET_RECEIVER_SIMPLE_NAMES:
+        return True
+    return simple.endswith("BitSet")
 
 
 def static_factory_return_type(receiver_name: str, method_name: str) -> str | None:

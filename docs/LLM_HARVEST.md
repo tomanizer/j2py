@@ -4,7 +4,7 @@ The **LLM harvest** records what the LLM fixed when the deterministic rule layer
 left gaps. It turns live translation runs into an auditable, local backlog for future
 rule-layer work — without a second LLM call and without committing raw API output.
 
-Design decision: [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md).
+Design decision: [ADR 0023](decisions/0023-llm-harvest-for-rule-layer-backlog.md).
 
 ## Why it exists
 
@@ -583,5 +583,5 @@ Implementation: `j2py/llm/usage.py` (client hook + harvest runner summary).
 
 - [TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) — graduated vs future xfail workflow
 - [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) — deterministic rule-layer scoreboards
-- [ADR 0017](decisions/0017-llm-harvest-for-rule-layer-backlog.md) — design decision
+- [ADR 0023](decisions/0023-llm-harvest-for-rule-layer-backlog.md) — design decision
 - [ADR 0003](decisions/0003-layered-translation-pipeline.md) — rule → LLM layering

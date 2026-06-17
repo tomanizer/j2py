@@ -1276,6 +1276,32 @@ def test_buffer_and_atomic_get_receivers_are_api_calls() -> None:
     assert_valid_python(result.source)
 
 
+def test_bitset_get_is_indexed_predicate_api_call() -> None:
+    """BitSet.get(index) is a predicate API call, not list-style indexing."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.BitSet;
+
+        public class BitSetProbe {
+            private BitSet bitSet;
+
+            public boolean isSet(int index) {
+                return bitSet.get(index);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return self.bit_set.get(index)" in result.source
+    assert "bit_set[index]" not in result.source
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(

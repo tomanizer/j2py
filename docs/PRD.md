@@ -16,7 +16,7 @@ the logic from scratch.
 
 ## Status
 
-**Beta pre-release** (`0.5.0b2` on PyPI as `j2py-converter`). The deterministic rule layer
+**Beta pre-release** (`0.5.0b3` on PyPI as `j2py-converter`). The deterministic rule layer
 achieves near-complete **node coverage** on pinned multi-library dense samples (see
 [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
 library scale is still early. Corpus coverage is a rule-layer breadth signal, not an
@@ -151,7 +151,7 @@ Provide measurable quality signal without live LLM in normal CI:
 ## References
 
 - [Architecture](ARCHITECTURE.md)
-- [Audit 2026-06-15](decisions/AUDIT-2026-06-15.md)
+- [Audit 2026-06-17](decisions/AUDIT-2026-06-17.md)
 - [Translation targets](TRANSLATION_TARGETS.md)
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
 - [Equivalence testing design](EQUIVALENCE_TESTING.md)
