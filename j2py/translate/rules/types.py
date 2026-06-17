@@ -264,7 +264,7 @@ def is_api_get_receiver_type(py_type: str) -> bool:
 
 def is_indexed_predicate_get_receiver_type(py_type: str) -> bool:
     """True when single-arg `.get(index)` is a bit/predicate API, not collection access."""
-    if " | " in py_type:
+    if "|" in py_type:
         return any(
             is_indexed_predicate_get_receiver_type(part.strip())
             for part in py_type.split("|")

@@ -133,6 +133,7 @@ def test_is_api_get_receiver_type(py_type: str, expected: bool) -> None:
         ("BitSet", True),
         ("java.util.BitSet", True),
         ("BitSet | None", True),
+        ("BitSet|None", True),
         ("SparseBitSet", True),
         ("list[str]", False),
         ("dict[str, int]", False),
