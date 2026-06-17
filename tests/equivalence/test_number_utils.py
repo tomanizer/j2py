@@ -207,6 +207,15 @@ def test_compare_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.compare(2, 5) < 0
     assert NumberUtils.compare(3, 3) == 0
     assert NumberUtils.compare(-128, 127) < 0
+    # Test short boundaries
+    assert NumberUtils.compare(-32768, 32767) < 0
+    assert NumberUtils.compare(32767, -32768) > 0
+    # Test int boundaries
+    assert NumberUtils.compare(-2147483648, 2147483647) < 0
+    assert NumberUtils.compare(2147483647, -2147483648) > 0
+    # Test long boundaries
+    assert NumberUtils.compare(-9223372036854775808, 9223372036854775807) < 0
+    assert NumberUtils.compare(9223372036854775807, -9223372036854775808) > 0
 
 
 # ── Phase 2 converters (toFloat / toByte / toShort) ───────────────────────────
