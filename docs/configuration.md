@@ -174,6 +174,11 @@ Each `annotation_map` entry is strict. Supported entry fields:
 JPA, or DI mapping. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus
 optional line comments.
 
+For a worked Spring example, see the [Spring → FastAPI/SQLAlchemy mapping
+cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as both
+[`spring-to-fastapi.toml`](examples/spring-to-fastapi.toml) (loads via the stdlib) and
+[`spring-to-fastapi.yaml`](examples/spring-to-fastapi.yaml) (needs the `[yaml]` extra).
+
 Set/list options:
 
 - `drop_imports`
