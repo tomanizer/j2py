@@ -18,6 +18,7 @@ runs:
         python-version: ${{ inputs.python-version }}
     - uses: astral-sh/setup-uv@v7
       with:
+        version: "0.11.21"
         enable-cache: true
         cache-dependency-glob: |
           pyproject.toml
