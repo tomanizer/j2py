@@ -8,7 +8,7 @@ from tests.translate.skeleton.helpers import (
 )
 
 
-def test_type_dispatch_overloads_emit_same_name_defs_behind_runtime_dispatcher() -> None:
+def test_type_dispatch_overloads_emit_value_dispatcher() -> None:
     python_source, coverage = translate_source(
         """
         public class Over {
@@ -19,18 +19,76 @@ def test_type_dispatch_overloads_emit_same_name_defs_behind_runtime_dispatcher()
     )
 
     assert coverage == 1.0
-    assert "from j2py_runtime import overloaded" in python_source
-    assert python_source.count("@overloaded") == 2
+    assert "from typing import overload" in python_source
+    assert "from j2py_runtime import overloaded" not in python_source
+    assert python_source.count("    @overload") == 2
     assert "def get(self, value: int) -> int:" in python_source
+    assert "def get(self, value: str) -> int:" in python_source
+    assert "def get(self, *args: object) -> int:" in python_source
+    assert "if len(args) == 1 and isinstance(args[0], str):" in python_source
     assert (
-        "def get(self, value: str) -> int:  # type: ignore[no-redef]  # noqa: F811"
+        "if len(args) == 1 and isinstance(args[0], int) and not isinstance(args[0], bool):"
     ) in python_source
     assert "NotImplementedError" not in python_source
-    assert "from typing import overload" not in python_source
     assert_valid_python(python_source)
 
 
-def test_static_overloads_emit_runtime_dispatcher_with_staticmethod_wrapping() -> None:
+def test_value_dispatch_widens_int_arguments_to_float_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public String pick(double value) { return "float"; }
+            public String pick(String value) { return "str"; }
+            public String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "isinstance(args[0], (int, float)) and not isinstance(args[0], bool)" in python_source
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"]().run() == "float"  # type: ignore[index,operator]
+
+
+def test_static_value_dispatch_widens_int_arguments_to_float_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public static String pick(double value) { return "float"; }
+            public static String pick(String value) { return "str"; }
+            public static String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"].run() == "float"  # type: ignore[index,union-attr]
+
+
+def test_value_dispatch_prefers_int_over_float_for_integer_arguments() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NumericDispatch {
+            public String pick(int value) { return "int"; }
+            public String pick(double value) { return "float"; }
+            public String run() { return pick(1); }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.index("isinstance(args[0], int)") < python_source.index(
+        "isinstance(args[0], (int, float))",
+    )
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NumericDispatch"]().run() == "int"  # type: ignore[index,operator]
+
+
+def test_static_overloads_emit_value_dispatcher_with_staticmethod_wrapping() -> None:
     python_source, coverage = translate_source(
         """
         public class ObjectNames {
@@ -55,16 +113,18 @@ def test_static_overloads_emit_runtime_dispatcher_with_staticmethod_wrapping() -
     )
 
     assert coverage == 1.0
-    assert "from j2py_runtime import overloaded" in python_source
-    assert "from typing import overload" not in python_source
-    assert python_source.count("@staticmethod\n    @overloaded") == 4
+    assert "from typing import overload" in python_source
+    assert "from j2py_runtime import overloaded" not in python_source
+    assert python_source.count("@staticmethod\n    @overload") == 4
     assert "def get_instance(name: object) -> str:" in python_source
+    assert "def get_instance(object_name: str) -> str:" in python_source
     assert (
-        "def get_instance(object_name: str) -> str:  # type: ignore[no-redef]  # noqa: F811"
+        "def get_instance(domain_name: str, properties: dict[str, str]) -> str:"
     ) in python_source
+    assert "def get_instance(*args: object) -> str:" in python_source
+    assert "if len(args) == 1 and isinstance(args[0], str):" in python_source
     assert (
-        "def get_instance(domain_name: str, properties: dict[str, str]) "
-        "-> str:  # type: ignore[no-redef]  # noqa: F811"
+        "if len(args) == 2 and isinstance(args[0], str) and isinstance(args[1], dict):"
     ) in python_source
     assert 'return ObjectNames.get_instance("fallback")' in python_source
     assert "NotImplementedError" not in python_source
@@ -119,8 +179,13 @@ def test_object_name_static_overloads_emit_typing_dispatcher() -> None:
     assert "def get_instance(*args: object) -> ObjectName:" in result.source
     assert "if len(args) == 1 and isinstance(args[0], str):" in result.source
     assert "if len(args) == 1:" in result.source
-    assert "if len(args) == 2:" in result.source
-    assert "if len(args) == 3:" in result.source
+    assert (
+        "if len(args) == 2 and isinstance(args[0], str) and isinstance(args[1], dict):"
+    ) in result.source
+    assert (
+        "if len(args) == 3 and isinstance(args[0], str) "
+        "and isinstance(args[1], str) and isinstance(args[2], str):"
+    ) in result.source
     assert "return ObjectNameManagerProbe.get_instance(text)" in result.source
     assert "return ObjectName.get_instance(object_name)" in result.source
     assert "NotImplementedError" not in result.source
@@ -292,13 +357,71 @@ def test_append_char_string_overload_uses_value_dispatcher() -> None:
     assert "from j2py_runtime import overloaded" not in result.source
     assert result.source.count("    @overload") == 2
     assert "def append(self, builder: StringBuilder, value: str) -> Self:" in result.source
-    assert "def append(self, builder: StringBuilder, value: str | None) -> Self:" in result.source
-    assert "if isinstance(value, str) and len(value) == 1:" in result.source
+    assert "def append(self, *args: object) -> Self:" in result.source
+    assert (
+        "if len(args) == 2 and isinstance(args[1], str) and len(args[1]) == 1:"
+    ) in result.source
+    assert "if len(args) == 2 and isinstance(args[1], str):" in result.source
     assert "builder.add_char(value)" in result.source
     assert "builder.add_string(value)" in result.source
     assert "overloaded method append requires manual dispatch" not in result.source
     assert "NotImplementedError" not in result.source
     assert_valid_python(result.source)
+
+
+def test_collection_shape_overloads_use_value_dispatcher() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+        import java.util.Set;
+
+        public class CollectionDispatch {
+            public static String describe(List<String> values) {
+                return "list";
+            }
+
+            public static String describe(Set<String> values) {
+                return "set";
+            }
+
+            public static String describe(Map<String, String> values) {
+                return "map";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import overload" in result.source
+    assert "from j2py_runtime import overloaded" not in result.source
+    assert "def describe(*args: object) -> str:" in result.source
+    assert "if len(args) == 1 and isinstance(args[0], list):" in result.source
+    assert "if len(args) == 1 and isinstance(args[0], set):" in result.source
+    assert "if len(args) == 1 and isinstance(args[0], dict):" in result.source
+    assert "NotImplementedError" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_generic_collection_erasure_collision_keeps_manual_dispatch_fallback() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+
+        public class GenericCollision {
+            public Object first(List<String> values) { return values.get(0); }
+            public Object first(List<Integer> values) { return values.get(0) + 1; }
+        }
+        """,
+    )
+
+    assert coverage < 1.0
+    assert "@overload" in python_source
+    assert "@overloaded" not in python_source
+    assert "TODO(j2py): overloaded method first requires manual dispatch" in python_source
+    assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
+    assert_valid_python(python_source)
 
 
 def test_overload_default_expression_diagnostics_are_preserved() -> None:

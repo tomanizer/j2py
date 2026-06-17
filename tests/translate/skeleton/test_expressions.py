@@ -452,6 +452,8 @@ def test_receiverless_static_calls_qualify_inherited_methods() -> None:
         ("return Integer.toBinaryString(left);", "return format(left, 'b')"),
         ("return Integer.toHexString(left);", "return format(left, 'x')"),
         ("return Integer.MAX_VALUE;", "return 2**31 - 1"),
+        ("return Character.valueOf(ch);", "return ch"),
+        ("return Character.toString(ch);", "return str(ch)"),
         ("return Long.parseLong(text);", "return int(text)"),
         ("return Double.parseDouble(text);", "return float(text)"),
         ("return String.valueOf(value);", "return str(value)"),
