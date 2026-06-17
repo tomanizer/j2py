@@ -608,7 +608,6 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "diskcache" },
-    { name = "google-genai" },
     { name = "networkx" },
     { name = "pydantic" },
     { name = "rich" },
@@ -620,6 +619,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "google-genai" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -627,6 +627,9 @@ dev = [
     { name = "pyyaml" },
     { name = "ruff" },
     { name = "twine" },
+]
+gemini = [
+    { name = "google-genai" },
 ]
 validate = [
     { name = "mypy" },
@@ -643,7 +646,8 @@ yaml = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.30" },
     { name = "diskcache", specifier = ">=5.6" },
-    { name = "google-genai", specifier = ">=1.0" },
+    { name = "google-genai", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "google-genai", marker = "extra == 'gemini'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "mypy", marker = "extra == 'validate'", specifier = ">=1.10" },
     { name = "networkx", specifier = ">=3.3" },
@@ -663,7 +667,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "watchdog", marker = "extra == 'watch'", specifier = ">=4.0" },
 ]
-provides-extras = ["yaml", "watch", "validate", "dev"]
+provides-extras = ["yaml", "watch", "validate", "gemini", "dev"]
 
 [[package]]
 name = "jaraco-classes"

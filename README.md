@@ -128,12 +128,18 @@ LLM completion with the default Anthropic provider (requires `ANTHROPIC_API_KEY`
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```
 
-LLM completion with Gemini Flash (requires `GEMINI_API_KEY`):
+LLM completion with Gemini Flash requires the optional Gemini extra plus
+`GEMINI_API_KEY`:
 
 ```bash
+pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
   --llm-provider gemini --model gemini-3.5-flash
 ```
+
+Selecting `--llm-provider gemini` without the extra installed fails with an install hint
+instead of a raw Python import traceback. Contributor installs that use the `dev` extra
+also include the Gemini SDK so live Gemini probes and harvest commands remain available.
 
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 `pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and

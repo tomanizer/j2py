@@ -15,6 +15,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   OpenJDK `java.base` API files from a gitignored external checkout as a scoreboard/demo,
   with no committed OpenJDK source or runtime-compatibility claim (#364).
 
+### Changed
+- Gemini SDK support now installs through the optional `gemini` extra
+  (`pip install "j2py-converter[gemini]"`) instead of the default dependency set; selecting
+  `--llm-provider gemini` without the extra now reports the install command (#278).
+
 ### Fixed
 - Same-class static field reads in method bodies now qualify through the containing
   class, bitwise `|`/`&`/`^` operands preserve Java comparison precedence, and generic
