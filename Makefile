@@ -107,11 +107,11 @@ LOAD_GEMINI_ENV = \
 
 harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
+	uv run --extra gemini python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
 
 harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini; default LIMIT=10, use LIMIT=2 on free tier)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_llm_harvest.py \
+	uv run --extra gemini python scripts/harvest/run_llm_harvest.py \
 		--llm-provider gemini \
 		--file-list $(or $(FILE_LIST),.j2py/harvest/queue.txt) \
 		--offset $(or $(OFFSET),0) \
@@ -131,13 +131,13 @@ harvest-queue:  ## Build/refresh Tier A queue from corpus-reports/ (coverage==1.
 
 harvest-promote:  ## Queue + Gemini batch + prune + triage + draft top pattern issues (LIMIT=2)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_harvest_promotion.py \
+	uv run --extra gemini python scripts/harvest/run_harvest_promotion.py \
 		--limit $(or $(LIMIT),2) \
 		--issues $(or $(ISSUES),3)
 
 harvest-promote-issues:  ## Same as harvest-promote but create GitHub issues via gh
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_harvest_promotion.py \
+	uv run --extra gemini python scripts/harvest/run_harvest_promotion.py \
 		--limit $(or $(LIMIT),2) \
 		--issues $(or $(ISSUES),3) \
 		--create-issues

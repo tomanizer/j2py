@@ -96,32 +96,23 @@ def _missing_gemini_extra_error() -> RuntimeError:
     )
 
 
-def _google_genai_missing(exc: ModuleNotFoundError) -> bool:
-    missing_name = exc.name or ""
-    return missing_name == "google" or missing_name.startswith("google.genai")
-
-
 def _import_google_genai() -> Any:
     try:
         from google import genai
-    except ModuleNotFoundError as exc:
-        if _google_genai_missing(exc):
+    except ImportError as exc:
+        if exc.name in {"google", "google.genai"}:
             raise _missing_gemini_extra_error() from None
         raise
-    except ImportError as exc:
-        raise _missing_gemini_extra_error() from exc
     return genai
 
 
 def _import_google_genai_types() -> Any:
     try:
         from google.genai import types
-    except ModuleNotFoundError as exc:
-        if _google_genai_missing(exc):
+    except ImportError as exc:
+        if exc.name in {"google", "google.genai"}:
             raise _missing_gemini_extra_error() from None
         raise
-    except ImportError as exc:
-        raise _missing_gemini_extra_error() from exc
     return types
 
 

@@ -142,7 +142,7 @@ def test_get_gemini_client_reports_missing_optional_extra(monkeypatch) -> None:
         level: int = 0,
     ) -> object:
         if name == "google" and "genai" in fromlist:
-            raise ImportError("cannot import name 'genai' from 'google'")
+            raise ImportError("cannot import name 'genai' from 'google'", name="google")
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
@@ -153,6 +153,30 @@ def test_get_gemini_client_reports_missing_optional_extra(monkeypatch) -> None:
     message = str(exc_info.value)
     assert "optional Gemini extra" in message
     assert client_mod.GEMINI_EXTRA_INSTALL_HINT in message
+
+
+def test_get_gemini_client_does_not_mask_installed_sdk_import_errors(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    monkeypatch.setattr(client_mod, "_gemini_client", None)
+    real_import = builtins.__import__
+
+    def fake_import(
+        name: str,
+        globals: dict[str, object] | None = None,
+        locals: dict[str, object] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "google" and "genai" in fromlist:
+            raise ImportError("broken google-genai dependency", name="google.genai._broken")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    with pytest.raises(ImportError, match="broken google-genai dependency") as exc_info:
+        client_mod.get_gemini_client()
+
+    assert not isinstance(exc_info.value, client_mod.MissingGeminiExtraError)
 
 
 def test_resolve_model_defaults_by_provider() -> None:

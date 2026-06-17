@@ -36,3 +36,11 @@ def test_google_genai_is_available_in_gemini_and_dev_extras() -> None:
 
     assert "google-genai" in _dependency_names(gemini)
     assert "google-genai" in _dependency_names(dev)
+
+
+def test_gemini_harvest_make_targets_request_gemini_extra() -> None:
+    path = Path(__file__).resolve().parents[2] / "Makefile"
+    makefile = path.read_text(encoding="utf-8")
+
+    assert "uv run --extra gemini python scripts/harvest/run_llm_harvest.py" in makefile
+    assert "uv run --extra gemini python scripts/harvest/run_harvest_promotion.py" in makefile
