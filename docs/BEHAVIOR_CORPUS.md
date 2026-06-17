@@ -45,6 +45,25 @@ deterministic rule layer translates to *runtime-correct* Python today. This is d
 narrow — it is exactly the set j2py can guarantee with zero model involvement. As the rule
 layer improves, widen this list and add cases.
 
+## JDK surface demo fixtures
+
+The `jdk_*_surface` cases are original, minimal programs that demonstrate ADR 0020's
+JDK policy in executable form: j2py lowers common standard-library usage patterns to
+Python expressions and collections, but does not vendor OpenJDK code or ship a Python JDK
+compatibility runtime.
+
+These fixtures are suitable for local demos, release notes, and documentation because
+they are ordinary behavior-corpus cases:
+
+- `jdk_string_surface`: common `String` instance calls such as `trim`, case conversion,
+  `replace`, `contains`, `startsWith`, `split`, `isEmpty`, and `length`.
+- `jdk_math_integer_surface`: `Math.abs/max/min` and `Integer.parseInt`.
+- `jdk_list_collections_surface`: `List`/`ArrayList` mutation, indexed access, `size`,
+  `contains`, enhanced-for iteration, and `Collections.sort`.
+
+Keep future demo fixtures hand-written for j2py. Do not copy, translate, adapt, or vendor
+JDK implementation source or Oracle/OpenJDK documentation examples.
+
 **Safe to use**
 
 - Top-level classes only; `main` instantiates (`new Main()`, `new Helper()`) and calls
