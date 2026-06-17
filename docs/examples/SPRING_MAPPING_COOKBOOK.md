@@ -374,6 +374,8 @@ class TransactionalService:
 Provide a project-owned decorator:
 
 ```python
+from functools import wraps
+
 def transactional(fn):
     @wraps(fn)
     def wrapper(self, *args, **kwargs):

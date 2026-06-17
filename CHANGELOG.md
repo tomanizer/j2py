@@ -8,6 +8,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Positioning documentation clarifies j2py's useful scope, enterprise framework
+  boundaries, and how to read Spring corpus metrics without treating node coverage as
+  Spring Boot/Hibernate migration readiness (#333).
 - Original JDK surface behavior fixtures demonstrate ADR 0020 deterministic lowering for
   common `String`, `Math`/`Integer`, and `List`/`Collections` usage without vendoring JDK
   source or implying a Python JDK runtime (#363).
