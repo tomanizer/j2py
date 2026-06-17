@@ -90,9 +90,9 @@ you pass `--config` explicitly.
 
 ```python
 # j2py_config.py
-from my_migration.spring_plugin import SpringMigrationPlugin
+from my_migration.spring_plugin import SpringMigrationPlugin as _SpringMigrationPlugin
 
-framework_plugins = [SpringMigrationPlugin()]
+framework_plugins = [_SpringMigrationPlugin()]
 emit_wiring_metadata = True
 ```
 
@@ -102,6 +102,13 @@ Run translation with that config:
 uv run j2py translate src/main/java --output translated_py \
   --config j2py_config.py --no-llm
 ```
+
+The plugin module must be importable through normal Python imports. For a project-local
+plugin package, either install that package into the active environment or run with a
+suitable `PYTHONPATH`, for example `PYTHONPATH=. uv run j2py ...` from the project root.
+Imported helper names should start with `_`: the Python config loader treats every public
+top-level name as a config key, so `SpringMigrationPlugin` would be rejected as an unknown
+configuration option if imported without the private alias above.
 
 If the plugin returns metadata and `emit_wiring_metadata = True`, j2py writes a sidecar
 next to each translated Python file that has metadata:
@@ -339,10 +346,13 @@ def _route(ctx: FrameworkContext) -> tuple[str, str] | None:
     return None
 ```
 
-Translated Python shape:
+Translated Python shape from this example:
 
 ```python
-from myapp.web_shims import controller, route
+from __future__ import annotations
+
+from myapp.web_shims import controller
+from myapp.web_shims import route
 
 
 @controller

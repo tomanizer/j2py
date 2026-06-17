@@ -123,7 +123,9 @@ are registered exclusively through an explicit trusted Python config:
 
 ```python
 # j2py_config.py  (loaded only via --config; executes user code)
-framework_plugins = [FastApiSpringPlugin()]
+from my_project.plugins import FastApiSpringPlugin as _FastApiSpringPlugin
+
+framework_plugins = [_FastApiSpringPlugin()]
 ```
 
 `TranslationConfig` gains `framework_plugins: list[FrameworkPlugin] = []`

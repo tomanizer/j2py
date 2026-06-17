@@ -196,11 +196,16 @@ plugin instances.
 
 ```python
 # j2py_config.py
-from my_project.j2py_plugins import MyFrameworkPlugin
+from my_project.j2py_plugins import MyFrameworkPlugin as _MyFrameworkPlugin
 
-framework_plugins = [MyFrameworkPlugin()]
+framework_plugins = [_MyFrameworkPlugin()]
 emit_wiring_metadata = True
 ```
+
+Plugin modules must be importable when the config file executes. For project-local plugin
+packages, install the package into the active environment or set `PYTHONPATH` appropriately
+when invoking `j2py`. Imported plugin classes should use a private alias, as above, because
+the Python config loader exports every public top-level name as a config key.
 
 Resolution is per element: plugins run in registration order, and the first plugin returning
 `handled=True` wins for that class, field, or method. A handled plugin suppresses later
