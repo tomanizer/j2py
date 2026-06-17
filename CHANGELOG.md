@@ -21,6 +21,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   `toFloat`/`toByte`/`toShort` (both overloads each), lifting the fixture from 6/61 to
   12/61 verified signatures and the total verified surface from 22.7% to 28.9% (#377,
   case study #372).
+- Added literal-oracle equivalence assertions for `NumberUtils.compare(byte/short/int/long)`,
+  lifting the fixture from 12/61 to 16/61 verified signatures and the total verified
+  surface from 28/97 to 32/97 (#372, #379).
 
 ### Changed
 - Gemini SDK support now installs through the optional `gemini` extra

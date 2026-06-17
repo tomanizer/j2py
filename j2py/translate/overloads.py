@@ -9,6 +9,7 @@ from j2py.translate.class_members import member_python_name
 from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.diagnostics import ClassTranslationState, TranslationDiagnostics
 from j2py.translate.name_resolution import NameResolver
+from j2py.translate.overload_classification import classify_overload_group
 from j2py.translate.overload_dispatch import (
     _deduplicate_same_body_erased_sig,
     _dispatch_overload_members,
@@ -74,6 +75,10 @@ def translate_overloaded_members(
     direct_nested_names = nested_class_names or set()
     method_return_types = dict(class_method_return_types or {})
     injected_params = extra_params or []
+
+    # Classify first so future overload-family rules have a single decision table.
+    # Emission below remains behavior-preserving for this first slice (#394).
+    _ = classify_overload_group(members, cfg)
 
     if members[0].type == "constructor_declaration":
         merged_constructor = _merged_constructor_overload(

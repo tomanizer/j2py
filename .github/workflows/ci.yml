@@ -11,27 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  quality-control:
+    name: Quality control
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/setup-python-uv
         with:
           python-version: "3.11"
-      - run: uv sync --locked --extra dev
+          extras: validate
+      - name: Import smoke test
+        run: make import-smoke
       - run: make lint
-
-  typecheck:
-    name: Type check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.11"
-      - run: uv sync --locked --extra dev
-      - run: uv run mypy j2py/
+      - run: make typecheck
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -41,85 +33,41 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/setup-python-uv
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv sync --locked --extra dev
+          extras: test
       - name: Run tests
         if: matrix.python-version != '3.11'
-        run: uv run pytest --tb=short -m "not behavior and not live_llm and not target_translation"
-      - name: Run tests and write equivalence surface report
+        run: make test-ci-py312
+      - name: Run tests, coverage, and equivalence surface report
         if: matrix.python-version == '3.11'
-        run: |
-          mkdir -p corpus-reports
-          J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json \
-            uv run pytest --tb=short -m "not behavior and not live_llm and not target_translation"
-          uv run python scripts/equivalence/surface_report.py \
-            corpus-reports/equivalence-surface.json
-          uv run python scripts/equivalence/check_surface_floor.py \
-            corpus-reports/equivalence-surface.json
+        run: make test-ci-py311
       - name: Upload equivalence surface report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v6
         with:
           name: equivalence-surface
           path: corpus-reports/equivalence-surface.json
-
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.11"
-      - run: uv sync --locked --extra dev
-      - name: Run coverage floor
-        run: make test-cov
       - name: Upload coverage XML
+        if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v6
         with:
           name: coverage-xml
           path: coverage.xml
 
-  quality-control:
-    name: Quality control
-    runs-on: ubuntu-latest
-    # Always runs — this is the mandatory gate
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.11"
-      - run: uv sync --locked --extra dev
-      - name: Import smoke test
-        run: make import-smoke
-      - name: Lint
-        run: make lint
-      - name: Type check
-        run: uv run mypy j2py/
-
   ci-required:
     name: CI required (aggregator)
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test, coverage, quality-control]
+    needs: [quality-control, test]
     if: always()
     steps:
       - name: Check all required jobs passed
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]]; then
-            echo "lint failed"; exit 1
-          fi
-          if [[ "${{ needs.typecheck.result }}" != "success" ]]; then
-            echo "typecheck failed"; exit 1
+          if [[ "${{ needs.quality-control.result }}" != "success" ]]; then
+            echo "quality-control failed"; exit 1
           fi
           if [[ "${{ needs.test.result }}" != "success" ]]; then
             echo "test failed"; exit 1
-          fi
-          if [[ "${{ needs.coverage.result }}" != "success" ]]; then
-            echo "coverage failed"; exit 1
-          fi
-          if [[ "${{ needs.quality-control.result }}" != "success" ]]; then
-            echo "quality-control failed"; exit 1
           fi
           echo "All required jobs passed."
