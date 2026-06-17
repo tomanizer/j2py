@@ -20,6 +20,7 @@ baselines live under `tests/fixtures/corpus/`.
 | `spring-app-dense` | Spring Framework | context-indexer samples, framework-docs web/data, webmvc tests, scannable examples | `spring-app-dense-baseline.json` | yes (`--include-constructs`) |
 | `spring-lexical` | Spring Framework | `spring-core`, `spring-beans` | `spring-sample-baseline.json` | — (historical lexical sample) |
 | `spring-broad` | Spring Framework | `spring-context` | — (exploratory; no committed baseline) | yes |
+| `openjdk-java-base` | OpenJDK | selected `java.base` API-surface files | — (exploratory; no committed baseline) | — |
 
 Density presets (except `spring-lexical`) use `--strategy density --max-loc 1000
 --min-loc 20 --min-constructs 5` unless noted in the preset definition.
@@ -34,6 +35,7 @@ Density presets (except `spring-lexical`) use `--strategy density --max-loc 1000
 | `spring-app-dense` | Application-layer Spring: `@RestController`, `@Service`/`@Repository`, `@Transactional`, JPA `@Entity` samples from framework test fixtures and docs |
 | `spring-lexical` | Historical lexical Spring sample for continuity with older reports |
 | `spring-broad` | Broader `spring-context` surface plus construct fixtures (local exploration) |
+| `openjdk-java-base` | Optional external measurement of selected OpenJDK `java.base` API code; scoreboard/demo only, not product scope |
 
 ## Committed baseline scorecard
 
@@ -132,6 +134,13 @@ Exploratory broader Spring sample (`spring-broad`; no committed baseline or `-ch
 make corpus-spring-broad
 ```
 
+Exploratory OpenJDK `java.base` sample (`openjdk-java-base`; no committed baseline or
+`-check`):
+
+```bash
+make corpus-openjdk-java-base
+```
+
 Low-level entry point (any preset):
 
 ```bash
@@ -223,8 +232,8 @@ files change:
 
 The dense matrix intentionally pays extra clone time on translation-related PRs so
 regressions across committed library baselines are visible before merge. Historical
-`spring-lexical` and exploratory `spring-broad` remain local/manual unless a PR
-intentionally refreshes those baselines.
+`spring-lexical`, exploratory `spring-broad`, and exploratory `openjdk-java-base` remain
+local/manual unless a PR intentionally promotes one of those baselines.
 
 ## Known parser exclusions
 
@@ -240,6 +249,31 @@ lists remain part of the comparability contract.
 | Preset | Excluded path | Root cause |
 |--------|---------------|------------|
 | `guava-dense` | `guava/src/com/google/common/base/Platform.java` | Jspecify type-use `@Nullable` before varargs (`@Nullable Object @Nullable ... args`) — tree-sitter-java ERROR; skeleton translation reaches full coverage (#160). |
+
+## Reference: `openjdk-java-base` pins
+
+The `openjdk-java-base` preset is an optional external scoreboard/demo for ADR 0020's
+JDK lowering boundary. It samples selected OpenJDK `java.base` API sources to measure
+rule-layer breadth, but it does **not** make the JDK a product target, commit OpenJDK
+source, commit translated Python output, or imply that j2py ships a Python JDK runtime.
+
+OpenJDK source stays only in the gitignored external checkout under `.corpus/openjdk/`.
+Preserve upstream license files in that checkout, and do not copy Oracle/OpenJDK
+documentation examples or long source excerpts into repo docs, reports, issues, or PRs.
+Any future redistribution of OpenJDK-derived content requires explicit license review
+first.
+
+- remote: `https://github.com/openjdk/jdk.git`
+- ref: `jdk-21+35` (annotated tag; peeled checkout commit
+  `890adb6410dab4606a4f26a942aed02fb2f55387`)
+- sample size: `6`
+- modules: `src/java.base/share/classes/java/util`,
+  `src/java.base/share/classes/java/nio/file`,
+  `src/java.base/share/classes/java/time`
+- pinned files: `Objects.java`, `Optional.java`, `StringJoiner.java`, `Comparator.java`,
+  `Path.java`, `Duration.java`
+- command: `make corpus-openjdk-java-base`
+- baseline status: exploratory only; no committed baseline or CI `-check` target
 
 ## Reference: `spring-dense` pins
 

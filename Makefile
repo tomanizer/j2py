@@ -3,6 +3,7 @@
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
 	corpus-spring-app-dense corpus-spring-app-dense-check corpus-spring-app-dense-update-baseline \
+	corpus-openjdk-java-base \
 	corpus-guava-dense corpus-guava-dense-check corpus-guava-dense-update-baseline \
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
@@ -196,6 +197,9 @@ corpus-spring-app-dense-check:  ## Compare spring-app-dense against its baseline
 
 corpus-spring-app-dense-update-baseline:  ## Regenerate the spring-app-dense baseline intentionally
 	$(CORPUS) --preset spring-app-dense --update-baseline
+
+corpus-openjdk-java-base:  ## Exploratory OpenJDK java.base scoreboard sample (external checkout, no baseline)
+	$(CORPUS) --preset openjdk-java-base --clone
 
 corpus-guava-dense:  ## Run the Guava dense corpus without baseline comparison
 	$(CORPUS) --preset guava-dense
