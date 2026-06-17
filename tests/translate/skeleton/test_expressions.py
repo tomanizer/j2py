@@ -3,7 +3,9 @@
 import pytest
 
 from j2py.analyze.symbols import extract_symbols
-from j2py.parse.java_ast import parse_file
+from j2py.parse.java_ast import parse_file, parse_source
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
     CFG,
@@ -2247,6 +2249,28 @@ def test_integral_division_uses_ordinal_type_certainty() -> None:
         item.reason for item in result.diagnostics.unhandled
     ]
     assert_valid_python(result.source)
+
+
+def test_floating_point_remainder_infers_float_type() -> None:
+    parsed = parse_source(
+        """
+        public class MathOps {
+            public double remainder(double left, double right) {
+                return left % right;
+            }
+        }
+        """,
+    )
+    expression = next(
+        node for node in parsed.root.walk() if node.type == "binary_expression" and "%" in node.text
+    )
+    ctx = TranslationContext(
+        cfg=CFG,
+        diagnostics=TranslationDiagnostics(),
+        variable_types={"left": "float", "right": "float"},
+    )
+
+    assert infer_expression_py_type(expression, ctx) == "float"
 
 
 def test_field_compound_integer_division_uses_truncating_helper() -> None:

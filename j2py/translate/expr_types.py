@@ -113,8 +113,8 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
     return None
 
 
-_INTEGRAL_BINARY_OPERATORS = {"&", "|", "^", "<<", ">>", ">>>", "%"}
-_NUMERIC_BINARY_OPERATORS = {"+", "-", "*", "/"}
+_INTEGRAL_BINARY_OPERATORS = {"&", "|", "^", "<<", ">>", ">>>"}
+_NUMERIC_BINARY_OPERATORS = {"+", "-", "*", "/", "%"}
 
 
 def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
