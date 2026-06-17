@@ -310,6 +310,9 @@ def _translate_static_method_invocation(
             return args[0]
         if method_name == "toString" and len(args) == 1:
             return f"str({args[0]})"
+        char_predicate = _translate_character_char_predicate(method_name, args)
+        if char_predicate is not None:
+            return char_predicate
 
     if receiver == "Long" and method_name == "parseLong" and len(args) == 1:
         return f"int({args[0]})"
@@ -394,6 +397,26 @@ def _translate_static_imported_method(
     class_name = translate_class_name(raw_receiver.rsplit(".", 1)[-1])
     py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
     return f"{class_name}.{py_method}({', '.join(args)})"
+
+
+_CHARACTER_CHAR_PREDICATES: dict[str, str] = {
+    "isDigit": "isdigit",
+    "isLetter": "isalpha",
+    "isLetterOrDigit": "isalnum",
+    "isLowerCase": "islower",
+    "isUpperCase": "isupper",
+    "isWhitespace": "isspace",
+}
+
+
+def _translate_character_char_predicate(method_name: str, args: list[str]) -> str | None:
+    if len(args) != 1:
+        return None
+    predicate = _CHARACTER_CHAR_PREDICATES.get(method_name)
+    if predicate is None:
+        return None
+    arg = args[0]
+    return f"(len({arg}) == 1 and {arg}.{predicate}())"
 
 
 def _translate_string_format(args: list[str]) -> str:
