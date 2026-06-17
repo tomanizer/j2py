@@ -201,11 +201,11 @@ def test_generic_bounded_return_typevars_are_preserved_for_overload_groups() -> 
     result = translate_source_with_diagnostics(
         """
         public class GenericOverloads {
-            public static <A extends Appendable, T> A join(A out, Iterable<T> values) {
+            public static <A extends Appendable & Closeable, T> A join(A out, Iterable<T> values) {
                 return out;
             }
 
-            public static <A extends Appendable, T> A join(A out, T value) {
+            public static <A extends Appendable & Closeable, T> A join(A out, T value) {
                 return out;
             }
 

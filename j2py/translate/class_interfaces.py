@@ -76,6 +76,7 @@ def interface_type_var_plan(
     interface_type_var_maps: dict[_NodeKey, dict[str, str]] = {}
     interface_occurrences: dict[str, list[tuple[JavaNode, str, str]]] = {}
     declared_type_names = _declared_type_names(root)
+    methods = _method_declarations(root)
 
     for interface in _interface_declarations(root):
         class_name = _interface_class_name(interface)
@@ -86,9 +87,7 @@ def interface_type_var_plan(
             )
 
     method_type_params = {
-        type_param.name
-        for method in _method_declarations(root)
-        for type_param in _type_parameters(method, cfg)
+        type_param.name for method in methods for type_param in _type_parameters(method, cfg)
     }
 
     conflicting_names = {
@@ -115,7 +114,7 @@ def interface_type_var_plan(
                 type_var_map[name] = name
                 _register_type_var(declarations, name, variance)
 
-    for method in _method_declarations(root):
+    for method in methods:
         for method_type_param in _type_parameters(method, cfg):
             _register_type_var(
                 declarations,
@@ -559,7 +558,7 @@ def _type_parameter_bound(node: JavaNode, cfg: TranslationConfig | None) -> str 
             "type_identifier",
         }
     ]
-    if len(bounds) != 1:
+    if not bounds:
         return None
     bound = translate_type(bounds[0].text, cfg)
     if not re.fullmatch(r"[A-Za-z_]\w*", bound):
@@ -698,7 +697,12 @@ def _register_type_var(
 
     existing_variance, existing_bound = existing
     resolved_variance = variance if existing_variance == variance else "invariant"
-    resolved_bound = existing_bound if existing_bound == bound else None
+    if existing_bound is None:
+        resolved_bound = bound
+    elif bound is None:
+        resolved_bound = existing_bound
+    else:
+        resolved_bound = existing_bound if existing_bound == bound else None
     declarations[name] = (resolved_variance, resolved_bound)
 
 
