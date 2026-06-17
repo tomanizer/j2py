@@ -22,9 +22,9 @@ def test_coverage_floor_accepts_line_rate_at_threshold(
     coverage_floor_module,
 ) -> None:
     coverage_xml = tmp_path / "coverage.xml"
-    coverage_xml.write_text('<coverage line-rate="0.90" branch-rate="0.50" />', encoding="utf-8")
+    coverage_xml.write_text('<coverage line-rate="0.90" branch-rate="0.81" />', encoding="utf-8")
 
-    assert coverage_floor_module.check_coverage_floor(coverage_xml, 90.0) is None
+    assert coverage_floor_module.check_coverage_floor(coverage_xml, 90.0, 81.0) == []
 
 
 def test_coverage_floor_reports_line_rate_below_threshold(
@@ -34,8 +34,38 @@ def test_coverage_floor_reports_line_rate_below_threshold(
     coverage_xml = tmp_path / "coverage.xml"
     coverage_xml.write_text('<coverage line-rate="0.899" branch-rate="0.95" />', encoding="utf-8")
 
-    error = coverage_floor_module.check_coverage_floor(coverage_xml, 90.0)
+    errors = coverage_floor_module.check_coverage_floor(coverage_xml, 90.0, 81.0)
 
-    assert error is not None
-    assert "89.90%" in error
-    assert "90.00%" in error
+    assert len(errors) == 1
+    assert "Line coverage" in errors[0]
+    assert "89.90%" in errors[0]
+    assert "90.00%" in errors[0]
+
+
+def test_coverage_floor_reports_branch_rate_below_threshold(
+    tmp_path: Path,
+    coverage_floor_module,
+) -> None:
+    coverage_xml = tmp_path / "coverage.xml"
+    coverage_xml.write_text('<coverage line-rate="0.95" branch-rate="0.809" />', encoding="utf-8")
+
+    errors = coverage_floor_module.check_coverage_floor(coverage_xml, 90.0, 81.0)
+
+    assert len(errors) == 1
+    assert "Branch coverage" in errors[0]
+    assert "80.90%" in errors[0]
+    assert "81.00%" in errors[0]
+
+
+def test_coverage_floor_reports_both_failed_floors(
+    tmp_path: Path,
+    coverage_floor_module,
+) -> None:
+    coverage_xml = tmp_path / "coverage.xml"
+    coverage_xml.write_text('<coverage line-rate="0.899" branch-rate="0.809" />', encoding="utf-8")
+
+    errors = coverage_floor_module.check_coverage_floor(coverage_xml, 90.0, 81.0)
+
+    assert len(errors) == 2
+    assert errors[0].startswith("Line coverage")
+    assert errors[1].startswith("Branch coverage")
