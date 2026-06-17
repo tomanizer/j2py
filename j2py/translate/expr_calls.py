@@ -8,6 +8,7 @@ from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
+    _receiver_simple_name,
     translate_attribute_method_name,
     translate_method_name,
 )
@@ -498,7 +499,3 @@ def _translate_string_format(args: list[str]) -> str:
 def _is_locale_argument(node: JavaNode) -> bool:
     parts = node.text.split(".")
     return any(part == "Locale" for part in parts[:-1]) or node.text == "Locale"
-
-
-def _receiver_simple_name(raw_receiver: str) -> str:
-    return raw_receiver.rsplit(".", 1)[-1]

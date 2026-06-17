@@ -320,3 +320,13 @@ def return_type_from_function(py_type: str) -> str | None:
         elif char == "," and depth == 0:
             return inner[index + 1 :].strip() or None
     return None
+
+
+def _map_type_vars(py_type: str, type_var_map: dict[str, str]) -> str:
+    """Substitute generic type-variable names within a Python type annotation."""
+    if not type_var_map:
+        return py_type
+    result = py_type
+    for source, target in type_var_map.items():
+        result = re.sub(rf"\b{re.escape(source)}\b", target, result)
+    return result

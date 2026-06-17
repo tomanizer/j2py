@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.expr_ops import _switch_condition, _switch_label_values
 from j2py.translate.expressions import translate_expression
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.statements import translate_body, translate_statement
@@ -338,13 +339,3 @@ def _translate_switch_body(
     for statement in statements:
         lines.extend(translate_statement(statement, ctx, indent=f"{indent}    "))
     return lines
-
-
-def _switch_label_values(label: JavaNode, ctx: TranslationContext) -> list[str]:
-    return [translate_expression(child, ctx) for child in label.named_children]
-
-
-def _switch_condition(subject: str, labels: list[str]) -> str:
-    if len(labels) == 1:
-        return f"{subject} == {labels[0]}"
-    return f"{subject} in ({', '.join(labels)})"

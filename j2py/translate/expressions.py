@@ -5,6 +5,7 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.rules.types import translate_type
@@ -17,12 +18,6 @@ def translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
     if result.startswith("__j2py_todo__("):
         ctx.diagnostics.imports.need_todo_sentinel()
     return result
-
-
-def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
-    from j2py.translate.expr_types import infer_expression_py_type as impl
-
-    return impl(node, ctx)
 
 
 def _translate_expression(node: JavaNode | None, ctx: TranslationContext) -> str:
