@@ -19,6 +19,16 @@ YAML config requires the optional `yaml` extra:
 pip install "j2py-converter[yaml]"
 ```
 
+Gemini provider configuration requires the optional `gemini` extra at install time:
+
+```bash
+pip install "j2py-converter[gemini]"
+```
+
+The default `pip install j2py-converter` path keeps Anthropic support only. If a project
+sets `llm_provider: gemini` without the extra installed, j2py raises an actionable error
+that points at the `j2py-converter[gemini]` install command.
+
 ## YAML
 
 ```yaml
@@ -133,6 +143,8 @@ Scalar options:
 still win when present, so `--llm-provider anthropic` or `--model <id>` can override a
 project config default for one command. API keys are runtime secrets and should stay in
 environment variables such as `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`, not config files.
+The Gemini provider also requires installing the `gemini` extra; Anthropic remains the
+default provider and core dependency.
 
 Mapping options:
 

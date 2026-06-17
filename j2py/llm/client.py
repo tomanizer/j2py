@@ -7,7 +7,7 @@ import json
 import os
 from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 import anthropic
 import diskcache
@@ -29,6 +29,7 @@ _cache = diskcache.Cache(str(_CACHE_DIR))
 # streamable limit of the default Anthropic model. Values this large require
 # streaming — a non-streaming request would trip the SDK's >10-minute timeout guard.
 MAX_OUTPUT_TOKENS = 32000
+GEMINI_EXTRA_INSTALL_HINT = 'pip install "j2py-converter[gemini]"'
 
 
 class GeminiModels(Protocol):
@@ -58,6 +59,10 @@ class LLMTruncationError(RuntimeError):
     """
 
 
+class MissingGeminiExtraError(RuntimeError):
+    """Raised when Gemini is selected without installing the optional SDK extra."""
+
+
 def get_client() -> anthropic.Anthropic:
     global _client
     load_repo_dotenv()
@@ -84,6 +89,42 @@ def gemini_api_key_problem(key: str | None) -> str | None:
     return None
 
 
+def _missing_gemini_extra_error() -> RuntimeError:
+    return MissingGeminiExtraError(
+        "Gemini LLM provider requires the optional Gemini extra. "
+        f"Install it with: {GEMINI_EXTRA_INSTALL_HINT}"
+    )
+
+
+def _google_genai_missing(exc: ModuleNotFoundError) -> bool:
+    missing_name = exc.name or ""
+    return missing_name == "google" or missing_name.startswith("google.genai")
+
+
+def _import_google_genai() -> Any:
+    try:
+        from google import genai
+    except ModuleNotFoundError as exc:
+        if _google_genai_missing(exc):
+            raise _missing_gemini_extra_error() from None
+        raise
+    except ImportError as exc:
+        raise _missing_gemini_extra_error() from exc
+    return genai
+
+
+def _import_google_genai_types() -> Any:
+    try:
+        from google.genai import types
+    except ModuleNotFoundError as exc:
+        if _google_genai_missing(exc):
+            raise _missing_gemini_extra_error() from None
+        raise
+    except ImportError as exc:
+        raise _missing_gemini_extra_error() from exc
+    return types
+
+
 def get_gemini_client() -> GeminiClient:
     global _gemini_client
     load_repo_dotenv()
@@ -92,8 +133,7 @@ def get_gemini_client() -> GeminiClient:
     if problem:
         raise RuntimeError(f"{problem}. Create a key at https://aistudio.google.com/apikey.")
     if _gemini_client is None:
-        from google import genai
-
+        genai = _import_google_genai()
         _gemini_client = cast(GeminiClient, genai.Client(api_key=api_key))
     return _gemini_client
 
@@ -146,7 +186,7 @@ def _system_text(system: list[TextPromptBlock]) -> str:
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
-    retry=retry_if_not_exception_type(LLMTruncationError),
+    retry=retry_if_not_exception_type((LLMTruncationError, MissingGeminiExtraError)),
 )
 def translate_with_llm(
     *,
@@ -258,8 +298,7 @@ def _translate_with_anthropic(
 
 
 def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> str:
-    from google.genai import types
-
+    types = _import_google_genai_types()
     client = get_gemini_client()
     # Use the streaming endpoint for parity with Anthropic at the 32K output-token
     # budget. Large class translations can run long enough that one-shot provider calls

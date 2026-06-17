@@ -91,6 +91,9 @@ Tags are **approximate** — always read the diff before implementing a rule.
 
 - `GEMINI_API_KEY` for batch harvest and promotion (`make harvest-run`, `make harvest-gemini`,
   `make harvest-promote`, `make test-llm-gemini-e2e`)
+- The Gemini SDK extra for packaged installs: `pip install "j2py-converter[gemini]"`.
+  Contributor installs using the repository `dev` extra include it for local harvest and
+  live Gemini probes.
 - `ANTHROPIC_API_KEY` for `make test-llm-e2e` (Anthropic probes)
 - Optional: `gh` CLI authenticated for `make harvest-promote-issues`
 - See [README](../README.md) live LLM section for key setup
