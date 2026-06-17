@@ -162,7 +162,7 @@ def translate_overloaded_members(
         if forwarded_method is not None:
             return forwarded_method
 
-    static_factory_dispatch = _static_object_name_factory_dispatch_overload(
+    value_dispatch = _value_dispatch_overload(
         members,
         cfg=cfg,
         diagnostics=diagnostics,
@@ -184,33 +184,8 @@ def translate_overloaded_members(
         inner_class_names_requiring_outer=inner_capture_names,
         nested_class_names=direct_nested_names,
     )
-    if static_factory_dispatch is not None:
-        return static_factory_dispatch
-
-    char_string_append = _char_string_append_dispatch_overload(
-        members,
-        cfg=cfg,
-        diagnostics=diagnostics,
-        containing_class_name=containing_class_name,
-        class_fields=class_fields,
-        class_field_types=field_types,
-        class_field_java_types=field_java_types,
-        declared_type_fields=nested_type_fields,
-        declared_type_java_fields=nested_type_java_fields,
-        class_methods=class_methods or set(),
-        class_static_methods=static_class_methods,
-        enclosing_static_dispatch=enclosing_dispatch,
-        class_method_return_types=method_return_types,
-        static_field_aliases=static_fields,
-        static_method_imports=static_methods,
-        name_resolver=resolver,
-        class_state=class_state,
-        docstring_lines=docstring_lines,
-        inner_class_names_requiring_outer=inner_capture_names,
-        nested_class_names=direct_nested_names,
-    )
-    if char_string_append is not None:
-        return char_string_append
+    if value_dispatch is not None:
+        return value_dispatch
 
     # When same-erased-signature overloads have identical Java bodies (e.g. sort(int[])
     # and sort(long[]) both do Arrays.sort(array)), deduplicate to one representative so
@@ -293,6 +268,15 @@ class _OverloadForward:
 class _MergedDefault:
     text: str
     is_literal: bool
+
+
+@dataclass(frozen=True)
+class _DispatchGuard:
+    """A runtime-checkable guard for one overload parameter."""
+
+    key: str
+    specificity: int
+    condition_template: str | None = None
 
 
 def _merged_constructor_overload(
@@ -951,7 +935,7 @@ def _method_forward_args(member: JavaNode) -> list[JavaNode] | None:
     return [] if args_node is None else list(args_node.named_children)
 
 
-def _char_string_append_dispatch_overload(
+def _value_dispatch_overload(
     members: list[JavaNode],
     *,
     cfg: TranslationConfig,
@@ -974,325 +958,257 @@ def _char_string_append_dispatch_overload(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
-    """Translate append(StringBuilder, char|String) despite Python str erasure."""
-    if len(members) != 2:
+    """Emit ``@overload`` stubs plus one runtime value dispatcher.
+
+    This tier covers overload families that Python can distinguish by arity and
+    runtime-checkable value type, including erased collisions such as
+    ``char``/``String``. When two Java signatures collapse to the same guard key
+    (for example ``int``/``long`` or ``List<String>``/``List<Integer>``), the
+    dispatcher would be ambiguous, so the caller keeps trying later tiers.
+    """
+    if len(members) < 2:
         return None
     if any(member.type != "method_declaration" for member in members):
         return None
-    if member_python_name(members[0]) != "append":
+    name = member_python_name(members[0])
+    if any(member_python_name(member) != name for member in members):
         return None
-    if any(member_python_name(member) != "append" for member in members):
-        return None
-    if any("static" in _modifiers(member) for member in members):
+
+    is_static = "static" in _modifiers(members[0])
+    if any(("static" in _modifiers(member)) != is_static for member in members):
         return None
 
     params_by_member = [parameter_infos(member, cfg) for member in members]
-    if any(
-        len(params) != 2 or any(param.is_spread for param in params) for params in params_by_member
-    ):
-        return None
-    if any(
-        [param.py_name for param in params] != [param.py_name for param in params_by_member[0]]
-        for params in params_by_member[1:]
-    ):
-        return None
-    if not all(_is_string_builder_parameter(params[0]) for params in params_by_member):
+    if any(any(param.is_spread for param in params) for params in params_by_member):
         return None
 
-    char_member: JavaNode | None = None
-    string_member: JavaNode | None = None
-    for member, params in zip(members, params_by_member, strict=True):
-        value_param = params[1]
-        if _is_char_parameter(value_param):
-            char_member = member
-        elif _is_string_parameter(value_param):
-            string_member = member
-        else:
-            return None
-    if char_member is None or string_member is None:
-        return None
+    guards_by_member: list[list[_DispatchGuard]] = []
+    for params in params_by_member:
+        guards: list[_DispatchGuard] = []
+        for param in params:
+            guard = _dispatch_guard_for_parameter(param)
+            if guard is None:
+                return None
+            guards.append(guard)
+        guards_by_member.append(guards)
 
-    dispatch_params = list(params_by_member[0])
-    value_param = dispatch_params[1]
-    dispatch_params[1] = ParameterInfo(
-        raw_name=value_param.raw_name,
-        py_name=value_param.py_name,
-        py_type="str | None",
-        java_type=value_param.java_type,
-        is_spread=value_param.is_spread,
-    )
-    value_name = dispatch_params[1].py_name
-    overload_return = _union_types(method_return_type(member, cfg) for member in members)
-    dispatch_return = "Self" if overload_return == containing_class_name else overload_return
-    if dispatch_return == "Self":
-        diagnostics.imports.need_typing("Self")
-    if cfg.emit_type_hints:
-        diagnostics.imports.need_type_annotation(dispatch_return)
-        for param in dispatch_params:
-            diagnostics.imports.need_type_annotation(param.py_type)
+    guard_signatures = [
+        tuple(guard.condition_template for guard in guards) for guards in guards_by_member
+    ]
+    if len(set(guard_signatures)) != len(guard_signatures):
+        return None
 
     for member in members:
         diagnostics.record(
             member,
             supported=True,
-            reason="translated append char/String overload via value dispatch",
+            reason=(
+                "translated static overloaded method via value dispatch"
+                if is_static
+                else "translated overloaded method via value dispatch"
+            ),
         )
 
-    lines = _char_string_append_overload_stubs(
-        char_member,
-        string_member,
+    lines = _value_dispatch_overload_stubs(
+        members,
         cfg,
         diagnostics,
         containing_class_name=containing_class_name,
+        is_static=is_static,
+    )
+    if is_static:
+        lines.append("    @staticmethod  # type: ignore[misc]")
+    dispatch_return = _value_dispatch_return_type(
+        members,
+        cfg,
+        diagnostics,
+        containing_class_name=containing_class_name,
+        is_static=is_static,
     )
     signature = render_method_signature(
-        "append",
-        dispatch_params,
+        name,
+        [
+            ParameterInfo(
+                raw_name="args",
+                py_name="args",
+                py_type="object",
+                java_type="Object",
+                is_spread=True,
+            ),
+        ],
         return_type=dispatch_return,
-        include_self=True,
+        include_self=not is_static,
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
     if docstring_lines:
         lines.extend(docstring_lines)
         lines.append("")
-    lines.append(f"        if isinstance({value_name}, str) and len({value_name}) == 1:")
-    lines.extend(
-        _translate_overload_branch_body(
-            char_member,
-            cfg=cfg,
-            diagnostics=diagnostics,
-            containing_class_name=containing_class_name,
-            class_fields=class_fields,
-            class_field_types=class_field_types,
-            class_field_java_types=class_field_java_types,
-            declared_type_fields=declared_type_fields,
-            declared_type_java_fields=declared_type_java_fields,
-            class_methods=class_methods,
-            class_static_methods=class_static_methods,
-            enclosing_static_dispatch=enclosing_static_dispatch,
-            class_method_return_types=class_method_return_types,
-            static_field_aliases=static_field_aliases,
-            static_method_imports=static_method_imports,
-            name_resolver=name_resolver,
-            class_state=class_state,
-            inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
-            nested_class_names=nested_class_names or set(),
-            indent="            ",
-        ),
-    )
-    lines.append("        else:")
-    lines.extend(
-        _translate_overload_branch_body(
-            string_member,
-            cfg=cfg,
-            diagnostics=diagnostics,
-            containing_class_name=containing_class_name,
-            class_fields=class_fields,
-            class_field_types=class_field_types,
-            class_field_java_types=class_field_java_types,
-            declared_type_fields=declared_type_fields,
-            declared_type_java_fields=declared_type_java_fields,
-            class_methods=class_methods,
-            class_static_methods=class_static_methods,
-            enclosing_static_dispatch=enclosing_static_dispatch,
-            class_method_return_types=class_method_return_types,
-            static_field_aliases=static_field_aliases,
-            static_method_imports=static_method_imports,
-            name_resolver=name_resolver,
-            class_state=class_state,
-            inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
-            nested_class_names=nested_class_names or set(),
-            indent="            ",
-        ),
-    )
-    return lines
-
-
-def _char_string_append_overload_stubs(
-    char_member: JavaNode,
-    string_member: JavaNode,
-    cfg: TranslationConfig,
-    diagnostics: TranslationDiagnostics,
-    *,
-    containing_class_name: str,
-) -> list[str]:
-    diagnostics.imports.need_typing("overload")
-    lines: list[str] = []
-    for member, value_type in ((char_member, "str"), (string_member, "str | None")):
-        lines.append("    @overload")
-        params = list(parameter_infos(member, cfg))
-        value_param = params[1]
-        params[1] = ParameterInfo(
-            raw_name=value_param.raw_name,
-            py_name=value_param.py_name,
-            py_type=value_type,
-            java_type=value_param.java_type,
-            is_spread=value_param.is_spread,
-        )
-        method_type = method_return_type(member, cfg)
-        if method_type == containing_class_name:
-            method_type = "Self"
-            diagnostics.imports.need_typing("Self")
-        if cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(method_type)
-            for param in params:
-                diagnostics.imports.need_type_annotation(param.py_type)
-        signature = render_method_signature(
-            "append",
-            params,
-            return_type=method_type,
-            include_self=True,
-            emit_type_hints=cfg.emit_type_hints,
-        )
-        lines.append(f"    {signature}: ...")
-    return lines
-
-
-def _static_object_name_factory_dispatch_overload(
-    members: list[JavaNode],
-    *,
-    cfg: TranslationConfig,
-    diagnostics: TranslationDiagnostics,
-    containing_class_name: str,
-    class_fields: set[str],
-    class_field_types: dict[str, str],
-    class_field_java_types: dict[str, str],
-    declared_type_fields: dict[str, dict[str, str]],
-    declared_type_java_fields: dict[str, dict[str, str]],
-    class_methods: set[str],
-    class_static_methods: set[str],
-    enclosing_static_dispatch: dict[str, str],
-    class_method_return_types: dict[str, str],
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    name_resolver: NameResolver,
-    class_state: ClassTranslationState | None = None,
-    docstring_lines: list[str] | None = None,
-    inner_class_names_requiring_outer: set[str] | None = None,
-    nested_class_names: set[str] | None = None,
-) -> list[str] | None:
-    """Emit typing overload stubs plus one dispatcher for JMX ObjectName factories."""
-    if len(members) < 2:
-        return None
-    if any(member.type != "method_declaration" for member in members):
-        return None
-    if any(member_python_name(member) != "get_instance" for member in members):
-        return None
-    if any("static" not in _modifiers(member) for member in members):
-        return None
-    if any(method_return_type(member, cfg) != "ObjectName" for member in members):
-        return None
-
-    params_by_member = [parameter_infos(member, cfg) for member in members]
-    if any(any(param.is_spread for param in params) for params in params_by_member):
-        return None
-    if not _has_object_name_factory_shape(params_by_member):
-        return None
-
-    for member in members:
-        diagnostics.record(
-            member,
-            supported=True,
-            reason="translated ObjectName static factory overload via arity dispatch",
-        )
-
-    lines = _static_object_name_overload_stubs(members, cfg, diagnostics)
-    lines.append("    @staticmethod  # type: ignore[misc]")
-    lines.append("    def get_instance(*args: object) -> ObjectName:")
-    if docstring_lines:
-        lines.extend(docstring_lines)
-        lines.append("")
 
     ordered = sorted(
-        zip(members, params_by_member, strict=True),
-        key=lambda item: _object_name_member_sort_key(item[0], cfg),
+        enumerate(zip(members, params_by_member, guards_by_member, strict=True)),
+        key=lambda item: (-sum(guard.specificity for guard in item[1][2]), item[0]),
     )
-    for member, params in ordered:
-        arity = len(params)
-        names = [param.py_name for param in params]
-        condition = f"len(args) == {arity}"
-        if arity == 1 and _java_simple_type(params[0].java_type) == "String":
-            condition += " and isinstance(args[0], str)"
+    for _, (member, params, guards) in ordered:
+        condition = _value_dispatch_condition(guards)
         lines.append(f"        if {condition}:")
-        if arity == 1:
-            lines.append(f"            {names[0]} = args[0]")
-        else:
-            lines.append(f"            {', '.join(names)} = args")
-        lines.extend(
-            _translate_static_overload_branch_body(
-                member,
-                cfg=cfg,
-                diagnostics=diagnostics,
-                containing_class_name=containing_class_name,
-                class_fields=class_fields,
-                class_field_types=class_field_types,
-                class_field_java_types=class_field_java_types,
-                declared_type_fields=declared_type_fields,
-                declared_type_java_fields=declared_type_java_fields,
-                class_methods=class_methods,
-                class_static_methods=class_static_methods,
-                enclosing_static_dispatch=enclosing_static_dispatch,
-                class_method_return_types=class_method_return_types,
-                static_field_aliases=static_field_aliases,
-                static_method_imports=static_method_imports,
-                name_resolver=name_resolver,
-                class_state=class_state,
-                inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
-                nested_class_names=nested_class_names or set(),
-                indent="            ",
-            ),
+        lines.extend(_value_dispatch_assignments(params, indent="            "))
+        branch_lines = (
+            _translate_static_overload_branch_body if is_static else _translate_overload_branch_body
+        )(
+            member,
+            cfg=cfg,
+            diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
+            class_fields=class_fields,
+            class_field_types=class_field_types,
+            class_field_java_types=class_field_java_types,
+            declared_type_fields=declared_type_fields,
+            declared_type_java_fields=declared_type_java_fields,
+            class_methods=class_methods,
+            class_static_methods=class_static_methods,
+            enclosing_static_dispatch=enclosing_static_dispatch,
+            class_method_return_types=class_method_return_types,
+            static_field_aliases=static_field_aliases,
+            static_method_imports=static_method_imports,
+            name_resolver=name_resolver,
+            class_state=class_state,
+            inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+            nested_class_names=nested_class_names or set(),
+            indent="            ",
         )
-    lines.append('        raise TypeError("ObjectName.getInstance overload dispatch failed")')
+        lines.extend(branch_lines)
+
+    lines.append(f'        raise TypeError("{name} overload dispatch failed")')
     return lines
 
 
-def _has_object_name_factory_shape(params_by_member: list[list[ParameterInfo]]) -> bool:
-    signatures = {
-        tuple(_java_simple_type(param.java_type) for param in params) for params in params_by_member
-    }
-    required = {
-        ("Object",),
-        ("String",),
-        ("String", "String", "String"),
-        ("String", "Hashtable"),
-    }
-    return required.issubset(signatures)
-
-
-def _static_object_name_overload_stubs(
+def _value_dispatch_overload_stubs(
     members: list[JavaNode],
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    containing_class_name: str,
+    is_static: bool,
 ) -> list[str]:
     diagnostics.imports.need_typing("overload")
     lines: list[str] = []
-    for member in sorted(members, key=lambda item: _object_name_member_sort_key(item, cfg)):
-        lines.append("    @staticmethod")
+    for member in members:
+        if is_static:
+            lines.append("    @staticmethod")
         lines.append("    @overload")
         params = parameter_infos(member, cfg)
+        return_type = _value_dispatch_member_return_type(
+            member,
+            cfg,
+            diagnostics,
+            containing_class_name=containing_class_name,
+            is_static=is_static,
+        )
         if cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation("ObjectName")
             for param in params:
                 diagnostics.imports.need_type_annotation(param.py_type)
         signature = render_method_signature(
-            "get_instance",
+            member_python_name(member),
             params,
-            return_type="ObjectName",
-            include_self=False,
+            return_type=return_type,
+            include_self=not is_static,
             emit_type_hints=cfg.emit_type_hints,
         )
         lines.append(f"    {signature}: ...")
     return lines
 
 
-def _object_name_member_sort_key(member: JavaNode, cfg: TranslationConfig) -> tuple[int, int]:
-    params = parameter_infos(member, cfg)
-    if len(params) == 1 and _java_simple_type(params[0].java_type) == "String":
-        return (1, 0)
-    if len(params) == 1 and _java_simple_type(params[0].java_type) == "Object":
-        return (1, 1)
-    return (len(params), 0)
+def _value_dispatch_return_type(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    *,
+    containing_class_name: str,
+    is_static: bool,
+) -> str:
+    return_type = _union_types(
+        _value_dispatch_member_return_type(
+            member,
+            cfg,
+            diagnostics,
+            containing_class_name=containing_class_name,
+            is_static=is_static,
+        )
+        for member in members
+    )
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(return_type)
+    return return_type
+
+
+def _value_dispatch_member_return_type(
+    member: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    *,
+    containing_class_name: str,
+    is_static: bool,
+) -> str:
+    return_type = method_return_type(member, cfg)
+    if not is_static and return_type == containing_class_name:
+        diagnostics.imports.need_typing("Self")
+        return "Self"
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(return_type)
+    return return_type
+
+
+def _value_dispatch_condition(guards: list[_DispatchGuard]) -> str:
+    parts = [f"len(args) == {len(guards)}"]
+    for index, guard in enumerate(guards):
+        if guard.condition_template is not None:
+            parts.append(guard.condition_template.format(arg=f"args[{index}]"))
+    return " and ".join(parts)
+
+
+def _value_dispatch_assignments(params: list[ParameterInfo], *, indent: str) -> list[str]:
+    return [f"{indent}{param.py_name} = args[{index}]" for index, param in enumerate(params)]
+
+
+def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None:
+    simple = _java_simple_type(param.java_type)
+    if simple in {"char", "Character"}:
+        return _DispatchGuard(
+            "char",
+            50,
+            "isinstance({arg}, str) and len({arg}) == 1",
+        )
+    if simple in {"String", "CharSequence"}:
+        return _DispatchGuard("str", 40, "isinstance({arg}, str)")
+
+    erased = _erase_py_type(param.py_type).removeprefix("*")
+    base = erased.split(".", 1)[-1]
+    if base == "bool":
+        return _DispatchGuard("bool", 45, "isinstance({arg}, bool)")
+    if base == "int":
+        return _DispatchGuard(
+            "int",
+            35,
+            "isinstance({arg}, int) and not isinstance({arg}, bool)",
+        )
+    if base == "float":
+        return _DispatchGuard("float", 35, "isinstance({arg}, float)")
+    if base == "str":
+        return _DispatchGuard("str", 40, "isinstance({arg}, str)")
+    if base == "list":
+        return _DispatchGuard("list", 35, "isinstance({arg}, list)")
+    if base == "set":
+        return _DispatchGuard("set", 35, "isinstance({arg}, set)")
+    if base == "dict":
+        return _DispatchGuard("dict", 35, "isinstance({arg}, dict)")
+    if base == "type":
+        return _DispatchGuard("type", 35, "isinstance({arg}, type)")
+    if base in {"Callable", "callable"}:
+        return _DispatchGuard("Callable", 35, "callable({arg})")
+    if base in {"object", "Any"}:
+        return _DispatchGuard("object", 0)
+    return _DispatchGuard(f"opaque:{base}", 0)
 
 
 def _translate_static_overload_branch_body(
@@ -1347,10 +1263,22 @@ def _translate_static_overload_branch_body(
     for param in parameter_infos(member, cfg):
         register_param(ctx, param)
     body = method_body(member)
+    ctx.in_method_body = True
     body_lines = translate_body(body, ctx, indent=indent) if body else [f"{indent}pass"]
+    ctx.in_method_body = False
+    local_import_lines = sorted(ctx.body_local_imports)
     if not ctx.pending_local_helpers:
-        return body_lines
+        if not local_import_lines:
+            return body_lines
+        import_lines = [f"{indent}{imp}" for imp in local_import_lines]
+        import_lines.append("")
+        import_lines.extend(body_lines)
+        return import_lines
     lines: list[str] = []
+    if local_import_lines:
+        for imp in local_import_lines:
+            lines.append(f"{indent}{imp}")
+        lines.append("")
     for helper in ctx.pending_local_helpers:
         lines.extend(helper)
         lines.append("")
@@ -1409,27 +1337,27 @@ def _translate_overload_branch_body(
     for param in parameter_infos(member, cfg):
         register_param(ctx, param)
     body = method_body(member)
+    ctx.in_method_body = True
     body_lines = translate_body(body, ctx, indent=indent) if body else [f"{indent}pass"]
+    ctx.in_method_body = False
+    local_import_lines = sorted(ctx.body_local_imports)
     if not ctx.pending_local_helpers:
-        return body_lines
+        if not local_import_lines:
+            return body_lines
+        import_lines = [f"{indent}{imp}" for imp in local_import_lines]
+        import_lines.append("")
+        import_lines.extend(body_lines)
+        return import_lines
     lines: list[str] = []
+    if local_import_lines:
+        for imp in local_import_lines:
+            lines.append(f"{indent}{imp}")
+        lines.append("")
     for helper in ctx.pending_local_helpers:
         lines.extend(helper)
         lines.append("")
     lines.extend(body_lines)
     return lines
-
-
-def _is_string_builder_parameter(param: ParameterInfo) -> bool:
-    return _java_simple_type(param.java_type) in {"StringBuilder", "StringBuffer"}
-
-
-def _is_char_parameter(param: ParameterInfo) -> bool:
-    return _java_simple_type(param.java_type) in {"char", "Character"}
-
-
-def _is_string_parameter(param: ParameterInfo) -> bool:
-    return _java_simple_type(param.java_type) == "String"
 
 
 def _java_simple_type(java_type: str) -> str:
