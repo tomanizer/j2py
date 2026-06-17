@@ -31,6 +31,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   `--llm-provider gemini` without the extra now reports the install command (#278).
 
 ### Fixed
+- Java Stream `flatMap(...)` chains with simple lambdas returning `.stream()` now lower
+  to nested Python comprehensions for list and set collectors instead of falling back to
+  an unsupported stream-intermediate diagnostic (#391).
 - Numeric `compare(byte/short/int/long)` overload families that erase to one Python
   signature now collapse to a single method instead of emitting an impossible
   manual-dispatch TODO: the difference form (`x - y`) and the explicit sign form

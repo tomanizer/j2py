@@ -325,17 +325,33 @@ def _stream_flatmap_binding(
     """Return (inner_loop_var, inner_iterable) for a supported flatMap mapper.
 
     Supports ``Type::stream`` instance-method references on stream elements
-    (e.g. ``List::stream``). Bound references such as ``myList::stream`` are
-    rejected so we fall back to the general translated chain.
+    (e.g. ``List::stream``), plus simple one-argument lambdas whose body
+    returns a stream or iterable-like value. Bound references such as
+    ``myList::stream`` are rejected so we fall back to the general translated
+    chain.
     """
-    if arg.type != "method_reference":
-        return None
-    named = arg.named_children
-    if len(named) >= 2 and named[-1].text == "stream" and named[0].text[:1].isupper():
+    if arg.type == "lambda_expression":
         inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
-        inner_iterable = current_expr if current_expr != outer_item_name else outer_item_name
+        inner_iterable = _lambda_body_expression(arg, ctx, default_alias=current_expr)
+        if inner_iterable is None:
+            return None
+        inner_iterable = _strip_terminal_stream_call(inner_iterable)
         return inner_name, inner_iterable
+
+    if arg.type == "method_reference":
+        named = arg.named_children
+        if len(named) >= 2 and named[-1].text == "stream" and named[0].text[:1].isupper():
+            inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
+            inner_iterable = current_expr
+            return inner_name, inner_iterable
     return None
+
+
+def _strip_terminal_stream_call(expression: str) -> str:
+    suffix = ".stream()"
+    if expression.endswith(suffix):
+        return expression[: -len(suffix)]
+    return expression
 
 
 def _apply_stream_post_ops(

@@ -511,9 +511,9 @@ def test_stream_flatmap_bound_instance_ref_falls_back() -> None:
     assert_valid_python(result.source)
 
 
-def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
-    """Non-method-reference flatMap mappers still record an explicit diagnostic."""
-    result = translate_source_with_diagnostics(
+def test_stream_flatmap_lambda_stream_rewrite() -> None:
+    """flatMap(list -> list.stream()) rewrites to a nested comprehension."""
+    python_source, coverage = translate_source(
         """
         import java.util.List;
         import java.util.stream.Collectors;
@@ -528,9 +528,43 @@ def test_stream_flatmap_unsupported_mapper_falls_back() -> None:
         """,
     )
 
-    reasons = [u.reason for u in result.diagnostics.unhandled]
-    assert any("unsupported stream intermediate: flatMap" in r for r in reasons)
-    assert_valid_python(result.source)
+    assert coverage == 1.0
+    assert "for nested in nested" in python_source
+    assert "for nested_item in nested" in python_source
+    assert "unsupported stream intermediate: flatMap" not in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_stream_flatmap_lambda_iterable_getter_to_set_rewrite() -> None:
+    """flatMap(item -> item.getTags().stream()) flattens the returned iterable."""
+    python_source, coverage = translate_source(
+        """
+        import java.util.List;
+        import java.util.Set;
+        import java.util.stream.Collectors;
+
+        public class Streams {
+            static class Item {
+                List<String> getTags() { return null; }
+            }
+
+            public Set<String> tags(List<Item> items) {
+                return items.stream()
+                        .flatMap(item -> item.getTags().stream())
+                        .collect(Collectors.toSet());
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return {item_item for item in items for item_item in item.get_tags()}" in (
+        python_source
+    )
+    assert ".stream()" not in python_source
+    assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
 
 
 def test_to_list_collector_with_unexpected_arg_records_diagnostic() -> None:
