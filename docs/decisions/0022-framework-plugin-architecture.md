@@ -1,7 +1,7 @@
 # ADR 0022 — Framework plugin architecture (Tier 4)
 
 **Date:** 2026-06-17
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -254,12 +254,13 @@ the contract. A maintained Spring→FastAPI plugin belongs in a separate package
 
 ## Implementation note (delivery)
 
-Phase 0 is this ADR. Phase 1 (the first implementation PR) ships `j2py/framework.py`, the
+Phase 0 was this ADR. Phase 1 shipped `j2py/framework.py`, the
 `framework_dispatch.py` merge layer, the `framework_plugins` config field, integration at
 the four emitter call sites (`classes.py`, `class_fields.py`, `class_methods.py`,
 `class_interfaces.py`), and the reference plugin with tests in `make check` (no LLM, no
-Spring clone). Phase 2 (wiring sidecar) and Phase 3 (`docs/FRAMEWORK_PLUGINS.md`,
-illustrative Spring plugin) are follow-up PRs.
+Spring clone). Phase 2 shipped the `emit_wiring_metadata` sidecar path. Phase 3 added the
+user guide in [`docs/FRAMEWORK_PLUGINS.md`](../FRAMEWORK_PLUGINS.md) with an illustrative
+Spring -> FastAPI/Pydantic/SQLAlchemy migration example.
 
 ## References
 
