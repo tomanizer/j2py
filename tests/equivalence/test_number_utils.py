@@ -10,8 +10,8 @@ for the boxed-type classes the class body references at definition time
 (``Long.value_of``, ``Short.value_of``, ..., ``Integer.min_value``).
 
 ``to_float`` / ``to_byte`` / ``to_short`` each delegate to ``Float.parse_float``,
-``Byte.parse_byte``, ``Short.parse_short`` — the stubs implement these as
-``float(x)`` / ``int(x)`` so they are semantically correct.
+``Byte.parse_byte``, ``Short.parse_short`` — the stubs implement Java-compatible
+numeric parsing, including byte/short range checks.
 """
 
 from __future__ import annotations
@@ -198,8 +198,8 @@ def test_to_double_equivalence(number_utils_source: str) -> None:
 # Literal-oracle source: NumberUtilsTest.java testToFloatString / testToFloatStringF,
 # testToByteString / testToByteStringI, testToShortString / testToShortStringI.
 # The translated converters delegate to the Float.parse_float / Byte.parse_byte /
-# Short.parse_short stubs (float(x) / int(x)); decimal results use approx_double
-# because the Python translation widens to double rather than 32-bit float.
+# Short.parse_short stubs; decimal results use approx_double because the Python
+# translation widens to double rather than 32-bit float.
 
 
 @pytest.mark.equivalence
@@ -241,6 +241,8 @@ def test_to_byte_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_byte("12.3", 5) == 5
     assert NumberUtils.to_byte("", 5) == 5
     assert NumberUtils.to_byte(None, 5) == 5
+    assert NumberUtils.to_byte("128", 5) == 5
+    assert NumberUtils.to_byte("-129", 5) == 5
 
 
 @pytest.mark.equivalence
@@ -259,3 +261,5 @@ def test_to_short_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_short("1234.5", 5) == 5
     assert NumberUtils.to_short("", 5) == 5
     assert NumberUtils.to_short(None, 5) == 5
+    assert NumberUtils.to_short("32768", 5) == 5
+    assert NumberUtils.to_short("-32769", 5) == 5
