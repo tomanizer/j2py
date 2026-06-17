@@ -144,7 +144,9 @@ def test_overload_dispatch_probe_append_char_string_translates_cleanly() -> None
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "from typing import Self, overload" in result.source
-    assert "if isinstance(value, str) and len(value) == 1:" in result.source
+    assert (
+        "if len(args) == 2 and isinstance(args[1], str) and len(args[1]) == 1:"
+    ) in result.source
     assert "overloaded method append requires manual dispatch" not in {
         diagnostic.reason for diagnostic in result.diagnostics.unhandled
     }

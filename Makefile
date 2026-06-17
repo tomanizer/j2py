@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -19,7 +19,7 @@ SPRING_DENSE_ARGS := --preset spring-dense
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
-check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
+check: lint typecheck test  ## Run the normal local gate: lint + typecheck + test
 
 lint:  ## Lint with ruff (includes format check)
 	uv run --extra dev ruff check j2py/ tests/ scripts/equivalence/
@@ -41,6 +41,10 @@ equivalence-report:  ## Run equivalence gate and print the verified-surface metr
 	mkdir -p corpus-reports
 	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra dev pytest tests/equivalence -m equivalence -q
 	uv run --extra dev python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
+	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+
+equivalence-surface-floor-check:  ## Check the latest equivalence report against the committed ratchet floor
+	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run --extra dev pytest tests/behavior -m behavior
@@ -107,11 +111,11 @@ LOAD_GEMINI_ENV = \
 
 harvest-run:  ## Translate local harvest preset with Gemini and append records (requires GEMINI_API_KEY)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
+	uv run --extra gemini python scripts/harvest/run_llm_harvest.py --preset local --llm-provider gemini
 
 harvest-gemini:  ## Batch harvest from FILE_LIST queue (Gemini; default LIMIT=10, use LIMIT=2 on free tier)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_llm_harvest.py \
+	uv run --extra gemini python scripts/harvest/run_llm_harvest.py \
 		--llm-provider gemini \
 		--file-list $(or $(FILE_LIST),.j2py/harvest/queue.txt) \
 		--offset $(or $(OFFSET),0) \
@@ -131,13 +135,13 @@ harvest-queue:  ## Build/refresh Tier A queue from corpus-reports/ (coverage==1.
 
 harvest-promote:  ## Queue + Gemini batch + prune + triage + draft top pattern issues (LIMIT=2)
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_harvest_promotion.py \
+	uv run --extra gemini python scripts/harvest/run_harvest_promotion.py \
 		--limit $(or $(LIMIT),2) \
 		--issues $(or $(ISSUES),3)
 
 harvest-promote-issues:  ## Same as harvest-promote but create GitHub issues via gh
 	@$(LOAD_GEMINI_ENV); \
-	uv run python scripts/harvest/run_harvest_promotion.py \
+	uv run --extra gemini python scripts/harvest/run_harvest_promotion.py \
 		--limit $(or $(LIMIT),2) \
 		--issues $(or $(ISSUES),3) \
 		--create-issues
@@ -153,7 +157,7 @@ harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draf
 
 test-cov:  ## Run tests with coverage report
 	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
-	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90
+	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
@@ -241,9 +245,9 @@ corpus-caffeine-dense-update-baseline:  ## Regenerate the Caffeine dense corpus 
 # These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,
 # CI will pass.
 
-ci-local-pr: check  ## For code/test/docs PRs — lint + typecheck + test
+ci-local-pr: check test-cov  ## For code/test/docs PRs — normal gate + coverage floors
 
-ci-local-governance: check  ## For CI/tooling/dependency PRs — same gates, explicit label
+ci-local-governance: ci-local-pr  ## For CI/tooling/dependency PRs — same gates, explicit label
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
@@ -275,4 +279,4 @@ import-smoke:  ## Verify core imports and CLI entry point
 
 release-test: lock-check check test-targets test-behavior version-check import-smoke  ## Release tests without building dist
 
-release-check: release-test dist-check  ## Run alpha release readiness checks
+release-check: release-test dist-check  ## Run beta/pre-release readiness checks

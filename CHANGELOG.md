@@ -8,6 +8,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Positioning documentation clarifies j2py's useful scope, enterprise framework
+  boundaries, and how to read Spring corpus metrics without treating node coverage as
+  Spring Boot/Hibernate migration readiness (#333).
 - Original JDK surface behavior fixtures demonstrate ADR 0020 deterministic lowering for
   common `String`, `Math`/`Integer`, and `List`/`Collections` usage without vendoring JDK
   source or implying a Python JDK runtime (#363).
@@ -18,6 +21,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   `toFloat`/`toByte`/`toShort` (both overloads each), lifting the fixture from 6/61 to
   12/61 verified signatures and the total verified surface from 22.7% to 28.9% (#377,
   case study #372).
+
+### Changed
+- Gemini SDK support now installs through the optional `gemini` extra
+  (`pip install "j2py-converter[gemini]"`) instead of the default dependency set; selecting
+  `--llm-provider gemini` without the extra now reports the install command (#278).
 
 ### Fixed
 - Same-class static field reads in method bodies now qualify through the containing

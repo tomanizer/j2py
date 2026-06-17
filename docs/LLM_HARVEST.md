@@ -91,6 +91,9 @@ Tags are **approximate** — always read the diff before implementing a rule.
 
 - `GEMINI_API_KEY` for batch harvest and promotion (`make harvest-run`, `make harvest-gemini`,
   `make harvest-promote`, `make test-llm-gemini-e2e`)
+- The Gemini SDK extra for packaged installs: `pip install "j2py-converter[gemini]"`.
+  Contributor installs using the repository `dev` extra include it for local harvest and
+  live Gemini probes.
 - `ANTHROPIC_API_KEY` for `make test-llm-e2e` (Anthropic probes)
 - Optional: `gh` CLI authenticated for `make harvest-promote-issues`
 - See [README](../README.md) live LLM section for key setup
@@ -168,8 +171,8 @@ Use this for cheap construct probes, not corpus-scale promotion (use `harvest-pr
 Presets for small probe runs (`scripts/harvest/harvest_presets.py`):
 
 ```bash
-uv run python scripts/harvest/run_llm_harvest.py --preset local
-uv run python scripts/harvest/run_llm_harvest.py --preset constructs
+uv run --extra gemini python scripts/harvest/run_llm_harvest.py --preset local
+uv run --extra gemini python scripts/harvest/run_llm_harvest.py --preset constructs
 ```
 
 | Preset | Files |
@@ -234,7 +237,7 @@ limits at [ai.dev/rate-limit](https://ai.dev/rate-limit); token spend is logged 
 Direct script (same flags as `make harvest-gemini`):
 
 ```bash
-uv run python scripts/harvest/run_llm_harvest.py \
+uv run --extra gemini python scripts/harvest/run_llm_harvest.py \
   --llm-provider gemini \
   --file-list .j2py/harvest/queue.txt \
   --offset 0 --limit 10 \

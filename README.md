@@ -60,9 +60,12 @@ Known gaps include:
 - runtime/framework behavior (dependency injection, persistence mappings, container
   lifecycle) — j2py translates source structure, not application frameworks
 
+For a concise statement of where j2py helps and where enterprise framework semantics
+remain manual, see [docs/POSITIONING.md](docs/POSITIONING.md).
+
 ## Quick start
 
-Install the alpha from PyPI:
+Install the beta pre-release from PyPI:
 
 ```bash
 pip install --pre j2py-converter
@@ -128,12 +131,18 @@ LLM completion with the default Anthropic provider (requires `ANTHROPIC_API_KEY`
 ANTHROPIC_API_KEY=... uv run j2py translate SomeClass.java
 ```
 
-LLM completion with Gemini Flash (requires `GEMINI_API_KEY`):
+LLM completion with Gemini Flash requires the optional Gemini extra plus
+`GEMINI_API_KEY`:
 
 ```bash
+pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
   --llm-provider gemini --model gemini-3.5-flash
 ```
+
+Selecting `--llm-provider gemini` without the extra installed fails with an install hint
+instead of a raw Python import traceback. Contributor installs that use the `dev` extra
+also include the Gemini SDK so live Gemini probes and harvest commands remain available.
 
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 `pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and
@@ -146,7 +155,7 @@ Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
 make test-targets  # future strict-xfail roadmap targets
-make release-check # alpha release gate: release-test + dist-check (3.11+ in CI publish workflow)
+make release-check # pre-release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```
 
 ### Benchmark corpus
@@ -157,6 +166,12 @@ construct fixtures under `tests/fixtures/corpus/`. These libraries are open-sour
 tests for the deterministic rule layer — not product scope or target runtime.
 Corpus-derived fast fixtures that should not affect committed baselines live under
 `tests/fixtures/java/targets/` instead.
+
+Corpus scores are breadth and regression signals, not enterprise-readiness claims. In
+particular, `spring-dense` measures Java constructs in Spring Framework sources; it does
+not mean Spring Boot, Hibernate, or Jakarta application semantics are ported. See
+[docs/POSITIONING.md](docs/POSITIONING.md) and
+[docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md) for how to read these metrics.
 
 ```bash
 make corpus-list-presets              # show all pinned presets

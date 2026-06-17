@@ -530,9 +530,12 @@ def test_cli_translate_emits_vendored_dispatch_runtime(tmp_path: Path) -> None:
     source = tmp_path / "Over.java"
     source.write_text(
         """
+        class Foo {}
+        class Bar {}
+
         public class Over {
-            public int get(int value) { return value; }
-            public int get(String value) { return 1; }
+            public int get(Foo value) { return 1; }
+            public int get(Bar value) { return 2; }
         }
         """,
     )

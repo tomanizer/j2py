@@ -262,6 +262,7 @@ def _translate_static_method_invocation(
     receiver = _receiver_simple_name(raw_receiver)
     known_receivers = {
         "Arrays",
+        "Character",
         "Collections",
         "Double",
         "Integer",
@@ -303,6 +304,12 @@ def _translate_static_method_invocation(
             return f"format({args[0]}, 'b')"
         if method_name == "toHexString" and len(args) == 1:
             return f"format({args[0]}, 'x')"
+
+    if receiver == "Character":
+        if method_name == "valueOf" and len(args) == 1:
+            return args[0]
+        if method_name == "toString" and len(args) == 1:
+            return f"str({args[0]})"
 
     if receiver == "Long" and method_name == "parseLong" and len(args) == 1:
         return f"int({args[0]})"
