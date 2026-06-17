@@ -23,7 +23,36 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   case study #372).
 - Added literal-oracle equivalence assertions for `NumberUtils.compare(byte/short/int/long)`,
   lifting the fixture from 12/61 to 16/61 verified signatures and the total verified
-  surface from 28/97 to 32/97 (#372, #379).
+  surface from 28/97 to 32/97, with further compare-overload cases added afterwards
+  (#372, #379, #396).
+- Same-package sibling type references inside method/constructor bodies now emit as
+  function-local imports (`from pkg.Sibling import Sibling`) instead of module-level
+  imports, breaking the base↔derived circular-import cycle (e.g. `ImmutablePair extends
+  Pair` while `Pair.of()` delegates to `ImmutablePair`) that Java tolerates via lazy class
+  loading but eager Python imports cannot (ADR 0021, #325, #362).
+- Interfaces that declare `static` factory methods now emit working static factory
+  adapters (#351).
+- Assignment-as-expression desugaring: Java assignments and `++`/`--` updates in
+  expression positions (return values, `while`/`if` conditions, binary/unary operands,
+  ternary branches) now lower to Python walrus assignments or hoisted pre-statements;
+  plus syntax-safe static imports, overload deduplication, a confidence cap, and a new
+  corpus gate (#353–#357, #358).
+- Erased-overload value dispatch generalized to handle numeric widening across overload
+  members (#366).
+- Value dispatch for fixed-arity vs varargs overload groups: runtime-checkable groups now
+  route fixed signatures before varargs, while erasure collisions stay manual-dispatch
+  (#408, #410).
+- Extended overload dispatcher families: split static/instance name collisions, collapse
+  equivalent arity-guard overloads for value dispatch, and thread cross-file inheritance
+  indexes through skeleton translation (#390, #412).
+- Spring → FastAPI/SQLAlchemy mapping cookbook documents opt-in `annotation_map` recipes
+  (controllers, DI, JPA entities, `@Transactional`) with verified before/after pairs and
+  explicit manual-port callouts (#339, #384).
+- The equivalence-verified surface is now a ratcheting CI gate: the surface report writes
+  `equivalence-surface.json` and `check_surface_floor.py` fails the build if the verified
+  public-method count drops below the committed floor (#370, #375).
+- Line-coverage floor is now enforced in required CI (`make test-cov`, `fail_under = 90`)
+  rather than only reported (#371, #381).
 
 ### Changed
 - Gemini SDK support now installs through the optional `gemini` extra
@@ -46,6 +75,13 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   `typing.cast(...)` targets for translated classes are runtime-safe strings; the
   Commons Lang tuple case-study gaps C, D, and E now pass as regressions (#322, #323,
   #324).
+- Interface generic `TypeVar` emission: when one type-parameter name (e.g. `T`) appears in
+  two interfaces with conflicting variance, j2py now emits `T_co`/`T_contra` suffixed
+  `TypeVar`s per interface instead of a single invariant `TypeVar("T")` that mypy rejected
+  on both `Protocol` bases; unambiguous names are unchanged (#359).
+- Residual JDK static imports for `Character` and `Objects` now resolve — single-char
+  `Character` predicates such as `isLetter` lower without unknown-import diagnostics
+  (#401, #411).
 
 ## 0.5.0b2 - 2026-06-16
 

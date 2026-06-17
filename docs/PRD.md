@@ -151,7 +151,7 @@ Provide measurable quality signal without live LLM in normal CI:
 ## References
 
 - [Architecture](ARCHITECTURE.md)
-- [Audit 2026-06-15](decisions/AUDIT-2026-06-15.md)
+- [Audit 2026-06-17](decisions/AUDIT-2026-06-17.md)
 - [Translation targets](TRANSLATION_TARGETS.md)
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
 - [Equivalence testing design](EQUIVALENCE_TESTING.md)

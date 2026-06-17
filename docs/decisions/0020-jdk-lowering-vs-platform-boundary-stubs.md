@@ -131,7 +131,7 @@ j2py core.
 + Contributors have a clear rule for “belongs in `expr_calls.py`” vs “belongs in
   `import_map`” vs “harvest / LLM stub only”.
 + High-frequency JDK patterns stay in the deterministic layer, preserving the layered
-  pipeline (ADR 0003) and keeping LLM harvest focused on genuine gaps (ADR 0017).
+  pipeline (ADR 0003) and keeping LLM harvest focused on genuine gaps (ADR 0023).
 + Enterprise migrations can wire SQL and framework types without j2py pretending to ship
   those stacks.
 − Tier 2 is open-ended; prioritisation must stay data-driven (corpus hotspots, behavior
@@ -148,7 +148,7 @@ j2py core.
 - [Behavior corpus — rule-layer runtime envelope](../BEHAVIOR_CORPUS.md)
 - [ADR 0003 — Layered translation pipeline](0003-layered-translation-pipeline.md)
 - [ADR 0014 — Equivalence differential testing](0014-equivalence-differential-testing.md)
-- [ADR 0017 — LLM harvest for rule-layer backlog](0017-llm-harvest-for-rule-layer-backlog.md)
+- [ADR 0023 — LLM harvest for rule-layer backlog](0023-llm-harvest-for-rule-layer-backlog.md)
 - `j2py/config/default.py` — built-in type, collection, exception, and import maps
 - `j2py/translate/expr_calls.py` — JDK call lowering shims
 - `j2py/llm/prompts.py` — unresolved Java import / stub policy

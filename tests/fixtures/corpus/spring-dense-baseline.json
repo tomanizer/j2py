@@ -101,6 +101,38 @@
       "annotation_warning_count": 0,
       "coverage": 1.0,
       "error": "",
+      "handled_count": 8,
+      "method_body_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/ChainedGetReceiverType.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 11,
+      "method_body_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/ClassKeyedRegistryGet.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
       "handled_count": 1,
       "method_body_count": 3,
       "parse_error_count": 0,
@@ -133,7 +165,7 @@
       "annotation_warning_count": 0,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 20,
+      "handled_count": 22,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -143,6 +175,38 @@
       "unhandled_node_types": "",
       "unhandled_reasons": "",
       "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 3,
+      "method_body_count": 1,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/InterfaceStaticFactoryAdapter.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 1,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 6,
+      "method_body_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/JdkComparatorAnonymousClass.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -169,6 +233,38 @@
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/ObjectNameManagerProbe.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 10,
+      "method_body_count": 2,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/OverloadDispatchProbe.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 15,
+      "method_body_count": 4,
+      "parse_error_count": 0,
+      "parse_ok": true,
       "path": "tests/fixtures/corpus/constructs/SealedClasses.java",
       "syntax_ok": true,
       "unhandled_count": 0,
@@ -178,7 +274,7 @@
     },
     {
       "annotation_use_count": 10,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 7,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -190,7 +286,23 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 7
+    },
+    {
+      "annotation_use_count": 0,
+      "annotation_warning_count": 0,
+      "coverage": 1.0,
+      "error": "",
+      "handled_count": 9,
+      "method_body_count": 3,
+      "parse_error_count": 0,
+      "parse_ok": true,
+      "path": "tests/fixtures/corpus/constructs/StaticFactoryGetChain.java",
+      "syntax_ok": true,
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 0
     },
     {
       "annotation_use_count": 0,
@@ -274,7 +386,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 5,
       "coverage": 1.0,
       "error": "",
       "handled_count": 22,
@@ -286,7 +398,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
@@ -338,19 +450,19 @@
     },
     {
       "annotation_use_count": 11,
-      "annotation_warning_count": 21,
-      "coverage": 0.9979757085020243,
+      "annotation_warning_count": 26,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 493,
+      "handled_count": 494,
       "method_body_count": 45,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-beans/src/main/java/org/springframework/beans/factory/annotation/AutowiredAnnotationBeanPostProcessor.java",
       "syntax_ok": true,
-      "unhandled_count": 1,
-      "unhandled_node_types": "method_invocation:1",
-      "unhandled_reasons": "ambiguous get invocation requires receiver collection type:1",
-      "warning_count": 67
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 72
     },
     {
       "annotation_use_count": 6,
@@ -386,10 +498,10 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 6,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 36,
+      "handled_count": 38,
       "method_body_count": 5,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -398,11 +510,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 9
+      "warning_count": 11
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 14,
+      "annotation_warning_count": 18,
       "coverage": 1.0,
       "error": "",
       "handled_count": 190,
@@ -414,23 +526,23 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 32
+      "warning_count": 36
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 9,
-      "coverage": 0.9844961240310077,
+      "annotation_warning_count": 13,
+      "coverage": 1.0,
       "error": "",
-      "handled_count": 127,
+      "handled_count": 131,
       "method_body_count": 22,
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-beans/src/main/java/org/springframework/beans/factory/annotation/InjectionMetadata.java",
       "syntax_ok": true,
-      "unhandled_count": 2,
-      "unhandled_node_types": "method_declaration:2",
-      "unhandled_reasons": "overloaded method needs_refresh requires manual dispatch:2",
-      "warning_count": 32
+      "unhandled_count": 0,
+      "unhandled_node_types": "",
+      "unhandled_reasons": "",
+      "warning_count": 36
     },
     {
       "annotation_use_count": 0,
@@ -501,7 +613,7 @@
       "annotation_warning_count": 13,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 174,
+      "handled_count": 176,
       "method_body_count": 18,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -613,7 +725,7 @@
       "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 17,
+      "handled_count": 18,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -642,7 +754,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 21,
@@ -654,7 +766,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -690,7 +802,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -702,11 +814,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -718,7 +830,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -802,7 +914,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -814,7 +926,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -834,7 +946,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 10,
@@ -846,7 +958,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -866,7 +978,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -878,7 +990,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
@@ -898,7 +1010,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 19,
@@ -910,7 +1022,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 7
+      "warning_count": 8
     },
     {
       "annotation_use_count": 0,
@@ -946,7 +1058,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 12,
@@ -958,7 +1070,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -994,7 +1106,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 20,
@@ -1006,11 +1118,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -1022,11 +1134,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -1038,7 +1150,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -1186,7 +1298,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -1198,7 +1310,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
@@ -1218,7 +1330,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -1230,7 +1342,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -1266,7 +1378,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 4,
@@ -1278,11 +1390,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 26,
@@ -1294,11 +1406,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 6
+      "warning_count": 7
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 9,
@@ -1310,7 +1422,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -1330,7 +1442,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 5,
@@ -1342,7 +1454,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
@@ -1365,7 +1477,7 @@
       "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 8,
+      "handled_count": 9,
       "method_body_count": 1,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1426,7 +1538,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -1438,7 +1550,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -1458,7 +1570,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 14,
@@ -1470,7 +1582,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -1602,7 +1714,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
       "handled_count": 34,
@@ -1614,7 +1726,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 4
+      "warning_count": 5
     },
     {
       "annotation_use_count": 0,
@@ -1666,7 +1778,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 12,
@@ -1678,7 +1790,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -1746,7 +1858,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -1758,7 +1870,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -1842,10 +1954,10 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 50,
+      "handled_count": 51,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -1854,11 +1966,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 8
+      "warning_count": 9
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 6,
@@ -1870,11 +1982,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -1886,7 +1998,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -1970,7 +2082,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 2,
@@ -1982,11 +2094,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 7,
@@ -1998,11 +2110,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2014,7 +2126,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -2082,7 +2194,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -2094,7 +2206,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -2261,7 +2373,7 @@
       "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 17,
+      "handled_count": 18,
       "method_body_count": 3,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2338,7 +2450,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2350,7 +2462,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
@@ -2389,7 +2501,7 @@
       "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 17,
+      "handled_count": 18,
       "method_body_count": 3,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2418,7 +2530,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2430,7 +2542,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 0
+      "warning_count": 1
     },
     {
       "annotation_use_count": 0,
@@ -2450,10 +2562,10 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 3,
+      "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 27,
+      "handled_count": 28,
       "method_body_count": 8,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2462,7 +2574,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -2514,7 +2626,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 4,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 16,
@@ -2526,14 +2638,14 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 40,
+      "handled_count": 41,
       "method_body_count": 6,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2542,11 +2654,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2558,11 +2670,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2574,11 +2686,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 5,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -2590,7 +2702,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -2618,11 +2730,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/core/convert/support/CollectionToArrayConverter.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -2645,7 +2757,7 @@
       "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 29,
+      "handled_count": 30,
       "method_body_count": 9,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -2706,7 +2818,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -2718,7 +2830,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 3
+      "warning_count": 4
     },
     {
       "annotation_use_count": 0,
@@ -2738,7 +2850,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 2,
       "coverage": 1.0,
       "error": "",
       "handled_count": 8,
@@ -2750,7 +2862,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -2786,7 +2898,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 3,
@@ -2798,11 +2910,11 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 2
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 26,
@@ -2814,7 +2926,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -2850,7 +2962,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 12,
@@ -2862,7 +2974,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 2
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -2930,7 +3042,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 2,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 23,
@@ -2942,7 +3054,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 5
+      "warning_count": 6
     },
     {
       "annotation_use_count": 0,
@@ -2965,7 +3077,7 @@
       "annotation_warning_count": 4,
       "coverage": 1.0,
       "error": "",
-      "handled_count": 20,
+      "handled_count": 21,
       "method_body_count": 4,
       "parse_error_count": 0,
       "parse_ok": true,
@@ -3010,7 +3122,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 0,
+      "annotation_warning_count": 1,
       "coverage": 1.0,
       "error": "",
       "handled_count": 31,
@@ -3018,11 +3130,11 @@
       "parse_error_count": 0,
       "parse_ok": true,
       "path": "spring-core/src/main/java/org/springframework/cglib/core/CollectionUtils.java",
-      "syntax_ok": false,
+      "syntax_ok": true,
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
+      "warning_count": 3
     },
     {
       "annotation_use_count": 0,
@@ -3074,7 +3186,7 @@
     },
     {
       "annotation_use_count": 0,
-      "annotation_warning_count": 1,
+      "annotation_warning_count": 3,
       "coverage": 1.0,
       "error": "",
       "handled_count": 28,
@@ -3086,119 +3198,7 @@
       "unhandled_count": 0,
       "unhandled_node_types": "",
       "unhandled_reasons": "",
-      "warning_count": 1
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 1,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 11,
-      "method_body_count": 2,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-core/src/main/java/org/springframework/core/metrics/jfr/FlightRecorderApplicationStartup.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 1
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 0,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 9,
-      "method_body_count": 2,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-beans/src/main/java/org/springframework/beans/factory/xml/XmlBeanDefinitionStoreException.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 2
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 4,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 10,
-      "method_body_count": 4,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-core/src/main/java/org/springframework/core/convert/support/ArrayToStringConverter.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 4
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 0,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 1,
-      "method_body_count": 1,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-beans/src/main/java/org/springframework/beans/factory/support/MethodDescriptor.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 0
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 0,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 3,
-      "method_body_count": 1,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-beans/src/main/java/org/springframework/beans/factory/BeanIsAbstractException.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 1
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 2,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 17,
-      "method_body_count": 4,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-core/src/main/java/org/springframework/core/codec/ResourceEncoder.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
       "warning_count": 3
-    },
-    {
-      "annotation_use_count": 0,
-      "annotation_warning_count": 0,
-      "coverage": 1.0,
-      "error": "",
-      "handled_count": 2,
-      "method_body_count": 0,
-      "parse_error_count": 0,
-      "parse_ok": true,
-      "path": "spring-core/src/main/java/org/springframework/cglib/transform/ClassTransformerFactory.java",
-      "syntax_ok": true,
-      "unhandled_count": 0,
-      "unhandled_node_types": "",
-      "unhandled_reasons": "",
-      "warning_count": 0
     }
   ],
   "metadata": {
@@ -3234,53 +3234,37 @@
     "strategy": "density"
   },
   "summary": {
-    "average_coverage": 0.9986623591626652,
+    "average_coverage": 0.99875,
     "coverage_file_count": 200,
     "coverage_threshold": 0.8,
     "enterprise": {
       "annotation_only_stub_files": 7,
       "annotation_only_stub_rate": 0.035,
-      "annotation_warning_file_rate": 0.755,
+      "annotation_warning_file_rate": 0.825,
       "avg_annotation_uses_per_file": 0.29,
-      "avg_annotation_warnings_per_file": 1.855,
-      "files_with_annotation_warnings": 151,
-      "files_with_method_bodies": 174,
-      "method_body_file_rate": 0.87,
+      "avg_annotation_warnings_per_file": 2.16,
+      "files_with_annotation_warnings": 165,
+      "files_with_method_bodies": 175,
+      "method_body_file_rate": 0.875,
       "total_annotation_uses": 58,
-      "total_annotation_warnings": 371
+      "total_annotation_warnings": 432
     },
     "files_below_coverage_threshold": 1,
     "files_scanned": 200,
-    "files_with_unhandled": 3,
-    "full_coverage_files": 197,
+    "files_with_unhandled": 1,
+    "full_coverage_files": 199,
     "parse_success_rate": 1.0,
-    "syntax_success_rate": 0.99,
+    "syntax_success_rate": 1.0,
     "top_unhandled_node_types": [
-      [
-        "method_declaration",
-        2
-      ],
       [
         "constructor_declaration",
         2
-      ],
-      [
-        "method_invocation",
-        1
       ]
     ],
     "top_unhandled_reasons": [
       [
-        "overloaded method needs_refresh requires manual dispatch",
-        2
-      ],
-      [
         "overloaded method __init__ requires manual dispatch",
         2
-      ],
-      [
-        "ambiguous get invocation requires receiver collection type",
-        1
       ]
     ]
   }

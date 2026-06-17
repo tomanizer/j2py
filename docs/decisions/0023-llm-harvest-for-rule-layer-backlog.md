@@ -1,4 +1,4 @@
-# ADR 0017 — LLM harvest for rule-layer backlog
+# ADR 0023 — LLM harvest for rule-layer backlog
 
 **Date:** 2026-06-15
 **Status:** Accepted
