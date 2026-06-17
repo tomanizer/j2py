@@ -154,13 +154,26 @@ def install_java_lang_stubs() -> list[str]:
     ``Validate.is_true``, ``Float.parse_float``, ``Byte.parse_byte``, ``Short.parse_short``,
     and ``java.lang.reflect.Array``.
 
-    All stubs are identity functions or no-ops — they make the module importable and
-    class-body initializers runnable.  They are NOT under test.
+    Most stubs are identity functions or no-ops — they make the module importable and
+    class-body initializers runnable.  Primitive parsers enforce Java range limits so
+    NumberUtils fallback behavior is tested against the Java contract.
 
     Returns the list of module names newly added to ``sys.modules``; pass (reversed) to
     teardown for precise cleanup.
     """
     _id: Any = lambda x: x  # noqa: E731
+
+    def _parse_ranged_int(value: Any, min_value: int, max_value: int) -> int:
+        parsed = int(value)
+        if parsed < min_value or parsed > max_value:
+            raise ValueError(value)
+        return parsed
+
+    def _parse_short(value: Any) -> int:
+        return _parse_ranged_int(value, -(2**15), 2**15 - 1)
+
+    def _parse_byte(value: Any) -> int:
+        return _parse_ranged_int(value, -(2**7), 2**7 - 1)
 
     math = "org.apache.commons.lang3.math"
     lang3 = "org.apache.commons.lang3"
@@ -170,12 +183,12 @@ def install_java_lang_stubs() -> list[str]:
     installed += install_stub_class(
         f"{math}.Short",
         "Short",
-        types.SimpleNamespace(value_of=_id, parse_short=int),
+        types.SimpleNamespace(value_of=_id, parse_short=_parse_short),
     )
     installed += install_stub_class(
         f"{math}.Byte",
         "Byte",
-        types.SimpleNamespace(value_of=_id, parse_byte=int),
+        types.SimpleNamespace(value_of=_id, parse_byte=_parse_byte),
     )
     installed += install_stub_class(f"{math}.Double", "Double", types.SimpleNamespace(value_of=_id))
     installed += install_stub_class(

@@ -63,6 +63,10 @@ Known gaps include:
 For a concise statement of where j2py helps and where enterprise framework semantics
 remain manual, see [docs/POSITIONING.md](docs/POSITIONING.md).
 
+For Spring migrators, the [Spring → FastAPI/SQLAlchemy mapping cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md)
+documents opt-in `annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`)
+with verified before/after pairs and explicit manual-port callouts.
+
 ## Quick start
 
 Install the beta pre-release from PyPI:
