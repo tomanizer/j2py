@@ -13,6 +13,13 @@ KNOWN_STATIC_FIELD_ALIASES: dict[str, str] = {
 
 KNOWN_STATIC_METHOD_IMPORTS: frozenset[str] = frozenset(
     {
+        "java.lang.Character.isDigit",
+        "java.lang.Character.isLetter",
+        "java.lang.Character.isLetterOrDigit",
+        "java.lang.Character.isLowerCase",
+        "java.lang.Character.isUpperCase",
+        "java.lang.Character.isWhitespace",
+        "java.lang.Integer.compare",
         "java.lang.Math.abs",
         "java.lang.Math.max",
         "java.lang.Math.min",
@@ -22,13 +29,15 @@ KNOWN_STATIC_METHOD_IMPORTS: frozenset[str] = frozenset(
         "java.lang.Math.ceil",
         "java.lang.Math.round",
         "java.lang.Math.log",
-        "java.util.Collections.unmodifiableList",
-        "java.util.Objects.requireNonNull",
-        "java.util.Objects.equals",
         "java.util.Arrays.equals",
+        "java.util.Collections.unmodifiableList",
+        "java.util.Objects.equals",
+        "java.util.Objects.isNull",
+        "java.util.Objects.nonNull",
+        "java.util.Objects.requireNonNull",
+        "com.google.common.base.Preconditions.checkArgument",
         "com.google.common.base.Preconditions.checkNotNull",
         "com.google.common.base.Preconditions.checkState",
-        "com.google.common.base.Preconditions.checkArgument",
     },
 )
 

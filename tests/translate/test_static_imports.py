@@ -10,6 +10,9 @@ def test_known_static_method_import_includes_preconditions_and_objects() -> None
     assert is_known_static_method_import("com.google.common.base.Preconditions.checkNotNull")
     assert is_known_static_method_import("com.google.common.base.Preconditions.checkState")
     assert is_known_static_method_import("java.util.Objects.requireNonNull")
+    assert is_known_static_method_import("java.lang.Character.isLetter")
+    assert is_known_static_method_import("java.util.Objects.isNull")
+    assert is_known_static_method_import("java.lang.Integer.compare")
     assert not is_known_static_method_import("com.example.Helpers.magic")
 
 

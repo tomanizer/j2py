@@ -631,6 +631,46 @@ def test_known_static_import_allowlist_cases(
     assert_valid_python(result.source)
 
 
+def test_character_static_import_lowers_is_letter() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static java.lang.Character.isLetter;
+
+        public class PathSegmentCheck {
+            public boolean isNameStart(char ch) {
+                return isLetter(ch);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return (len(ch) == 1 and ch.isalpha())" in result.source
+    assert "# TODO(j2py): static import" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_objects_static_import_lowers_is_null() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import static java.util.Objects.isNull;
+
+        public class NullCheck {
+            public boolean missing(Object value) {
+                return isNull(value);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return value is None" in result.source
+    assert "# TODO(j2py): static import" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_static_imports_resolve_inside_non_class_type_contexts_and_overloads() -> None:
     result = translate_source_with_diagnostics(
         """
