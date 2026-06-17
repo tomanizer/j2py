@@ -25,7 +25,7 @@ diagnostics, and `j2py compare` can save substantial mechanical translation effo
 
 ## What j2py is not
 
-j2py does not convert a Spring, Hibernate, Jakarta EE, servlet, or JDBC application into a
+j2py does not convert a Spring, Hibernate, Jakarta EE, Servlet, or JDBC application into a
 runnable Python application.
 
 In particular, core j2py does not implement:
@@ -34,7 +34,7 @@ In particular, core j2py does not implement:
 - Spring MVC route registration, filters, security, or AOP proxies
 - Hibernate/JPA ORM mappings, relationships, lazy loading, or persistence sessions
 - transaction propagation, rollback rules, isolation levels, or container-managed sessions
-- servlet/Jakarta lifecycle semantics
+- Servlet/Jakarta lifecycle semantics
 - a Python JDK, JDBC, or Java framework runtime
 
 When Java source depends on those semantics, the translated Python should be treated as a
@@ -104,6 +104,8 @@ not the migration tool by itself.
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md) - benchmark presets and metric semantics
 - [Equivalence testing](EQUIVALENCE_TESTING.md) - runtime correctness strategy
 - [Configuration](configuration.md) - project-owned mapping policy
+- [Case study](CASE_STUDY.md) - end-to-end multi-file translation case study and gap
+  analysis
 - [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) - annotation map
   framework lowering
 - [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) - JDK and
