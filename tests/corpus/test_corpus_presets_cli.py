@@ -57,6 +57,36 @@ def test_resolve_args_spring_dense_preset_matches_dense_scoreboard(
     assert args.baseline.name == "spring-dense-baseline.json"
 
 
+def test_resolve_args_openjdk_java_base_preset_is_manual_scoreboard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["translate_corpus.py", "--preset", "openjdk-java-base"],
+    )
+    args = corpus.resolve_args(corpus.parse_args())
+
+    assert args.preset_name == "openjdk-java-base"
+    assert args.remote == "https://github.com/openjdk/jdk.git"
+    assert args.ref == "jdk-21+35"
+    assert args.limit == 6
+    assert args.modules == [
+        "src/java.base/share/classes/java/util",
+        "src/java.base/share/classes/java/nio/file",
+        "src/java.base/share/classes/java/time",
+    ]
+    assert args.include_path_prefixes == (
+        "src/java.base/share/classes/java/util/Objects.java",
+        "src/java.base/share/classes/java/util/Optional.java",
+        "src/java.base/share/classes/java/util/StringJoiner.java",
+        "src/java.base/share/classes/java/util/Comparator.java",
+        "src/java.base/share/classes/java/nio/file/Path.java",
+        "src/java.base/share/classes/java/time/Duration.java",
+    )
+    assert args.baseline.name == "openjdk-java-base-baseline.json"
+
+
 def test_list_presets_exits_zero(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -67,6 +97,7 @@ def test_list_presets_exits_zero(
     assert exit_code == 0
     captured = capsys.readouterr()
     assert "spring-dense" in captured.out
+    assert "openjdk-java-base" in captured.out
     assert "guava-dense" in captured.out
 
 
