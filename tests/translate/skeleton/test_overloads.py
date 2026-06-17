@@ -504,3 +504,109 @@ def test_merged_overload_block_lambda_emits_helper_before_use() -> None:
     assert "def _j2py_lambda_1(" in python_source
     assert python_source.index("def _j2py_lambda_1(") < python_source.index("return _j2py_lambda_1")
     assert_valid_python(python_source)
+
+
+def test_erased_numeric_comparison_overloads_collapse_to_single_method() -> None:
+    # The Java compare(byte/int/long) family erases to one Python signature
+    # compare(x: int, y: int). The narrow overload returns the difference form
+    # (x - y) and the wide ones the explicit sign form; both honour the Comparator
+    # sign contract and, once the integral types erase to a single unbounded Python
+    # int, the difference form cannot overflow — so the group is provably equivalent
+    # and collapses to one method instead of an impossible runtime dispatch (#379).
+    python_source, coverage = translate_source(
+        """
+        public class Cmp {
+            public static int compare(byte x, byte y) {
+                return x - y;
+            }
+            public static int compare(int x, int y) {
+                if (x == y) {
+                    return 0;
+                }
+                return x < y ? -1 : 1;
+            }
+            public static int compare(long x, long y) {
+                if (x == y) {
+                    return 0;
+                }
+                return x < y ? -1 : 1;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("def compare(") == 1
+    assert "TODO(j2py): overloaded method compare" not in python_source
+    assert "NotImplementedError" not in python_source
+    # The explicit sign form is kept as the representative — value-identical to Java
+    # for the wide overloads, sign-correct for the narrow one.
+    assert "return -1 if x < y else 1" in python_source
+    assert_module_executes(python_source)
+
+    # Runtime behaviour: the collapsed method honours the comparison sign contract,
+    # including across the full byte range (the narrow overload's domain).
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<cmp>", "exec"), namespace)
+    cmp = namespace["Cmp"]
+    assert cmp.compare(5, 2) > 0
+    assert cmp.compare(2, 5) < 0
+    assert cmp.compare(3, 3) == 0
+    assert cmp.compare(-128, 127) < 0
+
+
+def test_differing_non_comparison_bodies_do_not_collapse() -> None:
+    # Guard: same erased signature but genuinely different (non-comparison) bodies must
+    # still fall back to a manual-dispatch TODO — the comparison collapse must not
+    # over-merge unrelated numeric-width overloads.
+    python_source, coverage = translate_source(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+        }
+        """,
+    )
+
+    # The manual-dispatch fallback intentionally leaves the group uncovered (< 1.0).
+    assert coverage < 1.0
+    assert "TODO(j2py): overloaded method pick requires manual dispatch" in python_source
+    assert_valid_python(python_source)
+
+
+def test_comparison_collapse_tolerates_comments_braceless_if_and_parens() -> None:
+    # Robustness (review feedback on #379): the comparison-form recogniser must see through
+    # comment nodes, a braceless `if` consequence, and parenthesized expressions — these are
+    # all the same two sign-contract shapes, just spelled differently.
+    python_source, coverage = translate_source(
+        """
+        public class Cmp {
+            public static int compare(byte x, byte y) {
+                // narrow overload returns the difference form
+                return (x - y);
+            }
+            public static int compare(int x, int y) {
+                if (x == y) return 0;
+                return (x < y) ? -1 : 1;
+            }
+            public static int compare(long x, long y) {
+                if (x == y) {
+                    return 0;
+                }
+                return x < y ? -1 : 1;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert python_source.count("def compare(") == 1
+    assert "TODO(j2py): overloaded method compare" not in python_source
+    assert "NotImplementedError" not in python_source
+    assert_module_executes(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<cmp>", "exec"), namespace)
+    cmp = namespace["Cmp"]
+    assert cmp.compare(5, 2) > 0
+    assert cmp.compare(2, 5) < 0
+    assert cmp.compare(3, 3) == 0
