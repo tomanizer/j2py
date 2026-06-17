@@ -150,11 +150,18 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
     if receiver in {"self", ""}:
         py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
-        if not receiver and py_method in ctx.class_static_methods and ctx.containing_class_name:
-            return f"{ctx.containing_class_name}.{py_method}({args})"
+        static_collision = py_method in ctx.static_instance_static_aliases
+        static_py_method = ctx.static_instance_static_aliases.get(py_method, py_method)
+        if (
+            not receiver
+            and static_py_method in ctx.class_static_methods
+            and ctx.containing_class_name
+            and (not static_collision or args)
+        ):
+            return f"{ctx.containing_class_name}.{static_py_method}({args})"
         enclosing_class = ctx.enclosing_static_dispatch.get(py_method)
         if not receiver and enclosing_class:
-            return f"{enclosing_class}.{py_method}({args})"
+            return f"{enclosing_class}.{static_py_method}({args})"
         if not receiver and method_name in ctx.self_dispatch_methods and ctx.in_instance_method:
             return f"self.{py_method}({args})"
         if (
@@ -162,7 +169,7 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
             and method_name in ctx.static_dispatch_methods
             and ctx.static_dispatch_class_name
         ):
-            return f"{ctx.static_dispatch_class_name}.{py_method}({args})"
+            return f"{ctx.static_dispatch_class_name}.{static_py_method}({args})"
     else:
         if receiver_nodes and _receiver_is_declared_type(receiver_nodes[0], ctx):
             py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)

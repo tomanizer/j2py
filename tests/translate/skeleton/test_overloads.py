@@ -1,5 +1,7 @@
 """Skeleton translator tests — overload translation."""
 
+import pytest
+
 from tests.translate.skeleton.helpers import (
     assert_module_executes,
     assert_valid_python,
@@ -673,3 +675,377 @@ def test_comparison_collapse_tolerates_comments_braceless_if_and_parens() -> Non
     assert cmp.compare(5, 2) > 0
     assert cmp.compare(2, 5) < 0
     assert cmp.compare(3, 3) == 0
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "source", "expected_snippets"),
+    [
+        (
+            "boxed_unboxed_char",
+            """
+            public class CharUtils {
+                public static int toIntValue(char ch) { return ch; }
+                public static int toIntValue(Character ch, int defaultValue) {
+                    return defaultValue;
+                }
+            }
+            """,
+            (
+                "def to_int_value(ch: str) -> int:",
+                "def to_int_value(ch: str, default_value: int) -> int:",
+                "isinstance(args[0], str) and len(args[0]) == 1",
+            ),
+        ),
+        (
+            "fluent_builder_append",
+            """
+            public class DiffBuilder {
+                public DiffBuilder append(String fieldName, boolean value) {
+                    this.flag = value;
+                    return this;
+                }
+                public DiffBuilder append(String fieldName, int value) {
+                    this.count = value;
+                    return this;
+                }
+                public DiffBuilder append(String fieldName, Object value) {
+                    this.obj = value;
+                    return this;
+                }
+            }
+            """,
+            (
+                "def append(self, field_name: str, value: bool)",
+                "def append(self, field_name: str, value: int)",
+                "def append(self, *args: object)",
+            ),
+        ),
+        (
+            "fixed_arity_vs_varargs_numeric",
+            """
+            public class IEEE754rUtils {
+                public static int max_(int a, int b, int c) { return a; }
+                public static int max_(int... values) { return values[0]; }
+            }
+            """,
+            (
+                "def max_(a: int, b: int, c: int) -> int:",
+                "def max_(*values: int) -> int:",
+                "len(args) == 3",
+            ),
+        ),
+        (
+            "identical_fluent_builder_merge",
+            """
+            public class DiffBuilder {
+                public DiffBuilder append(String fieldName, boolean value) { return this; }
+                public DiffBuilder append(String fieldName, int value) { return this; }
+            }
+            """,
+            ("def append(self, field_name: str, value: bool | int)",),
+        ),
+    ],
+    ids=[
+        "boxed_unboxed_char",
+        "fluent_builder_append",
+        "fixed_arity_vs_varargs_numeric",
+        "identical_fluent_builder_merge",
+    ],
+)
+def test_issue_390_overload_families_avoid_manual_dispatch(
+    fixture_name: str,
+    source: str,
+    expected_snippets: tuple[str, ...],
+) -> None:
+    del fixture_name
+    result = translate_source_with_diagnostics(source)
+
+    assert result.coverage == 1.0
+    assert "requires manual dispatch" not in result.source
+    assert "NotImplementedError" not in result.source
+    for snippet in expected_snippets:
+        assert snippet in result.source
+    assert_valid_python(result.source)
+
+
+def test_static_instance_collision_split_emits_both_members() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Circuit {
+            public static boolean isOpen(Circuit breaker) {
+                return breaker.isOpen();
+            }
+
+            public boolean isOpen() {
+                return true;
+            }
+
+            public static boolean runStatic(Circuit breaker) {
+                return isOpen(breaker);
+            }
+
+            public boolean runInstance() {
+                return isOpen();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "requires manual dispatch" not in result.source
+    assert "static/instance overload split" in result.source
+    assert "def is_open_static(breaker: Circuit) -> bool:" in result.source
+    assert "def is_open(self) -> bool:" in result.source
+    assert "Circuit.is_open_static(breaker)" in result.source
+    assert "return self.is_open()" in result.source
+    assert_valid_python(result.source)
+    assert_module_executes(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<circuit>", "exec"), namespace)
+    circuit = namespace["Circuit"]
+    breaker = circuit()  # type: ignore[operator]
+    assert circuit.run_static(breaker) is True  # type: ignore[attr-defined]
+    assert breaker.run_instance() is True  # type: ignore[attr-defined]
+
+
+def test_static_instance_collision_subclass_routes_inherited_static_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Base {
+            public static boolean isOpen(Base breaker) {
+                return true;
+            }
+
+            public boolean isOpen() {
+                return false;
+            }
+        }
+
+        public class Child extends Base {
+            public static boolean run(Base breaker) {
+                return isOpen(breaker);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return Base.is_open_static(breaker)" in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<child>", "exec"), namespace)
+    base = namespace["Base"]
+    child = namespace["Child"]
+    breaker = base()
+    assert child.run(breaker) is True  # type: ignore[attr-defined]
+
+
+def test_static_instance_collision_grandchild_routes_inherited_static_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Base {
+            public static boolean isOpen(Base breaker) {
+                return true;
+            }
+
+            public boolean isOpen() {
+                return false;
+            }
+        }
+
+        public class Mid extends Base {
+        }
+
+        public class Child extends Mid {
+            public static boolean run(Base breaker) {
+                return isOpen(breaker);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return Base.is_open_static(breaker)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_static_instance_collision_preserves_instance_first_declaration_order() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Circuit {
+            public boolean isOpen() {
+                return true;
+            }
+
+            public static boolean isOpen(Circuit breaker) {
+                return breaker.isOpen();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert result.source.index("def is_open(self)") < result.source.index(
+        "def is_open_static(breaker: Circuit)",
+    )
+    assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_static_instance_collision_renames_multi_static_group() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class T {
+            public static int pick(int value) {
+                return value;
+            }
+
+            public static int pick(String value) {
+                return 1;
+            }
+
+            public int pick() {
+                return 0;
+            }
+
+            public static int runInt() {
+                return pick(2);
+            }
+
+            public int runInstance() {
+                return pick();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def pick_static(*args: object)" in result.source
+    assert "def pick(self) -> int:" in result.source
+    assert "return T.pick_static(2)" in result.source
+    assert "return self.pick()" in result.source
+    assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_char_utils_three_way_overloads_keep_review_stubs_with_value_dispatch() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CharUtils {
+            public static int toIntValue(char ch, int defaultValue) {
+                return defaultValue;
+            }
+
+            public static int toIntValue(Character ch) {
+                return ch;
+            }
+
+            public static int toIntValue(Character ch, int defaultValue) {
+                return defaultValue;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert result.source.count("@overload") == 3
+    assert "def to_int_value(*args: object)" in result.source
+    assert "len(args) == 1" in result.source
+    assert "len(args) == 2" in result.source
+    assert "@overloaded" not in result.source
+    assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<char>", "exec"), namespace)
+    char_utils = namespace["CharUtils"]
+    assert char_utils.to_int_value("a") == "a"  # type: ignore[attr-defined]
+    assert char_utils.to_int_value("b", 9) == 9  # type: ignore[attr-defined]
+
+
+def test_static_instance_collision_zero_arg_static_call_skips_renamed_static() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Circuit {
+            public static boolean isOpen(Circuit breaker) {
+                return breaker.isOpen();
+            }
+
+            public boolean isOpen() {
+                return true;
+            }
+
+            public static boolean run() {
+                return isOpen();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return is_open()" in result.source
+    assert "is_open_static()" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_static_instance_collision_module_index_merges_parent_from_other_unit() -> None:
+    from j2py.analyze.symbols import extract_symbols
+    from j2py.config.loader import ConfigLoader
+    from j2py.parse.java_ast import parse_source
+    from j2py.translate.class_members import (
+        collect_file_class_declarations,
+        collect_file_class_static_instance_aliases,
+        collect_file_class_static_methods,
+        merge_class_declaration_indexes,
+        merge_class_static_instance_alias_indexes,
+        merge_class_static_method_indexes,
+    )
+    from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+
+    cfg = ConfigLoader().add_defaults().build()
+    base_parsed = parse_source(
+        """
+        public class Base {
+            public static boolean isOpen(Base breaker) {
+                return true;
+            }
+
+            public boolean isOpen() {
+                return false;
+            }
+        }
+        """,
+    )
+    child_parsed = parse_source(
+        """
+        public class Child extends Base {
+            public static boolean run(Base breaker) {
+                return isOpen(breaker);
+            }
+        }
+        """,
+    )
+    module_methods = merge_class_static_method_indexes(
+        collect_file_class_static_methods(base_parsed.root, cfg),
+        collect_file_class_static_methods(child_parsed.root, cfg),
+    )
+    module_aliases = merge_class_static_instance_alias_indexes(
+        collect_file_class_static_instance_aliases(base_parsed.root, cfg),
+        collect_file_class_static_instance_aliases(child_parsed.root, cfg),
+    )
+    module_declarations = merge_class_declaration_indexes(
+        collect_file_class_declarations(base_parsed.root),
+        collect_file_class_declarations(child_parsed.root),
+    )
+    result = translate_skeleton_with_diagnostics(
+        child_parsed,
+        extract_symbols(child_parsed),
+        cfg,
+        module_class_static_methods=module_methods,
+        module_class_static_instance_aliases=module_aliases,
+        module_class_declarations=module_declarations,
+    )
+
+    assert result.coverage == 1.0
+    assert "return Base.is_open_static(breaker)" in result.source
+    assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)

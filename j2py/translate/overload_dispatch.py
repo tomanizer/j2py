@@ -63,6 +63,8 @@ def _value_dispatch_overload(
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
+    python_name_override: str | None = None,
+    static_instance_static_aliases: dict[str, str] | None = None,
 ) -> list[str] | None:
     """Emit ``@overload`` stubs plus one runtime value dispatcher.
 
@@ -76,8 +78,10 @@ def _value_dispatch_overload(
         return None
     if any(member.type != "method_declaration" for member in members):
         return None
-    name = member_python_name(members[0])
-    if any(member_python_name(member) != name for member in members):
+    name = python_name_override or member_python_name(members[0])
+    if python_name_override is None and any(
+        member_python_name(member) != name for member in members
+    ):
         return None
 
     is_static = "static" in _modifiers(members[0])
@@ -97,6 +101,7 @@ def _value_dispatch_overload(
             guards.append(guard)
         guards_by_member.append(guards)
 
+    branch_members = members
     if has_varargs:
         for params in params_by_member:
             spread_indices = [index for index, param in enumerate(params) if param.is_spread]
@@ -120,18 +125,33 @@ def _value_dispatch_overload(
             tuple(guard.condition_template for guard in guards) for guards in guards_by_member
         ]
         if len(set(guard_signatures)) != len(guard_signatures):
-            return None
+            collapsed = _collapse_equivalent_arity_guard_members(members, cfg)
+            if collapsed is None:
+                return None
+            branch_members = collapsed
+            params_by_member = [parameter_infos(member, cfg) for member in branch_members]
+            guards_by_member = []
+            for params in params_by_member:
+                branch_guards: list[_DispatchGuard] = []
+                for param in params:
+                    guard = _dispatch_guard_for_parameter(param)
+                    if guard is None:
+                        return None
+                    branch_guards.append(guard)
+                guards_by_member.append(branch_guards)
 
+    collapsed_member_ids = {id(member) for member in branch_members}
     for member in members:
-        diagnostics.record(
-            member,
-            supported=True,
-            reason=(
+        reason = (
+            "deduplicated equivalent arity/guard overload branch"
+            if id(member) not in collapsed_member_ids
+            else (
                 "translated static overloaded method via value dispatch"
                 if is_static
                 else "translated overloaded method via value dispatch"
-            ),
+            )
         )
+        diagnostics.record(member, supported=True, reason=reason)
 
     lines = _value_dispatch_overload_stubs(
         members,
@@ -139,6 +159,7 @@ def _value_dispatch_overload(
         diagnostics,
         containing_class_name=containing_class_name,
         is_static=is_static,
+        python_name_override=python_name_override,
     )
     if is_static:
         lines.append("    @staticmethod  # type: ignore[misc]")
@@ -170,7 +191,7 @@ def _value_dispatch_overload(
         lines.append("")
 
     ordered = sorted(
-        enumerate(zip(members, params_by_member, guards_by_member, strict=True)),
+        enumerate(zip(branch_members, params_by_member, guards_by_member, strict=True)),
         key=lambda item: (*_value_dispatch_branch_order_key(item[1]), item[0]),
     )
     for _, (member, params, guards) in ordered:
@@ -200,6 +221,7 @@ def _value_dispatch_overload(
             inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
             nested_class_names=nested_class_names or set(),
             indent="            ",
+            static_instance_static_aliases=static_instance_static_aliases or {},
         )
         lines.extend(branch_lines)
 
@@ -214,6 +236,7 @@ def _value_dispatch_overload_stubs(
     *,
     containing_class_name: str,
     is_static: bool,
+    python_name_override: str | None = None,
 ) -> list[str]:
     diagnostics.imports.need_typing("overload")
     lines: list[str] = []
@@ -233,7 +256,7 @@ def _value_dispatch_overload_stubs(
             for param in params:
                 diagnostics.imports.need_type_annotation(param.py_type)
         signature = render_method_signature(
-            member_python_name(member),
+            python_name_override or member_python_name(member),
             params,
             return_type=return_type,
             include_self=not is_static,
@@ -421,6 +444,7 @@ def _translate_static_overload_branch_body(
     inner_class_names_requiring_outer: set[str],
     nested_class_names: set[str],
     indent: str,
+    static_instance_static_aliases: dict[str, str] | None = None,
 ) -> list[str]:
     name_node = member.child_by_field("name")
     java_name = name_node.text if name_node is not None else ""
@@ -446,6 +470,7 @@ def _translate_static_overload_branch_body(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
         containing_class_name=containing_class_name,
         nested_class_names=nested_class_names,
+        static_instance_static_aliases=dict(static_instance_static_aliases or {}),
     )
     ctx.in_instance_method = False
     for param in parameter_infos(member, cfg):
@@ -496,6 +521,7 @@ def _translate_overload_branch_body(
     inner_class_names_requiring_outer: set[str],
     nested_class_names: set[str],
     indent: str,
+    static_instance_static_aliases: dict[str, str] | None = None,
 ) -> list[str]:
     name_node = member.child_by_field("name")
     java_name = name_node.text if name_node is not None else ""
@@ -520,6 +546,7 @@ def _translate_overload_branch_body(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
         containing_class_name=containing_class_name,
         nested_class_names=nested_class_names,
+        static_instance_static_aliases=dict(static_instance_static_aliases or {}),
     )
     ctx.in_instance_method = True
     for param in parameter_infos(member, cfg):
@@ -572,6 +599,8 @@ def _dispatch_overload_members(
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
+    python_name_override: str | None = None,
+    static_instance_static_aliases: dict[str, str] | None = None,
 ) -> list[str] | None:
     """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
 
@@ -642,6 +671,7 @@ def _dispatch_overload_members(
             inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
             containing_class_name=containing_class_name,
             nested_class_names=nested_class_names or set(),
+            static_instance_static_aliases=dict(static_instance_static_aliases or {}),
         )
         member_pre_body = (
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []
@@ -656,6 +686,7 @@ def _dispatch_overload_members(
                 def_line_suffix=("" if index == 0 else "  # type: ignore[no-redef]  # noqa: F811"),
                 supported_reason=reason,
                 docstring_lines=docstring_lines if index == len(members) - 1 else None,
+                python_name_override=python_name_override,
             ),
         )
     return lines
@@ -717,6 +748,69 @@ def _deduplicate_same_body_erased_sig(
 
     if len(reduced) == len(members):
         return None  # no deduplication actually happened
+    return reduced
+
+
+def _member_body_equivalence_key(member: JavaNode, cfg: TranslationConfig) -> str:
+    form = _comparison_body_form(member, cfg)
+    if form is not None:
+        return _COMPARISON_BODY_KEY
+    body = method_body(member)
+    return body.text.strip() if body is not None else ""
+
+
+def _arity_guard_signature(
+    params: list[ParameterInfo],
+    guards: list[_DispatchGuard],
+) -> tuple[int, tuple[str | None, ...]]:
+    return (
+        len(params),
+        tuple(
+            guard.condition_template if guard.condition_template is not None else "*"
+            for guard in guards
+        ),
+    )
+
+
+def _collapse_equivalent_arity_guard_members(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+) -> list[JavaNode] | None:
+    """Collapse overloads that share arity and runtime guards when bodies are equivalent.
+
+    Motivating case: ``toIntValue(char, int)`` and ``toIntValue(Character, int)`` erase to
+    the same Python guards but can share one value-dispatch branch while every Java overload
+    keeps an ``@overload`` stub for review.
+    """
+    if any(member.type != "method_declaration" for member in members):
+        return None
+
+    groups: dict[tuple[int, tuple[str | None, ...]], list[JavaNode]] = {}
+    for member in members:
+        params = parameter_infos(member, cfg)
+        if any(param.is_spread for param in params):
+            return None
+        guards: list[_DispatchGuard] = []
+        for param in params:
+            guard = _dispatch_guard_for_parameter(param)
+            if guard is None:
+                return None
+            guards.append(guard)
+        key = _arity_guard_signature(params, guards)
+        groups.setdefault(key, []).append(member)
+
+    reduced: list[JavaNode] = []
+    for group_members in groups.values():
+        if len(group_members) == 1:
+            reduced.append(group_members[0])
+            continue
+        body_keys = {_member_body_equivalence_key(member, cfg) for member in group_members}
+        if len(body_keys) != 1:
+            return None
+        reduced.append(group_members[0])
+
+    if len(reduced) == len(members):
+        return None
     return reduced
 
 

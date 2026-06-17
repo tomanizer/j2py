@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
@@ -96,6 +96,8 @@ def _overload_stubs(
     members: list[JavaNode],
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    python_name_for_member: Callable[[JavaNode], str] | None = None,
 ) -> list[str]:
     diagnostics.imports.need_typing("overload")
     lines: list[str] = []
@@ -112,8 +114,13 @@ def _overload_stubs(
             diagnostics.imports.need_type_annotation(return_type)
             for param in params:
                 diagnostics.imports.need_type_annotation(param.py_type)
+        py_name = (
+            python_name_for_member(member)
+            if python_name_for_member is not None
+            else member_python_name(member)
+        )
         signature = render_method_signature(
-            member_python_name(member),
+            py_name,
             params,
             return_type=return_type,
             include_self=not is_static,
@@ -121,3 +128,24 @@ def _overload_stubs(
         )
         lines.append(f"    {signature}: ...")
     return lines
+
+
+def _static_instance_overload_stubs(
+    members: list[JavaNode],
+    *,
+    canonical_name: str,
+    static_name: str,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    def python_name_for_member(member: JavaNode) -> str:
+        if "static" in _modifiers(member):
+            return static_name
+        return canonical_name
+
+    return _overload_stubs(
+        members,
+        cfg,
+        diagnostics,
+        python_name_for_member=python_name_for_member,
+    )

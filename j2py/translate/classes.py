@@ -26,12 +26,17 @@ from j2py.translate.class_members import (
     docstring_for_group,
     enclosing_static_dispatch_for_nested_types,
     inherited_static_dispatch,
+    inherited_static_instance_static_aliases,
     member_docstrings,
     member_groups,
     member_method_names,
     member_static_method_names,
+    merge_class_declaration_indexes,
+    merge_class_static_instance_alias_indexes,
+    merge_class_static_method_indexes,
     nested_type_names_using_qualified_this,
     node_key,
+    static_instance_collision_static_aliases,
     type_metadata_comment_lines,
 )
 from j2py.translate.class_methods import (
@@ -92,6 +97,11 @@ def translate_class(
     outer_self_alias: str | None = None,
     requires_outer_self: bool = False,
     file_class_static_methods: dict[str, set[str]] | None = None,
+    file_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
+    file_class_declarations: dict[str, JavaNode] | None = None,
+    module_class_static_methods: dict[str, set[str]] | None = None,
+    module_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
+    module_class_declarations: dict[str, JavaNode] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
     interface_type_var_maps: dict[tuple[int, int, int, int, str], dict[str, str]] | None = None,
 ) -> list[str]:
@@ -201,9 +211,37 @@ def translate_class(
     )
     class_method_names = member_method_names(members, cfg)
     class_static_method_names = member_static_method_names(members, cfg)
+    merged_static_methods = merge_class_static_method_indexes(
+        module_class_static_methods or {},
+        file_class_static_methods or {},
+    )
+    merged_static_instance_aliases = merge_class_static_instance_alias_indexes(
+        module_class_static_instance_aliases or {},
+        file_class_static_instance_aliases or {},
+    )
+    merged_class_declarations = merge_class_declaration_indexes(
+        module_class_declarations or {},
+        file_class_declarations or {},
+    )
+    own_collision_aliases = static_instance_collision_static_aliases(members, cfg)
+    inherited_collision_aliases = inherited_static_instance_static_aliases(
+        node,
+        merged_static_instance_aliases,
+        merged_class_declarations,
+        cfg,
+    )
+    static_instance_aliases = {**inherited_collision_aliases, **own_collision_aliases}
     method_return_types = class_method_return_types(members, cfg)
     enclosing_dispatch = dict(enclosing_static_dispatch or {})
-    enclosing_dispatch.update(inherited_static_dispatch(node, file_class_static_methods or {}, cfg))
+    enclosing_dispatch.update(
+        inherited_static_dispatch(
+            node,
+            merged_static_methods,
+            merged_static_instance_aliases,
+            merged_class_declarations,
+            cfg,
+        ),
+    )
     nested_enclosing_dispatch = enclosing_static_dispatch_for_nested_types(
         class_name=class_name,
         class_static_methods=class_static_method_names,
@@ -278,6 +316,11 @@ def translate_class(
         name_resolver=resolver,
         outer_capture_names=nested_outer_capture_names,
         file_class_static_methods=file_class_static_methods,
+        file_class_static_instance_aliases=file_class_static_instance_aliases,
+        file_class_declarations=file_class_declarations,
+        module_class_static_methods=module_class_static_methods,
+        module_class_static_instance_aliases=module_class_static_instance_aliases,
+        module_class_declarations=module_class_declarations,
         enclosing_static_dispatch=nested_enclosing_dispatch,
         interface_type_var_maps=interface_type_var_maps,
     )
@@ -355,6 +398,7 @@ def translate_class(
                     inner_class_names_requiring_outer=nested_outer_capture_names,
                     nested_class_names=direct_nested_names,
                     enclosing_static_dispatch=enclosing_dispatch,
+                    static_instance_static_aliases=static_instance_aliases,
                 ),
             )
             continue
@@ -382,6 +426,7 @@ def translate_class(
             containing_class_name=class_name,
             nested_class_names=direct_nested_names,
             enclosing_static_dispatch=enclosing_dispatch,
+            static_instance_static_aliases=static_instance_aliases,
         )
         pre_body_lines = (
             lock_init_lines + instance_init_lines
@@ -502,6 +547,8 @@ def translate_overloaded_members(
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
+    static_instance_static_aliases: dict[str, str] | None = None,
+    python_name_override: str | None = None,
 ) -> list[str]:
     from j2py.translate.overloads import translate_overloaded_members as impl
 
@@ -528,4 +575,6 @@ def translate_overloaded_members(
         docstring_lines=docstring_lines,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         nested_class_names=nested_class_names or set(),
+        static_instance_static_aliases=static_instance_static_aliases,
+        python_name_override=python_name_override,
     )

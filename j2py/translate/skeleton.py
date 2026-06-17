@@ -12,6 +12,10 @@ from j2py.translate.class_fields import (
     _collect_declared_type_java_fields,
 )
 from j2py.translate.class_interfaces import interface_type_var_plan
+from j2py.translate.class_members import (
+    collect_file_class_declarations,
+    collect_file_class_static_instance_aliases,
+)
 from j2py.translate.class_methods import collect_declared_type_method_return_types
 from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
@@ -59,6 +63,10 @@ def translate_skeleton_with_diagnostics(
     parsed: ParsedFile,
     symbols: FileSymbols,
     cfg: TranslationConfig,
+    *,
+    module_class_static_methods: dict[str, set[str]] | None = None,
+    module_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
+    module_class_declarations: dict[str, JavaNode] | None = None,
 ) -> SkeletonTranslation:
     """Produce a partial Python translation with structured coverage diagnostics."""
     diagnostics = TranslationDiagnostics()
@@ -82,6 +90,11 @@ def translate_skeleton_with_diagnostics(
         cfg,
     )
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
+    file_class_static_instance_aliases = collect_file_class_static_instance_aliases(
+        parsed.root,
+        cfg,
+    )
+    file_class_declarations = collect_file_class_declarations(parsed.root)
     type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
     class_blocks: list[list[str]] = []
     pending_docstring: list[str] | None = None
@@ -108,6 +121,11 @@ def translate_skeleton_with_diagnostics(
                     module_declared_type_method_return_types
                 ),
                 file_class_static_methods=file_class_static_methods,
+                file_class_static_instance_aliases=file_class_static_instance_aliases,
+                file_class_declarations=file_class_declarations,
+                module_class_static_methods=module_class_static_methods,
+                module_class_static_instance_aliases=module_class_static_instance_aliases,
+                module_class_declarations=module_class_declarations,
                 interface_type_var_maps=type_var_plan.interface_type_var_maps,
             )
         )

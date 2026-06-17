@@ -110,14 +110,19 @@ def translate_method(
     def_line_suffix: str = "",
     supported_reason: str | None = None,
     docstring_lines: list[str] | None = None,
+    python_name_override: str | None = None,
     type_var_map: dict[str, str] | None = None,
 ) -> list[str]:
     name_node = node.child_by_field("name")
     raw_name = name_node.text if name_node is not None else "unknown"
     py_name = (
-        "__init__"
-        if node.type == "constructor_declaration"
-        else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+        python_name_override
+        if python_name_override is not None
+        else (
+            "__init__"
+            if node.type == "constructor_declaration"
+            else translate_method_name(raw_name, snake_case=ctx.cfg.snake_case_methods)
+        )
     )
     target_kind = "constructor" if node.type == "constructor_declaration" else "method"
     record_annotation_diagnostics(
