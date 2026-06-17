@@ -124,6 +124,31 @@ annotation_map:
     assert cfg.annotation_map["Autowired"].emit_init_param is True
 
 
+@pytest.mark.parametrize(
+    ("filename", "content", "requires_yaml"),
+    [
+        ("j2py_config.py", "emit_wiring_metadata = True\n", False),
+        ("j2py.toml", "emit_wiring_metadata = true\n", False),
+        ("pyproject.toml", "[tool.j2py]\nemit_wiring_metadata = true\n", False),
+        ("j2py.yaml", "emit_wiring_metadata: true\n", True),
+    ],
+)
+def test_config_loader_loads_emit_wiring_metadata_flag(
+    tmp_path: Path,
+    filename: str,
+    content: str,
+    requires_yaml: bool,
+) -> None:
+    if requires_yaml:
+        pytest.importorskip("yaml")
+    config_file = tmp_path / filename
+    config_file.write_text(content)
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.emit_wiring_metadata is True
+
+
 def test_config_loader_rejects_unknown_annotation_map_entry_key(tmp_path: Path) -> None:
     config_file = tmp_path / "j2py.toml"
     config_file.write_text(

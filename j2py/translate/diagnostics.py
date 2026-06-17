@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from j2py.config.loader import TranslationConfig
+from j2py.framework import FrameworkMetadataRecord
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.runtime import (
@@ -105,6 +106,7 @@ class TranslationDiagnostics:
     # whose initializer references the enclosing class (e.g. a `NULL` singleton): such an
     # assignment cannot run inside the class body, where the class name is not yet bound.
     deferred_module_lines: list[str] = field(default_factory=list)
+    framework_metadata: list[FrameworkMetadataRecord] = field(default_factory=list)
 
     def record(
         self,

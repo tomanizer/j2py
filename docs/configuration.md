@@ -133,6 +133,7 @@ Scalar options:
 - `emit_line_comments`: bool
 - `emit_docstrings`: bool
 - `confidence_comments`: bool
+- `emit_wiring_metadata`: bool
 - `target_python`: string
 - `workers`: int
 - `llm_concurrency`: int
@@ -155,6 +156,7 @@ Mapping options:
 - `import_map`: map Java imports to Python import statements
 - `annotation_map`: map Java annotation simple names or fully qualified names to explicit
   Python lowering behavior
+- `framework_plugins`: trusted Python plugin objects for programmatic framework lowering
 
 Each `annotation_map` entry is strict. Supported entry fields:
 
@@ -178,6 +180,46 @@ For a worked Spring example, see the [Spring → FastAPI/SQLAlchemy mapping
 cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as both
 [`spring-to-fastapi.toml`](examples/spring-to-fastapi.toml) (loads via the stdlib) and
 [`spring-to-fastapi.yaml`](examples/spring-to-fastapi.yaml) (needs the `[yaml]` extra).
+
+## Framework Plugins
+
+`framework_plugins` is the Tier 4 extension point for framework annotations whose lowering
+needs programmatic logic rather than a one-to-one `annotation_map` entry. Plugins subclass
+`j2py.framework.FrameworkPlugin` and may implement any of `transform_class`,
+`transform_field`, or `transform_method`.
+
+Plugins are trusted Python objects, so they can only be registered from a `.py` config file.
+YAML, TOML, and `pyproject.toml` can enable `emit_wiring_metadata`, but they cannot carry
+plugin instances.
+
+```python
+# j2py_config.py
+from my_project.j2py_plugins import MyFrameworkPlugin
+
+framework_plugins = [MyFrameworkPlugin()]
+emit_wiring_metadata = True
+```
+
+Resolution is per element: plugins run in registration order, and the first plugin returning
+`handled=True` wins for that class, field, or method. A handled plugin suppresses later
+plugins and the Tier 2 `annotation_map` for that element. A plugin returning
+`handled=False`, returning an invalid result, or raising an exception falls through to
+`annotation_map` and then Tier 1 annotation comments with a diagnostic warning.
+
+When `emit_wiring_metadata = True`, file and directory translation write a sidecar next to
+translated Python files only when handled plugin results include non-empty JSON-serializable
+metadata:
+
+```text
+orders.py
+orders.wiring.json
+```
+
+The sidecar is versioned and records source/output paths, plugin name, element kind,
+Java/Python names, annotations, and plugin metadata. If a later translation no longer has
+metadata for the file, j2py removes the stale sidecar. j2py core does not consume this file
+or generate framework bootstrap code; it is intended for downstream tooling such as the
+planned `j2py-wire` follow-up.
 
 Set/list options:
 
