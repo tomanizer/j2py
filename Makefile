@@ -19,7 +19,7 @@ SPRING_DENSE_ARGS := --preset spring-dense
 
 # ── Primary targets ──────────────────────────────────────────────────────────
 
-check: lint typecheck test  ## Run all checks (alias for ci-local-pr)
+check: lint typecheck test  ## Run the normal local gate: lint + typecheck + test
 
 lint:  ## Lint with ruff (includes format check)
 	uv run --extra dev ruff check j2py/ tests/ scripts/equivalence/
@@ -157,7 +157,7 @@ harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draf
 
 test-cov:  ## Run tests with coverage report
 	uv run --extra dev pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
-	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90
+	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
 
 corpus-list-presets:  ## List pinned external Java corpus presets
 	$(CORPUS) --list-presets
@@ -245,9 +245,9 @@ corpus-caffeine-dense-update-baseline:  ## Regenerate the Caffeine dense corpus 
 # These mirror exactly what GitHub Actions runs. If make ci-local-pr passes,
 # CI will pass.
 
-ci-local-pr: check  ## For code/test/docs PRs — lint + typecheck + test
+ci-local-pr: check test-cov  ## For code/test/docs PRs — normal gate + coverage floors
 
-ci-local-governance: check  ## For CI/tooling/dependency PRs — same gates, explicit label
+ci-local-governance: ci-local-pr  ## For CI/tooling/dependency PRs — same gates, explicit label
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
