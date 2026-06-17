@@ -2503,6 +2503,68 @@ def test_null_comparison_uses_python_identity_operators() -> None:
     assert_valid_python(python_source)
 
 
+def test_ternary_ignores_inline_comments_near_true_branch() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Ternaries {
+            public String choose(boolean flag) {
+                return flag ? /* true branch */ "yes" : "no";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'return "yes" if flag else "no"' in result.source
+    assert "malformed ternary expression" not in result.source
+    assert "true branch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_ternary_ignores_inline_comments_near_false_branch() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Ternaries {
+            public String choose(boolean flag) {
+                return flag ? "yes" : /* false branch */ "no";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'return "yes" if flag else "no"' in result.source
+    assert "malformed ternary expression" not in result.source
+    assert "false branch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_multiline_ternary_ignores_comments_around_string_concatenation() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Ternaries {
+            public String label(boolean enabled, String name) {
+                return enabled
+                        ? // display name
+                          "[" + name + "]"
+                        : /* fallback label */
+                          "missing:" + name;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'return f"[{name}]" if enabled else f"missing:{name}"' in result.source
+    assert "malformed ternary expression" not in result.source
+    assert "display name" not in result.source
+    assert "fallback label" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_stream_with_block_lambda_uses_helper_in_chain() -> None:
     """Phase 1: block lambda in stream (non-rewritten case) uses helper name."""
     # Integration test for block lambda support inside stream chains that don't
