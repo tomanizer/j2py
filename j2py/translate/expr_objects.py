@@ -145,7 +145,7 @@ def _translate_anonymous_class(
     helper_id = len(ctx.pending_local_helpers) + 1
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
-    base_clause = "" if base_name in {"Comparator"} else f"({base_name})"
+    base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
     needs_outer_self = _uses_qualified_this(body_node)
     outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
     if needs_outer_self and outer_self_alias is None:
@@ -162,6 +162,8 @@ def _translate_anonymous_class(
     helper_lines.append(f"        class {helper_name}{base_clause}:")
 
     instance_fields: list[FieldInfo] = []
+    static_fields: list[FieldInfo] = []
+    init_members: list[FieldInfo | JavaNode] = []
     methods: list[JavaNode] = []
     for member in body_node.named_children:
         if is_comment(member):
@@ -174,12 +176,10 @@ def _translate_anonymous_class(
                 if field.is_static:
                     ctx.diagnostics.record(
                         member,
-                        supported=False,
-                        reason="unsupported anonymous class static field_declaration",
+                        supported=True,
+                        reason="translated anonymous class static field",
                     )
-                    helper_lines.append(
-                        "            # TODO(j2py): unsupported anonymous class static field",
-                    )
+                    static_fields.append(field)
                     continue
                 ctx.diagnostics.record(
                     member,
@@ -187,6 +187,15 @@ def _translate_anonymous_class(
                     reason="translated anonymous class instance field",
                 )
                 instance_fields.append(field)
+                init_members.append(field)
+            continue
+        if member.type == "block":
+            ctx.diagnostics.record(
+                member,
+                supported=True,
+                reason="translated anonymous class member block",
+            )
+            init_members.append(member)
             continue
         if member.type == "method_declaration":
             methods.append(member)
@@ -208,9 +217,23 @@ def _translate_anonymous_class(
     previous_return_types = dict(ctx.class_method_return_types)
     ctx.class_method_return_types = class_method_return_types(methods, ctx.cfg)
     wrote_member = False
-    if instance_fields:
+    if static_fields:
+        for field in static_fields:
+            helper_lines.extend(_anonymous_static_field_lines(field, ctx, helper_name))
+        wrote_member = True
+
+    if init_members:
+        if wrote_member:
+            helper_lines.append("")
         helper_lines.extend(
-            _anonymous_helper_init_lines(instance_fields, ctx),
+            _anonymous_helper_init_lines(
+                instance_fields,
+                ctx,
+                init_members=init_members,
+                extra_self_dispatch_methods=_receiverless_method_invocation_names(
+                    init_members, ctx
+                ),
+            ),
         )
         wrote_member = True
 
@@ -260,6 +283,8 @@ def _anonymous_helper_init_lines(
     fields: list[FieldInfo],
     ctx: TranslationContext,
     *,
+    init_members: list[FieldInfo | JavaNode] | None = None,
+    extra_self_dispatch_methods: set[str] | None = None,
     def_indent: str = "            ",
     body_indent: str = "                ",
 ) -> list[str]:
@@ -268,6 +293,7 @@ def _anonymous_helper_init_lines(
         _field_assignment,
         _instance_field_names,
     )
+    from j2py.translate.statements import translate_body
 
     lines = [f"{def_indent}def __init__(self):"]
     field_ctx = TranslationContext(
@@ -280,8 +306,20 @@ def _anonymous_helper_init_lines(
         declared_type_java_fields=dict(ctx.declared_type_java_fields),
         name_resolver=ctx.name_resolver,
         in_instance_method=True,
+        class_methods=set(ctx.class_methods) | set(extra_self_dispatch_methods or set()),
     )
-    for field in fields:
+    for member in init_members or fields:
+        if not isinstance(member, FieldInfo):
+            start_index = len(field_ctx.pending_local_helpers)
+            body_lines = translate_body(member, field_ctx, indent=body_indent)
+            nested_helpers = field_ctx.pending_local_helpers[start_index:]
+            del field_ctx.pending_local_helpers[start_index:]
+            for helper in nested_helpers:
+                lines.extend(_anonymous_reindent_helper(helper, target_base_indent=body_indent))
+            lines.extend(body_lines)
+            continue
+
+        field = member
         if field.initializer is not None:
             assignment = (
                 f"{_field_assignment(f'self.{field.py_name}', field.py_type, ctx.cfg)} = "
@@ -296,6 +334,84 @@ def _anonymous_helper_init_lines(
             )
         lines.append(f"{body_indent}{assignment}")
     return lines
+
+
+def _anonymous_static_field_lines(
+    field: FieldInfo,
+    ctx: TranslationContext,
+    helper_name: str,
+    *,
+    indent: str = "            ",
+) -> list[str]:
+    from j2py.translate.class_fields import _field_assignment
+
+    static_ctx = TranslationContext(
+        cfg=ctx.cfg,
+        diagnostics=ctx.diagnostics,
+        class_field_types={field.name: field.py_type},
+        class_field_java_types={field.name: field.java_type},
+        declared_type_fields=dict(ctx.declared_type_fields),
+        declared_type_java_fields=dict(ctx.declared_type_java_fields),
+        name_resolver=ctx.name_resolver,
+        containing_class_name=helper_name,
+    )
+    if field.initializer is not None:
+        value = translate_expression(field.initializer, static_ctx)
+    else:
+        value = java_default_value(field.java_type)
+    if ctx.cfg.emit_type_hints:
+        annotation = field.py_type if value != "None" else f"{field.py_type} | None"
+        ctx.diagnostics.imports.need_type_annotation(annotation)
+        target = _field_assignment(field.py_name, annotation, ctx.cfg)
+    else:
+        target = field.py_name
+
+    lines: list[str] = []
+    for helper in static_ctx.pending_local_helpers:
+        lines.extend(_anonymous_reindent_helper(helper, target_base_indent=indent))
+    lines.append(f"{indent}{target} = {value}")
+    return lines
+
+
+def _anonymous_reindent_helper(
+    helper_lines: list[str],
+    *,
+    target_base_indent: str,
+) -> list[str]:
+    source_base_indent = "        "
+    indent_shift = len(target_base_indent) - len(source_base_indent)
+    reindented: list[str] = []
+    for line in helper_lines:
+        if not line.strip():
+            reindented.append(line)
+            continue
+        leading_spaces = len(line) - len(line.lstrip(" "))
+        new_leading = max(0, leading_spaces + indent_shift)
+        reindented.append(" " * new_leading + line.lstrip(" "))
+    return reindented
+
+
+def _receiverless_method_invocation_names(
+    members: list[FieldInfo | JavaNode],
+    ctx: TranslationContext,
+) -> set[str]:
+    names: set[str] = set()
+    for member in members:
+        if isinstance(member, FieldInfo):
+            continue
+        for invocation in member.find_all("method_invocation"):
+            named = invocation.named_children
+            args_node = first_child_by_type(invocation, "argument_list")
+            if args_node is None or len(named) < 2:
+                continue
+            args_index = named.index(args_node)
+            if args_index > 1:
+                continue
+            method_node = named[args_index - 1]
+            names.add(
+                translate_method_name(method_node.text, snake_case=ctx.cfg.snake_case_methods)
+            )
+    return names
 
 
 def _anonymous_method_lines(
