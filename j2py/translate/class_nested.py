@@ -26,6 +26,11 @@ def nested_type_lines(
     name_resolver: NameResolver,
     outer_capture_names: set[str] | None = None,
     file_class_static_methods: dict[str, set[str]] | None = None,
+    file_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
+    file_class_declarations: dict[str, JavaNode] | None = None,
+    module_class_static_methods: dict[str, set[str]] | None = None,
+    module_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
+    module_class_declarations: dict[str, JavaNode] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
     interface_type_var_maps: dict[tuple[int, int, int, int, str], dict[str, str]] | None = None,
 ) -> list[str]:
@@ -71,6 +76,11 @@ def nested_type_lines(
                 type_name_of(node=child) in capture_names and child.type == "class_declaration"
             ),
             file_class_static_methods=file_class_static_methods,
+            file_class_static_instance_aliases=file_class_static_instance_aliases,
+            file_class_declarations=file_class_declarations,
+            module_class_static_methods=module_class_static_methods,
+            module_class_static_instance_aliases=module_class_static_instance_aliases,
+            module_class_declarations=module_class_declarations,
             enclosing_static_dispatch=enclosing_static_dispatch,
             interface_type_var_maps=interface_type_var_maps,
         )

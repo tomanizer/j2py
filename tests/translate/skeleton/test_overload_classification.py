@@ -212,3 +212,29 @@ def test_classifies_varargs_erasure_collisions_as_unsafe() -> None:
     assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
     assert classification.erased_signatures == (("*int",), ("*int",))
     assert "indistinguishable Python runtime shapes" in classification.reason
+
+
+def test_classifies_equivalent_arity_guard_collisions_as_value_dispatch_safe() -> None:
+    group = _overload_group(
+        """
+        public class CharUtils {
+            public static int toIntValue(char ch, int defaultValue) {
+                return defaultValue;
+            }
+
+            public static int toIntValue(Character ch) {
+                return ch;
+            }
+
+            public static int toIntValue(Character ch, int defaultValue) {
+                return defaultValue;
+            }
+        }
+        """,
+        "to_int_value",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.VALUE_DISPATCH_SAFE
+    assert "equivalent arity/guard collisions collapsed" in classification.reason

@@ -18,6 +18,27 @@ from j2py.translate.rules.types import (
 )
 
 
+def _route_static_instance_collision_to_static(
+    py_method: str,
+    args: str,
+    ctx: TranslationContext,
+) -> bool:
+    """Whether a receiverless collision call should dispatch to the static rename."""
+    if py_method not in ctx.static_instance_static_aliases:
+        return True
+    if args:
+        return True
+    instance_zero = py_method in ctx.static_instance_instance_zero_arg_names
+    static_zero = py_method in ctx.static_instance_static_zero_arg_names
+    if static_zero and not instance_zero:
+        return True
+    if instance_zero and not static_zero:
+        return False
+    if static_zero and instance_zero:
+        return not ctx.in_instance_method
+    return False
+
+
 def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str:
     from j2py.translate.expr_streams import _translate_stream_pipeline
 
@@ -150,19 +171,30 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
 
     if receiver in {"self", ""}:
         py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
-        if not receiver and py_method in ctx.class_static_methods and ctx.containing_class_name:
-            return f"{ctx.containing_class_name}.{py_method}({args})"
+        static_py_method = ctx.static_instance_static_aliases.get(py_method, py_method)
+        if (
+            not receiver
+            and static_py_method in ctx.class_static_methods
+            and ctx.containing_class_name
+            and _route_static_instance_collision_to_static(py_method, args, ctx)
+        ):
+            return f"{ctx.containing_class_name}.{static_py_method}({args})"
         enclosing_class = ctx.enclosing_static_dispatch.get(py_method)
-        if not receiver and enclosing_class:
-            return f"{enclosing_class}.{py_method}({args})"
+        if (
+            not receiver
+            and enclosing_class
+            and _route_static_instance_collision_to_static(py_method, args, ctx)
+        ):
+            return f"{enclosing_class}.{static_py_method}({args})"
         if not receiver and method_name in ctx.self_dispatch_methods and ctx.in_instance_method:
             return f"self.{py_method}({args})"
         if (
             not receiver
             and method_name in ctx.static_dispatch_methods
             and ctx.static_dispatch_class_name
+            and _route_static_instance_collision_to_static(py_method, args, ctx)
         ):
-            return f"{ctx.static_dispatch_class_name}.{py_method}({args})"
+            return f"{ctx.static_dispatch_class_name}.{static_py_method}({args})"
     else:
         if receiver_nodes and _receiver_is_declared_type(receiver_nodes[0], ctx):
             py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)

@@ -12,6 +12,7 @@ from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import method_body, parameter_infos
 from j2py.translate.class_model import _modifiers
 from j2py.translate.overload_dispatch import (
+    _collapse_equivalent_arity_guard_members,
     _comparison_body_form,
     _deduplicate_same_body_erased_sig,
     _dispatch_guard_for_parameter,
@@ -114,6 +115,20 @@ def classify_overload_group(
         return OverloadClassification(
             OverloadKind.VALUE_DISPATCH_SAFE,
             "runtime-checkable value guards are pairwise distinct",
+            erased,
+            guard_signatures,
+        )
+    if (
+        guard_signatures is not None
+        and _collapse_equivalent_arity_guard_members(
+            members,
+            cfg,
+        )
+        is not None
+    ):
+        return OverloadClassification(
+            OverloadKind.VALUE_DISPATCH_SAFE,
+            "equivalent arity/guard collisions collapsed for value dispatch",
             erased,
             guard_signatures,
         )

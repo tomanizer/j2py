@@ -185,6 +185,86 @@ def _superclass_binding(
     return resolved.python_name
 
 
+STATIC_INSTANCE_STATIC_SUFFIX = "_static"
+
+
+def _member_java_parameter_count(member: JavaNode) -> int:
+    params_node = member.child_by_field("parameters")
+    if params_node is None:
+        return 0
+    return sum(1 for child in params_node.named_children if child.type == "formal_parameter")
+
+
+def _member_translated_python_name(member: JavaNode, cfg: TranslationConfig) -> str:
+    return translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
+
+
+def static_instance_collision_python_names(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> frozenset[str]:
+    """Python names shared by both static and instance Java overload members."""
+    grouped: dict[str, list[JavaNode]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        name = _member_translated_python_name(member, cfg)
+        grouped.setdefault(name, []).append(member)
+    collisions: set[str] = set()
+    for name, group in grouped.items():
+        if len(group) < 2:
+            continue
+        has_static = any("static" in _modifiers(item) for item in group)
+        has_instance = any("static" not in _modifiers(item) for item in group)
+        if has_static and has_instance:
+            collisions.add(name)
+    return frozenset(collisions)
+
+
+def static_instance_collision_static_python_name(canonical_name: str) -> str:
+    """Rename static overload members when an instance overload shares the name."""
+    return f"{canonical_name}{STATIC_INSTANCE_STATIC_SUFFIX}"
+
+
+def static_instance_collision_static_aliases(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    """Map canonical Python method names to emitted static overload names."""
+    return {
+        name: static_instance_collision_static_python_name(name)
+        for name in static_instance_collision_python_names(members, cfg)
+    }
+
+
+def static_instance_collision_zero_arg_names(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Return collision names with a zero-parameter overload on each side."""
+    grouped: dict[str, list[JavaNode]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        name = _member_translated_python_name(member, cfg)
+        grouped.setdefault(name, []).append(member)
+
+    instance_zero: set[str] = set()
+    static_zero: set[str] = set()
+    for name, group in grouped.items():
+        if len(group) < 2:
+            continue
+        static_members = [item for item in group if "static" in _modifiers(item)]
+        instance_members = [item for item in group if "static" not in _modifiers(item)]
+        if not static_members or not instance_members:
+            continue
+        if any(_member_java_parameter_count(item) == 0 for item in static_members):
+            static_zero.add(name)
+        if any(_member_java_parameter_count(item) == 0 for item in instance_members):
+            instance_zero.add(name)
+    return frozenset(instance_zero), frozenset(static_zero)
+
+
 def member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
     return {
         translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
@@ -193,11 +273,17 @@ def member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> 
 
 
 def member_static_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
-    return {
-        translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
-        for member in members
-        if member.type == "method_declaration" and "static" in _modifiers(member)
-    }
+    collisions = static_instance_collision_python_names(members, cfg)
+    names: set[str] = set()
+    for member in members:
+        if member.type != "method_declaration" or "static" not in _modifiers(member):
+            continue
+        py_name = _member_translated_python_name(member, cfg)
+        if py_name in collisions:
+            names.add(static_instance_collision_static_python_name(py_name))
+        else:
+            names.add(py_name)
+    return names
 
 
 def collect_file_class_static_methods(
@@ -236,6 +322,125 @@ def collect_file_class_static_methods(
     return result
 
 
+def collect_file_class_static_instance_aliases(
+    root: JavaNode,
+    cfg: TranslationConfig,
+) -> dict[str, dict[str, str]]:
+    """Map translated class name to static/instance collision rename aliases."""
+    result: dict[str, dict[str, str]] = {}
+
+    def visit_class(node: JavaNode) -> None:
+        if node.type != "class_declaration":
+            return
+        name_node = node.child_by_field("name")
+        if name_node is None:
+            return
+        py_name = translate_class_name(name_node.text)
+        body = node.child_by_field("body")
+        members = (
+            []
+            if body is None
+            else [
+                child
+                for child in body.named_children
+                if child.type in {"constructor_declaration", "method_declaration"}
+            ]
+        )
+        aliases = static_instance_collision_static_aliases(members, cfg)
+        if aliases:
+            result[py_name] = aliases
+        if body is not None:
+            for child in body.named_children:
+                if child.type in TYPE_DECLARATION_NODES:
+                    visit_class(child)
+
+    for child in root.named_children:
+        if child.type in TYPE_DECLARATION_NODES:
+            visit_class(child)
+    return result
+
+
+def collect_file_class_declarations(root: JavaNode) -> dict[str, JavaNode]:
+    """Map translated class name to class declaration nodes in one compilation unit."""
+    result: dict[str, JavaNode] = {}
+
+    def visit_class(node: JavaNode) -> None:
+        if node.type != "class_declaration":
+            return
+        name_node = node.child_by_field("name")
+        if name_node is None:
+            return
+        result[translate_class_name(name_node.text)] = node
+        body = node.child_by_field("body")
+        if body is not None:
+            for child in body.named_children:
+                if child.type in TYPE_DECLARATION_NODES:
+                    visit_class(child)
+
+    for child in root.named_children:
+        if child.type in TYPE_DECLARATION_NODES:
+            visit_class(child)
+    return result
+
+
+def merge_class_static_method_indexes(
+    *indexes: dict[str, set[str]],
+) -> dict[str, set[str]]:
+    """Merge per-class static-method indexes (later indexes override earlier ones)."""
+    merged: dict[str, set[str]] = {}
+    for index in indexes:
+        merged.update(index)
+    return merged
+
+
+def merge_class_static_instance_alias_indexes(
+    *indexes: dict[str, dict[str, str]],
+) -> dict[str, dict[str, str]]:
+    """Merge per-class static/instance collision alias maps."""
+    merged: dict[str, dict[str, str]] = {}
+    for index in indexes:
+        merged.update(index)
+    return merged
+
+
+def merge_class_declaration_indexes(
+    *indexes: dict[str, JavaNode],
+) -> dict[str, JavaNode]:
+    """Merge per-class declaration nodes from multiple compilation units."""
+    merged: dict[str, JavaNode] = {}
+    for index in indexes:
+        merged.update(index)
+    return merged
+
+
+def _inherited_from_file_superclasses(
+    node: JavaNode,
+    file_class_static_methods: dict[str, set[str]],
+    file_class_static_instance_aliases: dict[str, dict[str, str]],
+    file_class_declarations: dict[str, JavaNode],
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Collect inherited static dispatch and collision aliases across ``extends``."""
+    dispatch: dict[str, str] = {}
+    aliases: dict[str, str] = {}
+    current: JavaNode | None = node
+    seen: set[str] = set()
+    while current is not None:
+        super_simple = superclass_simple_name(current)
+        if super_simple is None:
+            break
+        super_py = translate_class_name(super_simple)
+        if super_py in seen:
+            break
+        seen.add(super_py)
+        for method in file_class_static_methods.get(super_py, set()):
+            dispatch.setdefault(method, super_py)
+        for canonical, static_name in file_class_static_instance_aliases.get(super_py, {}).items():
+            aliases.setdefault(canonical, static_name)
+            dispatch.setdefault(canonical, super_py)
+        current = file_class_declarations.get(super_py)
+    return dispatch, aliases
+
+
 def superclass_simple_name(node: JavaNode) -> str | None:
     superclass = node.child_by_field("superclass")
     if superclass is None:
@@ -249,14 +454,74 @@ def superclass_simple_name(node: JavaNode) -> str | None:
 def inherited_static_dispatch(
     node: JavaNode,
     file_class_static_methods: dict[str, set[str]],
+    file_class_static_instance_aliases: dict[str, dict[str, str]],
+    file_class_declarations: dict[str, JavaNode],
     cfg: TranslationConfig,
 ) -> dict[str, str]:
-    super_simple = superclass_simple_name(node)
-    if super_simple is None:
-        return {}
-    super_py = translate_class_name(super_simple)
-    methods = file_class_static_methods.get(super_py, set())
-    return {method: super_py for method in methods}
+    del cfg
+    dispatch, _ = _inherited_from_file_superclasses(
+        node,
+        file_class_static_methods,
+        file_class_static_instance_aliases,
+        file_class_declarations,
+    )
+    return dispatch
+
+
+def inherited_static_instance_static_aliases(
+    node: JavaNode,
+    file_class_static_instance_aliases: dict[str, dict[str, str]],
+    file_class_declarations: dict[str, JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, str]:
+    del cfg
+    _, aliases = _inherited_from_file_superclasses(
+        node,
+        {},
+        file_class_static_instance_aliases,
+        file_class_declarations,
+    )
+    return aliases
+
+
+def inherited_static_instance_zero_arg_names(
+    node: JavaNode,
+    file_class_declarations: dict[str, JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Collect inherited zero-argument collision metadata across ``extends``."""
+    instance_zero: set[str] = set()
+    static_zero: set[str] = set()
+    current: JavaNode | None = node
+    seen: set[str] = set()
+    while current is not None:
+        super_simple = superclass_simple_name(current)
+        if super_simple is None:
+            break
+        super_py = translate_class_name(super_simple)
+        if super_py in seen:
+            break
+        seen.add(super_py)
+        parent_node = file_class_declarations.get(super_py)
+        if parent_node is not None:
+            body = parent_node.child_by_field("body")
+            members = (
+                []
+                if body is None
+                else [
+                    child
+                    for child in body.named_children
+                    if child.type in {"constructor_declaration", "method_declaration"}
+                ]
+            )
+            parent_instance_zero, parent_static_zero = static_instance_collision_zero_arg_names(
+                members,
+                cfg,
+            )
+            instance_zero.update(parent_instance_zero)
+            static_zero.update(parent_static_zero)
+        current = parent_node
+    return frozenset(instance_zero), frozenset(static_zero)
 
 
 def enclosing_static_dispatch_for_nested_types(

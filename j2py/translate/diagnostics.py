@@ -170,6 +170,12 @@ class TranslationContext:
     # Receiverless static calls to enclosing or inherited methods map to the
     # qualifying class name (own-class siblings use class_static_methods above).
     enclosing_static_dispatch: dict[str, str] = field(default_factory=dict)
+    # Canonical Python method name -> emitted static overload name when static and
+    # instance Java overloads share one Python name after translation.
+    static_instance_static_aliases: dict[str, str] = field(default_factory=dict)
+    # Collision names whose instance or static overload group includes a 0-arg member.
+    static_instance_instance_zero_arg_names: set[str] = field(default_factory=set)
+    static_instance_static_zero_arg_names: set[str] = field(default_factory=set)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
     variable_types: dict[str, str] = field(default_factory=dict)
