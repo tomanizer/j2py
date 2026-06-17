@@ -56,6 +56,8 @@ jobs:
             uv run pytest --tb=short -m "not behavior and not live_llm"
           uv run python scripts/equivalence/surface_report.py \
             corpus-reports/equivalence-surface.json
+          uv run python scripts/equivalence/check_surface_floor.py \
+            corpus-reports/equivalence-surface.json
       - name: Upload equivalence surface report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v6

@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence equivalence-report test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
@@ -41,6 +41,10 @@ equivalence-report:  ## Run equivalence gate and print the verified-surface metr
 	mkdir -p corpus-reports
 	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --extra dev pytest tests/equivalence -m equivalence -q
 	uv run --extra dev python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
+	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
+
+equivalence-surface-floor-check:  ## Check the latest equivalence report against the committed ratchet floor
+	uv run --extra dev python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
 test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local JDK)
 	uv run --extra dev pytest tests/behavior -m behavior
