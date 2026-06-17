@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -131,25 +132,26 @@ def classify_overload_group(
 
 def _is_forwarding_merge_candidate(members: list[JavaNode], cfg: TranslationConfig) -> bool:
     if members[0].type == "constructor_declaration":
-        forwards = [
-            _OverloadForward(
-                member,
-                parameter_infos(member, cfg),
-                _constructor_forward_args(member),
-            )
-            for member in members
-        ]
+        forwards = _forward_entries_for_members(members, cfg, _constructor_forward_args)
         return _has_default_forwarding_merge(forwards)
     if any(member.type != "method_declaration" for member in members):
         return False
-    forwards = [
-        _OverloadForward(member, parameter_infos(member, cfg), _method_forward_args(member))
-        for member in members
-    ]
+    forwards = _forward_entries_for_members(members, cfg, _method_forward_args)
     return (
         _has_default_forwarding_merge(forwards)
         or _resolve_pass_through_forwarding(forwards) is not None
     )
+
+
+def _forward_entries_for_members(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+    forward_args: Callable[[JavaNode], list[JavaNode] | None],
+) -> list[_OverloadForward]:
+    return [
+        _OverloadForward(member, parameter_infos(member, cfg), forward_args(member))
+        for member in members
+    ]
 
 
 def _has_default_forwarding_merge(forwards: list[_OverloadForward]) -> bool:
@@ -215,14 +217,16 @@ def _guard_signatures(
         params = parameter_infos(member, cfg)
         if any(param.is_spread for param in params):
             return None
-        guards = [_dispatch_guard_for_parameter(param) for param in params]
-        if any(guard is None for guard in guards):
-            return None
+        guards = []
+        for param in params:
+            guard = _dispatch_guard_for_parameter(param)
+            if guard is None:
+                return None
+            guards.append(guard)
         signatures.append(
             tuple(
                 guard.condition_template if guard.condition_template is not None else "*"
                 for guard in guards
-                if guard is not None
             ),
         )
     return tuple(signatures)
