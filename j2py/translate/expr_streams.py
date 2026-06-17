@@ -342,7 +342,7 @@ def _stream_flatmap_binding(
         named = arg.named_children
         if len(named) >= 2 and named[-1].text == "stream" and named[0].text[:1].isupper():
             inner_name = _stream_flatmap_inner_item_name(outer_item_name, ctx)
-            inner_iterable = current_expr if current_expr != outer_item_name else outer_item_name
+            inner_iterable = current_expr
             return inner_name, inner_iterable
     return None
 
