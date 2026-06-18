@@ -44,6 +44,9 @@ Deterministic support includes:
 - Class/interface/enum/record structure, nested types, overload dispatch (ADR 0009)
 - Method signatures with return types and parameter annotations
 - Control flow (if/for/while/try/switch), streams, lambdas, synchronized blocks
+- Initializer blocks, annotation constants/nested helper types, anonymous-class helper
+  fields/initializers, and reviewable local-class outer-self capture where the rule layer
+  has enough context
 - Access modifier removal
 - Structured diagnostics and explicit `# TODO(j2py): …` for unsupported regions
 
@@ -87,6 +90,10 @@ j2py translate <file|dir> [--output <path>] [--no-llm]
                          [--incremental] [--json] [--dashboard <path>] [--report <path>]
 j2py analyze  <file|dir>          # inventory classes, print dependency graph
 j2py compare  <file>              # side-by-side Java/Python review (VS Code or paths)
+j2py dashboard <output-root>      # regenerate a directory translation dashboard
+j2py doctor   <file|dir> [--json <path>] [--html <path>] [--config-suggestions <path>]
+j2py doctor diff <before.json> <after.json>
+j2py sarif    <assessment.json> --output <path>  # export doctor diagnostics as SARIF
 j2py watch    <dir> [--output <path>]  # incremental re-translate on file changes
 ```
 
@@ -94,7 +101,10 @@ j2py watch    <dir> [--output <path>]  # incremental re-translate on file change
 Project-specific type mappings, import remappings, and rule overrides via `j2py.yaml`,
 `j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. Projects may also
 set default LLM provider/model values there; explicit CLI flags override these defaults.
-See [docs/configuration.md](configuration.md).
+Python config can register trusted framework plugins for programmatic annotation lowering,
+and `emit_wiring_metadata` can write versioned `*.wiring.json` sidecars for downstream
+project-owned wiring tools. See [docs/configuration.md](configuration.md) and
+[docs/FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md).
 
 ### F9 — Post-LLM structural verification
 After LLM completion, compare Java symbols with the returned Python AST: class and method
@@ -112,6 +122,15 @@ Provide measurable quality signal without live LLM in normal CI:
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
   Commons Lang, Jackson, Caffeine (`make corpus-*-check`, `make corpus-hotspots`)
 
+### F11 — Project assessment
+`j2py doctor` runs deterministic parse/analyze/rule-only assessment without live LLM calls.
+It emits stable JSON, static HTML, conservative config suggestions, and assessment diffs
+so migration teams can see parse failures, symbol inventory, dependency warnings,
+annotation inventory, unresolved import boundaries, semantic warnings, TODOs, and
+unhandled diagnostics before bulk translation. `j2py sarif` converts those assessments to
+SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) and
+[docs/SARIF.md](SARIF.md).
+
 ## Non-goals
 
 - **Full-library automatic execution equivalence** — j2py does not yet prove that every
@@ -125,8 +144,10 @@ Provide measurable quality signal without live LLM in normal CI:
 - **Java reflection, byte manipulation, JNI** — not translatable; flagged with
   `# TODO(j2py): reflection — manual port required`.
 - **Full Spring/Hibernate framework support** — annotations are translated syntactically;
-  framework semantics (DI, ORM mappings) must be ported manually. JDBC and other
-  platform I/O boundaries follow the same stub-plus-project-config policy
+  opt-in `annotation_map` entries and trusted framework plugins can emit reviewable
+  decorators, bases, comments, and wiring metadata, but framework semantics (DI, ORM
+  mappings, transactions, lifecycle) must be ported manually or by project-owned tools.
+  JDBC and other platform I/O boundaries follow the same stub-plus-project-config policy
   ([ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)).
 - **Round-trip Java generation** — j2py is one-way.
 

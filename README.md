@@ -26,9 +26,11 @@ and semantic warnings, plus structured diagnostics for anything left unhandled.
 ## Status
 
 **Beta.** The library is usable for experimentation, fixture-driven development, and
-batch translation of real Java projects, but construct coverage is still incomplete,
-multi-file inheritance can require manual import fixups, and output on large enterprise
-codebases will contain review warnings and known correctness gaps.
+batch translation of real Java projects. The deterministic rule layer reaches high node
+coverage on pinned dense corpus samples, but behavioral equivalence at library scale is
+still early, some cross-file/framework boundaries require project policy or manual fixups,
+and output on large enterprise codebases will contain review warnings and known
+correctness gaps.
 
 Deterministic support today includes:
 
@@ -39,8 +41,9 @@ Deterministic support today includes:
   builder-style forwarding merged into default parameters, and type-dispatch overload
   groups via a vendored `@overloaded` runtime dispatcher (ADR 0009)
 - common expressions: literals, identifiers, field access, arrays, class literals,
-  assignments, updates, ternaries, null checks, collection calls, string concat, and
-  typed `get(...)` lowering for lists, maps, and common API receivers
+  assignments, updates, ternaries, null checks, collection calls, string concat,
+  `String.charAt`, and typed `get(...)` lowering for lists, maps, indexed-predicate APIs,
+  and common API receivers
 - stream pipelines: `map`, `filter`, `flatMap`, `distinct`, `sorted`, collectors such as
   `toList`, `toSet`, `joining`, `groupingBy`/`mapping`, `toMap`, and block lambdas
 - control flow: `if`/`else`, enhanced and classic `for`, `while`, `do while`, safe
@@ -50,6 +53,8 @@ Deterministic support today includes:
 - structured diagnostics, confidence scoring, validation, post-LLM structural
   verification, and optional Anthropic or Gemini completion
 - side-by-side Java/Python review via `j2py compare`
+- rule-only project assessment via `j2py doctor` with JSON/HTML reports and conservative
+  config suggestions
 
 Known gaps include:
 
@@ -249,7 +254,7 @@ Material translation policy changes should get an ADR under `docs/decisions/`.
 coverage, diagnostics for unsupported regions, known multi-file import limitations,
 and manual review on production-scale codebases. See [docs/RELEASING.md](docs/RELEASING.md)
 for the release checklist and [CHANGELOG.md](CHANGELOG.md) for known limitations in
-`0.5.0b3`.
+the latest release plus current Unreleased notes.
 
 ## License
 

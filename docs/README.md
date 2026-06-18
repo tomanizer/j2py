@@ -9,6 +9,9 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
 | [configuration.md](configuration.md) | Config file schema (`j2py.yaml`, TOML, pyproject) |
 | [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) | Tier 4 framework plugin guide, quick start, and Spring migration example |
+| [DOCTOR.md](DOCTOR.md) | `j2py doctor` assessment command, report schema, workflows, and limits |
+| [DOCTOR_PRD.md](DOCTOR_PRD.md) | Product requirements and roadmap for project assessment tooling |
+| [SARIF.md](SARIF.md) | `j2py sarif` export for doctor assessment diagnostics and code-scanning workflows |
 
 ## Quality, measurement, and roadmap
 
