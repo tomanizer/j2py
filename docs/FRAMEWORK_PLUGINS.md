@@ -242,6 +242,16 @@ under `elements[].metadata.spring` using the v1
 spring` remains Tier 2 marker lowering; the Spring wiring profile is structured Tier 4
 plugin metadata for `j2py-wire`.
 
+Use the built-in producer when you want Spring v1 sidecars:
+
+```python
+from j2py.framework_plugins.spring import SpringWiringPlugin as _SpringWiringPlugin
+
+annotation_map_preset = "spring"
+framework_plugins = [_SpringWiringPlugin()]
+emit_wiring_metadata = True
+```
+
 ## End-to-end example: Spring -> FastAPI, Pydantic, SQLAlchemy
 
 This example is illustrative. It shows how a project can use a plugin to make Spring
