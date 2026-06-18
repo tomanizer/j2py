@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "source": "src/main/java/com/example/OwnerController.java",
+  "output": "translated/com/example/owner_controller.py",
+  "elements": [
+    {
+      "plugin": "spring-wiring",
+      "kind": "class",
+      "java_name": "OwnerController",
+      "python_name": "OwnerController",
+      "annotations": [
+        {
+          "name": "org.springframework.web.bind.annotation.RestController",
+          "simple_name": "RestController",
+          "values": {}
+        },
+        {
+          "name": "org.springframework.web.bind.annotation.RequestMapping",
+          "simple_name": "RequestMapping",
+          "values": {
+            "value": "/owners"
+          }
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "role": "controller",
+          "component_name": "ownerController",
+          "router_prefix": "/owners"
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "constructor",
+      "java_name": "OwnerController",
+      "python_name": "__init__",
+      "annotations": [],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "inject": {
+            "name": "owner_repository",
+            "java_name": "ownerRepository",
+            "type": "OwnerRepository",
+            "source": "constructor",
+            "required": true,
+            "qualifier": null
+          }
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "field",
+      "java_name": "auditRepository",
+      "python_name": "audit_repository",
+      "annotations": [
+        {
+          "name": "org.springframework.beans.factory.annotation.Autowired",
+          "simple_name": "Autowired",
+          "values": {}
+        },
+        {
+          "name": "org.springframework.beans.factory.annotation.Qualifier",
+          "simple_name": "Qualifier",
+          "values": {
+            "value": "auditRepository"
+          }
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "inject": {
+            "name": "audit_repository",
+            "java_name": "auditRepository",
+            "type": "AuditRepository",
+            "source": "field",
+            "required": true,
+            "qualifier": "auditRepository"
+          }
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "method",
+      "java_name": "findOwner",
+      "python_name": "find_owner",
+      "annotations": [
+        {
+          "name": "org.springframework.web.bind.annotation.GetMapping",
+          "simple_name": "GetMapping",
+          "values": {
+            "value": "/{ownerId}"
+          }
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "route": {
+            "http_method": "GET",
+            "path": "/{owner_id}",
+            "handler": "find_owner",
+            "status_code": 200,
+            "parameters": [
+              {
+                "name": "owner_id",
+                "java_name": "ownerId",
+                "source": "path",
+                "python_type": "int",
+                "required": true
+              }
+            ],
+            "request_body": null
+          }
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "method",
+      "java_name": "createOwner",
+      "python_name": "create_owner",
+      "annotations": [
+        {
+          "name": "org.springframework.web.bind.annotation.PostMapping",
+          "simple_name": "PostMapping",
+          "values": {
+            "value": ""
+          }
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "route": {
+            "http_method": "POST",
+            "path": "",
+            "handler": "create_owner",
+            "status_code": 201,
+            "parameters": [],
+            "request_body": {
+              "name": "form",
+              "java_name": "form",
+              "python_type": "OwnerRequest",
+              "required": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "class",
+      "java_name": "OwnerRepository",
+      "python_name": "OwnerRepository",
+      "annotations": [
+        {
+          "name": "org.springframework.stereotype.Repository",
+          "simple_name": "Repository",
+          "values": {}
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "role": "repository",
+          "entity_type": "Owner",
+          "id_type": "int"
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
+      "kind": "class",
+      "java_name": "Owner",
+      "python_name": "Owner",
+      "annotations": [
+        {
+          "name": "jakarta.persistence.Entity",
+          "simple_name": "Entity",
+          "values": {}
+        },
+        {
+          "name": "jakarta.persistence.Table",
+          "simple_name": "Table",
+          "values": {
+            "name": "owners"
+          }
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "role": "entity",
+          "table_name": "owners"
+        }
+      }
+    }
+  ]
+}

@@ -10,6 +10,7 @@ Configuration reference: [configuration.md](configuration.md#framework-plugins).
 Related Tier 2 mapping: [ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
 Spring extension boundary: [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).
+Spring wiring profile: [SPRING_WIRING_METADATA.md](SPRING_WIRING_METADATA.md).
 
 ## What plugins are for
 
@@ -234,6 +235,12 @@ returns non-empty metadata. Core does not consume the sidecar or generate FastAP
 startup code. That belongs in downstream migration tooling such as a project-owned wiring
 generator.
 
+Spring-specific route, dependency-injection, repository, and entity facts must be nested
+under `elements[].metadata.spring` using the v1
+[Spring wiring metadata profile](SPRING_WIRING_METADATA.md). `annotation_map_preset:
+spring` remains Tier 2 marker lowering; the Spring wiring profile is structured Tier 4
+plugin metadata for `j2py-wire`.
+
 ## End-to-end example: Spring -> FastAPI, Pydantic, SQLAlchemy
 
 This example is illustrative. It shows how a project can use a plugin to make Spring
@@ -280,8 +287,12 @@ class SpringMigrationPlugin(FrameworkPlugin):
             prefix_lines=("@controller",),
             imports=("from myapp.web_shims import controller",),
             metadata={
-                "component": "controller",
-                "route_prefix": prefix,
+                "spring": {
+                    "profile_version": 1,
+                    "role": "controller",
+                    "component_name": ctx.py_name[:1].lower() + ctx.py_name[1:],
+                    "router_prefix": prefix,
+                },
             },
             handled=True,
         )
@@ -293,9 +304,16 @@ class SpringMigrationPlugin(FrameworkPlugin):
             prefix_lines=(f"        # injected dependency: {ctx.py_type} {ctx.py_name}",),
             init_params=(InitParam(ctx.py_name, ctx.py_type or "object"),),
             metadata={
-                "dependency": {
-                    "field": ctx.py_name,
-                    "python_type": ctx.py_type or "object",
+                "spring": {
+                    "profile_version": 1,
+                    "inject": {
+                        "name": ctx.py_name,
+                        "java_name": ctx.java_name,
+                        "type": ctx.py_type or "object",
+                        "source": "field",
+                        "required": True,
+                        "qualifier": None,
+                    },
                 },
             },
             handled=True,
@@ -310,15 +328,25 @@ class SpringMigrationPlugin(FrameworkPlugin):
             prefix_lines=(f'    @route("{method}", "{path}")',),
             imports=("from myapp.web_shims import route",),
             metadata={
-                "route": {
-                    "method": method,
-                    "path": path,
-                    "handler": ctx.py_name,
-                    "returns": ctx.py_type,
-                    "params": [
-                        {"name": param.py_name, "type": param.py_type}
-                        for param in ctx.parameters
-                    ],
+                "spring": {
+                    "profile_version": 1,
+                    "route": {
+                        "http_method": method,
+                        "path": path,
+                        "handler": ctx.py_name,
+                        "status_code": 200,
+                        "parameters": [
+                            {
+                                "name": param.py_name,
+                                "java_name": param.java_name,
+                                "source": "unknown",
+                                "python_type": param.py_type,
+                                "required": True,
+                            }
+                            for param in ctx.parameters
+                        ],
+                        "request_body": None,
+                    },
                 },
             },
             handled=True,
@@ -372,7 +400,7 @@ The plugin has not created a complete FastAPI application. Instead, it has creat
 reviewable translation plus enough explicit metadata for a downstream tool or manual port
 to build the target framework layer:
 
-- FastAPI: combine class `route_prefix` metadata with method `route` metadata to register
+- FastAPI: combine class `router_prefix` metadata with method `route` metadata to register
   `APIRouter` paths, strip or adapt `self`, and wire dependencies through `Depends`.
 - Pydantic: map DTO classes with `type_map`/`import_map` and, when useful, plugin metadata
   that marks request and response models.
