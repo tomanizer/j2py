@@ -245,7 +245,7 @@ def test_generic_bounded_return_typevars_are_preserved_for_overload_groups() -> 
 
 
 def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
-    python_source, coverage = translate_source(
+    result = translate_source_with_diagnostics(
         """
         public class StaticOver {
             public static int width(int value) { return value; }
@@ -254,11 +254,20 @@ def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
         """,
     )
 
-    assert coverage < 1.0
+    python_source = result.source
+    assert result.coverage < 1.0
     assert "@overload" in python_source
     assert "@overloaded" not in python_source
     assert "def width(*args: object) -> object:" in python_source
     assert "TODO(j2py): overloaded method width requires manual dispatch" in python_source
+    reasons = {item.reason for item in result.diagnostics.unhandled}
+    assert any(
+        reason.startswith("overloaded method width requires manual dispatch")
+        and "erased=(int)|(int)" in reason
+        and "java_shapes=(numeric:int->int)|(numeric:long->int)" in reason
+        and "Java numeric widths erase to one Python runtime int" in reason
+        for reason in reasons
+    )
     assert_valid_python(python_source)
 
 
@@ -309,6 +318,171 @@ def test_same_arity_boxed_wrapper_forwarding_merges_to_implementation() -> None:
     assert "def of(from_inclusive: float, to_inclusive: float) -> DoubleRange:" in result.source
     assert "return DoubleRange(from_inclusive, to_inclusive)" in result.source
     assert "NotImplementedError" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_boxed_primitive_constructor_and_setter_bodies_merge_after_unboxing() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MutableBoolean {
+            private boolean value;
+
+            public MutableBoolean(boolean value) {
+                this.value = value;
+            }
+
+            public MutableBoolean(Boolean value) {
+                this.value = value.booleanValue();
+            }
+
+            public void setValue(boolean value) {
+                this.value = value;
+            }
+
+            public void setValue(Boolean value) {
+                this.value = value.booleanValue();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import overload" in result.source
+    assert result.source.count("def __init__(") == 3
+    assert result.source.count("def set_value(") == 3
+    assert "def __init__(self, value: bool) -> None:" in result.source
+    assert "def set_value(self, value: bool) -> None:" in result.source
+    assert "value.boolean_value()" not in result.source
+    assert "overloaded method __init__ requires manual dispatch" not in result.source
+    assert "overloaded method set_value requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_non_equivalent_boxed_primitive_bodies_remain_manual() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MutableBoolean {
+            private boolean value;
+
+            public void setValue(boolean value) {
+                this.value = value;
+            }
+
+            public void setValue(Boolean value) {
+                this.value = value == null ? false : value.booleanValue();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "TODO(j2py): overloaded method set_value requires manual dispatch" in result.source
+    assert_valid_python(result.source)
+
+
+def test_float_double_numeric_family_fixed_and_varargs_collapse() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class NumericUtils {
+            public static double max(double... values) {
+                return values[0];
+            }
+
+            public static double max(double a, double b) {
+                return Double.isNaN(a) ? b : a;
+            }
+
+            public static double max(double a, double b, double c) {
+                return max(max(a, b), c);
+            }
+
+            public static float max(float... values) {
+                return values[0];
+            }
+
+            public static float max(float a, float b) {
+                return Float.isNaN(a) ? b : a;
+            }
+
+            public static float max(float a, float b, float c) {
+                return max(max(a, b), c);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert result.source.count("def max_(") == 7
+    assert "def max_(*args: object) -> float:" in result.source
+    assert "if len(args) == 3" in result.source
+    assert "if len(args) >= 0" in result.source
+    assert "overloaded method max_ requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_super_delegating_constructor_overloads_merge_with_cast_normalization() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Map;
+        import java.util.Properties;
+
+        class Base {
+            public Base(String name, Map<String, Object> source) {
+            }
+        }
+
+        public class PropertiesPropertySource extends Base {
+            public PropertiesPropertySource(String name, Properties source) {
+                super(name, (Map) source);
+            }
+
+            protected PropertiesPropertySource(String name, Map<String, Object> source) {
+                super(name, source);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert result.source.count("def __init__(") == 4
+    assert "super().__init__(name, source)" in result.source
+    assert "cast(" not in result.source
+    assert "overloaded method __init__ requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_super_delegating_constructor_with_side_effect_remains_manual() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Map;
+        import java.util.Properties;
+
+        class Base {
+            public Base(String name, Map<String, Object> source) {
+            }
+        }
+
+        public class PropertiesPropertySource extends Base {
+            public PropertiesPropertySource(String name, Properties source) {
+                super(name, (Map) source);
+            }
+
+            protected PropertiesPropertySource(String name, Map<String, Object> source) {
+                super(name, source);
+                this.touch();
+            }
+
+            private void touch() {
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "TODO(j2py): overloaded method __init__ requires manual dispatch" in result.source
     assert_valid_python(result.source)
 
 
@@ -457,7 +631,7 @@ def test_collection_shape_overloads_use_value_dispatcher() -> None:
 
 
 def test_generic_collection_erasure_collision_keeps_manual_dispatch_fallback() -> None:
-    python_source, coverage = translate_source(
+    result = translate_source_with_diagnostics(
         """
         import java.util.List;
 
@@ -468,10 +642,22 @@ def test_generic_collection_erasure_collision_keeps_manual_dispatch_fallback() -
         """,
     )
 
-    assert coverage < 1.0
+    python_source = result.source
+    assert result.coverage < 1.0
     assert "@overload" in python_source
     assert "@overloaded" not in python_source
     assert "TODO(j2py): overloaded method first requires manual dispatch" in python_source
+    reasons = {item.reason for item in result.diagnostics.unhandled}
+    shape_details = (
+        "java_shapes=(collection:List->list[string:String->str])|"
+        "(collection:List->list[numeric:Integer->int])"
+    )
+    assert any(
+        reason.startswith("overloaded method first requires manual dispatch")
+        and "erased=(list)|(list)" in reason
+        and shape_details in reason
+        for reason in reasons
+    )
     assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
     assert_valid_python(python_source)
 

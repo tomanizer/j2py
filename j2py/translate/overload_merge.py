@@ -25,6 +25,11 @@ from j2py.translate.expressions import translate_expression
 from j2py.translate.member_resolution import JavaMemberBinding
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.overload_equivalence import (
+    _comparison_body_form,
+    _member_body_equivalence_key,
+    _member_body_preference_score,
+)
 from j2py.translate.overload_signatures import _overload_stubs, _union_types
 from j2py.translate.statements import translate_body
 
@@ -70,6 +75,60 @@ def _merged_constructor_overload(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
 ) -> list[str] | None:
+    super_delegating = _merged_super_constructor_overload(
+        members,
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
+        declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        class_method_return_types=class_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+        pre_body_lines=pre_body_lines,
+        extra_params=extra_params,
+        class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        nested_class_names=nested_class_names,
+    )
+    if super_delegating is not None:
+        return super_delegating
+
+    equivalent = _merged_equivalent_constructor_overload(
+        members,
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
+        declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        class_method_return_types=class_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+        pre_body_lines=pre_body_lines,
+        extra_params=extra_params,
+        class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        nested_class_names=nested_class_names,
+    )
+    if equivalent is not None:
+        return equivalent
+
     forwards = [
         _OverloadForward(member, parameter_infos(member, cfg), _constructor_forward_args(member))
         for member in members
@@ -171,6 +230,277 @@ def _merged_constructor_overload(
             lines.append("")
             lines.extend(helper)
 
+    lines.extend(body_lines)
+    return lines
+
+
+def _merged_equivalent_constructor_overload(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    pre_body_lines: list[str],
+    extra_params: list[ParameterInfo],
+    class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
+) -> list[str] | None:
+    if any(member.type != "constructor_declaration" for member in members):
+        return None
+    body_keys = {_member_body_equivalence_key(member, cfg) for member in members}
+    if len(body_keys) != 1:
+        return None
+    if all(_comparison_body_form(member, cfg) is not None for member in members):
+        return None
+    param_sets = [parameter_infos(member, cfg) for member in members]
+    if not _same_constructor_parameter_shape(param_sets):
+        return None
+    impl_member = min(members, key=lambda member: _member_body_preference_score(member, cfg))
+    return _emit_merged_constructor(
+        members,
+        impl_member=impl_member,
+        signature_params=_merged_constructor_parameters(param_sets),
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
+        declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        class_method_return_types=class_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+        pre_body_lines=pre_body_lines,
+        extra_params=extra_params,
+        class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        nested_class_names=nested_class_names,
+        implementation_reason="translated overloaded constructor implementation",
+        merged_reason="translated equivalent constructor overload",
+    )
+
+
+def _merged_super_constructor_overload(
+    members: list[JavaNode],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    pre_body_lines: list[str],
+    extra_params: list[ParameterInfo],
+    class_state: ClassTranslationState | None = None,
+    docstring_lines: list[str] | None = None,
+    inner_class_names_requiring_outer: set[str] | None = None,
+    nested_class_names: set[str] | None = None,
+) -> list[str] | None:
+    if any(member.type != "constructor_declaration" for member in members):
+        return None
+    forwards = [
+        _OverloadForward(
+            member,
+            parameter_infos(member, cfg),
+            _constructor_super_forward_args(member),
+        )
+        for member in members
+    ]
+    if any(forward.forwarded is None for forward in forwards):
+        return None
+    param_sets = [forward.params for forward in forwards]
+    if not _same_constructor_parameter_shape(param_sets):
+        return None
+    for forward in forwards:
+        own_names = {param.raw_name: index for index, param in enumerate(forward.params)}
+        vector = _forward_entries(forward.forwarded or [], own_names)
+        if vector is None or len(vector) != len(forward.params):
+            return None
+        if any(entry != position for position, entry in enumerate(vector)):
+            return None
+    impl_member = min(
+        members,
+        key=lambda member: _member_body_preference_score(member, cfg),
+    )
+    return _emit_merged_constructor(
+        members,
+        impl_member=impl_member,
+        signature_params=_merged_constructor_parameters(param_sets),
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
+        declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        class_method_return_types=class_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        name_resolver=name_resolver,
+        pre_body_lines=pre_body_lines,
+        extra_params=extra_params,
+        class_state=class_state,
+        docstring_lines=docstring_lines,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        nested_class_names=nested_class_names,
+        implementation_reason="translated superclass-delegating constructor overload",
+        merged_reason="translated superclass-delegating constructor overload",
+    )
+
+
+def _same_constructor_parameter_shape(param_sets: list[list[ParameterInfo]]) -> bool:
+    if len({len(params) for params in param_sets}) != 1:
+        return False
+    if not param_sets or not param_sets[0]:
+        return False
+    raw_names = [param.raw_name for param in param_sets[0]]
+    return all(
+        [param.raw_name for param in params] == raw_names
+        and [param.is_spread for param in params] == [param.is_spread for param in param_sets[0]]
+        for params in param_sets
+    )
+
+
+def _merged_constructor_parameters(
+    param_sets: list[list[ParameterInfo]],
+) -> list[ParameterInfo]:
+    return [
+        ParameterInfo(
+            raw_name=param_sets[0][index].raw_name,
+            py_name=param_sets[0][index].py_name,
+            py_type=_union_types(params[index].py_type for params in param_sets),
+            java_type=param_sets[0][index].java_type,
+            is_spread=param_sets[0][index].is_spread,
+        )
+        for index in range(len(param_sets[0]))
+    ]
+
+
+def _emit_merged_constructor(
+    members: list[JavaNode],
+    *,
+    impl_member: JavaNode,
+    signature_params: list[ParameterInfo],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    name_resolver: NameResolver,
+    pre_body_lines: list[str],
+    extra_params: list[ParameterInfo],
+    class_state: ClassTranslationState | None,
+    docstring_lines: list[str] | None,
+    inner_class_names_requiring_outer: set[str] | None,
+    nested_class_names: set[str] | None,
+    implementation_reason: str,
+    merged_reason: str,
+) -> list[str]:
+    for member in members:
+        diagnostics.record(
+            member,
+            supported=True,
+            reason=implementation_reason if member is impl_member else merged_reason,
+        )
+
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=diagnostics,
+        class_fields=class_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        static_field_aliases=dict(static_field_aliases),
+        static_method_imports=dict(static_method_imports),
+        name_resolver=name_resolver,
+        allow_local_helpers=True,
+        class_state=class_state,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+        containing_class_name=containing_class_name,
+        nested_class_names=nested_class_names or set(),
+    )
+    ctx.class_field_types = dict(class_field_types)
+    ctx.class_field_java_types = dict(class_field_java_types)
+    ctx.declared_type_fields = dict(declared_type_fields)
+    ctx.declared_type_java_fields = dict(declared_type_java_fields)
+    ctx.class_method_return_types = dict(class_method_return_types)
+    ctx.in_instance_method = True
+    for param in extra_params:
+        register_param(ctx, param)
+    for param in signature_params:
+        register_param(ctx, param)
+
+    signature_params = [
+        param
+        for param in extra_params
+        if param.raw_name not in {item.raw_name for item in signature_params}
+    ] + signature_params
+    if cfg.emit_type_hints:
+        for param in signature_params:
+            diagnostics.imports.need_type_annotation(param.py_type)
+
+    lines = _overload_stubs(members, cfg, diagnostics)
+    signature = render_method_signature(
+        "__init__",
+        signature_params,
+        return_type="None",
+        include_self=True,
+        emit_type_hints=cfg.emit_type_hints,
+    )
+    lines.append(f"    {signature}:")
+    body = method_body(impl_member)
+    body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
+    if docstring_lines:
+        lines.extend(docstring_lines)
+        if pre_body_lines or body_lines != ["        pass"]:
+            lines.append("")
+    lines.extend(pre_body_lines)
+    if ctx.pending_local_helpers:
+        for helper in ctx.pending_local_helpers:
+            lines.append("")
+            lines.extend(helper)
     lines.extend(body_lines)
     return lines
 
@@ -474,6 +804,7 @@ _BOXED_PRIMITIVE_VALUE_OF_RECEIVERS = frozenset(
 
 
 def _pass_through_argument(arg: JavaNode, own_names: dict[str, int]) -> int | None:
+    arg = _unwrap_pass_through_argument(arg)
     if arg.type == "identifier" and arg.text in own_names:
         return own_names[arg.text]
     if arg.type != "method_invocation":
@@ -493,6 +824,12 @@ def _pass_through_argument(arg: JavaNode, own_names: dict[str, int]) -> int | No
     if len(arg_nodes) != 1 or arg_nodes[0].type != "identifier":
         return None
     return own_names.get(arg_nodes[0].text)
+
+
+def _unwrap_pass_through_argument(arg: JavaNode) -> JavaNode:
+    while arg.type in {"cast_expression", "parenthesized_expression"} and arg.named_children:
+        arg = arg.named_children[-1]
+    return arg
 
 
 def _references_names(node: JavaNode, names: set[str]) -> bool:
@@ -572,11 +909,10 @@ def _merged_method_overload(
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
-    body_texts: set[str] = set()
-    for member in members:
-        body = method_body(member)
-        body_texts.add(body.text if body is not None else "")
-    if len(body_texts) != 1:
+    body_keys = {_member_body_equivalence_key(member, cfg) for member in members}
+    if len(body_keys) != 1:
+        return None
+    if all(_comparison_body_form(member, cfg) is not None for member in members):
         return None
 
     param_sets = [parameter_infos(member, cfg) for member in members]
@@ -593,6 +929,7 @@ def _merged_method_overload(
     is_static = "static" in _modifiers(members[0])
     if any(("static" in _modifiers(member)) != is_static for member in members):
         return None
+    impl_member = min(members, key=lambda member: _member_body_preference_score(member, cfg))
 
     merged_params = [
         ParameterInfo(
@@ -646,7 +983,7 @@ def _merged_method_overload(
         emit_type_hints=cfg.emit_type_hints,
     )
     lines.append(f"    {signature}:")
-    body = method_body(members[0])
+    body = method_body(impl_member)
     body_lines = translate_body(body, ctx, indent="        ") if body else ["        pass"]
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -665,6 +1002,15 @@ def _merged_method_overload(
 
 def _constructor_forward_args(member: JavaNode) -> list[JavaNode] | None:
     """Return the argument nodes of a pure this(...) delegating constructor."""
+    return _explicit_constructor_args(member, target_type="this")
+
+
+def _constructor_super_forward_args(member: JavaNode) -> list[JavaNode] | None:
+    """Return the argument nodes of a pure super(...) delegating constructor."""
+    return _explicit_constructor_args(member, target_type="super")
+
+
+def _explicit_constructor_args(member: JavaNode, *, target_type: str) -> list[JavaNode] | None:
     body = method_body(member)
     if body is None:
         return None
@@ -673,7 +1019,7 @@ def _constructor_forward_args(member: JavaNode) -> list[JavaNode] | None:
         return None
     invocation = children[0]
     target = invocation.named_children[0] if invocation.named_children else None
-    if target is None or target.type != "this":
+    if target is None or target.type != target_type:
         return None
     args_node = first_child_by_type(invocation, "argument_list")
     return [] if args_node is None else list(args_node.named_children)

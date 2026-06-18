@@ -182,6 +182,55 @@ def test_compare_baseline_reports_per_file_regressions(tmp_path: Path) -> None:
     assert payload["files"][0]["path"] == "A.java"
 
 
+def test_compare_baseline_ignores_overload_reason_detail_suffix(
+    tmp_path: Path,
+) -> None:
+    baseline_metrics = [
+        _metric(
+            "A.java",
+            unhandled_count=1,
+            unhandled_reasons="overloaded method width requires manual dispatch:1",
+        ),
+    ]
+    baseline_path = tmp_path / "baseline.json"
+    corpus.write_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+        },
+        summary=corpus.summarize(baseline_metrics),
+        metrics=baseline_metrics,
+    )
+
+    current_metrics = [
+        _metric(
+            "A.java",
+            unhandled_count=1,
+            unhandled_reasons=(
+                "overloaded method width requires manual dispatch "
+                "[erased=(int)|(int) | "
+                "java_shapes=(numeric:int->int)|(numeric:long->int)]:1"
+            ),
+        ),
+    ]
+    comparison = corpus.compare_baseline(
+        baseline_path,
+        metadata={
+            "spring_ref": "ref",
+            "modules": ["module"],
+            "limit": 1,
+            "include_tests": False,
+        },
+        summary=corpus.summarize(current_metrics),
+        metrics=current_metrics,
+    )
+
+    assert comparison["file_regressions"]["new_unhandled_reasons"] == []
+
+
 def test_compare_baseline_missing_file_exits_with_clear_error(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

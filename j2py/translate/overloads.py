@@ -19,7 +19,11 @@ from j2py.translate.diagnostics import (
 )
 from j2py.translate.member_resolution import JavaMemberBinding
 from j2py.translate.name_resolution import NameResolver
-from j2py.translate.overload_classification import OverloadKind, classify_overload_group
+from j2py.translate.overload_classification import (
+    OverloadClassification,
+    OverloadKind,
+    classify_overload_group,
+)
 from j2py.translate.overload_dispatch import (
     _dispatch_overload_members,
     _value_dispatch_overload,
@@ -470,11 +474,12 @@ def translate_overloaded_members(
                     )
         return dispatched
 
+    manual_reason = _manual_dispatch_reason(name, classification)
     for member in members:
         diagnostics.record(
             member,
             supported=False,
-            reason=f"overloaded method {name} requires manual dispatch",
+            reason=manual_reason,
         )
     lines = _overload_stubs(members, cfg, diagnostics)
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"
@@ -491,5 +496,44 @@ def translate_overloaded_members(
         f"        # TODO(j2py): overloaded method {name} requires manual dispatch "
         f"for signatures: {signatures}",
     )
+    lines.append(f"        # {manual_reason}")
     lines.append('        raise NotImplementedError("j2py overload dispatch required")')
     return lines
+
+
+def _manual_dispatch_reason(name: str, classification: OverloadClassification) -> str:
+    details = [
+        f"erased={_format_signature_set(classification.erased_signatures)}",
+        f"java_shapes={_format_signature_set(classification.java_type_shape_signatures)}",
+    ]
+    boundary = _numeric_width_boundary_note(classification.java_type_shape_signatures)
+    if boundary:
+        details.append(boundary)
+    return f"overloaded method {name} requires manual dispatch [{' | '.join(details)}]"
+
+
+def _format_signature_set(signatures: tuple[tuple[str, ...], ...]) -> str:
+    if not signatures:
+        return "()"
+    return "|".join("(" + ", ".join(signature) + ")" for signature in signatures)
+
+
+def _numeric_width_boundary_note(
+    java_shapes: tuple[tuple[str, ...], ...],
+) -> str:
+    if not java_shapes:
+        return ""
+    by_position: dict[int, set[str]] = {}
+    by_position_erasure: dict[int, set[str]] = {}
+    for signature in java_shapes:
+        for index, shape in enumerate(signature):
+            category, _, rest = shape.partition(":")
+            simple, _, erasure = rest.partition("->")
+            if category != "numeric" or not simple or not erasure:
+                continue
+            by_position.setdefault(index, set()).add(simple)
+            by_position_erasure.setdefault(index, set()).add(erasure.split("[", 1)[0])
+    for index, simples in by_position.items():
+        if len(simples) > 1 and by_position_erasure.get(index) == {"int"}:
+            return "note=Java numeric widths erase to one Python runtime int"
+    return ""
