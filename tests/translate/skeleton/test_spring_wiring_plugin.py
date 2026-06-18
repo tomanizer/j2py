@@ -347,8 +347,8 @@ def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> Non
 
     sidecar = pipeline.write_wiring_metadata_sidecar(result)
 
-    assert sidecar == output.with_suffix(".wiring.json")
     assert sidecar is not None
+    assert sidecar == output.with_suffix(".wiring.json")
     assert_module_executes(result.python_source)
     payload = json.loads(sidecar.read_text(encoding="utf-8"))
     elements = payload["elements"]
@@ -386,8 +386,8 @@ def test_spring_jdbc_configuration_writes_real_sidecar_payload(tmp_path: Path) -
 
     sidecar = pipeline.write_wiring_metadata_sidecar(result)
 
-    assert sidecar == output.with_suffix(".wiring.json")
     assert sidecar is not None
+    assert sidecar == output.with_suffix(".wiring.json")
     payload = json.loads(sidecar.read_text(encoding="utf-8"))
     elements = payload["elements"]
     class_element = next(element for element in elements if element["kind"] == "class")
@@ -416,3 +416,86 @@ def test_spring_jdbc_configuration_writes_real_sidecar_payload(tmp_path: Path) -
         "DataSourceTransactionManager"
     )
     assert all(bean["source_location"]["line"] > 0 for bean in jdbc_beans.values())
+
+
+def test_petclinic_owner_controller_fixture_emits_wiring_contract(tmp_path: Path) -> None:
+    fixture = FIXTURES / "java" / "PetClinicOwnerController.java"
+    output = tmp_path / "owner_controller.py"
+    result = translate_file(fixture, cfg=_spring_cfg(), use_llm=False, validate=False)
+    result.output_path = output
+
+    sidecar = pipeline.write_wiring_metadata_sidecar(result)
+
+    assert sidecar is not None
+    assert sidecar == output.with_suffix(".wiring.json")
+    assert_module_executes(result.python_source)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    elements = payload["elements"]
+    assert payload["schema_version"] == 1
+    assert set(payload) == {"elements", "output", "schema_version", "source"}
+    assert all(set(element["metadata"]) == {"spring"} for element in elements)
+
+    class_element = next(
+        element
+        for element in elements
+        if element["kind"] == "class" and element["java_name"] == "OwnerController"
+    )
+    assert class_element["plugin"] == "spring-wiring"
+    assert class_element["metadata"]["spring"]["role"] == "controller"
+    assert class_element["metadata"]["spring"]["router_prefix"] == "/owners"
+
+    field_element = next(
+        element
+        for element in elements
+        if element["kind"] == "field" and element["java_name"] == "ownerRepository"
+    )
+    assert field_element["metadata"]["spring"]["inject"] == {
+        "name": "owner_repository",
+        "java_name": "ownerRepository",
+        "type": "OwnerRepository",
+        "source": "field",
+        "required": True,
+        "qualifier": None,
+    }
+
+    routes = {
+        element["java_name"]: element["metadata"]["spring"]["route"]
+        for element in elements
+        if element["kind"] == "method"
+    }
+    assert routes["findOwners"] == {
+        "http_method": "GET",
+        "path": "",
+        "handler": "find_owners",
+        "status_code": 200,
+        "parameters": [
+            {
+                "name": "last_name",
+                "java_name": "lastName",
+                "source": "query",
+                "python_type": "str",
+                "required": False,
+            },
+        ],
+        "request_body": None,
+    }
+    assert routes["findOwner"]["http_method"] == "GET"
+    assert routes["findOwner"]["path"] == "/{owner_id}"
+    assert routes["findOwner"]["parameters"] == [
+        {
+            "name": "owner_id",
+            "java_name": "ownerId",
+            "source": "path",
+            "python_type": "int",
+            "required": True,
+        },
+    ]
+    assert routes["createOwner"]["http_method"] == "POST"
+    assert routes["createOwner"]["path"] == ""
+    assert routes["createOwner"]["status_code"] == 201
+    assert routes["createOwner"]["request_body"] == {
+        "name": "request",
+        "java_name": "request",
+        "python_type": "OwnerRequest",
+        "required": True,
+    }
