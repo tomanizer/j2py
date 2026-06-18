@@ -7,14 +7,38 @@ from pathlib import Path
 
 from j2py.config.loader import ConfigLoader
 from j2py.doctor import (
+    DOCTOR_SCHEMA_VERSION,
+    DoctorAssessment,
+    DoctorDiff,
     assess_project,
     diff_assessments,
+    load_assessment_json,
     render_assessment_html,
     render_config_suggestions,
     render_doctor_diff_text,
+    write_assessment_html,
+    write_assessment_json,
+    write_config_suggestions,
+    write_doctor_diff_json,
 )
 
 CFG = ConfigLoader().add_defaults().build()
+
+
+def test_doctor_public_facade_exports_stable_api() -> None:
+    assert DOCTOR_SCHEMA_VERSION == 1
+    assert DoctorAssessment({"schema_version": 1}).to_json()
+    assert DoctorDiff({"schema_version": 1}).to_json()
+    assert callable(assess_project)
+    assert callable(diff_assessments)
+    assert callable(load_assessment_json)
+    assert callable(render_assessment_html)
+    assert callable(render_config_suggestions)
+    assert callable(render_doctor_diff_text)
+    assert callable(write_assessment_html)
+    assert callable(write_assessment_json)
+    assert callable(write_config_suggestions)
+    assert callable(write_doctor_diff_json)
 
 
 def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> None:
