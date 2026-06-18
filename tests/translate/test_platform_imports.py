@@ -65,6 +65,12 @@ from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_wit
             ("from typing import Any as DataSource",),
             "platform_placeholder",
         ),
+        (
+            "org.springframework.jdbc.core.BeanPropertyRowMapper",
+            "BeanPropertyRowMapper",
+            ("from typing import Any as BeanPropertyRowMapper",),
+            "external_placeholder",
+        ),
     ],
 )
 def test_java_import_policy_classifies_evidence_types(

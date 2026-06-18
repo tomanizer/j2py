@@ -85,6 +85,9 @@ PLACEHOLDER_IMPORTS: dict[str, str] = {
         "from typing import Any as NamedParameterJdbcTemplate"
     ),
     "org.springframework.jdbc.core.RowMapper": "from typing import Any as RowMapper",
+    "org.springframework.jdbc.core.BeanPropertyRowMapper": (
+        "from typing import Any as BeanPropertyRowMapper"
+    ),
 }
 
 
@@ -94,6 +97,7 @@ EXTERNAL_PLACEHOLDER_TYPES: frozenset[str] = frozenset(
         "org.springframework.jdbc.core.JdbcTemplate",
         "org.springframework.jdbc.core.NamedParameterJdbcTemplate",
         "org.springframework.jdbc.core.RowMapper",
+        "org.springframework.jdbc.core.BeanPropertyRowMapper",
     },
 )
 
