@@ -122,7 +122,7 @@ Provide measurable quality signal without live LLM in normal CI:
 
 - **Graduated fixtures** — Java/Python pairs and graduated roadmap targets in `make check`
 - **Equivalence gate** — literal-oracle differential tests on harvested library code
-  (`tests/equivalence/`, current floor **96/97 public signatures**)
+  (`tests/equivalence/`, current floor **120/152 public signatures**)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
   (`make test-behavior`, separate CI workflow)
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,

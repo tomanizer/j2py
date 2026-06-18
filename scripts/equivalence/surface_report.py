@@ -25,10 +25,12 @@ STRING_OVERLOAD_REASON = (
     "String/Character overload dispatch is outside the first literal-oracle surface"
 )
 FIXTURE_LIBRARIES = {
+    "BooleanUtils.java": "commons-lang",
     "CharUtils.java": "commons-lang",
     "NumberUtils.java": "commons-lang",
     "StringUtils.java": "commons-lang",
     "GuavaPrecedenceMath.java": "guava",
+    "Strings.java": "guava",
 }
 
 EXPLICIT_UNTESTABLE_REASONS: dict[str, dict[str, str]] = {
