@@ -7,7 +7,8 @@ import pytest
 
 from j2py.llm.prompts import build_review_prompt
 from j2py.llm.review import LlmReviewFinding, parse_review_findings, review_findings_payload
-from j2py.report import ReportInput, render_translation_report
+from j2py.report import ReportInput, render_dashboard, render_translation_report
+from j2py.state import StateEntry
 
 
 def test_parse_review_findings_accepts_list_and_coerces_fields() -> None:
@@ -175,3 +176,30 @@ def test_report_renders_review_error_and_empty_findings() -> None:
     assert "provider unavailable" in html
     assert "LLM review:</strong> no findings." in html
     assert "Check manually." in html
+
+
+def test_dashboard_renders_review_error_cell() -> None:
+    html = render_dashboard(
+        [
+            StateEntry(
+                source_path="Error.java",
+                output_path="Error.py",
+                sha256="abc",
+                translated_at="2026-06-18T11:00:00Z",
+                confidence=1.0,
+                used_llm=False,
+                validation_ok=True,
+                syntax_ok=True,
+                mypy_ok=True,
+                ruff_ok=True,
+                todo_count=0,
+                unhandled_count=0,
+                loc=1,
+                llm_review_ran=True,
+                llm_review_error="provider unavailable",
+            ),
+        ],
+        title="Dashboard",
+    )
+
+    assert '<td data-value="0">error</td>' in html
