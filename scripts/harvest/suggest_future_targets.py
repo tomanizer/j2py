@@ -10,6 +10,7 @@ from pathlib import Path
 
 from scripts.harvest.aggregate_llm_harvest import _load_records
 from scripts.harvest.harvest_presets import REPO_ROOT
+from scripts.harvest.triage_lib import repair_signals, trigger_kinds
 
 TARGETS_FILE = REPO_ROOT / "tests" / "targets" / "test_translation_targets.py"
 LLM_FIXTURES = REPO_ROOT / "tests" / "fixtures" / "llm"
@@ -37,12 +38,11 @@ def _existing_tracking_ids() -> set[str]:
 
 
 def _eligible(record: dict[str, object]) -> bool:
+    if "coverage_gap" in trigger_kinds(record):
+        return True
     trigger = record.get("trigger")
     if not isinstance(trigger, dict):
         return False
-    kinds = trigger.get("kinds")
-    if isinstance(kinds, list) and "coverage_gap" in kinds:
-        return True
     unhandled = trigger.get("unhandled")
     return isinstance(unhandled, list) and len(unhandled) > 0
 
@@ -90,9 +90,9 @@ def _infer_reason(record: dict[str, object]) -> str:
                 reason = first.get("reason")
                 if isinstance(reason, str) and reason:
                     return reason
-    repair = record.get("repair_signals")
-    if isinstance(repair, list) and repair:
-        return f"Rule-layer gap; LLM repair signal: {repair[0]}"
+    signals = repair_signals(record)
+    if signals:
+        return f"Rule-layer gap; LLM repair signal: {signals[0]}"
     return "Rule-layer gap promoted from LLM harvest"
 
 
