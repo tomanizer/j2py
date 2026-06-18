@@ -78,7 +78,8 @@ rather than duplicate them:
   framework plugin architecture.
 - #409 - framework sidecar cleanup behavior.
 - [Framework plugin guide](FRAMEWORK_PLUGINS.md), [configuration docs](configuration.md),
-  and [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md).
+  [Spring wiring metadata profile](SPRING_WIRING_METADATA.md), and
+  [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md).
 
 ## V1 scope
 
@@ -87,7 +88,8 @@ The v1 Spring extension claim is intentionally narrow:
 - Spring MVC controller route facts for a pinned owner-controller slice.
 - Pydantic DTO output for request and response objects.
 - SQLAlchemy entity/repository output where existing rule-layer support applies.
-- Dependency-injection metadata emitted through the generic framework sidecar channel.
+- Dependency-injection metadata emitted through the generic framework sidecar channel and
+  the v1 [Spring wiring metadata profile](SPRING_WIRING_METADATA.md).
 - `j2py-wire` generation of FastAPI/SQLAlchemy wiring from sidecars.
 - PetClinic owner-slice smoke test as the end-to-end acceptance target.
 

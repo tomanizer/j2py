@@ -288,7 +288,8 @@ metadata for the file, j2py removes the stale sidecar. j2py core does not consum
 or generate framework bootstrap code; it is intended for downstream tooling such as the
 planned `j2py-wire` follow-up. For Spring, structured wiring facts must use this existing
 sidecar path rather than a Spring-only sidecar writer; see
-[ADR 0024](decisions/0024-spring-extension-boundary.md).
+[ADR 0024](decisions/0024-spring-extension-boundary.md) and the
+[Spring wiring metadata profile](SPRING_WIRING_METADATA.md).
 
 Set/list options:
 

@@ -77,7 +77,8 @@ preserving the generic sidecar envelope:
 ```
 
 The Spring profile can version its nested metadata schema, but it must not create a
-parallel sidecar writer or replace the top-level sidecar contract.
+parallel sidecar writer or replace the top-level sidecar contract. The v1 nested schema is
+documented in [SPRING_WIRING_METADATA.md](../SPRING_WIRING_METADATA.md).
 
 ### `j2py-wire` owns application wiring
 
