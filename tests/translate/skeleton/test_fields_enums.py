@@ -81,6 +81,26 @@ def test_jpa_entity_lowers_to_sqlalchemy_declarative_model() -> None:
     assert_valid_python(result.source)
 
 
+def test_spring_data_repository_lowers_to_session_backed_class() -> None:
+    parsed = parse_file(FIXTURES / "java" / "SpringDataRepository.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.source == (FIXTURES / "python" / "SpringDataRepository.py").read_text()
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from sqlalchemy import func, select" in result.source
+    assert "from sqlalchemy.orm import Session" in result.source
+    assert "class OwnerRepository:" in result.source
+    assert "Protocol" not in result.source
+    assert "return self._session.get(Owner, id)" in result.source
+    assert "return list(self._session.execute(select(Owner)).scalars())" in result.source
+    assert "self._session.add(entity)" in result.source
+    assert "self._session.delete(entity)" in result.source
+    assert "# JPQL: SELECT o FROM Owner o WHERE o.lastName = :lastName" in result.source
+    assert "raise NotImplementedError" in result.source
+    assert_valid_python(result.source)
+
+
 def test_bean_validation_entity_is_not_promoted_to_pydantic_model() -> None:
     result = translate_source_with_diagnostics(
         """
