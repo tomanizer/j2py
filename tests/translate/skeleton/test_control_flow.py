@@ -331,6 +331,53 @@ def test_while_statement_translates_break_and_update() -> None:
     assert_valid_python(python_source)
 
 
+def test_label_only_statement_preserves_label_comment_and_translates_body() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Labels {
+            public void check(int value) {
+                positive:
+                return;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "# label: positive" in result.source
+    assert "return" in result.source
+    assert "unsupported labeled_statement" not in result.source
+    assert any(
+        diagnostic.reason == "translated label-only statement"
+        for diagnostic in result.diagnostics.handled
+    )
+    assert_valid_python(result.source)
+
+
+def test_labeled_break_target_remains_explicitly_unsupported() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Labels {
+            public void stop() {
+                outer:
+                while (true) {
+                    break outer;
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "# TODO(j2py): unsupported labeled_statement target outer" in result.source
+    assert any(
+        diagnostic.reason == "unsupported labeled break/continue target outer"
+        for diagnostic in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_do_while_statement_translates_to_guarded_infinite_loop() -> None:
     python_source, coverage = translate_source(
         """

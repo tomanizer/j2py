@@ -30,6 +30,10 @@ class PartialUnsupported:
 
     def check(self, value: int) -> None:
         return
+
+    def stop(self) -> None:
+        while True:
+            break
 """
 
 
@@ -55,7 +59,8 @@ def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
     assert result.diagnostics.unhandled
     assert result.validation is not None
     assert "return [[0] * cols for _ in range(rows)]" in result.python_source
-    assert "# TODO(j2py): unsupported labeled_statement" in result.python_source
+    assert "# label: positive" in result.python_source
+    assert "# TODO(j2py): unsupported labeled_statement target outer" in result.python_source
     ast.parse(result.python_source)
 
 
@@ -143,9 +148,10 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
     ) -> str:
         assert "public class PartialUnsupported" in java_source
         assert "return [[0] * cols for _ in range(rows)]" in partial_python
-        assert "# TODO(j2py): unsupported labeled_statement" in partial_python
+        assert "# label: positive" in partial_python
+        assert "# TODO(j2py): unsupported labeled_statement target outer" in partial_python
         assert "package: com.example" in context
-        assert "labeled_statement" in diagnostics
+        assert "unsupported labeled break/continue target outer" in diagnostics
         assert validation_feedback == ""
         assert previous_python == ""
         assert config_fingerprint
@@ -525,7 +531,7 @@ def test_translate_file_retries_llm_once_with_structural_feedback(monkeypatch, t
         """
         package com.example;
         public class DroppedMethod {
-            public int first() { done: return 1; }
+            public int first() { done: while (true) { break done; } return 1; }
             public int second() { return 2; }
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
@@ -585,7 +591,7 @@ def test_translate_file_records_structural_failure_when_retry_still_drops_method
         """
         package com.example;
         public class DroppedMethod {
-            public int first() { done: return 1; }
+            public int first() { done: while (true) { break done; } return 1; }
             public int second() { return 2; }
             public int[][] matrix(int rows, int cols) {
                 return new int[rows][cols];
@@ -894,6 +900,9 @@ def test_translate_directory_passes_direct_sibling_signatures_to_llm(
 
             public int[][] matrix(int rows, int cols) {
                 ready:
+                while (true) {
+                    break ready;
+                }
                 return new int[rows][cols];
             }
         }
