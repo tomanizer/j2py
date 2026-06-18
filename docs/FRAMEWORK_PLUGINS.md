@@ -10,6 +10,7 @@ Configuration reference: [configuration.md](configuration.md#framework-plugins).
 Related Tier 2 mapping: [ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
 Spring extension boundary: [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).
+Spring roadmap guardrails: [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md).
 Spring wiring profile: [SPRING_WIRING_METADATA.md](SPRING_WIRING_METADATA.md).
 
 ## What plugins are for
@@ -448,5 +449,7 @@ needs code, correlation, metadata, or project-specific precedence.
 - [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
   [ADR 0024](decisions/0024-spring-extension-boundary.md) define the optional Spring
   extension scope and the rule that Spring is one consumer of these generic hooks.
+- [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) lists the implementation
+  checklist for future Spring roadmap PRs.
 - [ADR 0022](decisions/0022-framework-plugin-architecture.md) records the architecture
   tradeoffs behind the plugin contract.

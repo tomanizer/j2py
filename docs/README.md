@@ -11,6 +11,7 @@
 | [API.md](API.md) | Python API usage for file/directory translation, config loading, diagnostics, and reports |
 | [PRD.md](PRD.md) | Product goals, functional requirements, non-goals, success criteria |
 | [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) | Optional Spring conversion extension scope, v1 target, and boundary rules |
+| [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) | Guardrails and review checklist for Spring roadmap implementation work |
 | [SPRING_WIRING_METADATA.md](SPRING_WIRING_METADATA.md) | Spring metadata profile stored under existing framework sidecars for `j2py-wire` |
 | [POSITIONING.md](POSITIONING.md) | Useful scope, enterprise framework boundaries, and how to read corpus metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
