@@ -19,6 +19,98 @@ j2py is not a Spring container and does not silently make every Spring applicati
 runnable. The Spring path is opt-in, sidecar-driven, and validated by the PetClinic owner
 slice smoke gate.
 
+## Sidecars And Wiring
+
+A translated Python file should stay focused on the Java source it came from. For example,
+`OwnerController.java` becomes `owner_controller.py`, with translated classes, methods,
+fields, and imports that a reviewer can compare against the original Java.
+
+Spring applications also contain framework facts that are not normal Java control flow:
+
+- this class is a controller;
+- this method is a `GET /owners/{ownerId}` route;
+- this field is injected by Spring;
+- this repository expects a SQLAlchemy session in the Python runtime;
+- this generated app needs a route registration step before FastAPI can serve requests.
+
+j2py stores those framework facts in a **sidecar** file. A sidecar is a JSON companion file
+written next to the translated Python module:
+
+```text
+translated_py/
+  owner_controller.py
+  owner_controller.wiring.json
+```
+
+The sidecar points back to the Java source and Python output, then records structured
+metadata for translated elements:
+
+```json
+{
+  "schema_version": 1,
+  "source": "src/main/java/example/OwnerController.java",
+  "output": "translated_py/owner_controller.py",
+  "elements": [
+    {
+      "plugin": "spring-wiring",
+      "kind": "method",
+      "java_name": "findOwner",
+      "python_name": "find_owner",
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "route": {
+            "http_method": "GET",
+            "path": "/{owner_id}",
+            "handler": "find_owner"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+The sidecar is not executable code and it is not a second translated module. It is a
+machine-readable review artifact for downstream tools. Keeping it separate avoids hiding
+framework policy inside the source translation.
+
+**Wiring** is the framework glue generated from sidecars. For FastAPI, wiring means code
+such as:
+
+- `APIRouter(prefix="/owners")`;
+- route functions decorated with `@router.get(...)` or `@router.post(...)`;
+- `Depends(...)` providers for repositories and controllers;
+- an `app_wiring.py` helper that registers generated routers with a `FastAPI` app;
+- placeholders or dependency seams where your application supplies a real database
+  session factory.
+
+That split gives you two review surfaces:
+
+1. Review `*.py` files for Java-to-Python source correspondence.
+2. Review `*.wiring.json` and generated wiring for framework assembly decisions.
+
+## Why This Improves The Python App
+
+Plain translation can produce correctly shaped Python classes that still do not run as an
+application. A controller class may exist, but FastAPI does not know which routes to
+serve. A repository class may exist, but no provider supplies the SQLAlchemy session. A
+translated method may have the right name, but nothing has mounted it into an app.
+
+Sidecars and wiring close that gap without turning j2py into a Spring runtime:
+
+- translated classes stay reviewable and close to the Java source;
+- framework facts become structured data instead of comments a human must rediscover;
+- `j2py-wire` can generate repeatable FastAPI glue from those facts;
+- `j2py-wire validate` can report missing providers, unresolved imports, route-handler
+  mismatches, and session-factory gaps before runtime;
+- project code still owns production behavior such as database engines, sessions,
+  transactions, authentication, and HTTP error policy.
+
+The result is a better translated Python application scaffold: not just isolated Python
+classes, but classes plus enough generated framework glue to import, start, and smoke-test
+a bounded FastAPI app.
+
 ## What Is Supported
 
 The current Spring profile can help with:
@@ -33,12 +125,16 @@ The current Spring profile can help with:
 - lowering Spring Data repository interfaces to session-injected SQLAlchemy repository
   classes for supported CRUD methods;
 - preserving or lowering `@Transactional` semantics as explicit Python transaction
-  boundaries where supported;
+  markers or review comments where supported;
 - lowering `@ConfigurationProperties` classes to Pydantic settings classes;
-- emitting Spring route, dependency-injection, repository, entity, settings, transaction,
-  and JDBC bean topology facts through the generic `*.wiring.json` sidecar path;
+- emitting Spring route, dependency-injection, component-role, and JDBC bean topology
+  facts through the generic `*.wiring.json` sidecar path;
 - generating FastAPI `APIRouter`, `Depends(...)` providers, and app registration helpers
   with `j2py-wire`.
+
+The documented sidecar profile also reserves repository and entity hint shapes for
+downstream producers. `@Transactional` and `@ConfigurationProperties` support currently
+shows up in translated Python rather than generated FastAPI wiring.
 
 Runtime policy remains project-owned. Your application still supplies real session
 factories, database engines, authentication, error handling, transaction management, and
