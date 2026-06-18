@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkMetadataRecord
@@ -15,6 +16,9 @@ from j2py.translate.runtime import (
     RUNTIME_MONITOR_IMPORT_LINE,
     RUNTIME_TODO_IMPORT_LINE,
 )
+
+if TYPE_CHECKING:
+    from j2py.translate.member_resolution import JavaMemberBinding
 
 
 @dataclass(frozen=True)
@@ -186,6 +190,7 @@ class TranslationContext:
     expression_aliases: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
+    static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False

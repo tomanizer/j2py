@@ -61,6 +61,7 @@ from j2py.translate.diagnostics import (
     TranslationDiagnostics,
 )
 from j2py.translate.framework_dispatch import resolve_class, resolve_field
+from j2py.translate.member_resolution import JavaMemberBinding
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
@@ -360,6 +361,7 @@ def translate_class(
                     class_method_return_types=method_return_types,
                     static_field_aliases=env.static_field_aliases,
                     static_method_imports=env.static_method_imports,
+                    static_member_bindings=env.static_member_bindings,
                     name_resolver=resolver,
                     pre_body_lines=(
                         outer_self_init_lines + lock_init_lines + instance_init_lines
@@ -398,6 +400,7 @@ def translate_class(
             class_method_return_types=method_return_types,
             static_field_aliases=env.static_field_aliases,
             static_method_imports=env.static_method_imports,
+            static_member_bindings=env.static_member_bindings,
             name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
@@ -599,6 +602,7 @@ def translate_overloaded_members(
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    static_member_bindings: dict[str, JavaMemberBinding] | None = None,
     name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
     extra_params: list[ParameterInfo] | None = None,
@@ -629,6 +633,7 @@ def translate_overloaded_members(
         class_method_return_types=class_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        static_member_bindings=static_member_bindings,
         name_resolver=name_resolver,
         pre_body_lines=pre_body_lines,
         extra_params=extra_params or [],

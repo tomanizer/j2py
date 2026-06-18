@@ -24,6 +24,7 @@ from j2py.translate.classes import collect_file_class_static_methods, translate_
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.translate.member_resolution import (
+    JavaMemberBinding,
     static_import_binding,
     static_import_field_fallback,
 )
@@ -75,11 +76,12 @@ def translate_skeleton_with_diagnostics(
 ) -> SkeletonTranslation:
     """Produce a partial Python translation with structured coverage diagnostics."""
     diagnostics = TranslationDiagnostics()
-    static_field_aliases, static_method_imports, static_import_todos = _static_import_info(
-        parsed,
-        diagnostics,
-        cfg,
-    )
+    (
+        static_field_aliases,
+        static_method_imports,
+        static_member_bindings,
+        static_import_todos,
+    ) = _static_import_info(parsed, diagnostics, cfg)
     file_name_bindings = build_file_name_bindings(
         parsed,
         symbols,
@@ -107,6 +109,7 @@ def translate_skeleton_with_diagnostics(
         inherited_declared_type_method_return_types=module_declared_type_method_return_types,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        static_member_bindings=static_member_bindings,
         name_resolver=name_resolver,
         file_class_static_methods=file_class_static_methods,
         file_class_static_instance_aliases=file_class_static_instance_aliases,
@@ -245,9 +248,10 @@ def _static_import_info(
     parsed: ParsedFile,
     diagnostics: TranslationDiagnostics,
     cfg: TranslationConfig,
-) -> tuple[dict[str, str], dict[str, str], list[str]]:
+) -> tuple[dict[str, str], dict[str, str], dict[str, JavaMemberBinding], list[str]]:
     field_aliases: dict[str, str] = {}
     method_imports: dict[str, str] = {}
+    member_bindings: dict[str, JavaMemberBinding] = {}
     todos: list[str] = []
     for java_import in parsed.root.find_all("import_declaration"):
         if not is_static_import(java_import):
@@ -279,6 +283,7 @@ def _static_import_info(
                 intrinsic=field_alias,
             )
             field_aliases[member] = binding.intrinsic or field_alias
+            member_bindings[member] = binding
             diagnostics.record(
                 java_import,
                 supported=True,
@@ -293,6 +298,7 @@ def _static_import_info(
                 intrinsic=imported_name,
             )
             method_imports[member] = f"{binding.owner}.{binding.member}"
+            member_bindings[member] = binding
             diagnostics.record(
                 java_import,
                 supported=True,
@@ -315,4 +321,5 @@ def _static_import_info(
         # Register syntax-safe fallbacks so both identifier and call sites stay reviewable.
         field_aliases[member] = static_import_field_fallback(binding, cfg)
         method_imports[member] = imported_name
-    return field_aliases, method_imports, todos
+        member_bindings[member] = binding
+    return field_aliases, method_imports, member_bindings, todos
