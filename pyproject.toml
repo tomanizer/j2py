@@ -71,6 +71,9 @@ gemini = [
 openai = [
     "openai>=1.0",
 ]
+spring = [
+    "pydantic-settings>=2.0",
+]
 test = [
     "mypy>=1.10",
     "PyYAML>=6.0",

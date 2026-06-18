@@ -54,6 +54,21 @@ def test_openai_sdk_is_available_in_openai_and_dev_extras() -> None:
     assert "openai" in _dependency_names(dev)
 
 
+def test_pydantic_settings_is_available_in_spring_extra_only() -> None:
+    project = _pyproject()["project"]
+    assert isinstance(project, dict)
+    dependencies = project["dependencies"]
+    optional = project["optional-dependencies"]
+    assert isinstance(dependencies, list)
+    assert isinstance(optional, dict)
+
+    spring = optional["spring"]
+    assert isinstance(spring, list)
+
+    assert "pydantic-settings" not in _dependency_names(dependencies)
+    assert "pydantic-settings" in _dependency_names(spring)
+
+
 def test_gemini_harvest_make_targets_request_gemini_extra() -> None:
     path = Path(__file__).resolve().parents[2] / "Makefile"
     makefile = path.read_text(encoding="utf-8")

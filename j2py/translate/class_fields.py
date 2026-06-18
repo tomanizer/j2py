@@ -19,6 +19,11 @@ from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
+from j2py.translate.spring_settings import (
+    ValueField,
+    spring_value_comment_lines,
+    spring_value_field,
+)
 from j2py.translate.sqlalchemy_model import sqlalchemy_model_field_lines
 from j2py.translate.statements import translate_body
 
@@ -257,7 +262,12 @@ def _translate_fields(
                     )
                 elif pydantic_model:
                     static_lines.extend(
-                        _translate_pydantic_model_field(field, static_ctx, diagnostics, transform)
+                        _translate_pydantic_model_field(
+                            field,
+                            static_ctx,
+                            diagnostics,
+                            transform,
+                        )
                     )
                 elif sqlalchemy_model:
                     static_lines.extend(
@@ -305,6 +315,27 @@ def _translate_fields(
     return static_lines, instance_init_lines
 
 
+def _emit_field_annotation_comments(
+    lines: list[str],
+    field: FieldInfo,
+    value: ValueField | None,
+    cfg: TranslationConfig,
+    *,
+    indent: str,
+) -> None:
+    """Emit comments for a field's annotations, including special handling for @Value."""
+    if value is not None:
+        lines.extend(spring_value_comment_lines(field, value, indent=indent))
+    lines.extend(
+        annotation_comment_lines(
+            field.node,
+            cfg,
+            indent=indent,
+            skip_names={"Value"} if value is not None else None,
+        )
+    )
+
+
 def _translate_pydantic_model_field(
     field: FieldInfo,
     ctx: TranslationContext,
@@ -312,6 +343,12 @@ def _translate_pydantic_model_field(
     transform: FrameworkTransformResult,
 ) -> list[str]:
     helper_lines, default_value, annotation = _pydantic_field_default_and_annotation(field, ctx)
+    value = spring_value_field(field)
+    if value is not None and field.initializer is None:
+        default_value = value.default_value
+        annotation = (
+            field.py_type if default_value != "None" else _nullable_annotation(field.py_type)
+        )
     validation = bean_validation_field(field, default_value=default_value)
     if validation is not None:
         diagnostics.record(
@@ -323,6 +360,8 @@ def _translate_pydantic_model_field(
         if ctx.cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(annotation)
         validation_lines = helper_lines
+        if value is not None:
+            validation_lines.extend(spring_value_comment_lines(field, value, indent="    "))
         validation_lines.extend(f"    {comment}" for comment in validation.comment_lines)
         validation_lines.extend(transform.prefix_lines)
         validation_lines.append(
@@ -338,12 +377,13 @@ def _translate_pydantic_model_field(
             diagnostics,
             target_kind="field",
             target_name=field.py_name,
+            skip_names={"Value"} if value is not None else None,
         )
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(field.py_type)
     lines: list[str] = []
     if not transform.handled:
-        lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="    "))
+        _emit_field_annotation_comments(lines, field, value, ctx.cfg, indent="    ")
     lines.extend(transform.prefix_lines)
     if field.initializer is not None:
         diagnostics.record(
@@ -362,7 +402,9 @@ def _translate_pydantic_model_field(
         supported=True,
         reason="translated Java default value for Pydantic model field",
     )
-    default_value = java_default_value(field.java_type)
+    default_value = (
+        value.default_value if value is not None else java_default_value(field.java_type)
+    )
     annotation = field.py_type if default_value != "None" else _nullable_annotation(field.py_type)
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(annotation)
@@ -401,6 +443,7 @@ def _translate_instance_field(
     diagnostics: TranslationDiagnostics,
     transform: FrameworkTransformResult,
 ) -> list[str]:
+    value = spring_value_field(field)
     if not transform.handled:
         record_annotation_diagnostics(
             field.node,
@@ -408,6 +451,7 @@ def _translate_instance_field(
             diagnostics,
             target_kind="field",
             target_name=field.py_name,
+            skip_names={"Value"} if value is not None else None,
         )
     if transform.init_params:
         init_param = transform.init_params[0]
@@ -434,7 +478,9 @@ def _translate_instance_field(
         target = _field_assignment(f"self.{field.py_name}", field.py_type, ctx.cfg)
         injection_lines: list[str] = []
         if not transform.handled:
-            injection_lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="        "))
+            _emit_field_annotation_comments(
+                injection_lines, field, value, ctx.cfg, indent="        "
+            )
         injection_lines.extend(transform.prefix_lines)
         injection_lines.append(f"        {target} = {init_param.py_name}")
         return injection_lines
@@ -453,8 +499,8 @@ def _translate_instance_field(
         if initializer_lines:
             initializer_lines.append("")
         if not transform.handled:
-            initializer_lines.extend(
-                annotation_comment_lines(field.node, ctx.cfg, indent="        "),
+            _emit_field_annotation_comments(
+                initializer_lines, field, value, ctx.cfg, indent="        "
             )
         initializer_lines.extend(transform.prefix_lines)
         initializer_lines.append(
@@ -476,14 +522,16 @@ def _translate_instance_field(
         supported=True,
         reason="translated Java default value for instance field",
     )
-    default_value = java_default_value(field.java_type)
+    default_value = (
+        value.default_value if value is not None else java_default_value(field.java_type)
+    )
     annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(annotation)
     target = _field_assignment(f"self.{field.py_name}", annotation, ctx.cfg)
-    default_lines = []
+    default_lines: list[str] = []
     if not transform.handled:
-        default_lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="        "))
+        _emit_field_annotation_comments(default_lines, field, value, ctx.cfg, indent="        ")
     default_lines.extend(transform.prefix_lines)
     default_lines.append(f"        {target} = {default_value}")
     return default_lines
@@ -542,6 +590,7 @@ def _translate_static_field(
     diagnostics: TranslationDiagnostics,
     transform: FrameworkTransformResult,
 ) -> list[str]:
+    value = spring_value_field(field)
     if not transform.handled:
         record_annotation_diagnostics(
             field.node,
@@ -549,6 +598,7 @@ def _translate_static_field(
             diagnostics,
             target_kind="field",
             target_name=field.py_name,
+            skip_names={"Value"} if value is not None else None,
         )
     if field.initializer is None:
         diagnostics.record(
@@ -556,13 +606,15 @@ def _translate_static_field(
             supported=True,
             reason="translated Java default value for static field",
         )
-        default_value = java_default_value(field.java_type)
+        default_value = (
+            value.default_value if value is not None else java_default_value(field.java_type)
+        )
         annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
         if ctx.cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(annotation)
         default_lines: list[str] = []
         if not transform.handled:
-            default_lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="    "))
+            _emit_field_annotation_comments(default_lines, field, value, ctx.cfg, indent="    ")
         default_lines.extend(transform.prefix_lines)
         default_lines.append(
             f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}"
@@ -575,7 +627,7 @@ def _translate_static_field(
     initializer = translate_expression(field.initializer, ctx)
     lines: list[str] = []
     if not transform.handled:
-        lines.extend(annotation_comment_lines(field.node, ctx.cfg, indent="    "))
+        _emit_field_annotation_comments(lines, field, value, ctx.cfg, indent="    ")
     lines.extend(transform.prefix_lines)
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
     if _initializer_references_enclosing_class(initializer, ctx):
