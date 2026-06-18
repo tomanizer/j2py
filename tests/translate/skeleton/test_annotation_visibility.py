@@ -219,11 +219,31 @@ def test_transactional_fixture_preserves_method_and_class_level_metadata() -> No
         "def find_owner",
     )
     assert "# @Transactional(readOnly=True)\n    def package_private_helper" not in result.source
+    assert "# @Transactional(readOnly=True)\n    def describe" not in result.source
     assert [warning.reason for warning in result.diagnostics.warnings] == [
         "stripped framework annotation @Transactional on class OwnerService",
+        "dropped annotation @Override",
         "stripped framework annotation @Transactional on method save_owner",
     ]
     assert_valid_python(result.source)
+
+
+def test_transactional_comments_skip_empty_rollback_for_attributes() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Transactional {}
+
+        @Transactional(rollbackFor = {})
+        public class Service {
+            public void run() {
+            }
+        }
+        """,
+        CFG,
+    )
+
+    assert "# @Transactional" in result.source
+    assert "rollbackFor=" not in result.source
 
 
 def test_transactional_comments_respect_disabled_line_comments() -> None:
