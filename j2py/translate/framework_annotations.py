@@ -222,12 +222,16 @@ def _annotation_value_aliases(values: dict[str, str]) -> dict[str, str]:
 def _transactional_attributes(values: dict[str, str]) -> list[str]:
     attributes: list[str] = []
     for key, value in values.items():
+        if not value.strip():
+            continue
         if key == "readOnly":
             rendered = _transactional_bool(value)
             attributes.append(f"readOnly={rendered if rendered is not None else value}")
             continue
         if key == "rollbackFor":
-            attributes.append(f"rollbackFor={_transactional_exception_list(value)}")
+            normalized = _transactional_exception_list(value)
+            if normalized:
+                attributes.append(f"rollbackFor={normalized}")
             continue
         attributes.append(f"{key}={value}")
     return attributes
@@ -242,7 +246,7 @@ def _transactional_bool(value: str | None) -> bool | None:
 
 
 def _transactional_exception_list(value: str) -> str:
-    exceptions = [part.strip() for part in value.split(",")]
+    exceptions = [part.strip() for part in value.split(",") if part.strip()]
     return ", ".join(
         exception.removesuffix(".class") if exception.endswith(".class") else exception
         for exception in exceptions

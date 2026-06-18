@@ -11,13 +11,24 @@ class Owner {
 class AuditException {
 }
 
+class BaseService {
+    public String describe() {
+        return "base";
+    }
+}
+
 @Transactional(readOnly = true)
-public class OwnerService {
+public class OwnerService extends BaseService {
     public Owner findOwner(Long id) {
         return new Owner();
     }
 
     void packagePrivateHelper() {
+    }
+
+    @Override
+    public String describe() {
+        return "owner";
     }
 
     @Transactional(rollbackFor = AuditException.class)

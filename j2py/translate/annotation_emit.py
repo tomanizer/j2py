@@ -95,7 +95,7 @@ def annotation_comment_lines(
     lines: list[str] = []
     for annotation in annotation_nodes(node):
         annotation_name = annotation_simple_name(annotation)
-        if annotation_name in (skip_names or set()):
+        if skip_names and annotation_name in skip_names:
             continue
         entry = annotation_map_entry(annotation, cfg)
         if entry is not None and (entry.drop or entry.preserve_comment is False):

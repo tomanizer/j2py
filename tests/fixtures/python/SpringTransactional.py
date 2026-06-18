@@ -18,7 +18,13 @@ class AuditException:
     pass
 
 
-class OwnerService:
+class BaseService:
+
+    def describe(self) -> str:
+        return "base"
+
+
+class OwnerService(BaseService):
 
     # @Transactional(readOnly=True)
     # read-only transaction
@@ -27,6 +33,10 @@ class OwnerService:
 
     def package_private_helper(self) -> None:
         pass
+
+    # @Override
+    def describe(self) -> str:
+        return "owner"
 
     # @Transactional(rollbackFor=AuditException)
     # rollbackFor=AuditException
