@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from j2py.dashboard import render_dashboard
+from j2py.report import render_dashboard
 from j2py.state import StateEntry, load_state, save_state, state_path
 
 
