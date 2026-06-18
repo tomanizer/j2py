@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from j2py.cli.config import LLMProvider, load_config, resolve_llm_options
+from j2py.cli.config import (
+    LLMProvider,
+    LlmReviewScope,
+    load_config,
+    normalize_llm_review_scope,
+    resolve_llm_options,
+)
 from j2py.cli.output import (
     console,
     directory_payload,
@@ -45,6 +51,21 @@ def translate(
         None,
         "--llm-base-url",
         help="Base URL for OpenAI-compatible providers. Overrides config and OPENAI_BASE_URL.",
+    ),
+    llm_review: bool = typer.Option(
+        False,
+        "--llm-review",
+        help="Run an opt-in, non-mutating LLM review pass after translation.",
+    ),
+    llm_review_scope: str = typer.Option(
+        "all",
+        "--llm-review-scope",
+        help="Files to review when --llm-review is enabled: all, warnings, or low-confidence.",
+    ),
+    review_report: Path | None = typer.Option(
+        None,
+        "--review-report",
+        help="Write machine-readable LLM review findings JSON.",
     ),
     model: str | None = typer.Option(
         None,
@@ -100,6 +121,7 @@ def translate(
     if llm_base_url is not None:
         cfg = cfg.model_copy(update={"llm_base_url": llm_base_url})
     provider, effective_model = resolve_llm_options(cfg, llm_provider, model)
+    effective_review_scope = normalize_llm_review_scope(llm_review_scope)
 
     if source.is_dir():
         _translate_dir(
@@ -109,10 +131,13 @@ def translate(
             llm,
             effective_model,
             provider,
+            llm_review,
+            effective_review_scope,
             validate,
             dry_run,
             report,
             dashboard,
+            review_report,
             incremental,
             workers,
             llm_concurrency,
@@ -126,9 +151,12 @@ def translate(
             llm,
             effective_model,
             provider,
+            llm_review,
+            effective_review_scope,
             validate,
             dry_run,
             report,
+            review_report,
             json_output,
         )
 
@@ -140,9 +168,12 @@ def _translate_single(
     llm: bool,
     model: str | None,
     llm_provider: LLMProvider,
+    llm_review: bool,
+    llm_review_scope: LlmReviewScope,
     validate: bool,
     dry_run: bool,
     report: Path | None,
+    review_report: Path | None,
     json_output: bool,
 ) -> None:
     from j2py.pipeline import translate_file
@@ -155,6 +186,8 @@ def _translate_single(
         use_llm=llm,
         model=model,
         llm_provider=llm_provider,
+        llm_review=llm_review,
+        llm_review_scope=llm_review_scope,
         validate=validate,
     )
     if json_output:
@@ -163,6 +196,8 @@ def _translate_single(
         print_result_summary(result)
 
     if dry_run:
+        if review_report is not None:
+            write_review_report(review_report, [result])
         if not json_output:
             console.print(result.python_source)
         if result_has_blocking_issues(result, validate=validate):
@@ -180,6 +215,10 @@ def _translate_single(
         write_translation_report(report, [result])
         if not json_output:
             console.print(f"[green]Report:[/green] {report}")
+    if review_report is not None:
+        write_review_report(review_report, [result])
+        if not json_output:
+            console.print(f"[green]Review report:[/green] {review_report}")
 
     if validate and result.validation is not None and not json_output:
         print_validation(result.validation)
@@ -250,6 +289,26 @@ def refresh_directory_state(
     save_state(output_root, entries)
 
 
+def write_review_report(path: Path, results: list[TranslationResult]) -> None:
+    from j2py.cli.output import result_payload
+
+    file_payloads = [result_payload(result) for result in results]
+    payload = {
+        "files": [
+            {
+                "file": item["file"],
+                "output": item["output"],
+                "llm_review_ran": item["llm_review_ran"],
+                "llm_review_findings": item["llm_review_findings"],
+                "llm_review_error": item["llm_review_error"],
+            }
+            for item in file_payloads
+        ]
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def _translate_dir(
     source: Path,
     output: Path,
@@ -257,10 +316,13 @@ def _translate_dir(
     llm: bool,
     model: str | None,
     llm_provider: LLMProvider,
+    llm_review: bool,
+    llm_review_scope: LlmReviewScope,
     validate: bool,
     dry_run: bool,
     report: Path | None,
     dashboard: Path | None,
+    review_report: Path | None,
     incremental: bool,
     workers: int | None,
     llm_concurrency: int | None,
@@ -280,6 +342,8 @@ def _translate_dir(
         use_llm=llm,
         model=model,
         llm_provider=llm_provider,
+        llm_review=llm_review,
+        llm_review_scope=llm_review_scope,
         validate=validate,
         workers=workers or cfg.workers,
         llm_concurrency=llm_concurrency or cfg.llm_concurrency,
@@ -344,6 +408,12 @@ def _translate_dir(
             )
             if not json_output:
                 console.print(f"[green]Dashboard:[/green] {dashboard}")
+        if review_report is not None:
+            write_review_report(review_report, batch.files)
+            if not json_output:
+                console.print(f"[green]Review report:[/green] {review_report}")
+    elif review_report is not None:
+        write_review_report(review_report, batch.files)
 
     if not json_output:
         console.print(f"[green]Done.[/green] {len(batch.files)} files → {output}")

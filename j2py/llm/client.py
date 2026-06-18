@@ -19,7 +19,8 @@ from tenacity import (
 )
 
 from j2py.dotenv import load_repo_dotenv
-from j2py.llm.prompts import PROMPT_VERSION, TextPromptBlock
+from j2py.llm.prompts import PROMPT_VERSION, REVIEW_PROMPT_VERSION, TextPromptBlock
+from j2py.llm.review import LlmReviewFinding, parse_review_findings
 
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
 _cache = diskcache.Cache(str(_CACHE_DIR))
@@ -237,6 +238,45 @@ def _cache_key(
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def _review_cache_key(
+    *,
+    provider: LLMProvider,
+    model: str,
+    java_source: str,
+    python_source: str,
+    context: str,
+    diagnostics: str,
+    validation_summary: str,
+    structural_summary: str,
+    config_fingerprint: str,
+    system: str,
+    endpoint: str | None,
+    source_path: str,
+    output_path: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "config_fingerprint": config_fingerprint,
+            "context": context,
+            "diagnostics": diagnostics,
+            "java_sha256": hashlib.sha256(java_source.encode()).hexdigest(),
+            "kind": "llm_review",
+            "model": model,
+            "output_path": output_path,
+            "provider": provider,
+            "provider_endpoint": endpoint,
+            "python_sha256": hashlib.sha256(python_source.encode()).hexdigest(),
+            "review_prompt_version": REVIEW_PROMPT_VERSION,
+            "source_path": source_path,
+            "structural_summary": structural_summary,
+            "system": system,
+            "validation_summary": validation_summary,
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def _system_text(system: list[TextPromptBlock]) -> str:
     texts: list[str] = []
     for block in system:
@@ -341,6 +381,92 @@ def translate_with_llm(
         _cache[key] = result
 
     return result
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_not_exception_type(
+        (LLMTruncationError, MissingGeminiExtraError, MissingOpenAIExtraError)
+    ),
+)
+def review_translation_with_llm(
+    *,
+    java_source: str,
+    python_source: str,
+    context: str = "",
+    diagnostics: str = "",
+    validation_summary: str = "",
+    structural_summary: str = "",
+    source_path: str = "",
+    output_path: str = "",
+    config_fingerprint: str = "",
+    model: str | None = None,
+    provider: LLMProvider = "anthropic",
+    base_url: str | None = None,
+    use_cache: bool = True,
+) -> list[LlmReviewFinding]:
+    """Ask the configured LLM to review translated output without changing it."""
+    from j2py.llm.prompts import build_review_prompt
+
+    system, messages = build_review_prompt(
+        java_source=java_source,
+        python_source=python_source,
+        context=context,
+        diagnostics=diagnostics,
+        validation_summary=validation_summary,
+        structural_summary=structural_summary,
+        source_path=source_path,
+        output_path=output_path,
+    )
+    resolved_model = resolve_model(provider, model)
+    endpoint = cache_endpoint_identity(provider, base_url)
+    key = _review_cache_key(
+        provider=provider,
+        model=resolved_model,
+        java_source=java_source,
+        python_source=python_source,
+        context=context,
+        diagnostics=diagnostics,
+        validation_summary=validation_summary,
+        structural_summary=structural_summary,
+        config_fingerprint=config_fingerprint,
+        system=_system_text(system),
+        endpoint=endpoint,
+        source_path=source_path,
+        output_path=output_path,
+    )
+    if use_cache:
+        cached: str | None = _cache.get(key)
+        if cached is not None:
+            return parse_review_findings(cached)
+
+    if provider == "anthropic":
+        response_text = _translate_with_anthropic(
+            model=resolved_model,
+            system=system,
+            messages=messages,
+        )
+    elif provider == "gemini":
+        response_text = _translate_with_gemini(
+            model=resolved_model,
+            system_text=_system_text(system),
+            contents=_message_text(messages),
+        )
+    elif provider == "openai":
+        response_text = _translate_with_openai(
+            model=resolved_model,
+            system_text=_system_text(system),
+            contents=_message_text(messages),
+            base_url=base_url,
+        )
+    else:  # pragma: no cover - Literal prevents this for typed callers
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    findings = parse_review_findings(response_text)
+    if use_cache:
+        _cache[key] = response_text
+    return findings
 
 
 def _translate_with_anthropic(

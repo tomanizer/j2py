@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
 
 LLMProvider = Literal["anthropic", "gemini", "openai"]
+LlmReviewScope = Literal["all", "warnings", "low-confidence"]
 
 
 def normalize_llm_provider(value: str) -> LLMProvider:
@@ -25,6 +26,16 @@ def normalize_llm_provider(value: str) -> LLMProvider:
             param_hint="--llm-provider",
         )
     return cast(LLMProvider, normalized)
+
+
+def normalize_llm_review_scope(value: str) -> LlmReviewScope:
+    normalized = value.lower().replace("_", "-")
+    if normalized not in {"all", "warnings", "low-confidence"}:
+        raise typer.BadParameter(
+            "unsupported LLM review scope; choose 'all', 'warnings', or 'low-confidence'",
+            param_hint="--llm-review-scope",
+        )
+    return cast(LlmReviewScope, normalized)
 
 
 def resolve_llm_options(

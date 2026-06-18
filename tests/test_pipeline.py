@@ -9,6 +9,7 @@ import j2py.pipeline as pipeline
 import j2py.translate.skeleton as skeleton_module
 from j2py.analyze.symbols import FileSymbols
 from j2py.config.loader import ConfigLoader
+from j2py.llm.review import LlmReviewFinding
 from j2py.pipeline import (
     PARSE_ERROR_LLM_SKIP_MSG,
     translate_directory,
@@ -48,6 +49,214 @@ def test_translate_file_no_llm_preserves_full_confidence_fixture() -> None:
     assert result.validation.ok
     assert result.python_source == (FIXTURES / "python" / "HelloWorld.py").read_text()
     ast.parse(result.python_source)
+
+
+def test_translate_file_llm_review_runs_for_full_confidence_fixture(monkeypatch) -> None:
+    expected_python = (FIXTURES / "python" / "HelloWorld.py").read_text()
+    observed: dict[str, object] = {}
+
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        observed.update(kwargs)
+        return [
+            LlmReviewFinding(
+                severity="warning",
+                category="semantics",
+                source_line=6,
+                output_line=8,
+                message="Verify constructor initialization semantics.",
+                recommendation="Compare with Java behavior tests.",
+            )
+        ]
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    result = translate_file(
+        FIXTURES / "java" / "HelloWorld.java",
+        cfg=CFG,
+        use_llm=False,
+        llm_review=True,
+        model="claude-review-test",
+    )
+
+    assert not result.used_llm
+    assert result.llm_review_ran
+    assert result.confidence == 1.0
+    assert result.python_source == expected_python
+    assert result.llm_review_findings[0].message == "Verify constructor initialization semantics."
+    assert observed["provider"] == "anthropic"
+    assert observed["model"] == "claude-review-test"
+    assert "public class HelloWorld" in observed["java_source"]
+    assert expected_python == observed["python_source"]
+    assert observed["source_path"] == "tests/fixtures/java/HelloWorld.java"
+    assert observed["output_path"] == "tests/fixtures/java/HelloWorld.py"
+    assert observed["validation_summary"] == "Validation passed."
+
+
+def test_translate_file_llm_review_disabled_preserves_current_behavior(monkeypatch) -> None:
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        raise AssertionError("review should not run")
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    result = translate_file(FIXTURES / "java" / "HelloWorld.java", cfg=CFG, use_llm=False)
+
+    assert not result.llm_review_ran
+    assert result.llm_review_findings == []
+    assert result.llm_review_error is None
+
+
+def test_translate_file_llm_review_scope_low_confidence_skips_full_confidence(
+    monkeypatch,
+) -> None:
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        raise AssertionError("review should not run")
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    result = translate_file(
+        FIXTURES / "java" / "HelloWorld.java",
+        cfg=CFG,
+        use_llm=False,
+        llm_review=True,
+        llm_review_scope="low-confidence",
+    )
+
+    assert result.confidence == 1.0
+    assert not result.llm_review_ran
+
+
+def test_translate_file_llm_review_failure_does_not_corrupt_output(monkeypatch) -> None:
+    expected_python = (FIXTURES / "python" / "HelloWorld.py").read_text()
+
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        raise RuntimeError("review provider unavailable")
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    result = translate_file(
+        FIXTURES / "java" / "HelloWorld.java",
+        cfg=CFG,
+        use_llm=False,
+        llm_review=True,
+    )
+
+    assert result.python_source == expected_python
+    assert result.confidence == 1.0
+    assert result.llm_review_ran
+    assert result.llm_review_findings == []
+    assert result.llm_review_error == "review provider unavailable"
+
+
+def test_translate_directory_llm_review_scope_warnings_selects_only_warning_files(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "src"
+    output_root = tmp_path / "out"
+    source_root.mkdir()
+    (source_root / "Plain.java").write_text(
+        """
+        public class Plain {
+            public int value() {
+                return 1;
+            }
+        }
+        """,
+    )
+    (source_root / "Division.java").write_text(
+        """
+        public class Division {
+            public int half(int value) {
+                return value / 2;
+            }
+        }
+        """,
+    )
+    reviewed: list[str] = []
+
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        reviewed.append(Path(str(kwargs["source_path"])).name)
+        return []
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    batch = translate_directory(
+        source_root,
+        output_root,
+        cfg=CFG,
+        use_llm=False,
+        llm_review=True,
+        llm_review_scope="warnings",
+        validate=False,
+        workers=1,
+    )
+
+    assert reviewed == ["Division.java"]
+    by_name = {result.source_path.name: result for result in batch.files}
+    assert by_name["Division.java"].llm_review_ran
+    assert not by_name["Plain.java"].llm_review_ran
+
+
+def test_translate_directory_llm_review_receives_validation_summary(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "src"
+    output_root = tmp_path / "out"
+    source_root.mkdir()
+    (source_root / "Plain.java").write_text(
+        """
+        public class Plain {
+            public int value() {
+                return 1;
+            }
+        }
+        """,
+    )
+    observed: dict[str, object] = {}
+
+    def fake_review_translation_with_llm(**kwargs) -> list[LlmReviewFinding]:
+        observed.update(kwargs)
+        return []
+
+    monkeypatch.setattr(
+        llm_client,
+        "review_translation_with_llm",
+        fake_review_translation_with_llm,
+    )
+
+    batch = translate_directory(
+        source_root,
+        output_root,
+        cfg=CFG,
+        use_llm=False,
+        llm_review=True,
+        validate=True,
+        workers=1,
+    )
+
+    assert batch.files[0].llm_review_ran
+    assert observed["validation_summary"] == "Validation passed."
 
 
 def test_translate_file_no_llm_returns_partial_confidence_fixture() -> None:
