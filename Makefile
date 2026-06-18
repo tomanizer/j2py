@@ -8,6 +8,7 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
+	agent-worktree agent-clean agent-evacuate \
 	clean clean-dist ci-local-pr ci-local-pr-full ci-local-governance build sdist-hygiene-check dist-check \
 	lock-check version-check import-smoke release-test release-check
 
@@ -262,6 +263,15 @@ ci-local-pr-full: ci-local-pr test-ci-py312  ## Run the full remote CI Python ma
 ci-local-governance: ci-local-pr  ## For CI/tooling/dependency PRs — same gates, explicit label
 
 # ── Utility ──────────────────────────────────────────────────────────────────
+
+agent-worktree:  ## Create a locked agent worktree from origin/main (AGENT=codex|claude SLUG=name [ISSUE=123])
+	python3 scripts/agents/worktree_hygiene.py worktree --agent "$(AGENT)" --slug "$(SLUG)" $(if $(ISSUE),--issue "$(ISSUE)",)
+
+agent-clean:  ## Report worktree hygiene and delete only clean, unlocked, merged local worktrees/branches
+	python3 scripts/agents/worktree_hygiene.py clean
+
+agent-evacuate:  ## Move dirty main changes to a locked agent worktree (AGENT=codex|claude SLUG=name [ISSUE=123])
+	python3 scripts/agents/worktree_hygiene.py evacuate --agent "$(AGENT)" --slug "$(SLUG)" $(if $(ISSUE),--issue "$(ISSUE)",)
 
 clean: clean-dist  ## Remove build artifacts and caches
 	rm -rf .mypy_cache*/ .ruff_cache*/ .pytest_cache*/ htmlcov/ .coverage coverage.xml corpus-reports/

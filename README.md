@@ -94,6 +94,17 @@ Translate a file without LLM completion:
 uv run j2py translate tests/fixtures/java/HelloWorld.java --no-llm --no-validate --dry-run
 ```
 
+Assess a Java source tree before migration:
+
+```bash
+uv run j2py doctor path/to/java/root --json j2py-assessment.json --html j2py-assessment.html
+uv run j2py doctor path/to/java/root --config-suggestions j2py.suggested.yaml
+uv run j2py doctor diff before.json after.json
+```
+
+See [docs/DOCTOR.md](docs/DOCTOR.md) for the current assessment report format and
+limitations.
+
 Translate a directory in dependency order:
 
 ```bash

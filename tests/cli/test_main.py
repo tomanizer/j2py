@@ -951,6 +951,165 @@ def test_cli_dashboard_regenerates_from_state(tmp_path: Path) -> None:
     assert "Sample.java" in dashboard.read_text()
 
 
+def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Sample.java").write_text("package com.example; public class Sample {}")
+    json_path = tmp_path / "assessment.json"
+    html_path = tmp_path / "assessment.html"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            str(source),
+            "--json",
+            str(json_path),
+            "--html",
+            str(html_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(json_path.read_text())
+    assert payload["schema_version"] == 1
+    assert payload["summary"]["files"] == 1
+    assert payload["files"][0]["classes"][0]["name"] == "Sample"
+    assert "Doctor assessment" in result.output
+    assert "j2py doctor assessment" in html_path.read_text()
+
+
+def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Controller.java").write_text(
+        """
+        import org.springframework.web.bind.annotation.RestController;
+        import com.external.PaymentClient;
+
+        @RestController
+        public class Controller {
+            private PaymentClient client;
+        }
+        """,
+    )
+    suggestions_path = tmp_path / "j2py.suggested.yaml"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            str(source),
+            "--config-suggestions",
+            str(suggestions_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    suggestions = suggestions_path.read_text()
+    assert "config_suggestions:" in suggestions
+    assert 'java_import: "com.external.PaymentClient"' in suggestions
+    assert "Config suggestions" in result.output
+
+
+def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    diff_json = tmp_path / "diff.json"
+    before.write_text(
+        json.dumps(
+            {
+                "source": "before-src",
+                "summary": {
+                    "files": 1,
+                    "average_rule_coverage": 0.5,
+                    "unresolved_imports": 1,
+                },
+                "unresolved_imports": [
+                    {
+                        "import": "com.external.PaymentClient",
+                        "category": "external-import",
+                        "reason": "missing",
+                    }
+                ],
+                "files": [
+                    {
+                        "path": "Controller.java",
+                        "parse_ok": True,
+                        "unresolved_imports": [{"import": "com.external.PaymentClient"}],
+                        "translation": {
+                            "rule_coverage": 0.5,
+                            "semantic_warnings": [],
+                            "unhandled": [],
+                        },
+                    }
+                ],
+            }
+        )
+    )
+    after.write_text(
+        json.dumps(
+            {
+                "source": "after-src",
+                "summary": {
+                    "files": 1,
+                    "average_rule_coverage": 0.75,
+                    "unresolved_imports": 0,
+                },
+                "unresolved_imports": [],
+                "files": [
+                    {
+                        "path": "Controller.java",
+                        "parse_ok": True,
+                        "unresolved_imports": [],
+                        "translation": {
+                            "rule_coverage": 0.75,
+                            "semantic_warnings": [],
+                            "unhandled": [],
+                        },
+                    }
+                ],
+            }
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["doctor", "diff", str(before), str(after), "--json", str(diff_json)],
+    )
+
+    assert result.exit_code == 0
+    assert "Unresolved imports: 1 removed, 0 added" in result.output
+    payload = json.loads(diff_json.read_text())
+    assert payload["summary_delta"]["unresolved_imports"] == -1
+
+
+def test_cli_doctor_diff_without_operands_reports_usage() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["doctor", "diff"])
+
+    assert result.exit_code == 2
+    assert "usage: j2py doctor diff BEFORE_JSON AFTER_JSON" in result.output
+    assert "source path not found" not in result.output
+
+
+def test_cli_doctor_reports_missing_source_without_traceback(tmp_path: Path) -> None:
+    source = tmp_path / "missing"
+    json_path = tmp_path / "assessment.json"
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["doctor", str(source), "--json", str(json_path)])
+
+    assert result.exit_code == 1
+    assert "source path not found" in result.output
+    assert "Traceback" not in result.output
+    assert not json_path.exists()
+
+
 def test_cli_compare_existing_python_skips_translation_and_opens_diff(
     tmp_path: Path,
     monkeypatch,
