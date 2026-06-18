@@ -80,6 +80,40 @@ def test_severity_not_double_counted_for_multiple_reasons(tmp_path: Path) -> Non
     assert ambiguous.total_count == 2
 
 
+def test_overload_manual_dispatch_with_shape_details_still_clusters(tmp_path: Path) -> None:
+    _write_baseline(
+        tmp_path,
+        "demo",
+        _baseline(
+            "demo-dense",
+            [
+                {
+                    "path": "GenericCollision.java",
+                    "parse_ok": True,
+                    "syntax_ok": True,
+                    "coverage": 0.5,
+                    "handled_count": 1,
+                    "unhandled_count": 2,
+                    "unhandled_reasons": (
+                        "overloaded method first requires manual dispatch "
+                        "[erased=(list)|(list) | "
+                        "java_shapes=(collection:List->list[string:String->str])|"
+                        "(collection:List->list[numeric:Integer->int])]:2"
+                    ),
+                },
+            ],
+        ),
+    )
+
+    report = hotspots.build_report(tmp_path)
+    overload = next(
+        item for item in report.clusters if item.cluster == "overloaded method dispatch"
+    )
+
+    assert overload.total_count == 2
+    assert overload.file_hits == 1
+
+
 def test_syntax_failure_without_unhandled_appears_in_ranked_clusters(tmp_path: Path) -> None:
     _write_baseline(
         tmp_path,
