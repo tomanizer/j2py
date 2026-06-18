@@ -603,7 +603,7 @@ wheels = [
 
 [[package]]
 name = "j2py-converter"
-version = "0.5.0b3"
+version = "0.6.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
