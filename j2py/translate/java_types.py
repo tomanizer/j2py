@@ -76,7 +76,10 @@ def method_invocation_java_type(node: JavaNode) -> str | None:
     if name_node is None or name_node.text != "charAt":
         return None
     arguments = node.child_by_field("arguments")
-    if arguments is None or len(arguments.named_children) != 1:
+    if arguments is None:
+        return None
+    args = [c for c in arguments.named_children if c.type not in ("line_comment", "block_comment")]
+    if len(args) != 1:
         return None
     return "char"
 
