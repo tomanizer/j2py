@@ -60,6 +60,10 @@ As of the current committed baselines, `make corpus-hotspots` reports approximat
 Re-run `make corpus-hotspots` after refreshing any baseline. The command also prints
 syntax/parse failures and a ranked hotspot backlog for cross-library triage (#152).
 
+These rows come from committed `*-baseline.json` files. A live dense check can improve or
+regress relative to those rows before the baseline is intentionally refreshed; report that
+as a delta, not as a new committed baseline number.
+
 ## Curated construct mini-corpus
 
 A curated "constructs" mini-corpus lives in `tests/fixtures/corpus/constructs/`. These
@@ -106,7 +110,7 @@ For presets with a **committed baseline** (`guava-dense`, `commons-lang-dense`,
 
 ```bash
 make corpus-<name>                  # run without baseline comparison
-make corpus-<name>-check            # compare against committed baseline
+make corpus-<name>-check            # compare against committed baseline when target exists
 make corpus-<name>-update-baseline  # intentional baseline refresh after review
 ```
 
@@ -153,11 +157,22 @@ uv run python scripts/corpus/translate_corpus.py --preset spring-dense --compare
 
 | When | Command | Output |
 |------|---------|--------|
-| Rule-layer PR, before push | `make corpus-<name>-check` for Spring dense + a relevant library | stdout diff vs baseline; fails on regression |
+| Rule-layer PR, before push | `make corpus-<preset>-check` for Spring dense + a relevant library | stdout diff vs baseline; fails on regression |
 | Cross-library triage / backlog grooming | `make corpus-hotspots` | terminal scorecard + ranked clusters |
 | Deep dive on one preset | `make corpus-<name>` | `corpus-reports/<name>.json` and `.csv` |
 | Structured hotspot export | `uv run python scripts/corpus/aggregate_hotspots.py --json-out corpus-reports/hotspots.json` | JSON backlog for issue filing |
 | Intentional baseline refresh | `make corpus-<name>-update-baseline` after clean `-check` | updates `tests/fixtures/corpus/<name>-baseline.json` |
+
+When reporting a live benchmark, include the before/after lines printed by the check:
+
+```text
+average_coverage: 98.24% -> 99.92% (+1.68%)
+full_coverage_files: 145 -> 192 (+47)
+Regressions: none
+```
+
+Do not edit committed baselines just because a live run improved. Baseline refreshes are
+separate, intentional changes.
 
 `corpus-reports/` is gitignored. Attach relevant terminal output or JSON snippets to PRs
 when baseline metrics move. After changing any `*-baseline.json`, run

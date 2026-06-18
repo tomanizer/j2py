@@ -86,6 +86,10 @@ j2py --help
 The PyPI distribution is **`j2py-converter`**; the import package and CLI command are
 **`j2py`**. (The bare `j2py` name on PyPI is owned by an unrelated project.)
 
+For a full user walkthrough, start with [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
+For install variants and troubleshooting, see [docs/INSTALL.md](docs/INSTALL.md). For
+command details, see [docs/CLI.md](docs/CLI.md).
+
 Local development:
 
 ```bash
@@ -148,6 +152,9 @@ Print compare paths without opening an editor:
 uv run j2py compare tests/fixtures/java/HelloWorld.java --no-open --no-llm
 ```
 
+See [docs/OUTPUT_REVIEW.md](docs/OUTPUT_REVIEW.md) for how to interpret confidence,
+warnings, validation, TODO markers, and generated review artifacts.
+
 LLM completion with the default Anthropic provider (requires `ANTHROPIC_API_KEY`):
 
 ```bash
@@ -171,6 +178,8 @@ Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 `pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and
 `model` values there, while CLI flags override them for one command. See
 [docs/configuration.md](docs/configuration.md) for the schema.
+
+Programmatic callers can use the Python API described in [docs/API.md](docs/API.md).
 
 ## Quality gates
 

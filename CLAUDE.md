@@ -52,7 +52,16 @@ structures, but it remains incomplete. New deterministic translation work belong
 split class modules (`class_members.py`, `class_methods.py`, `class_enums.py`, etc.),
 `statements.py`, the split expression modules (`expr_access.py`, `expr_calls.py`,
 `expr_lambdas.py`, `expr_objects.py`, `expr_ops.py`, `expr_streams.py`,
-`expr_types.py`), or pure helpers under `translate/rules/`.
+`expr_types.py`), or pure helpers under `translate/rules/`. For method calls,
+`expr_calls.py` is the router; collection-like calls live in
+`expr_collection_calls.py`, JDK/platform calls in `expr_jdk_calls.py`, and
+static/static-import calls in `expr_static_calls.py`. For operators and conditionals,
+`expr_ops.py` is the router; assignments, binary operators, ternaries, switch expressions,
+and unary/update expressions live in `expr_assignments.py`, `expr_binary.py`,
+`expr_conditionals.py`, `expr_switch.py`, and `expr_unary.py`. For streams,
+`expr_streams.py` routes pipelines while `stream_sources.py`, `stream_ops.py`, and
+`stream_collectors.py` own source-chain, intermediate-operation, and terminal-collector
+lowering.
 Deterministic name-binding work belongs in `translate/name_resolution.py`. The earlier
 selector/transform prototype has been removed. See
 [ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).

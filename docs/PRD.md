@@ -120,7 +120,7 @@ Provide measurable quality signal without live LLM in normal CI:
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
   (`make test-behavior`, separate CI workflow)
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
-  Commons Lang, Jackson, Caffeine (`make corpus-*-check`, `make corpus-hotspots`)
+  Commons Lang, Jackson, Caffeine (`make corpus-*-dense-check`, `make corpus-hotspots`)
 
 ### F11 — Project assessment
 `j2py doctor` runs deterministic parse/analyze/rule-only assessment without live LLM calls.
