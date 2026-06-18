@@ -145,6 +145,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         config_fingerprint: str,
         model: str | None,
         provider: str,
+        base_url: str | None,
     ) -> str:
         assert "public class PartialUnsupported" in java_source
         assert "return [[0] * cols for _ in range(rows)]" in partial_python
@@ -157,6 +158,7 @@ def test_translate_file_uses_llm_when_rule_coverage_is_partial(monkeypatch) -> N
         assert config_fingerprint
         assert model == "claude-test"
         assert provider == "anthropic"
+        assert base_url is None
         return PARTIAL_LLM_OUTPUT
 
     monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
@@ -218,6 +220,30 @@ def test_translate_file_uses_configured_llm_defaults(monkeypatch) -> None:
     assert result.used_llm
     assert observed["provider"] == "gemini"
     assert observed["model"] == "gemini-config"
+
+
+def test_translate_file_passes_configured_openai_base_url(monkeypatch) -> None:
+    observed: dict[str, object] = {}
+    cfg = CFG.model_copy(
+        update={
+            "llm_provider": "openai",
+            "llm_base_url": "https://provider.example/v1",
+            "model": "provider-model-id",
+        },
+    )
+
+    def fake_translate_with_llm(**kwargs) -> str:
+        observed.update(kwargs)
+        return PARTIAL_LLM_OUTPUT
+
+    monkeypatch.setattr(llm_client, "translate_with_llm", fake_translate_with_llm)
+
+    result = translate_file(PARTIAL_FIXTURE, cfg=cfg, use_llm=True)
+
+    assert result.used_llm
+    assert observed["provider"] == "openai"
+    assert observed["model"] == "provider-model-id"
+    assert observed["base_url"] == "https://provider.example/v1"
 
 
 def test_translate_file_uses_full_prevalidation_for_invalid_full_coverage_skeleton(

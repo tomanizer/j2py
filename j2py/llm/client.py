@@ -30,6 +30,7 @@ _cache = diskcache.Cache(str(_CACHE_DIR))
 # streaming — a non-streaming request would trip the SDK's >10-minute timeout guard.
 MAX_OUTPUT_TOKENS = 32000
 GEMINI_EXTRA_INSTALL_HINT = 'pip install "j2py-converter[gemini]"'
+OPENAI_EXTRA_INSTALL_HINT = 'pip install "j2py-converter[openai]"'
 
 
 class GeminiModels(Protocol):
@@ -40,11 +41,24 @@ class GeminiClient(Protocol):
     models: GeminiModels
 
 
+class OpenAIChatCompletions(Protocol):
+    def create(self, **kwargs: object) -> object: ...
+
+
+class OpenAIChat(Protocol):
+    completions: OpenAIChatCompletions
+
+
+class OpenAIClient(Protocol):
+    chat: OpenAIChat
+
+
 _client: anthropic.Anthropic | None = None
 _gemini_client: GeminiClient | None = None
+_openai_clients: dict[str | None, OpenAIClient] = {}
 
-LLMProvider = Literal["anthropic", "gemini"]
-DEFAULT_MODELS: dict[LLMProvider, str] = {
+LLMProvider = Literal["anthropic", "gemini", "openai"]
+DEFAULT_MODELS: dict[Literal["anthropic", "gemini"], str] = {
     "anthropic": "claude-sonnet-4-6",
     "gemini": "gemini-3.5-flash",
 }
@@ -61,6 +75,10 @@ class LLMTruncationError(RuntimeError):
 
 class MissingGeminiExtraError(RuntimeError):
     """Raised when Gemini is selected without installing the optional SDK extra."""
+
+
+class MissingOpenAIExtraError(RuntimeError):
+    """Raised when OpenAI-compatible support is selected without the optional SDK."""
 
 
 def get_client() -> anthropic.Anthropic:
@@ -96,6 +114,13 @@ def _missing_gemini_extra_error() -> RuntimeError:
     )
 
 
+def _missing_openai_extra_error() -> RuntimeError:
+    return MissingOpenAIExtraError(
+        "OpenAI-compatible LLM provider requires the optional OpenAI extra. "
+        f"Install it with: {OPENAI_EXTRA_INSTALL_HINT}"
+    )
+
+
 def _import_google_genai() -> Any:
     try:
         from google import genai
@@ -116,6 +141,16 @@ def _import_google_genai_types() -> Any:
     return types
 
 
+def _import_openai_client_class() -> Any:
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        if exc.name == "openai":
+            raise _missing_openai_extra_error() from None
+        raise
+    return OpenAI
+
+
 def get_gemini_client() -> GeminiClient:
     global _gemini_client
     load_repo_dotenv()
@@ -129,8 +164,43 @@ def get_gemini_client() -> GeminiClient:
     return _gemini_client
 
 
+def _resolve_openai_base_url(base_url: str | None) -> str | None:
+    configured = base_url if base_url is not None else os.environ.get("OPENAI_BASE_URL")
+    if configured is None:
+        return None
+    stripped = configured.strip()
+    return stripped or None
+
+
+def get_openai_client(base_url: str | None = None) -> OpenAIClient:
+    load_repo_dotenv()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key or not api_key.strip():
+        raise RuntimeError("OPENAI_API_KEY is required for OpenAI-compatible LLM translation")
+    resolved_base_url = _resolve_openai_base_url(base_url)
+    if resolved_base_url not in _openai_clients:
+        OpenAI = _import_openai_client_class()
+        kwargs: dict[str, str] = {"api_key": api_key.strip()}
+        if resolved_base_url is not None:
+            kwargs["base_url"] = resolved_base_url
+        _openai_clients[resolved_base_url] = cast(OpenAIClient, OpenAI(**kwargs))
+    return _openai_clients[resolved_base_url]
+
+
 def resolve_model(provider: LLMProvider, model: str | None) -> str:
-    return model or DEFAULT_MODELS[provider]
+    if model:
+        return model
+    if provider in ("anthropic", "gemini"):
+        return DEFAULT_MODELS[provider]
+    raise ValueError("OpenAI-compatible LLM provider requires an explicit --model value")
+
+
+def cache_endpoint_identity(provider: LLMProvider, base_url: str | None = None) -> str | None:
+    """Return endpoint identity material that must partition cache keys."""
+    if provider != "openai":
+        return None
+    load_repo_dotenv()
+    return _resolve_openai_base_url(base_url) or "https://api.openai.com/v1"
 
 
 def _cache_key(
@@ -145,6 +215,7 @@ def _cache_key(
     previous_python: str,
     config_fingerprint: str,
     system: str,
+    endpoint: str | None,
 ) -> str:
     payload = json.dumps(
         {
@@ -156,6 +227,7 @@ def _cache_key(
             "partial_sha256": hashlib.sha256(partial_python.encode()).hexdigest(),
             "previous_sha256": hashlib.sha256(previous_python.encode()).hexdigest(),
             "provider": provider,
+            "provider_endpoint": endpoint,
             "prompt_version": PROMPT_VERSION,
             "system": system,
             "validation_feedback": validation_feedback,
@@ -177,7 +249,9 @@ def _system_text(system: list[TextPromptBlock]) -> str:
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
-    retry=retry_if_not_exception_type((LLMTruncationError, MissingGeminiExtraError)),
+    retry=retry_if_not_exception_type(
+        (LLMTruncationError, MissingGeminiExtraError, MissingOpenAIExtraError)
+    ),
 )
 def translate_with_llm(
     *,
@@ -190,6 +264,7 @@ def translate_with_llm(
     config_fingerprint: str = "",
     model: str | None = None,
     provider: LLMProvider = "anthropic",
+    base_url: str | None = None,
     use_cache: bool = True,
 ) -> str:
     """Send a Java class + its partial skeleton to the configured LLM for completion.
@@ -216,6 +291,7 @@ def translate_with_llm(
         previous_python=previous_python,
     )
     resolved_model = resolve_model(provider, model)
+    endpoint = cache_endpoint_identity(provider, base_url)
 
     key = _cache_key(
         provider=provider,
@@ -228,6 +304,7 @@ def translate_with_llm(
         previous_python=previous_python,
         config_fingerprint=config_fingerprint,
         system=_system_text(system),
+        endpoint=endpoint,
     )
     if use_cache:
         cached: str | None = _cache.get(key)
@@ -249,6 +326,13 @@ def translate_with_llm(
             model=resolved_model,
             system_text=_system_text(system),
             contents=_message_text(messages),
+        )
+    elif provider == "openai":
+        result = _translate_with_openai(
+            model=resolved_model,
+            system_text=_system_text(system),
+            contents=_message_text(messages),
+            base_url=base_url,
         )
     else:  # pragma: no cover - Literal prevents this for typed callers
         raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -323,6 +407,40 @@ def _translate_with_gemini(*, model: str, system_text: str, contents: str) -> st
     if last_chunk is not None:
         record_gemini_api_usage(model=model, response=last_chunk)
     return _strip_fences("".join(parts))
+
+
+def _translate_with_openai(
+    *,
+    model: str,
+    system_text: str,
+    contents: str,
+    base_url: str | None,
+) -> str:
+    client = get_openai_client(base_url)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_text},
+            {"role": "user", "content": contents},
+        ],
+        max_tokens=MAX_OUTPUT_TOKENS,
+    )
+    choices = getattr(response, "choices", None)
+    if not choices:
+        raise RuntimeError("OpenAI-compatible response did not include choices")
+    choice = choices[0]
+    finish_reason = getattr(choice, "finish_reason", None)
+    if str(finish_reason).lower() in {"length", "max_tokens"}:
+        raise LLMTruncationError(
+            "OpenAI-compatible response hit the output-token limit; the translation is "
+            "truncated and would emit broken Python. Split the class into smaller units "
+            "before retrying."
+        )
+    message = getattr(choice, "message", None)
+    text = getattr(message, "content", None)
+    if not isinstance(text, str) or not text:
+        raise RuntimeError("OpenAI-compatible response did not include text output")
+    return _strip_fences(text)
 
 
 def _message_text(messages: list[dict[str, object]]) -> str:

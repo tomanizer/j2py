@@ -13,7 +13,7 @@ def _dependency_names(dependencies: list[str]) -> set[str]:
     return {dependency.split(">=", 1)[0].lower() for dependency in dependencies}
 
 
-def test_google_genai_is_not_a_default_dependency() -> None:
+def test_optional_provider_sdks_are_not_default_dependencies() -> None:
     project = _pyproject()["project"]
     assert isinstance(project, dict)
 
@@ -21,6 +21,7 @@ def test_google_genai_is_not_a_default_dependency() -> None:
     assert isinstance(dependencies, list)
 
     assert "google-genai" not in _dependency_names(dependencies)
+    assert "openai" not in _dependency_names(dependencies)
 
 
 def test_google_genai_is_available_in_gemini_and_dev_extras() -> None:
@@ -36,6 +37,21 @@ def test_google_genai_is_available_in_gemini_and_dev_extras() -> None:
 
     assert "google-genai" in _dependency_names(gemini)
     assert "google-genai" in _dependency_names(dev)
+
+
+def test_openai_sdk_is_available_in_openai_and_dev_extras() -> None:
+    project = _pyproject()["project"]
+    assert isinstance(project, dict)
+    optional = project["optional-dependencies"]
+    assert isinstance(optional, dict)
+
+    openai = optional["openai"]
+    dev = optional["dev"]
+    assert isinstance(openai, list)
+    assert isinstance(dev, list)
+
+    assert "openai" in _dependency_names(openai)
+    assert "openai" in _dependency_names(dev)
 
 
 def test_gemini_harvest_make_targets_request_gemini_extra() -> None:

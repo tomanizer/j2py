@@ -53,6 +53,9 @@ remain open; see **Known limitations** under 0.5.0b1 for other tracked issues.
 - User-facing docs now include installation, getting started, CLI reference, Python API,
   and output-review guides, with the VS Code extension surfaced from the docs index
   (#497).
+- OpenAI-compatible LLM provider endpoints can now be selected with
+  `--llm-provider openai`, optional `--llm-base-url`, explicit endpoint model IDs, and
+  cache separation by provider endpoint (#509).
 
 ### Changed
 - Agent instructions now require syncing from `origin/main` before creating branches or

@@ -18,6 +18,7 @@ Use extras only when you need the matching feature:
 pip install --pre "j2py-converter[yaml]"      # YAML config files
 pip install --pre "j2py-converter[validate]"  # ruff + mypy validation
 pip install --pre "j2py-converter[gemini]"    # Gemini LLM provider
+pip install --pre "j2py-converter[openai]"    # OpenAI-compatible LLM providers
 ```
 
 The base package includes the Anthropic client. LLM translation requires an API key:
@@ -25,6 +26,8 @@ The base package includes the Anthropic client. LLM translation requires an API 
 ```bash
 export ANTHROPIC_API_KEY=...
 export GEMINI_API_KEY=...
+export OPENAI_API_KEY=...
+export OPENAI_BASE_URL=https://openai-compatible.example/v1  # optional
 ```
 
 Rule-only translation, `j2py doctor`, and corpus scoreboards do not call live LLM APIs.
@@ -38,8 +41,8 @@ uv sync --locked
 make check
 ```
 
-For the optional Gemini live probe or harvest commands, use the dev environment because
-the `dev` extra includes the Gemini SDK:
+For optional live provider probes or harvest commands, use the dev environment because the
+`dev` extra includes optional provider SDKs:
 
 ```bash
 uv sync --locked --extra dev
@@ -91,6 +94,25 @@ Install the Gemini extra:
 ```bash
 pip install --pre "j2py-converter[gemini]"
 ```
+
+`--llm-provider openai` fails with an install hint
+
+Install the OpenAI-compatible provider extra:
+
+```bash
+pip install --pre "j2py-converter[openai]"
+```
+
+`--llm-provider openai` says a model is required
+
+Pass the endpoint's model or deployment ID explicitly:
+
+```bash
+j2py translate SomeClass.java --llm-provider openai --model provider-model-id
+```
+
+For non-default endpoints, also set `OPENAI_BASE_URL`, `llm_base_url` in config, or
+`--llm-base-url` on the command line.
 
 YAML config fails to load
 

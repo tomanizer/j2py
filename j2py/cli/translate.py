@@ -39,7 +39,12 @@ def translate(
     llm_provider: str | None = typer.Option(
         None,
         "--llm-provider",
-        help="LLM provider to use for completion: anthropic or gemini. Overrides config.",
+        help="LLM provider to use for completion: anthropic, gemini, or openai. Overrides config.",
+    ),
+    llm_base_url: str | None = typer.Option(
+        None,
+        "--llm-base-url",
+        help="Base URL for OpenAI-compatible providers. Overrides config and OPENAI_BASE_URL.",
     ),
     model: str | None = typer.Option(
         None,
@@ -92,6 +97,8 @@ def translate(
         raise typer.Exit(code=1)
 
     cfg = load_config(config, source if source.is_dir() else source.parent)
+    if llm_base_url is not None:
+        cfg = cfg.model_copy(update={"llm_base_url": llm_base_url})
     provider, effective_model = resolve_llm_options(cfg, llm_provider, model)
 
     if source.is_dir():
