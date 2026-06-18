@@ -23,6 +23,17 @@ def dashboard(
     """Regenerate a dashboard from an existing translation state file."""
     from j2py.report import write_dashboard_from_state
 
+    if not output_root.exists():
+        console.print(f"[red]Error:[/red] output directory not found: {output_root}")
+        raise typer.Exit(code=1)
+    if not output_root.is_dir():
+        console.print(f"[red]Error:[/red] output path is not a directory: {output_root}")
+        raise typer.Exit(code=1)
+    state_file = output_root / ".j2py-state.json"
+    if not state_file.is_file():
+        console.print(f"[red]Error:[/red] state file not found or is not a file: {state_file}")
+        raise typer.Exit(code=1)
+
     dashboard_path = output or output_root / "dashboard.html"
     write_dashboard_from_state(output_root, dashboard_path)
     console.print(f"[green]Dashboard:[/green] {dashboard_path}")
