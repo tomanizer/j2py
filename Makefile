@@ -1,6 +1,7 @@
 .PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov test-ci-py311 test-ci-py312 \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
+	corpus-petclinic corpus-petclinic-clone corpus-petclinic-check corpus-petclinic-dense-check corpus-petclinic-update-baseline \
 	corpus-spring-dense corpus-spring-dense-check corpus-spring-dense-update-baseline corpus-spring-broad \
 	corpus-spring-app-dense corpus-spring-app-dense-check corpus-spring-app-dense-update-baseline \
 	corpus-openjdk-java-base \
@@ -212,6 +213,20 @@ corpus-spring-app-dense-check:  ## Compare spring-app-dense against its baseline
 
 corpus-spring-app-dense-update-baseline:  ## Regenerate the spring-app-dense baseline intentionally
 	$(CORPUS) --preset spring-app-dense --update-baseline
+
+corpus-petclinic:  ## Run Spring PetClinic without baseline comparison
+	$(CORPUS) --preset petclinic
+
+corpus-petclinic-clone:  ## Clone or refresh Spring PetClinic at its pinned ref
+	$(CORPUS) --preset petclinic --clone --limit 1
+
+corpus-petclinic-dense-check:  ## Compare Spring PetClinic against its committed baseline
+	$(CORPUS) --preset petclinic --compare-baseline --fail-on-regression
+
+corpus-petclinic-check: corpus-petclinic-dense-check  ## Alias for corpus-petclinic-dense-check
+
+corpus-petclinic-update-baseline:  ## Regenerate the Spring PetClinic baseline intentionally
+	$(CORPUS) --preset petclinic --update-baseline
 
 corpus-openjdk-java-base:  ## Exploratory OpenJDK java.base scoreboard sample (external checkout, no baseline)
 	$(CORPUS) --preset openjdk-java-base --clone

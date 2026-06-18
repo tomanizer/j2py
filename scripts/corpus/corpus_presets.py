@@ -27,6 +27,7 @@ FIXTURES_CORPUS = REPO_ROOT / "tests" / "fixtures" / "corpus"
 # One preset per unique checkout_dir — used by ``make corpus-clone-all``.
 CLONE_PRESET_NAMES: tuple[str, ...] = (
     "spring-dense",
+    "petclinic",
     "guava-dense",
     "commons-lang-dense",
     "jackson-dense",
@@ -150,6 +151,18 @@ PRESETS: dict[str, CorpusPreset] = {
             ),
             require_annotations=DEFAULT_ENTERPRISE_ANNOTATIONS,
             min_annotation_hits=1,
+        ),
+        _preset(
+            "petclinic",
+            "Spring PetClinic official Spring Boot reference application",
+            remote="https://github.com/spring-projects/spring-petclinic.git",
+            ref="a2c2ef994340d3970eb6db51247456a51bb161f8",
+            checkout_dir="spring-petclinic",
+            modules=("src/main/java",),
+            baseline_name="petclinic-baseline.json",
+            limit=200,
+            min_loc=0,
+            min_constructs=0,
         ),
         _preset(
             "spring-broad",
