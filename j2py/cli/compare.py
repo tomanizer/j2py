@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 import typer
@@ -120,8 +122,12 @@ def _open_diff(source: Path, py_path: Path, editor: str) -> None:
 
 
 def _diff_args(source: Path, py_path: Path, editor: str) -> list[str]:
-    args = [editor]
-    editor_name = Path(editor).name.lower()
+    args = shlex.split(editor, posix=sys.platform != "win32")
+    if sys.platform == "win32":
+        args = [arg.strip("\"'") for arg in args]
+    if not args:
+        args = [editor]
+    editor_name = Path(args[0]).name.lower()
     if "code" in editor_name or "cursor" in editor_name:
         args.append("--diff")
     args.extend([str(source), str(py_path)])

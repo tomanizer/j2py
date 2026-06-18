@@ -54,6 +54,10 @@ def watch(
     ),
 ) -> None:
     """Watch Java sources and incrementally re-translate changes until interrupted."""
+    if not source.exists():
+        console.print(f"[red]Error:[/red] source path not found: {source}")
+        raise typer.Exit(code=1)
+
     cfg = load_config(config, source if source.is_dir() else source.parent)
     provider, effective_model = resolve_llm_options(cfg, llm_provider, model)
     console.print(f"[bold]Watching[/bold] {source} → {output}")
