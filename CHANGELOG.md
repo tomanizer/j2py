@@ -7,7 +7,21 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+0.7.0 is being prepared as the first release intended for real migration trials outside
+the project. The release focus is reviewable Java-to-Python translation, explicit
+diagnostics, reproducible quality gates, and opt-in Spring/FastAPI/SQLAlchemy scaffolding
+without implying a hidden Java or Spring runtime. See
+[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md) for the release-note draft and
+known limitations to verify before tagging.
+
 ### Added
+- Spring conversion now has a practical entry-point guide, sidecar-driven FastAPI wiring
+  generation, `j2py-wire validate`, and a PetClinic owner-slice smoke gate for the bounded
+  translate -> sidecar -> wire -> FastAPI path (#574, #576).
+- Spring JDBC support now documents and tests SQLAlchemy-first scaffolding for
+  `JdbcTemplate`, `NamedParameterJdbcTemplate`, simple RowMapper forms,
+  `BeanPropertyRowMapper`, and JDBC bean topology metadata. JDBC remains a project-owned
+  runtime boundary rather than a native driver bridge (#575, #576).
 - Optional `make test-spring-smoke` integration gate now translates a constrained
   PetClinic owner slice, emits Spring sidecars, runs `j2py-wire generate` and
   `j2py-wire validate`, imports the generated FastAPI wiring, starts a `TestClient`, and
@@ -21,6 +35,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   not change generated Python, coverage, or confidence (#518).
 
 ### Changed
+- `make release-check` is the documented local pre-release gate, covering the normal
+  checks, target roadmap contracts, behavior tests, version/import smoke, distribution
+  build, sdist hygiene, and `twine check`.
 - Member binding diagnostics and config maps now make static/member call lowering more
   explicit for reviewers and downstream config authors (#507).
 - Literal-oracle equivalence coverage now includes the remaining `CharUtils` overload

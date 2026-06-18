@@ -82,8 +82,7 @@ such as:
 - route functions decorated with `@router.get(...)` or `@router.post(...)`;
 - `Depends(...)` providers for repositories and controllers;
 - an `app_wiring.py` helper that registers generated routers with a `FastAPI` app;
-- placeholders or dependency seams where your application supplies a real database
-  session factory.
+- placeholders where your application supplies a real database session factory.
 
 That split gives you two review surfaces:
 

@@ -33,6 +33,7 @@
 | [BEHAVIOR_CORPUS.md](BEHAVIOR_CORPUS.md) | JDK-backed stdout/exit-code behavior suite |
 | [CASE_STUDY.md](CASE_STUDY.md) | End-to-end multi-file case study (commons-lang `tuple`): what translated, gaps surfaced |
 | [CASE_STUDY_NUMBER_UTILS.md](CASE_STUDY_NUMBER_UTILS.md) | End-to-end NumberUtils equivalence case study: verified surface, stubs, and exclusions |
+| [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits |
 
 ## Process and release
 

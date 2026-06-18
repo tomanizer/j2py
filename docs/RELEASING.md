@@ -21,22 +21,24 @@ harvest workflows.
 
 1. Verify the release version in `pyproject.toml` and `j2py/__init__.py`.
 2. Move changelog entries from `## Unreleased` to the release heading.
-3. Run:
+3. Update the release notes draft for the version being published and make sure it does
+   not claim more than the release gates prove.
+4. Run:
 
    ```bash
    make release-check
    ```
 
-4. Open and merge the release PR.
-5. Create a GitHub release tag, for example `v0.6.0b1`.
-6. Confirm PyPI trusted publishing remains configured for:
+5. Open and merge the release PR.
+6. Create a GitHub release tag, for example `v0.7.0`.
+7. Confirm PyPI trusted publishing remains configured for:
 
    - Owner/repository: `tomanizer/j2py`
    - Workflow: `.github/workflows/publish.yml`
    - Environment: `pypi`
    - PyPI project: `j2py-converter`
 
-7. Publish the GitHub release. The `Publish` workflow builds, checks, and uploads the
+8. Publish the GitHub release. The `Publish` workflow builds, checks, and uploads the
    wheel/sdist to PyPI.
 
 ## Local package checks
