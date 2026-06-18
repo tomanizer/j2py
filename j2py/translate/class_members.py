@@ -67,13 +67,37 @@ def permits_names(node: JavaNode) -> list[str]:
 
 def direct_nested_type_names(body: JavaNode) -> set[str]:
     names: set[str] = set()
-    for child in body.named_children:
-        if child.type not in TYPE_DECLARATION_NODES:
-            continue
+    for child in direct_nested_type_declarations(body):
         type_name = type_name_of(node=child)
         if type_name is not None:
             names.add(type_name)
     return names
+
+
+def direct_nested_type_declarations(body: JavaNode) -> Iterable[JavaNode]:
+    return (child for child in body.named_children if child.type in TYPE_DECLARATION_NODES)
+
+
+def iter_type_declarations(node: JavaNode) -> Iterable[JavaNode]:
+    if node.type not in TYPE_DECLARATION_NODES:
+        return
+    yield node
+    body = node.child_by_field("body")
+    if body is None:
+        return
+    for child in direct_nested_type_declarations(body):
+        yield from iter_type_declarations(child)
+
+
+def iter_class_declarations(node: JavaNode) -> Iterable[JavaNode]:
+    if node.type != "class_declaration":
+        return
+    yield node
+    body = node.child_by_field("body")
+    if body is None:
+        return
+    for child in direct_nested_type_declarations(body):
+        yield from iter_class_declarations(child)
 
 
 def nested_type_names_using_qualified_this(body: JavaNode | None) -> set[str]:
@@ -286,6 +310,16 @@ def member_static_method_names(members: Iterable[JavaNode], cfg: TranslationConf
     return names
 
 
+def _method_and_constructor_members(body: JavaNode | None) -> list[JavaNode]:
+    if body is None:
+        return []
+    return [
+        child
+        for child in body.named_children
+        if child.type in {"constructor_declaration", "method_declaration"}
+    ]
+
+
 def collect_file_class_static_methods(
     root: JavaNode,
     cfg: TranslationConfig,
@@ -293,32 +327,15 @@ def collect_file_class_static_methods(
     """Map translated class name to static method names declared in that class."""
     result: dict[str, set[str]] = {}
 
-    def visit_class(node: JavaNode) -> None:
-        if node.type != "class_declaration":
-            return
-        name_node = node.child_by_field("name")
-        if name_node is None:
-            return
-        py_name = translate_class_name(name_node.text)
-        body = node.child_by_field("body")
-        members = (
-            []
-            if body is None
-            else [
-                child
-                for child in body.named_children
-                if child.type in {"constructor_declaration", "method_declaration"}
-            ]
-        )
-        result[py_name] = member_static_method_names(members, cfg)
-        if body is not None:
-            for child in body.named_children:
-                if child.type in TYPE_DECLARATION_NODES:
-                    visit_class(child)
-
     for child in root.named_children:
-        if child.type in TYPE_DECLARATION_NODES:
-            visit_class(child)
+        for node in iter_class_declarations(child):
+            name_node = node.child_by_field("name")
+            if name_node is None:
+                continue
+            py_name = translate_class_name(name_node.text)
+            body = node.child_by_field("body")
+            members = _method_and_constructor_members(body)
+            result[py_name] = member_static_method_names(members, cfg)
     return result
 
 
@@ -329,34 +346,17 @@ def collect_file_class_static_instance_aliases(
     """Map translated class name to static/instance collision rename aliases."""
     result: dict[str, dict[str, str]] = {}
 
-    def visit_class(node: JavaNode) -> None:
-        if node.type != "class_declaration":
-            return
-        name_node = node.child_by_field("name")
-        if name_node is None:
-            return
-        py_name = translate_class_name(name_node.text)
-        body = node.child_by_field("body")
-        members = (
-            []
-            if body is None
-            else [
-                child
-                for child in body.named_children
-                if child.type in {"constructor_declaration", "method_declaration"}
-            ]
-        )
-        aliases = static_instance_collision_static_aliases(members, cfg)
-        if aliases:
-            result[py_name] = aliases
-        if body is not None:
-            for child in body.named_children:
-                if child.type in TYPE_DECLARATION_NODES:
-                    visit_class(child)
-
     for child in root.named_children:
-        if child.type in TYPE_DECLARATION_NODES:
-            visit_class(child)
+        for node in iter_class_declarations(child):
+            name_node = node.child_by_field("name")
+            if name_node is None:
+                continue
+            py_name = translate_class_name(name_node.text)
+            body = node.child_by_field("body")
+            members = _method_and_constructor_members(body)
+            aliases = static_instance_collision_static_aliases(members, cfg)
+            if aliases:
+                result[py_name] = aliases
     return result
 
 
@@ -364,22 +364,12 @@ def collect_file_class_declarations(root: JavaNode) -> dict[str, JavaNode]:
     """Map translated class name to class declaration nodes in one compilation unit."""
     result: dict[str, JavaNode] = {}
 
-    def visit_class(node: JavaNode) -> None:
-        if node.type != "class_declaration":
-            return
-        name_node = node.child_by_field("name")
-        if name_node is None:
-            return
-        result[translate_class_name(name_node.text)] = node
-        body = node.child_by_field("body")
-        if body is not None:
-            for child in body.named_children:
-                if child.type in TYPE_DECLARATION_NODES:
-                    visit_class(child)
-
     for child in root.named_children:
-        if child.type in TYPE_DECLARATION_NODES:
-            visit_class(child)
+        for node in iter_class_declarations(child):
+            name_node = node.child_by_field("name")
+            if name_node is None:
+                continue
+            result[translate_class_name(name_node.text)] = node
     return result
 
 
@@ -505,15 +495,7 @@ def inherited_static_instance_zero_arg_names(
         parent_node = file_class_declarations.get(super_py)
         if parent_node is not None:
             body = parent_node.child_by_field("body")
-            members = (
-                []
-                if body is None
-                else [
-                    child
-                    for child in body.named_children
-                    if child.type in {"constructor_declaration", "method_declaration"}
-                ]
-            )
+            members = _method_and_constructor_members(body)
             parent_instance_zero, parent_static_zero = static_instance_collision_zero_arg_names(
                 members,
                 cfg,

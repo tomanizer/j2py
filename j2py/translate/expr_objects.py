@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.class_members import uses_qualified_this
 from j2py.translate.class_model import FieldInfo
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
@@ -146,7 +147,7 @@ def _translate_anonymous_class(
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
     base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
-    needs_outer_self = _uses_qualified_this(body_node)
+    needs_outer_self = uses_qualified_this(body_node)
     outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
     if needs_outer_self and outer_self_alias is None:
         ctx.diagnostics.record(
@@ -264,19 +265,6 @@ def _translate_anonymous_class(
         reason="translated anonymous class as local helper class",
     )
     return f"{helper_name}({args})"
-
-
-def _uses_qualified_this(node: JavaNode) -> bool:
-    if node.type == "field_access":
-        children = node.named_children
-        if (
-            len(children) == 2
-            and children[0].type
-            in {"identifier", "type_identifier", "scoped_identifier", "scoped_type_identifier"}
-            and children[1].type == "this"
-        ):
-            return True
-    return any(_uses_qualified_this(child) for child in node.named_children)
 
 
 def _anonymous_helper_init_lines(
