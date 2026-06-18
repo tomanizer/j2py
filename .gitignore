@@ -54,6 +54,7 @@ target/
 
 # --- Agent / IDE tool state (includes nested worktrees) ---
 .agent-session
+.worktrees/
 .claude/
 .codex/
 .claire/
