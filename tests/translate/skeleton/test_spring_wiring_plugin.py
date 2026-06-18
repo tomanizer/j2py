@@ -76,6 +76,26 @@ def test_controller_class_emits_role_and_router_prefix_metadata() -> None:
     assert_module_executes(result.source)
 
 
+def test_component_name_uses_spring_decapitalize_rules() -> None:
+    _result, metadata = _metadata_by_kind(
+        """
+        @interface Service {}
+        @interface Component { String value(); }
+
+        @Service
+        public class URLService {
+        }
+
+        @Component("explicitName")
+        public class NamedComponent {
+        }
+        """,
+    )
+
+    assert metadata[("class", "URLService")]["component_name"] == "URLService"
+    assert metadata[("class", "NamedComponent")]["component_name"] == "explicitName"
+
+
 def test_http_method_annotations_emit_route_metadata() -> None:
     _result, metadata = _metadata_by_kind(
         """
@@ -85,7 +105,7 @@ def test_http_method_annotations_emit_route_metadata() -> None:
         @interface DeleteMapping { String value(); }
         @interface RequestMapping {
             String value();
-            RequestMethod method();
+            RequestMethod method() default RequestMethod.GET;
         }
         enum RequestMethod { GET }
 
@@ -104,6 +124,9 @@ def test_http_method_annotations_emit_route_metadata() -> None:
 
             @RequestMapping(value = "/search", method = RequestMethod.GET)
             public String searchOwners() { return "ok"; }
+
+            @RequestMapping("/any")
+            public String anyOwners() { return "ok"; }
         }
         """,
     )
@@ -116,6 +139,7 @@ def test_http_method_annotations_emit_route_metadata() -> None:
     assert metadata[("method", "deleteOwner")]["route"]["http_method"] == "DELETE"
     assert metadata[("method", "searchOwners")]["route"]["http_method"] == "GET"
     assert metadata[("method", "searchOwners")]["route"]["path"] == "/search"
+    assert metadata[("method", "anyOwners")]["route"]["http_method"] == "REQUEST"
 
 
 def test_route_parameters_request_body_and_response_status_are_metadata() -> None:
@@ -134,12 +158,13 @@ def test_route_parameters_request_body_and_response_status_are_metadata() -> Non
         class OwnerForm {}
 
         public class OwnerController {
-            @PostMapping("/{ownerId}")
-            @ResponseStatus(HttpStatus.CREATED)
+            @PostMapping("/{ownerId:[0-9]+}")
+            @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
             public Owner createOwner(
                 @PathVariable("ownerId") int ownerId,
-                @RequestParam(value = "lastName", required = false) String lastName,
-                @RequestBody OwnerForm form
+                @RequestParam(value = "lastName", required = Boolean.FALSE) String lastName,
+                @RequestBody OwnerForm form,
+                String sort
             ) {
                 return null;
             }
@@ -148,7 +173,8 @@ def test_route_parameters_request_body_and_response_status_are_metadata() -> Non
     )
 
     route = metadata[("method", "createOwner")]["route"]
-    assert route["status_code"] == 201
+    assert route["path"] == "/{owner_id:[0-9]+}"
+    assert route["status_code"] == 422
     assert route["parameters"] == [
         {
             "name": "owner_id",
@@ -164,6 +190,13 @@ def test_route_parameters_request_body_and_response_status_are_metadata() -> Non
             "python_type": "str",
             "required": False,
         },
+        {
+            "name": "sort",
+            "java_name": "sort",
+            "source": "unknown",
+            "python_type": "str",
+            "required": True,
+        },
     ]
     assert route["request_body"] == {
         "name": "form",
@@ -171,7 +204,7 @@ def test_route_parameters_request_body_and_response_status_are_metadata() -> Non
         "python_type": "OwnerForm",
         "required": True,
     }
-    assert "@response_status(201)" in result.source
+    assert "@response_status(422)" in result.source
 
 
 def test_autowired_field_injection_emits_metadata_and_init_param() -> None:
@@ -205,6 +238,24 @@ def test_autowired_field_injection_emits_metadata_and_init_param() -> None:
     assert '# @Qualifier("ownerService")' in result.source
 
 
+def test_qualifier_without_autowired_does_not_claim_field() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Qualifier { String value(); }
+        interface OwnerService {}
+
+        public class OwnerController {
+            @Qualifier("ownerService")
+            private OwnerService ownerService;
+        }
+        """,
+        cfg=_spring_cfg(),
+    )
+
+    assert result.diagnostics.framework_metadata == []
+    assert "# @Qualifier" in result.source
+
+
 def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> None:
     fixture = FIXTURES / "java" / "SpringWiringController.java"
     output = tmp_path / "spring_wiring_controller.py"
@@ -215,6 +266,7 @@ def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> Non
 
     assert sidecar == output.with_suffix(".wiring.json")
     assert sidecar is not None
+    assert_module_executes(result.python_source)
     payload = json.loads(sidecar.read_text(encoding="utf-8"))
     elements = payload["elements"]
     assert payload["schema_version"] == 1

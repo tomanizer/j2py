@@ -1,7 +1,6 @@
 @interface RestController {}
 @interface RequestMapping {
     String value() default "";
-    RequestMethod method() default RequestMethod.GET;
 }
 @interface GetMapping {
     String value() default "";
@@ -16,7 +15,7 @@
     String value() default "";
 }
 @interface ResponseStatus {
-    HttpStatus value();
+    int value();
 }
 @interface PathVariable {
     String value() default "";
@@ -31,8 +30,6 @@
     String value();
 }
 
-enum RequestMethod { GET, POST, PUT, DELETE }
-enum HttpStatus { CREATED }
 interface OwnerService {}
 class Owner {}
 class OwnerForm {}
@@ -53,7 +50,7 @@ public class SpringWiringController {
     }
 
     @PostMapping("")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(201)
     public Owner createOwner(@RequestBody OwnerForm form) {
         return null;
     }

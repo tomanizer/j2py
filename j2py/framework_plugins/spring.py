@@ -51,18 +51,36 @@ _HTTP_METHODS: Mapping[str, str] = {
     "DeleteMapping": "DELETE",
 }
 _ROUTE_ANNOTATIONS = frozenset({*_HTTP_METHODS, "RequestMapping"})
-_STATUS_CODES: Mapping[str, int] = {
+_STATUS_CODE_NAMES: Mapping[str, int] = {
     "ACCEPTED": 202,
+    "BAD_GATEWAY": 502,
     "BAD_REQUEST": 400,
     "CONFLICT": 409,
     "CREATED": 201,
     "FORBIDDEN": 403,
     "FOUND": 302,
+    "GATEWAY_TIMEOUT": 504,
     "INTERNAL_SERVER_ERROR": 500,
+    "METHOD_NOT_ALLOWED": 405,
+    "MOVED_PERMANENTLY": 301,
     "NO_CONTENT": 204,
+    "NOT_ACCEPTABLE": 406,
     "NOT_FOUND": 404,
+    "NOT_MODIFIED": 304,
     "OK": 200,
+    "PERMANENT_REDIRECT": 308,
+    "PRECONDITION_FAILED": 412,
+    "SEE_OTHER": 303,
+    "SERVICE_UNAVAILABLE": 503,
+    "TEMPORARY_REDIRECT": 307,
+    "TOO_MANY_REQUESTS": 429,
     "UNAUTHORIZED": 401,
+    "UNPROCESSABLE_ENTITY": 422,
+    "UNSUPPORTED_MEDIA_TYPE": 415,
+}
+_STATUS_CODES: Mapping[str, int] = {
+    **_STATUS_CODE_NAMES,
+    **{f"HttpStatus.{name}": code for name, code in _STATUS_CODE_NAMES.items()},
 }
 _PATH_VARIABLE_RE = re.compile(r"\{([^{}]+)\}")
 
@@ -96,9 +114,9 @@ class SpringWiringPlugin(FrameworkPlugin):
 
     def transform_field(self, ctx: FrameworkContext) -> FrameworkTransformResult:
         autowired = _annotation(ctx.annotations, "Autowired")
-        qualifier = _annotation(ctx.annotations, "Qualifier")
-        if autowired is None and qualifier is None:
+        if autowired is None:
             return FrameworkTransformResult()
+        qualifier = _annotation(ctx.annotations, "Qualifier")
 
         spring = {
             "profile_version": _PROFILE_VERSION,
@@ -175,6 +193,8 @@ def _component_name(java_name: str, values: Mapping[str, str]) -> str:
     explicit = values.get("value") or values.get("name")
     if explicit:
         return explicit
+    if len(java_name) > 1 and java_name[0].isupper() and java_name[1].isupper():
+        return java_name
     return java_name[:1].lower() + java_name[1:] if java_name else ""
 
 
@@ -186,10 +206,15 @@ def _normalize_route_path(path: str) -> str:
     if not path:
         return ""
     rendered = path if path.startswith("/") else f"/{path}"
-    return _PATH_VARIABLE_RE.sub(
-        lambda match: "{" + translate_field_name(match.group(1), snake_case=True) + "}",
-        rendered,
-    )
+    return _PATH_VARIABLE_RE.sub(_normalize_path_variable, rendered)
+
+
+def _normalize_path_variable(match: re.Match[str]) -> str:
+    content = match.group(1)
+    if ":" in content:
+        var_name, regex = content.split(":", 1)
+        return "{" + translate_field_name(var_name, snake_case=True) + ":" + regex + "}"
+    return "{" + translate_field_name(content, snake_case=True) + "}"
 
 
 def _class_prefix_lines(annotations: tuple[FrameworkAnnotation, ...]) -> tuple[str, ...]:
@@ -272,7 +297,7 @@ def _field_comment_lines(annotations: tuple[FrameworkAnnotation, ...]) -> list[s
 def _http_method(annotation: FrameworkAnnotation) -> str:
     if annotation.simple_name in _HTTP_METHODS:
         return _HTTP_METHODS[annotation.simple_name]
-    return _request_mapping_method(annotation.values) or "ANY"
+    return _request_mapping_method(annotation.values) or "REQUEST"
 
 
 def _request_mapping_method(values: Mapping[str, str]) -> str | None:
@@ -318,6 +343,16 @@ def _route_parameters(
                 "python_type": param.py_type,
                 "required": True,
             }
+        else:
+            parameters.append(
+                {
+                    "name": param.py_name,
+                    "java_name": param.java_name,
+                    "source": "unknown",
+                    "python_type": param.py_type,
+                    "required": True,
+                },
+            )
     return parameters, request_body
 
 
@@ -361,7 +396,7 @@ def _route_parameter(
 
 
 def _required(values: Mapping[str, str]) -> bool:
-    return values.get("required", "true").lower() != "false"
+    return "false" not in values.get("required", "true").lower()
 
 
 def _qualifier(annotation: FrameworkAnnotation | None) -> str | None:
