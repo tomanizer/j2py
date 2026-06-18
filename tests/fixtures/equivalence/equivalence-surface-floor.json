@@ -3,27 +3,27 @@
   "libraries": [
     {
       "library": "commons-lang",
-      "testable_public_methods": 95,
-      "total_public_methods": 95,
-      "verified_methods": 94,
-      "verified_public_surface_percent": 0.9894736842105263,
-      "verified_testable_surface_percent": 0.9894736842105263
+      "testable_public_methods": 141,
+      "total_public_methods": 141,
+      "verified_methods": 109,
+      "verified_public_surface_percent": 0.7730496453900709,
+      "verified_testable_surface_percent": 0.7730496453900709
     },
     {
       "library": "guava",
-      "testable_public_methods": 2,
-      "total_public_methods": 2,
-      "verified_methods": 2,
+      "testable_public_methods": 11,
+      "total_public_methods": 11,
+      "verified_methods": 11,
       "verified_public_surface_percent": 1.0,
       "verified_testable_surface_percent": 1.0
     }
   ],
   "schema_version": 1,
   "summary": {
-    "testable_public_methods": 97,
-    "total_public_methods": 97,
-    "verified_methods": 96,
-    "verified_public_surface_percent": 0.9896907216494846,
-    "verified_testable_surface_percent": 0.9896907216494846
+    "testable_public_methods": 152,
+    "total_public_methods": 152,
+    "verified_methods": 120,
+    "verified_public_surface_percent": 0.7894736842105263,
+    "verified_testable_surface_percent": 0.7894736842105263
   }
 }

@@ -145,6 +145,37 @@ def install_array_utils_stub_package() -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+class JavaBoolean:
+    """Small Java-style ``Boolean`` shim for equivalence fixtures."""
+
+    def __init__(self, value: Any) -> None:
+        self.value = bool(value)
+
+    @classmethod
+    def value_of(cls, value: Any) -> JavaBoolean:
+        return JavaBoolean(value)
+
+    def boolean_value(self) -> bool:
+        return self.value
+
+    def __bool__(self) -> bool:
+        return self.value
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, JavaBoolean):
+            return self.value == other.value
+        if isinstance(other, bool):
+            return self.value == other
+        return False
+
+    def __repr__(self) -> str:
+        return "TRUE" if self.value else "FALSE"
+
+
+JavaBoolean.TRUE = JavaBoolean(True)  # type: ignore[attr-defined]
+JavaBoolean.FALSE = JavaBoolean(False)  # type: ignore[attr-defined]
+
+
 class BigDecimal(decimal.Decimal):
     """Small Java-style ``BigDecimal`` shim for equivalence fixtures."""
 
@@ -361,6 +392,37 @@ def install_java_lang_stubs() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# BooleanUtils stubs
+# ---------------------------------------------------------------------------
+
+
+def boolean_utils_stub() -> types.SimpleNamespace:
+    """Stub for Commons-Lang ``Boolean`` used by the BooleanUtils fixture."""
+
+    return types.SimpleNamespace(
+        TRUE=JavaBoolean.TRUE,
+        FALSE=JavaBoolean.FALSE,
+        value_of=JavaBoolean.value_of,
+    )
+
+
+def install_boolean_utils_stubs() -> list[str]:
+    """Install minimal module chains needed to load the BooleanUtils fixture."""
+    installed: list[str] = []
+    installed += install_stub_class(
+        "org.apache.commons.lang3.Boolean",
+        "Boolean",
+        boolean_utils_stub(),
+    )
+    installed += install_stub_class(
+        "org.apache.commons.lang3.math.NumberUtils",
+        "NumberUtils",
+        types.SimpleNamespace(INTEGER_ONE=1, INTEGER_ZERO=0),
+    )
+    return installed
+
+
+# ---------------------------------------------------------------------------
 # StringUtils stubs
 # ---------------------------------------------------------------------------
 
@@ -426,8 +488,145 @@ def install_string_utils_stubs() -> list[str]:
     return installed
 
 
+# ---------------------------------------------------------------------------
+# Guava Strings stubs
+# ---------------------------------------------------------------------------
+
+
+class JavaString:
+    """Small Java-style ``String`` shim for generated Guava Strings methods."""
+
+    def __init__(self, value: Any) -> None:
+        self.value = str(value)
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __eq__(self, other: object) -> bool:
+        if other is None:
+            return False
+        if isinstance(other, JavaString):
+            return self.value == other.value
+        return self.value == str(other)
+
+    def get_chars(self, start: int, end: int, target: list[str], target_start: int) -> None:
+        for offset, char in enumerate(self.value[start:end]):
+            target[target_start + offset] = char
+
+
+class JavaCharSequence:
+    """Small Java-style ``CharSequence`` shim with ``subSequence`` support."""
+
+    def __init__(self, value: Any) -> None:
+        self.value = str(value)
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+    def __getitem__(self, index: int) -> str:
+        return self.value[index]
+
+    def __str__(self) -> str:
+        return self.value
+
+    def sub_sequence(self, start: int, end: int) -> JavaCharSequence:
+        return JavaCharSequence(self.value[start:end])
+
+
+class GuavaStringBuilder:
+    """Subset of ``StringBuilder`` used by generated Guava Strings code."""
+
+    def __init__(self, _capacity: int = 0) -> None:
+        self._parts: list[str] = []
+
+    def append(
+        self, value: Any, start: int | None = None, end: int | None = None
+    ) -> GuavaStringBuilder:
+        text = "null" if value is None else str(value)
+        self._parts.append(text if start is None or end is None else text[start:end])
+        return self
+
+    def __str__(self) -> str:
+        return "".join(self._parts)
+
+
+def guava_strings_platform_stub() -> types.SimpleNamespace:
+    """Stub for Guava ``Platform`` methods delegated to by ``Strings``."""
+
+    return types.SimpleNamespace(
+        null_to_empty=lambda value: "" if value is None else value,
+        empty_to_null=lambda value: None if value is None or value == "" else value,
+        string_is_null_or_empty=lambda value: value is None or value == "",
+    )
+
+
+def guava_strings_character_stub() -> types.SimpleNamespace:
+    """Stub for Java surrogate-pair helpers used by generated ``Strings``."""
+
+    def is_high_surrogate(ch: str) -> bool:
+        return 0xD800 <= ord(ch) <= 0xDBFF
+
+    def is_low_surrogate(ch: str) -> bool:
+        return 0xDC00 <= ord(ch) <= 0xDFFF
+
+    return types.SimpleNamespace(
+        is_high_surrogate=is_high_surrogate,
+        is_low_surrogate=is_low_surrogate,
+    )
+
+
+def install_guava_strings_stubs() -> list[str]:
+    """Install minimal module chains needed to load the Guava Strings fixture."""
+
+    def arraycopy(
+        source: list[str], source_pos: int, dest: list[str], dest_pos: int, length: int
+    ) -> None:
+        dest[dest_pos : dest_pos + length] = source[source_pos : source_pos + length]
+
+    installed: list[str] = []
+    installed += install_stub_class(
+        "java.util.logging.Logger",
+        "Logger",
+        types.SimpleNamespace(get_logger=lambda *_: types.SimpleNamespace(log=lambda *_: None)),
+    )
+    installed += install_stub_class(
+        "com.google.common.base.Platform",
+        "Platform",
+        guava_strings_platform_stub(),
+    )
+    installed += install_stub_class(
+        "com.google.common.base.StringBuilder",
+        "StringBuilder",
+        GuavaStringBuilder,
+    )
+    installed += install_stub_class(
+        "com.google.common.base.Character",
+        "Character",
+        guava_strings_character_stub(),
+    )
+    installed += install_stub_class(
+        "com.google.common.base.String",
+        "String",
+        lambda chars: "".join(chars),
+    )
+    installed += install_stub_class(
+        "com.google.common.base.System",
+        "System",
+        types.SimpleNamespace(
+            arraycopy=arraycopy,
+            identity_hash_code=id,
+        ),
+    )
+    return installed
+
+
 _FIXTURE_STUB_INSTALLERS = {
+    "BooleanUtils.java": install_boolean_utils_stubs,
     "CharUtils.java": install_array_utils_stub_package,
+    "Strings.java": install_guava_strings_stubs,
     "NumberUtils.java": install_java_lang_stubs,
     "StringUtils.java": install_string_utils_stubs,
 }

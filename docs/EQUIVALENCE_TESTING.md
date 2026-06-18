@@ -3,16 +3,17 @@
 Status: **Active — Phase 1 (complete)** (decision recorded in [ADR 0014](decisions/0014-equivalence-differential-testing.md)).
 
 **What is running now.** `tests/equivalence/` is live and runs in `make check` (no JDK,
-no LLM). The current surface covers Commons-Lang fixtures (`CharUtils`, `NumberUtils`,
-and focused `StringUtils` literal-oracle checks) plus a Guava-style
-`GuavaPrecedenceMath` fixture that exercises the Phase-1 operator-precedence exit
-criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
+no LLM). The current surface covers Commons-Lang fixtures (`BooleanUtils`, `CharUtils`,
+`NumberUtils`, and focused `StringUtils` literal-oracle checks), Guava `Strings`, plus a
+Guava-style `GuavaPrecedenceMath` fixture that exercises the Phase-1 operator-precedence
+exit criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
 (translate → load → stub) and `tests/equivalence/comparator.py` (normalisation spec —
 float approximation, integer overflow semantics, exception mapping). Overloaded methods
 that are now backed by deterministic dispatcher behavior are included in the public
 surface; any remaining skipped rows are explicit fixture-level exclusions. `make
-test-equivalence` currently selects **1,711 equivalence tests**, all passing, with six
-`NumberUtils.createNumber` edge cases skipped. Run alone with:
+test-equivalence` currently selects **1,740 equivalence items**: 1,733 passing, six
+`NumberUtils.createNumber` edge cases skipped, and one strict xfail documenting the
+generated `Strings.lenientFormat` non-empty-varargs gap. Run alone with:
 
 ```bash
 make test-equivalence         # just the equivalence gate
@@ -165,8 +166,9 @@ math**.
   with `make harvest-equivalence`, for conservative upstream JUnit-to-pytest draft
   generation against declared static fixture methods
 - ✅ CharUtils overload coverage, NumberUtils min/max/isNumber, create-family methods,
-  BigDecimal conversions, and `createNumber` are now represented in the public-surface
-  floor. The current floor is **96/97 public signatures**.
+  BigDecimal conversions, `createNumber`, plus new BooleanUtils and Guava Strings
+  fixture coverage are now represented in the public-surface floor. The current floor is
+  **120/152 public signatures**.
 
 **Remaining:**
 - Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
@@ -277,19 +279,21 @@ By library:
 
 | Library | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
-| `commons-lang` | 94/95 | 98.9% | 94/95 (98.9%) | 0 |
-| `guava` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| **Total** | 96/97 | 99.0% | 96/97 (99.0%) | 0 |
+| `commons-lang` | 109/141 | 77.3% | 109/141 (77.3%) | 0 |
+| `guava` | 11/11 | 100.0% | 11/11 (100.0%) | 0 |
+| **Total** | 120/152 | 78.9% | 120/152 (78.9%) | 0 |
 
 By fixture:
 
 | Fixture | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
+| `BooleanUtils.java` | 15/46 | 32.6% | 15/46 (32.6%) | 0 |
 | `CharUtils.java` | 23/23 | 100.0% | 23/23 (100.0%) | 0 |
 | `GuavaPrecedenceMath.java` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
 | `NumberUtils.java` | 60/61 | 98.4% | 60/61 (98.4%) | 0 |
 | `StringUtils.java` | 11/11 | 100.0% | 11/11 (100.0%) | 0 |
-| **Total** | 96/97 | 99.0% | 96/97 (99.0%) | 0 |
+| `Strings.java` | 9/9 | 100.0% | 9/9 (100.0%) | 0 |
+| **Total** | 120/152 | 78.9% | 120/152 (78.9%) | 0 |
 
 ## 10. Open questions
 

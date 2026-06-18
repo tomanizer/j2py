@@ -23,6 +23,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   surface, `NumberUtils` create-family methods, `BigDecimal` conversions, and
   `createNumber`, raising the checked-in equivalence-verified surface to **96/97
   public methods (99%)** (#515, #517, #519, #520).
+- The measured equivalence surface now includes Commons-Lang `BooleanUtils` and Guava
+  `Strings`, raising the verified count to **120/152 public methods** while resetting the
+  percentage floor against the larger denominator (#514).
 
 ## 0.6.0b1 - 2026-06-18
 

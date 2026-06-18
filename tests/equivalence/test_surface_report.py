@@ -44,7 +44,7 @@ def test_surface_report_counts_verified_and_untestable_buckets() -> None:
     summary = report["summary"]
     char_utils = next(item for item in report["fixtures"] if item["fixture"] == "CharUtils.java")
 
-    assert summary["total_public_methods"] == 97
+    assert summary["total_public_methods"] == 152
     assert summary["verified_methods"] == 2
     assert summary["untestable_methods"] == 14
     assert char_utils["total_public_methods"] == 23
