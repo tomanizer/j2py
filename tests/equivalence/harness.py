@@ -177,6 +177,8 @@ def install_java_lang_stubs() -> list[str]:
 
     def _decode_integer(value: Any) -> int:
         text = str(value)
+        if text != text.strip():
+            raise ValueError(value)
         sign = -1 if text.startswith("-") else 1
         unsigned = text[1:] if text[:1] in {"+", "-"} else text
         if unsigned.startswith(("0x", "0X")):

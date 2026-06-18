@@ -216,8 +216,9 @@ def test_create_integer_equivalence(number_utils_source: str) -> None:
         (None, None),
     ]:
         assert_equivalent(expected, NumberUtils.create_integer(value))
-    with assert_raises_mapped("NumberFormatException"):
-        NumberUtils.create_integer("abc")
+    for invalid in ["abc", " 123", "123 "]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_integer(invalid)
 
 
 @pytest.mark.equivalence
@@ -234,8 +235,9 @@ def test_create_long_equivalence(number_utils_source: str) -> None:
         (None, None),
     ]:
         assert_equivalent(expected, NumberUtils.create_long(value))
-    with assert_raises_mapped("NumberFormatException"):
-        NumberUtils.create_long("xyz")
+    for invalid in ["xyz", " 123", "123 "]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_long(invalid)
 
 
 @pytest.mark.equivalence
