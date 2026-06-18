@@ -12,6 +12,38 @@ pip install --pre j2py-converter
 j2py --help
 ```
 
+Run a self-contained rule-only smoke translation:
+
+```bash
+mkdir -p /tmp/j2py-smoke/src/main/java/demo
+cat > /tmp/j2py-smoke/src/main/java/demo/HelloWorld.java <<'JAVA'
+package demo;
+
+public class HelloWorld {
+    private final String name;
+
+    public HelloWorld(String name) {
+        this.name = name;
+    }
+
+    public String greeting() {
+        return "Hello, " + name;
+    }
+}
+JAVA
+
+j2py translate /tmp/j2py-smoke/src/main/java \
+  --output /tmp/j2py-smoke/translated_py \
+  --no-llm \
+  --no-validate
+
+python -m py_compile /tmp/j2py-smoke/translated_py/demo/HelloWorld.py
+```
+
+The generated file lives under `translated_py/demo/` because j2py preserves package
+relative paths. `--no-validate` keeps this first smoke independent of the validation
+extra; install `j2py-converter[validate]` when you want ruff and mypy checks.
+
 Use extras only when you need the matching feature:
 
 ```bash
@@ -26,6 +58,13 @@ The `spring` extra installs FastAPI, HTTPX, SQLAlchemy, and pydantic-settings fo
 Spring-to-Python migration flows. It does not enable Spring lowering by itself. Spring
 marker lowering, framework plugins, wiring metadata, and downstream `j2py-wire` commands
 remain explicit runtime choices.
+
+After installing the Spring extra, verify the optional runtime imports:
+
+```bash
+j2py-wire --help
+python -c "import fastapi, sqlalchemy, httpx, pydantic_settings"
+```
 
 The base package includes the Anthropic client. LLM translation requires an API key:
 
