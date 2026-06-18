@@ -269,6 +269,13 @@ def test_to_scaled_big_decimal_equivalence(number_utils_source: str) -> None:
             NumberUtils.to_scaled_big_decimal(value, scale, rounding_mode),
         )
 
+    _assert_decimal_equivalent(
+        BigDecimal("3.14"),
+        NumberUtils.to_scaled_big_decimal(BigDecimal("3.14"), 2, RoundingMode.UNNECESSARY),
+    )
+    with assert_raises_mapped("ArithmeticException"):
+        NumberUtils.to_scaled_big_decimal(BigDecimal("3.14159"), 2, RoundingMode.UNNECESSARY)
+
 
 @pytest.mark.equivalence
 @surface(JAVA_CLASS, "NumberUtils.createBigDecimal(String)")

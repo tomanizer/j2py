@@ -162,6 +162,11 @@ class BigDecimal(decimal.Decimal):
 
     def set_scale(self, scale: int, rounding_mode: str | None = None) -> BigDecimal:
         quantizer = decimal.Decimal(1).scaleb(-scale)
+        if rounding_mode == "UNNECESSARY":
+            result = self.quantize(quantizer, rounding=decimal.ROUND_DOWN)
+            if result != self:
+                raise ArithmeticError("Rounding necessary")
+            return BigDecimal(result)
         rounding = rounding_mode or decimal.ROUND_HALF_EVEN
         return BigDecimal(self.quantize(quantizer, rounding=rounding))
 
@@ -179,7 +184,7 @@ class RoundingMode:
     HALF_UP = decimal.ROUND_HALF_UP
     HALF_DOWN = decimal.ROUND_HALF_DOWN
     HALF_EVEN = decimal.ROUND_HALF_EVEN
-    UNNECESSARY = decimal.ROUND_05UP
+    UNNECESSARY = "UNNECESSARY"
 
 
 def number_utils_runtime_globals() -> dict[str, Any]:
