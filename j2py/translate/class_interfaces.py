@@ -174,6 +174,7 @@ def translate_interface(
             inherited_declared_type_fields={},
             inherited_declared_type_java_fields={},
             inherited_declared_type_method_return_types={},
+            enclosing_static_dispatch={},
             docstring_lines=None,
             outer_self_alias=None,
             requires_outer_self=False,
