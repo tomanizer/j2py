@@ -104,8 +104,12 @@ class BlockSpringExtra(importlib.abc.MetaPathFinder):
     blocked = {"fastapi", "httpx", "pydantic_settings", "sqlalchemy", "starlette"}
 
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split(".", 1)[0] in self.blocked:
-            raise ImportError(f"blocked optional Spring dependency: {fullname}", name=fullname.split(".", 1)[0])
+        root_name = fullname.split(".", 1)[0]
+        if root_name in self.blocked:
+            raise ImportError(
+                f"blocked optional Spring dependency: {fullname}",
+                name=root_name,
+            )
         return None
 
 
