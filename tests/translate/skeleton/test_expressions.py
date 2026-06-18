@@ -532,7 +532,7 @@ def test_jdk_instance_mappings_fall_back_for_unexpected_arity(
     assert_valid_python(result.source)
 
 
-def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
+def test_unknown_static_import_emits_qualified_fallback_and_warning() -> None:
     result = translate_source_with_diagnostics(
         """
         import static com.example.Helpers.magic;
@@ -545,15 +545,19 @@ def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
         """,
     )
 
-    assert result.coverage < 1.0
-    assert "# TODO(j2py): static import com.example.Helpers.magic - resolve manually" in (
-        result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "# TODO(j2py): static import" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        (
+            "static import com.example.Helpers.magic emitted as qualified fallback; "
+            "verify external member semantics"
+        ),
+    ]
+    assert any(
+        item.reason == "bound explicit static import fallback com.example.Helpers.magic"
+        for item in result.diagnostics.handled
     )
-    assert result.diagnostics.unhandled[0].reason == (
-        "unknown static import com.example.Helpers.magic"
-    )
-    # Unknown static method import now emits a qualified call so output stays syntactically
-    # valid and reviewable; bare unqualified fallback was replaced by ClassName.method(args).
     assert "return Helpers.magic(value)" in result.source
     assert_valid_python(result.source)
 
@@ -571,10 +575,15 @@ def test_unknown_static_field_import_emits_qualified_identifier() -> None:
         """,
     )
 
-    assert "# TODO(j2py): static import com.example.BoundType.CLOSED - resolve manually" in (
-        result.source
-    )
-    # Unknown static field now emits qualified ClassName.MEMBER so output is valid Python.
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "# TODO(j2py): static import" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        (
+            "static import com.example.BoundType.CLOSED emitted as qualified fallback; "
+            "verify external member semantics"
+        ),
+    ]
     assert "BoundType.CLOSED" in result.source
     assert "x == BoundType.CLOSED" in result.source or "== BoundType.CLOSED" in result.source
     assert_valid_python(result.source)

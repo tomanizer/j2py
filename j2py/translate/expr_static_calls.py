@@ -5,7 +5,10 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_jdk_calls import translate_known_static_method_invocation
-from j2py.translate.rules.naming import translate_class_name, translate_method_name
+from j2py.translate.member_resolution import (
+    static_import_binding,
+    static_import_method_fallback,
+)
 
 
 def translate_static_method_invocation(
@@ -48,6 +51,5 @@ def translate_static_imported_method(
         return result
     # Fallback: emit ClassName.method_name(args) for unknown receiver classes so the
     # output is always syntactically valid and reviewable rather than a bare call.
-    class_name = translate_class_name(raw_receiver.rsplit(".", 1)[-1])
-    py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
-    return f"{class_name}.{py_method}({', '.join(args)})"
+    binding = static_import_binding(imported_name, ctx.cfg, kind="method")
+    return static_import_method_fallback(binding, args, ctx.cfg)

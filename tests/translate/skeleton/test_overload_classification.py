@@ -81,6 +81,10 @@ def test_classifies_runtime_value_dispatch_when_guards_are_distinct() -> None:
         ("isinstance({arg}, int) and not isinstance({arg}, bool)",),
         ("isinstance({arg}, str)",),
     )
+    assert classification.java_type_shape_signatures == (
+        ("numeric:int->int",),
+        ("string:String->str",),
+    )
 
 
 def test_classifies_runtime_dispatch_when_erased_signatures_are_distinct() -> None:
@@ -118,6 +122,10 @@ def test_classifies_erasure_collisions_as_unsafe() -> None:
 
     assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
     assert classification.erased_signatures == (("int",), ("int",))
+    assert classification.java_type_shape_signatures == (
+        ("numeric:int->int",),
+        ("numeric:long->int",),
+    )
     assert "indistinguishable Python runtime shapes" in classification.reason
 
 
@@ -211,7 +219,34 @@ def test_classifies_varargs_erasure_collisions_as_unsafe() -> None:
 
     assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
     assert classification.erased_signatures == (("*int",), ("*int",))
+    assert classification.java_type_shape_signatures == (
+        ("numeric:int->int",),
+        ("numeric:long->int",),
+    )
     assert "indistinguishable Python runtime shapes" in classification.reason
+
+
+def test_classification_exposes_generic_java_shapes_before_erasure() -> None:
+    group = _overload_group(
+        """
+        import java.util.List;
+
+        public class GenericUnsafe {
+            public Object first(List<String> values) { return values.get(0); }
+            public Object first(List<Integer> values) { return values.get(0) + 1; }
+        }
+        """,
+        "first",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.ERASURE_COLLISION_UNSAFE
+    assert classification.erased_signatures == (("list",), ("list",))
+    assert classification.java_type_shape_signatures == (
+        ("collection:List->list[string:String->str]",),
+        ("collection:List->list[numeric:Integer->int]",),
+    )
 
 
 def test_classifies_equivalent_arity_guard_collisions_as_value_dispatch_safe() -> None:
