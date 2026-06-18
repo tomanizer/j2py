@@ -177,9 +177,12 @@ Current direct consumers include:
 - `j2py doctor --config-suggestions j2py.suggested.yaml`;
 - `j2py doctor diff before.json after.json`.
 
+Current companion commands include:
+
+- `j2py sarif j2py-assessment.json --output j2py.sarif`.
+
 Planned direct consumers include:
 
-- `j2py sarif j2py-assessment.json --output j2py.sarif`;
 - `j2py stubgen --from-assessment j2py-assessment.json`.
 
 Direct `j2py translate --assessment j2py-assessment.json` support should only be added
@@ -221,6 +224,16 @@ The suggestions file is an advisory artifact. Review it before copying entries i
 `j2py.yaml`, `j2py.toml`, or another explicit config file. Suggestions are intentionally
 low-confidence unless current defaults already define the behavior.
 
+### Export SARIF
+
+```bash
+j2py doctor src/main/java --json j2py-assessment.json --include-validation
+j2py sarif j2py-assessment.json --output j2py.sarif
+```
+
+Use the SARIF file with GitHub code scanning, CI artifacts, or review tooling. See
+[SARIF export](SARIF.md).
+
 ### Validate generated Python during assessment
 
 ```bash
@@ -239,7 +252,7 @@ Current `doctor` does not:
 - prove runtime equivalence;
 - call LLM repair;
 - generate a reviewed production-ready config file;
-- export SARIF;
+- export SARIF directly from `translate` results;
 - generate stubs;
 - rank files by a formal risk score.
 

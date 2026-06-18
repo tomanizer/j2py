@@ -507,6 +507,24 @@ def doctor(
 
 
 @app.command()
+def sarif(
+    assessment: Path = typer.Argument(..., help="Doctor assessment JSON to convert."),
+    output: Path = typer.Option(..., "--output", "-o", help="SARIF output path."),
+) -> None:
+    """Export doctor assessment diagnostics as SARIF 2.1.0."""
+    from j2py.sarif import assessment_to_sarif, load_sarif_assessment, write_sarif
+
+    try:
+        report = assessment_to_sarif(load_sarif_assessment(assessment))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    write_sarif(output, report)
+    result_count = len(report.payload["runs"][0]["results"])
+    console.print(f"[green]SARIF:[/green] {output} ({result_count} results)")
+
+
+@app.command()
 def watch(
     source: Path = typer.Argument(..., help="Java file or directory to watch."),
     output: Path = typer.Option(..., "--output", "-o", help="Output file or directory."),
