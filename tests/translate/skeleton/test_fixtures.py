@@ -145,6 +145,31 @@ def test_metadata_only_nested_class_emits_pass() -> None:
     assert_valid_python(result.source)
 
 
+def test_nested_interface_class_does_not_inherit_outer_static_dispatch() -> None:
+    parsed = parse_source(
+        """
+        class Outer {
+            static String helper() {
+                return "outer";
+            }
+
+            interface Marker {
+                class Inner {
+                    String go() {
+                        return helper();
+                    }
+                }
+            }
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert "return helper()" in result.source
+    assert "return Outer.helper()" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_multiline_wildcard_generics_in_signatures_translate_to_valid_annotations() -> None:
     parsed = parse_source(
         """
