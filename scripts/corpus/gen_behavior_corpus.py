@@ -16,15 +16,8 @@ kept inside the deterministic rule layer's *runtime-correct* envelope:
 This envelope is the contract the corpus guarantees. As the rule layer grows, add
 cases here and regenerate.
 """
-import shutil
-from pathlib import Path
 
-CASES: dict[str, str] = {}
-
-
-def case(name: str, src: str) -> None:
-    CASES[name] = src.lstrip()
-
+from behavior_corpus_writer import case, main
 
 # ----------------------------------------------------------------- algorithms
 case("algo_factorial_iter", """
@@ -991,26 +984,6 @@ public class Main {
     }
 }
 """)
-
-
-#: Default output: the committed behavior fixtures directory.
-DEFAULT_OUT = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "behavior"
-
-
-def main() -> None:
-    import sys
-
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT
-    out.mkdir(parents=True, exist_ok=True)
-    # Only (re)write the directories this generator owns; hand-written fixtures and
-    # other cases in the same directory are left untouched.
-    for name, src in CASES.items():
-        d = out / name
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True)
-        (d / "Main.java").write_text(src, encoding="utf-8")
-    print(f"generated {len(CASES)} cases into {out}")
 
 
 if __name__ == "__main__":
