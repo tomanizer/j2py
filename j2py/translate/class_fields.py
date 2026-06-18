@@ -340,10 +340,9 @@ def _translate_pydantic_model_field(
             supported=True,
             reason="translated Pydantic model field initializer",
         )
-        initializer = translate_expression(field.initializer, ctx)
-        _extend_with_local_helpers(lines, ctx, base_indent="    ")
+        lines.extend(helper_lines)
         lines.append(
-            f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}"
+            f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}"
         )
         return lines
 

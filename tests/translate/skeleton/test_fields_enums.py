@@ -105,6 +105,24 @@ def test_bean_validation_subclass_is_not_promoted_to_pydantic_model() -> None:
     assert_valid_python(result.source)
 
 
+def test_pydantic_model_field_initializer_is_translated_once() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class MixedValidation {
+            @NotNull
+            private String name;
+            private Runnable callback = () -> { System.out.println("ok"); };
+        }
+        """,
+    )
+
+    assert "class MixedValidation(BaseModel):" in result.source
+    assert "name: str = Field(...)" in result.source
+    assert result.source.count("def _j2py_lambda_") == 1
+    assert "callback: Runnable = _j2py_lambda_1" in result.source
+    assert_valid_python(result.source)
+
+
 def test_instance_field_initializer_can_reference_another_field() -> None:
     python_source, coverage = translate_source(
         """

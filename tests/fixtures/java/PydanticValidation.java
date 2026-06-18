@@ -10,6 +10,13 @@ class CreateOwnerForm {
     @Max(10)
     private int retries = 3;
 
+    @Min(10L)
+    @Max(0x20)
+    private long stock;
+
+    @Max(0b1010)
+    private int binaryLimit;
+
     @Pattern(regexp = "[A-Z]+")
     @NotEmpty
     private String code;

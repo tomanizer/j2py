@@ -176,8 +176,17 @@ def _merge_upper_bound(kwargs: dict[str, int | str], key: str, value: int) -> No
 def _parse_int(value: str | None) -> int | None:
     if value is None:
         return None
+    literal = value.replace("_", "").rstrip("Ll")
+    sign = ""
+    if literal.startswith(("+", "-")):
+        sign = literal[0]
+        literal = literal[1:]
     try:
-        return int(value)
+        if literal.startswith(("0x", "0X")):
+            return int(f"{sign}{literal}", 16)
+        if literal.startswith(("0b", "0B")):
+            return int(f"{sign}{literal}", 2)
+        return int(f"{sign}{literal}")
     except ValueError:
         return None
 

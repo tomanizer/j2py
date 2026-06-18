@@ -7,6 +7,8 @@ class CreateOwnerForm(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=30)
     age: int = Field(0, ge=0, le=150)
     retries: int = Field(3, le=10)
+    stock: int = Field(0, ge=10, le=32)
+    binary_limit: int = Field(0, le=10)
     code: str = Field(..., min_length=1, pattern='[A-Z]+')
     nickname: str | None = Field(None, max_length=60)
     slug: str | None = Field(None, pattern='[a-z]+')
