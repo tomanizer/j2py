@@ -554,7 +554,8 @@ def _inherited_transactional_comment_lines(
         return []
     from j2py.translate.annotation_emit import annotation_names
 
-    if "Transactional" in annotation_names(member):
+    names = annotation_names(member)
+    if "Transactional" in names or "Override" in names:
         return []
     return class_transactional_lines
 

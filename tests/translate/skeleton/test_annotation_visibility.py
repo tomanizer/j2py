@@ -247,6 +247,52 @@ def test_transactional_comments_respect_disabled_line_comments() -> None:
     assert_valid_python(result.source)
 
 
+def test_class_transactional_does_not_propagate_to_override_methods() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Override {}
+        @interface Transactional {}
+
+        @Transactional
+        public class Service {
+            @Override
+            public void run() {
+            }
+
+            public void save() {
+            }
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert "    # @Override\n    def run(self) -> None:" in result.source
+    assert "    # @Transactional\n    # @Override\n    def run" not in result.source
+    assert "    # @Transactional\n    def save(self) -> None:" in result.source
+    assert_valid_python(result.source)
+
+
+def test_transactional_comments_skip_empty_rollback_for() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Transactional {
+            Class<?>[] rollbackFor() default {};
+        }
+
+        public class Service {
+            @Transactional(rollbackFor = {})
+            public void save() {
+            }
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert "# @Transactional" in result.source
+    assert "rollbackFor=" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_annotation_map_fixture_lowers_framework_annotations() -> None:
     parsed = parse_file(FIXTURES / "java" / "AnnotationMapFrameworkLowering.java")
     result = translate_skeleton_with_diagnostics(
