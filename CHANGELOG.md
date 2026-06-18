@@ -18,6 +18,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - `String.charAt(i)` now lowers to Python indexing `s[i]` instead of an undefined
   `s.char_at(i)` method call, and is typed as returning `str`. Lands
   `StringUtils.isBlank` on the equivalence-verified surface (32/97 → 33/97).
+- `charAt(i)`-returned chars are now recognized as Java `char` in expression-type
+  inference, so a `charAt(i) == 'x'` comparison stays a str comparison instead of
+  wrapping only the literal in `ord()` (which silently compared `str` to `int`, always
+  False). Fixes `NumberUtils.isParsable` trailing-dot handling and lands it on the
+  equivalence-verified surface (33/97 → 34/97).
 
 ## 0.5.0b3 - 2026-06-17
 

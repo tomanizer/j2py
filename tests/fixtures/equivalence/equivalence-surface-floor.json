@@ -5,9 +5,9 @@
       "library": "commons-lang",
       "testable_public_methods": 81,
       "total_public_methods": 95,
-      "verified_methods": 31,
-      "verified_public_surface_percent": 0.3263157894736842,
-      "verified_testable_surface_percent": 0.38271604938271603
+      "verified_methods": 32,
+      "verified_public_surface_percent": 0.3368421052631579,
+      "verified_testable_surface_percent": 0.3950617283950617
     },
     {
       "library": "guava",
@@ -22,8 +22,8 @@
   "summary": {
     "testable_public_methods": 83,
     "total_public_methods": 97,
-    "verified_methods": 33,
-    "verified_public_surface_percent": 0.3402061855670103,
-    "verified_testable_surface_percent": 0.39759036144578314
+    "verified_methods": 34,
+    "verified_public_surface_percent": 0.35051546391752575,
+    "verified_testable_surface_percent": 0.40963855421686746
   }
 }
