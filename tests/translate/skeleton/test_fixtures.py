@@ -21,6 +21,7 @@ from tests.translate.skeleton.helpers import (
         ("Fields", 1.0),
         ("FrameworkAnnotationVisibility", 1.0),
         ("PydanticValidation", 1.0),
+        ("RequestBodyPydanticModel", 1.0),
         ("AbstractClass", 1.0),
         ("AssertProbe", 1.0),
         ("JavadocConversion", 1.0),

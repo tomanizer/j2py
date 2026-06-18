@@ -39,6 +39,7 @@ from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
 )
+from j2py.translate.spring_model import collect_pydantic_model_class_names
 
 
 @dataclass
@@ -104,6 +105,7 @@ def translate_skeleton_with_diagnostics(
     )
     file_class_declarations = collect_file_class_declarations(parsed.root)
     type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
+    pydantic_model_class_names = collect_pydantic_model_class_names(parsed.root, cfg)
     class_env = ClassTranslationEnvironment(
         inherited_declared_type_fields=module_declared_type_fields,
         inherited_declared_type_java_fields=module_declared_type_java_fields,
@@ -119,6 +121,7 @@ def translate_skeleton_with_diagnostics(
         module_class_static_methods=module_class_static_methods or {},
         module_class_static_instance_aliases=module_class_static_instance_aliases or {},
         module_class_declarations=module_class_declarations or {},
+        pydantic_model_class_names=pydantic_model_class_names,
         interface_type_var_maps=type_var_plan.interface_type_var_maps,
     )
     class_blocks: list[list[str]] = []
