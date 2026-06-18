@@ -12,6 +12,7 @@ removal, mirroring the behaviour-corpus discipline.
 
 from __future__ import annotations
 
+import decimal
 import sys
 import types
 from collections.abc import Mapping
@@ -54,6 +55,8 @@ def load_translated_module(
     if injected_globals:
         module.__dict__.update(injected_globals)
     exec(compile(source, f"<{name}>", "exec"), module.__dict__)  # noqa: S102
+    if injected_globals:
+        module.__dict__.update(injected_globals)
     return module
 
 
@@ -141,13 +144,61 @@ def install_array_utils_stub_package() -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+class BigDecimal(decimal.Decimal):
+    """Small Java-style ``BigDecimal`` shim for equivalence fixtures."""
+
+    def __new__(cls, value: Any = "0", context: decimal.Context | None = None) -> BigDecimal:
+        try:
+            return super().__new__(cls, value, context=context)
+        except decimal.InvalidOperation as exc:
+            raise ValueError(value) from exc
+
+    @classmethod
+    def value_of(cls, value: Any) -> BigDecimal:
+        return cls(str(value))
+
+    def double_value(self) -> float:
+        return float(self)
+
+    def set_scale(self, scale: int, rounding_mode: str | None = None) -> BigDecimal:
+        quantizer = decimal.Decimal(1).scaleb(-scale)
+        rounding = rounding_mode or decimal.ROUND_HALF_EVEN
+        return BigDecimal(self.quantize(quantizer, rounding=rounding))
+
+
+BigDecimal.ZERO = BigDecimal("0")  # type: ignore[attr-defined]
+
+
+class RoundingMode:
+    """Java ``RoundingMode`` constants mapped to ``decimal`` rounding modes."""
+
+    UP = decimal.ROUND_UP
+    DOWN = decimal.ROUND_DOWN
+    CEILING = decimal.ROUND_CEILING
+    FLOOR = decimal.ROUND_FLOOR
+    HALF_UP = decimal.ROUND_HALF_UP
+    HALF_DOWN = decimal.ROUND_HALF_DOWN
+    HALF_EVEN = decimal.ROUND_HALF_EVEN
+    UNNECESSARY = decimal.ROUND_05UP
+
+
+def number_utils_runtime_globals() -> dict[str, Any]:
+    """Runtime globals needed by generated NumberUtils BigDecimal methods."""
+    return {
+        "BigDecimal": BigDecimal,
+        "Decimal": BigDecimal,
+        "INTEGER_TWO": 2,
+    }
+
+
 def install_java_lang_stubs() -> list[str]:
     """Install stub module chains needed to load the NumberUtils fixture.
 
     At class-body definition time NumberUtils calls::
 
         Long.value_of(0), Short.value_of(...), Byte.value_of(...),
-        Double.value_of(0.0), Float.value_of(0.0), Integer.MIN_VALUE, Integer.MAX_VALUE
+        Double.value_of(0.0), Float.value_of(0.0), Integer.MIN_VALUE, Integer.MAX_VALUE,
+        and BigDecimal/RoundingMode helpers
 
     — all imported from ``org.apache.commons.lang3.math.*`` (the rule layer maps Java
     boxed types to sibling fqns).  Method bodies also reference ``StringUtils.contains``,
@@ -240,6 +291,7 @@ def install_java_lang_stubs() -> list[str]:
     installed += install_stub_class(
         f"{math}.Character", "Character", types.SimpleNamespace(value_of=_id)
     )
+    installed += install_stub_class("java.math.BigDecimal", "BigDecimal", BigDecimal)
     installed += install_stub_class(
         f"{lang3}.StringUtils",
         "StringUtils",
@@ -263,16 +315,7 @@ def install_java_lang_stubs() -> list[str]:
     installed += install_stub_class(
         "java.math.RoundingMode",
         "RoundingMode",
-        types.SimpleNamespace(
-            CEILING=0,
-            DOWN=1,
-            FLOOR=2,
-            HALF_DOWN=3,
-            HALF_EVEN=4,
-            HALF_UP=5,
-            UNNECESSARY=6,
-            UP=7,
-        ),
+        RoundingMode,
     )
     return installed
 

@@ -27,8 +27,11 @@ from tests.equivalence.comparator import (
     assert_raises_mapped,
 )
 from tests.equivalence.harness import (
+    BigDecimal,
+    RoundingMode,
     install_java_lang_stubs,
     load_translated_module,
+    number_utils_runtime_globals,
     translate_rule_layer,
 )
 
@@ -196,6 +199,92 @@ def test_to_double_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_double("000.00", 5.1) == approx_double(0.0)
     assert NumberUtils.to_double("", 5.1) == approx_double(5.1)
     assert NumberUtils.to_double(None, 5.1) == approx_double(5.1)
+
+
+# ── BigDecimal conversions ───────────────────────────────────────────────────
+
+
+def _load_number_utils_with_big_decimal(number_utils_source: str, name: str):
+    return load_translated_module(
+        number_utils_source,
+        name,
+        injected_globals=number_utils_runtime_globals(),
+    )
+
+
+def _assert_decimal_equivalent(expected: BigDecimal, actual: BigDecimal) -> None:
+    assert actual == expected
+    assert actual.as_tuple().exponent == expected.as_tuple().exponent
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.toDouble(BigDecimal)")
+@surface(JAVA_CLASS, "NumberUtils.toDouble(BigDecimal,double)")
+def test_to_double_big_decimal_equivalence(number_utils_source: str) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_toDoubleBD")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.to_double(BigDecimal("3.14")) == approx_double(3.14)
+    assert NumberUtils.to_double(BigDecimal("0")) == approx_double(0.0)
+    assert NumberUtils.to_double(None) == approx_double(0.0)
+    assert NumberUtils.to_double(BigDecimal("2.5"), 99.9) == approx_double(2.5)
+    assert NumberUtils.to_double(None, 99.9) == approx_double(99.9)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(BigDecimal)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(BigDecimal,int,RoundingMode)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(Double)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(Double,int,RoundingMode)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(Float)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(Float,int,RoundingMode)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(String)")
+@surface(JAVA_CLASS, "NumberUtils.toScaledBigDecimal(String,int,RoundingMode)")
+def test_to_scaled_big_decimal_equivalence(number_utils_source: str) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_scaledBD")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        (BigDecimal("3.14159"), BigDecimal("3.14")),
+        (BigDecimal("2.345"), BigDecimal("2.34")),
+        (None, BigDecimal("0")),
+        (3.14159, BigDecimal("3.14")),
+        (3.14, BigDecimal("3.14")),
+        ("3.14159", BigDecimal("3.14")),
+    ]:
+        _assert_decimal_equivalent(expected, NumberUtils.to_scaled_big_decimal(value))
+
+    for value, scale, rounding_mode, expected in [
+        (BigDecimal("3.14159"), 3, RoundingMode.HALF_UP, BigDecimal("3.142")),
+        (BigDecimal("3.14159"), 3, RoundingMode.DOWN, BigDecimal("3.141")),
+        (BigDecimal("3.14159"), 3, None, BigDecimal("3.142")),
+        (None, 2, RoundingMode.HALF_EVEN, BigDecimal("0")),
+        (3.14159, 3, RoundingMode.HALF_UP, BigDecimal("3.142")),
+        (3.0, 0, RoundingMode.HALF_UP, BigDecimal("3")),
+        ("3.14159", 4, RoundingMode.FLOOR, BigDecimal("3.1415")),
+        (None, 2, RoundingMode.HALF_EVEN, BigDecimal("0")),
+    ]:
+        _assert_decimal_equivalent(
+            expected,
+            NumberUtils.to_scaled_big_decimal(value, scale, rounding_mode),
+        )
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createBigDecimal(String)")
+def test_create_big_decimal_equivalence(number_utils_source: str) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_createBD")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        ("3.14", BigDecimal("3.14")),
+        ("1e10", BigDecimal("1e10")),
+    ]:
+        _assert_decimal_equivalent(expected, NumberUtils.create_big_decimal(value))
+    assert_equivalent(None, NumberUtils.create_big_decimal(None))
+    for invalid in ["", " ", "not-a-number"]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_big_decimal(invalid)
 
 
 # ── create* null-return converters ────────────────────────────────────────────
