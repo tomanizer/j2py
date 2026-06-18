@@ -14,6 +14,8 @@ _FRAMEWORK_ANNOTATIONS = frozenset(
         "Column",
         "Component",
         "Configuration",
+        "ConfigurationProperties",
+        "Controller",
         "DeleteMapping",
         "Entity",
         "GetMapping",
@@ -23,7 +25,10 @@ _FRAMEWORK_ANNOTATIONS = frozenset(
         "PutMapping",
         "Qualifier",
         "Repository",
+        "RequestBody",
         "RequestMapping",
+        "RequestParam",
+        "ResponseStatus",
         "RestController",
         "Service",
         "Table",
@@ -100,6 +105,8 @@ def record_annotation_diagnostics(
                 actions.append(f"@{entry.python_decorator}")
             if entry.python_base:
                 actions.append(f"base {entry.python_base}")
+            if entry.python_annotation:
+                actions.append(f"parameter annotation {entry.python_annotation}")
             if entry.field_comment:
                 actions.append("field comment")
             if entry.emit_init_param:

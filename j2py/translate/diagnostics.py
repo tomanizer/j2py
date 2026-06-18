@@ -109,7 +109,7 @@ class ImportSet:
         self.typing_names.update(other.typing_names)
 
     def render(self) -> list[str]:
-        imports = set(self.lines)
+        imports = _combine_simple_from_imports(self.lines)
         if self.typing_names:
             imports.add(f"from typing import {', '.join(sorted(self.typing_names))}")
         return sorted(imports)
@@ -296,6 +296,7 @@ def _uses_typing_name(annotation: str, name: str) -> bool:
 _TYPING_ANNOTATION_NAMES = frozenset(
     {
         "Any",
+        "Annotated",
         "Callable",
         "ClassVar",
         "Iterable",
@@ -304,3 +305,21 @@ _TYPING_ANNOTATION_NAMES = frozenset(
         "Self",
     },
 )
+
+_SIMPLE_FROM_IMPORT_RE = re.compile(r"^from ([A-Za-z_][\w.]*?) import ([A-Za-z_]\w*)$")
+
+
+def _combine_simple_from_imports(lines: set[str]) -> set[str]:
+    grouped: dict[str, set[str]] = {}
+    passthrough: set[str] = set()
+    for line in lines:
+        match = _SIMPLE_FROM_IMPORT_RE.match(line)
+        if match is None:
+            passthrough.add(line)
+            continue
+        module, name = match.groups()
+        grouped.setdefault(module, set()).add(name)
+    combined = {
+        f"from {module} import {', '.join(sorted(names))}" for module, names in grouped.items()
+    }
+    return passthrough | combined

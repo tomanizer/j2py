@@ -67,6 +67,7 @@ class CorpusPreset:
     include_path_prefixes: tuple[str, ...] = ()
     require_annotations: tuple[str, ...] = ()
     min_annotation_hits: int = 0
+    annotation_map_preset: str | None = None
 
     @property
     def repo_path(self) -> Path:
@@ -163,6 +164,7 @@ PRESETS: dict[str, CorpusPreset] = {
             limit=200,
             min_loc=0,
             min_constructs=0,
+            annotation_map_preset="spring",
         ),
         _preset(
             "spring-broad",
@@ -300,6 +302,7 @@ def apply_preset(
         "include_path_prefixes",
         "require_annotations",
         "min_annotation_hits",
+        "annotation_map_preset",
     )
     resolved: dict[str, object] = {
         "repo": preset.repo_path,
@@ -318,6 +321,7 @@ def apply_preset(
         "include_path_prefixes": list(preset.include_path_prefixes),
         "require_annotations": list(preset.require_annotations),
         "min_annotation_hits": preset.min_annotation_hits,
+        "annotation_map_preset": preset.annotation_map_preset,
         "baseline": preset.baseline,
         "json_out": preset.json_out,
         "csv_out": preset.csv_out,

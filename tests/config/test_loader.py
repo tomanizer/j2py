@@ -141,6 +141,49 @@ annotation_map:
     assert cfg.annotation_map["Autowired"].emit_init_param is True
 
 
+def test_config_loader_loads_spring_annotation_map_preset(tmp_path: Path) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text("annotation_map_preset: spring\n")
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert len(cfg.annotation_map) == 20
+    assert cfg.annotation_map["RestController"].python_decorator == "rest_controller"
+    assert cfg.annotation_map["GetMapping"].python_decorator == 'get_mapping("{value}")'
+    assert cfg.annotation_map["PathVariable"].python_annotation == "path_variable"
+    assert cfg.annotation_map["RequestBody"].python_annotation == "request_body"
+    assert cfg.annotation_map["RequestParam"].python_annotation == "request_param"
+    assert cfg.annotation_map["ResponseStatus"].python_decorator == "response_status({value})"
+
+
+def test_config_loader_spring_annotation_map_preset_allows_overrides(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text(
+        """
+annotation_map_preset: spring
+annotation_map:
+  RestController:
+    python_decorator: custom_controller
+    import: from project.web import custom_controller
+  CustomAnnotation:
+    python_decorator: custom
+""",
+    )
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.annotation_map["RestController"].python_decorator == "custom_controller"
+    assert (
+        cfg.annotation_map["RestController"].import_ == "from project.web import custom_controller"
+    )
+    assert cfg.annotation_map["CustomAnnotation"].python_decorator == "custom"
+    assert cfg.annotation_map["GetMapping"].python_decorator == 'get_mapping("{value}")'
+
+
 def test_config_loader_loads_member_map(tmp_path: Path) -> None:
     config_file = tmp_path / "j2py.toml"
     config_file.write_text(

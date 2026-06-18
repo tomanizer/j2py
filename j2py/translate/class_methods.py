@@ -13,7 +13,8 @@ from j2py.translate.annotation_emit import (
 from j2py.translate.class_members import raw_member_name
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
-from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
+from j2py.translate.framework_annotations import parameter_annotation_metadata
 from j2py.translate.framework_dispatch import resolve_method
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name, translate_method_name
@@ -265,7 +266,11 @@ def return_type(node: JavaNode, cfg: TranslationConfig) -> str:
     return translate_type(type_node.text, cfg)
 
 
-def parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterInfo]:
+def parameter_infos(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics | None = None,
+) -> list[ParameterInfo]:
     params_node = node.child_by_field("parameters")
     if params_node is None:
         return []
@@ -299,6 +304,11 @@ def parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterInf
         raw_name = name_node.text if name_node is not None else "_"
         java_type = type_node.text if type_node is not None else "Object"
         py_type = translate_type(java_type, cfg)
+        py_annotations = (
+            tuple(parameter_annotation_metadata(param, cfg, diagnostics))
+            if diagnostics is not None
+            else ()
+        )
         infos.append(
             ParameterInfo(
                 raw_name=raw_name,
@@ -306,6 +316,7 @@ def parameter_infos(node: JavaNode, cfg: TranslationConfig) -> list[ParameterInf
                 py_type=py_type.removeprefix("*"),
                 java_type=java_type,
                 is_spread=is_spread,
+                py_annotations=py_annotations,
             ),
         )
     return infos
@@ -342,7 +353,7 @@ def params_for_method(
     type_var_map: dict[str, str] | None = None,
 ) -> list[str]:
     params: list[str] = []
-    for param in parameter_infos(node, ctx.cfg):
+    for param in parameter_infos(node, ctx.cfg, ctx.diagnostics):
         if type_var_map:
             param = ParameterInfo(
                 raw_name=param.raw_name,
@@ -350,12 +361,14 @@ def params_for_method(
                 py_type=_map_type_vars(param.py_type, type_var_map),
                 java_type=param.java_type,
                 is_spread=param.is_spread,
+                py_annotations=param.py_annotations,
             )
         register_param(ctx, param)
         prefix = "*" if param.is_spread else ""
+        py_type = _render_parameter_type(param, ctx)
         if ctx.cfg.emit_type_hints:
-            ctx.diagnostics.imports.need_type_annotation(param.py_type)
-            params.append(f"{prefix}{param.py_name}: {param.py_type}")
+            ctx.diagnostics.imports.need_type_annotation(py_type)
+            params.append(f"{prefix}{param.py_name}: {py_type}")
         else:
             params.append(f"{prefix}{param.py_name}")
     return params
@@ -376,8 +389,17 @@ def _render_extra_params(ctx: TranslationContext, params: list[ParameterInfo]) -
             continue
         register_param(ctx, param)
         if ctx.cfg.emit_type_hints:
-            ctx.diagnostics.imports.need_type_annotation(param.py_type)
-            rendered.append(f"{param.py_name}: {param.py_type}")
+            py_type = _render_parameter_type(param, ctx)
+            ctx.diagnostics.imports.need_type_annotation(py_type)
+            rendered.append(f"{param.py_name}: {py_type}")
         else:
             rendered.append(param.py_name)
     return rendered
+
+
+def _render_parameter_type(param: ParameterInfo, ctx: TranslationContext) -> str:
+    annotations = list(param.py_annotations)
+    if not annotations:
+        return param.py_type
+    ctx.diagnostics.imports.need_typing("Annotated")
+    return f"Annotated[{param.py_type}, {', '.join(annotations)}]"
