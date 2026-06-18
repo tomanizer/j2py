@@ -48,6 +48,25 @@ For optional live provider probes or harvest commands, use the dev environment b
 uv sync --locked --extra dev
 ```
 
+Agent worktrees and benchmark runs use a repo-local uv package cache (`.uv-cache/`) when
+invoked through `make`, so fresh worktrees do not depend on a developer's global uv
+cache. Pre-warm that cache before benchmark-heavy work or any workflow that creates
+fresh temporary worktrees:
+
+```bash
+make agent-bootstrap
+```
+
+For direct `uv` commands that do not go through `make`, export the same cache first:
+
+```bash
+export UV_CACHE_DIR=.uv-cache
+```
+
+Developers who want one cache shared across multiple local checkouts may set
+`UV_CACHE_DIR` themselves before invoking `make`; j2py does not hard-code a
+machine-specific cache path.
+
 ## JDK Requirements
 
 The normal rule-layer tests and `j2py doctor` do not need a JDK. A local JDK is required

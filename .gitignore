@@ -32,6 +32,7 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pypy_cache/
+.uv-cache/
 
 # --- Secrets & local env ---
 .env

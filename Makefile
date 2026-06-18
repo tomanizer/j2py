@@ -8,11 +8,13 @@
 	corpus-commons-lang-dense corpus-commons-lang-dense-check corpus-commons-lang-dense-update-baseline \
 	corpus-jackson-dense corpus-jackson-dense-check corpus-jackson-dense-update-baseline \
 	corpus-caffeine-dense corpus-caffeine-dense-check corpus-caffeine-dense-update-baseline \
-	agent-worktree agent-clean agent-evacuate \
+	agent-worktree agent-clean agent-evacuate agent-bootstrap \
 	clean clean-dist ci-local-pr ci-local-pr-full ci-local-governance build sdist-hygiene-check dist-check \
 	lock-check version-check import-smoke release-test release-check
 
 CORPUS := uv run python scripts/corpus/translate_corpus.py
+UV_CACHE_DIR ?= .uv-cache
+export UV_CACHE_DIR
 
 # Legacy alias kept for docs/CI that still reference explicit args.
 SPRING_DENSE_BASELINE := tests/fixtures/corpus/spring-dense-baseline.json
@@ -272,6 +274,10 @@ agent-clean:  ## Report worktree hygiene and delete only clean, unlocked, merged
 
 agent-evacuate:  ## Move dirty main changes to a locked agent worktree (AGENT=codex|claude SLUG=name [ISSUE=123])
 	python3 scripts/agents/worktree_hygiene.py evacuate --agent "$(AGENT)" --slug "$(SLUG)" $(if $(ISSUE),--issue "$(ISSUE)",)
+
+agent-bootstrap:  ## Pre-warm shared uv cache and dev env for worktree/benchmark runs
+	uv run --with hatchling python -c "import hatchling"
+	uv sync --locked --extra dev
 
 clean: clean-dist  ## Remove build artifacts and caches
 	rm -rf .mypy_cache*/ .ruff_cache*/ .pytest_cache*/ htmlcov/ .coverage coverage.xml corpus-reports/

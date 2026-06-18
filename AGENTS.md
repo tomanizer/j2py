@@ -98,7 +98,7 @@ make agent-worktree AGENT=codex SLUG=short-task-name ISSUE=123
 This command verifies `main` is clean, fetches/prunes `origin`, fast-forwards `main`,
 creates a worktree from `origin/main`, and locks it with a reason. Persistent agent
 worktrees live under `../j2py.worktrees/<agent>/<slug>`; temporary PR publishing
-worktrees may use `/private/tmp/...`.
+worktrees may use the system temporary directory.
 
 If `main` has local modifications, stop and evacuate them before continuing:
 
@@ -109,6 +109,25 @@ make agent-evacuate AGENT=claude SLUG=short-task-name
 Use `make agent-clean` to report clean/dirty worktrees, locked active worktrees,
 gone-upstream branches, and remote branches with no open PR. It only deletes local
 worktrees/branches when they are clean, unlocked, and already merged to `origin/main`.
+
+Worktree and benchmark commands use a repo-local uv package cache (`.uv-cache/`) by
+default, so fresh worktrees do not depend on a developer's global uv cache. Before
+benchmark-heavy work or any workflow that creates a fresh temporary worktree, pre-warm
+the cache and dev environment once:
+
+```bash
+make agent-bootstrap
+```
+
+For direct `uv` commands that do not go through `make`, export the same cache first:
+
+```bash
+export UV_CACHE_DIR=.uv-cache
+```
+
+Developers who want one cache shared across multiple local checkouts may set
+`UV_CACHE_DIR` themselves before invoking `make`; the repo does not hard-code a
+machine-specific cache path.
 
 ```bash
 uv run pytest               # run tests
