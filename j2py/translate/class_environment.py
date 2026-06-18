@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.name_resolution import NameResolver
+
+if TYPE_CHECKING:
+    from j2py.translate.member_resolution import JavaMemberBinding
 
 _NodeKey = tuple[int, int, int, int, str]
 
@@ -29,6 +32,7 @@ class ClassTranslationEnvironment:
     )
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
+    static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     docstring_lines: list[str] | None = None
     outer_self_alias: str | None = None

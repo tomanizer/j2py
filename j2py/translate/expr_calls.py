@@ -116,6 +116,7 @@ def _translate_static_or_platform_method_invocation(
         static_call = translate_static_imported_method(
             node,
             imported_name=ctx.static_method_imports[parts.method_name],
+            binding=ctx.static_member_bindings.get(parts.method_name),
             arg_nodes=parts.arg_nodes,
             args=parts.arg_expressions,
             ctx=ctx,

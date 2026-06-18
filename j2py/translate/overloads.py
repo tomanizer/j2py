@@ -17,6 +17,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
+from j2py.translate.member_resolution import JavaMemberBinding
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.overload_classification import OverloadKind, classify_overload_group
 from j2py.translate.overload_dispatch import (
@@ -55,6 +56,7 @@ def _emit_static_instance_collision_split(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding],
     name_resolver: NameResolver,
     class_state: ClassTranslationState | None,
     docstring_lines: list[str] | None,
@@ -107,6 +109,7 @@ def _emit_static_instance_collision_split(
             class_method_return_types=dict(class_method_return_types),
             static_field_aliases=dict(static_field_aliases),
             static_method_imports=dict(static_method_imports),
+            static_member_bindings=dict(static_member_bindings),
             name_resolver=name_resolver,
             allow_local_helpers=True,
             class_state=class_state,
@@ -234,6 +237,7 @@ def translate_overloaded_members(
     class_method_return_types: dict[str, str] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    static_member_bindings: dict[str, JavaMemberBinding] | None = None,
     name_resolver: NameResolver | None = None,
     pre_body_lines: list[str],
     extra_params: list[ParameterInfo] | None = None,
@@ -264,6 +268,7 @@ def translate_overloaded_members(
     nested_type_java_fields = declared_type_java_fields or {}
     static_fields = static_field_aliases or {}
     static_methods = static_method_imports or {}
+    static_member_map = static_member_bindings or {}
     resolver = name_resolver or NameResolver.empty()
     static_class_methods = class_static_methods or set()
     enclosing_dispatch = dict(enclosing_static_dispatch or {})
@@ -298,6 +303,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            static_member_bindings=static_member_map,
             name_resolver=resolver,
             class_state=class_state,
             docstring_lines=docstring_lines,
@@ -327,6 +333,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            static_member_bindings=static_member_map,
             name_resolver=resolver,
             pre_body_lines=pre_body_lines,
             extra_params=injected_params,
@@ -354,6 +361,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            static_member_bindings=static_member_map,
             name_resolver=resolver,
             class_state=class_state,
             docstring_lines=docstring_lines,
@@ -379,6 +387,7 @@ def translate_overloaded_members(
             class_method_return_types=method_return_types,
             static_field_aliases=static_fields,
             static_method_imports=static_methods,
+            static_member_bindings=static_member_map,
             name_resolver=resolver,
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
@@ -436,6 +445,7 @@ def translate_overloaded_members(
         class_method_return_types=method_return_types,
         static_field_aliases=static_fields,
         static_method_imports=static_methods,
+        static_member_bindings=static_member_map,
         name_resolver=resolver,
         pre_body_lines=pre_body_lines,
         extra_params=injected_params,

@@ -255,6 +255,7 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
                     ),
                     static_field_aliases=ctx.static_field_aliases,
                     static_method_imports=ctx.static_method_imports,
+                    static_member_bindings=ctx.static_member_bindings,
                     name_resolver=ctx.name_resolver,
                     outer_self_alias="self._outer_self" if requires_outer_self else None,
                     requires_outer_self=requires_outer_self,

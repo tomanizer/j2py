@@ -22,6 +22,7 @@ from j2py.translate.diagnostics import (
     TranslationDiagnostics,
 )
 from j2py.translate.expressions import translate_expression
+from j2py.translate.member_resolution import JavaMemberBinding
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.overload_signatures import _overload_stubs, _union_types
@@ -60,6 +61,7 @@ def _merged_constructor_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding] | None,
     name_resolver: NameResolver,
     pre_body_lines: list[str],
     extra_params: list[ParameterInfo],
@@ -77,6 +79,7 @@ def _merged_constructor_overload(
         cfg,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        static_member_bindings=static_member_bindings,
         name_resolver=name_resolver,
     )
     if merged is None:
@@ -108,6 +111,7 @@ def _merged_constructor_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        static_member_bindings=dict(static_member_bindings or {}),
         name_resolver=name_resolver,
         allow_local_helpers=True,
         class_state=class_state,
@@ -188,6 +192,7 @@ def _merged_forwarding_method_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding] | None,
     name_resolver: NameResolver,
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
@@ -209,6 +214,7 @@ def _merged_forwarding_method_overload(
         cfg,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
+        static_member_bindings=static_member_bindings,
         name_resolver=name_resolver,
     )
     pass_through_forwarding = False
@@ -253,6 +259,7 @@ def _merged_forwarding_method_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        static_member_bindings=dict(static_member_bindings or {}),
         name_resolver=name_resolver,
         allow_local_helpers=True,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
@@ -312,6 +319,7 @@ def _resolve_overload_defaults(
     *,
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding] | None,
     name_resolver: NameResolver,
 ) -> tuple[_OverloadForward, dict[int, _MergedDefault], TranslationDiagnostics] | None:
     """Resolve forwarding chains into per-position defaults on the implementation.
@@ -339,6 +347,7 @@ def _resolve_overload_defaults(
         diagnostics=throwaway_diagnostics,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        static_member_bindings=dict(static_member_bindings or {}),
         name_resolver=name_resolver,
     )
     for forward in forwards:
@@ -554,6 +563,7 @@ def _merged_method_overload(
     class_method_return_types: dict[str, str],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding] | None,
     name_resolver: NameResolver,
     class_state: ClassTranslationState | None = None,
     docstring_lines: list[str] | None = None,
@@ -608,6 +618,7 @@ def _merged_method_overload(
         enclosing_static_dispatch=enclosing_static_dispatch,
         static_field_aliases=dict(static_field_aliases),
         static_method_imports=dict(static_method_imports),
+        static_member_bindings=dict(static_member_bindings or {}),
         name_resolver=name_resolver,
         allow_local_helpers=True,
         class_state=class_state,
