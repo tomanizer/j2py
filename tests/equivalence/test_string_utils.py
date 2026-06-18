@@ -158,3 +158,81 @@ def test_strip_equivalence(string_utils) -> None:
     assert strip("") == ""
     assert strip("        ") == ""
     assert strip("  abc  ") == "abc"
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.length(CharSequence)")
+def test_length_equivalence(string_utils) -> None:
+    # StringUtilsTest.java:1499-1504
+    assert string_utils.length(None) == 0
+    assert string_utils.length("") == 0
+    assert string_utils.length("A") == 1
+    assert string_utils.length(" ") == 1
+    assert string_utils.length("ABCDEFGH") == 8
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.strip(String,String)")
+def test_strip_string_string_equivalence(string_utils) -> None:
+    # StringUtilsTrimStripTest.java:43-72
+    strip = string_utils.strip
+    # null stripChars → whitespace
+    assert strip(None, None) is None
+    assert strip("", None) == ""
+    assert strip("        ", None) == ""
+    assert strip("  abc  ", None) == "abc"
+    # "" stripChars → no stripping
+    assert strip(None, "") is None
+    assert strip("        ", "") == "        "
+    assert strip("  abc  ", "") == "  abc  "
+    # " " stripChars
+    assert strip(None, " ") is None
+    assert strip("        ", " ") == ""
+    assert strip("  abc  ", " ") == "abc"
+    # "ab" stripChars
+    assert strip(None, "ab") is None
+    assert strip("        ", "ab") == "        "
+    assert strip("  abc  ", "ab") == "  abc  "
+    assert strip("abcabab", "ab") == "c"
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.stripEnd(String,String)")
+def test_strip_end_equivalence(string_utils) -> None:
+    # StringUtilsTrimStripTest.java:145-174
+    se = string_utils.strip_end
+    assert se(None, None) is None
+    assert se("", None) == ""
+    assert se("        ", None) == ""
+    assert se("  abc  ", None) == "  abc"
+    assert se(None, "") is None
+    assert se("        ", "") == "        "
+    assert se("  abc  ", "") == "  abc  "
+    assert se(None, " ") is None
+    assert se("        ", " ") == ""
+    assert se("  abc  ", " ") == "  abc"
+    assert se(None, "ab") is None
+    assert se("        ", "ab") == "        "
+    assert se("  abc  ", "ab") == "  abc  "
+    assert se("abcabab", "ab") == "abc"
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "StringUtils.stripStart(String,String)")
+def test_strip_start_equivalence(string_utils) -> None:
+    # StringUtilsTrimStripTest.java:177-204
+    ss = string_utils.strip_start
+    assert ss(None, None) is None
+    assert ss("", None) == ""
+    assert ss("        ", None) == ""
+    assert ss("  abc  ", None) == "abc  "
+    assert ss(None, "") is None
+    assert ss("        ", "") == "        "
+    assert ss("  abc  ", "") == "  abc  "
+    assert ss(None, " ") is None
+    assert ss("        ", " ") == ""
+    assert ss("  abc  ", " ") == "abc  "
+    assert ss(None, "ab") is None
+    assert ss("        ", "ab") == "        "
+    assert ss("  abc  ", "ab") == "  abc  "
+    assert ss("abcabab", "ab") == "cabab"

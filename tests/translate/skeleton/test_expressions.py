@@ -1234,6 +1234,38 @@ def test_substring_lowers_to_slice() -> None:
     assert_valid_python(python_source)
 
 
+def test_to_char_array_lowers_to_list() -> None:
+    """String.toCharArray() lowers to list(s) — a list of 1-char strings."""
+    python_source, coverage = translate_source("""
+    public class Chars {
+        public char[] explode(String text) { return text.toCharArray(); }
+    }
+    """)
+    assert coverage == 1.0
+    assert "return list(text)" in python_source
+    assert "toCharArray" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_index_of_lowers_to_find() -> None:
+    """String.indexOf(sub) and indexOf(sub, from) lower to str.find()."""
+    python_source, coverage = translate_source("""
+    public class Finder {
+        public int pos(String haystack, String needle) {
+            return haystack.indexOf(needle);
+        }
+        public int posFrom(String haystack, String needle, int from) {
+            return haystack.indexOf(needle, from);
+        }
+    }
+    """)
+    assert coverage == 1.0
+    assert "haystack.find(needle)" in python_source
+    assert "haystack.find(needle, from_)" in python_source
+    assert "indexOf" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_map_get_preserves_missing_key_semantics() -> None:
     python_source, coverage = translate_source(
         """
