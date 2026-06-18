@@ -21,7 +21,8 @@ are recorded in [SPRING_EXTENSION_PRD.md](../SPRING_EXTENSION_PRD.md) and
 
 Related: [#333](https://github.com/tomanizer/j2py/issues/333) (enterprise audit),
 [#334](https://github.com/tomanizer/j2py/issues/334) (annotation visibility),
-[#339](https://github.com/tomanizer/j2py/issues/339) (this cookbook).
+[#339](https://github.com/tomanizer/j2py/issues/339) (this cookbook),
+[#554](https://github.com/tomanizer/j2py/issues/554) (Spring JDBC roadmap).
 
 ## How to reproduce the output below
 
@@ -403,6 +404,81 @@ def transactional(fn):
 
 ---
 
+## 6. Spring JDBC (`DataSource` / `JdbcTemplate`)
+
+Spring JDBC support should be **SQLAlchemy-first**, not native-JDBC-first. In typical
+Spring applications, JDBC access is configured through beans:
+
+```java
+@Configuration
+public class JdbcConfig {
+    @Autowired
+    private Environment env;
+
+    @Bean
+    DataSource dataSource() {
+        return DataSourceBuilder.create()
+            .url(env.getProperty("app.datasource.url"))
+            .username(env.getProperty("app.datasource.username"))
+            .build();
+    }
+
+    @Bean
+    JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+}
+```
+
+j2py should discover that bean topology before attempting any data-access lowering. The
+useful facts are not "there is a Java `DataSource` class"; they are:
+
+- which `@Bean` methods provide `DataSource`, `JdbcTemplate`,
+  `NamedParameterJdbcTemplate`, or a transaction manager;
+- which repositories/services receive those beans through constructors or `@Autowired`;
+- which property names or project shims are visible for URL, username, driver, or session
+  factory setup;
+- which calls are plain enough to lower to reviewable SQLAlchemy Core scaffolding.
+
+### Recommended target split
+
+| Option | Recommendation | Reason |
+|---|---|---|
+| SQLAlchemy Core/ORM | Recommended target | Matches existing j2py Spring/JPA work, gives reviewable Python DB code, and leaves dialect choice to the project. |
+| pyodbc | Driver/dialect only | Use behind SQLAlchemy (`mssql+pyodbc`) or a project-owned DB shim; do not emit pyodbc-specific code from core. |
+| JayDeBeApi / native JDBC bridge | Avoid as migration target | Keeps the Java runtime boundary alive and works against ADR 0020's no-JDBC-runtime policy. |
+| Raw `java.sql` translation | Boundary stubs only | Preserve signatures and TODOs; do not emit fake `from java.sql ...` imports. |
+
+### Plugin/config boundary
+
+Keep the Spring JDBC route opt-in:
+
+- Core translation preserves raw `java.sql.*` / `javax.sql.*` boundaries as local
+  placeholders, `Any`, or explicit `# TODO(j2py): JDBC boundary` comments.
+- A Spring framework plugin should record `@Configuration` / `@Bean` JDBC metadata in
+  `*.wiring.json` sidecars ([#558](https://github.com/tomanizer/j2py/issues/558)).
+- Deterministic call lowering can handle common `JdbcTemplate.update(...)`,
+  `queryForObject(...)`, and named-parameter forms only when the generated SQLAlchemy Core
+  scaffold remains visibly equivalent to the Java source
+  ([#557](https://github.com/tomanizer/j2py/issues/557)).
+- Project config owns real imports, engine/session construction, dialect URLs, and
+  database-specific behavior. For SQL Server, that may still mean `pyodbc`, but through
+  SQLAlchemy or an internal `myapp.db` facade.
+
+### Manual port required
+
+- `RowMapper`, `ResultSetExtractor`, callbacks, generated keys, batch updates, stored
+  procedures, and vendor SQL behavior.
+- Transaction propagation, isolation, read-only hints, and rollback rules beyond a
+  project-owned `@transactional` shim.
+- Production engine/session lifecycle. `j2py-wire` may generate scaffolding later, but
+  the application remains responsible for its database runtime policy.
+
+See [#554](https://github.com/tomanizer/j2py/issues/554) for the umbrella roadmap and
+[#556](https://github.com/tomanizer/j2py/issues/556) for the follow-up smoke fixture.
+
+---
+
 ## Reference annotation map
 
 The full map ships as [`spring-to-fastapi.toml`](spring-to-fastapi.toml) and
@@ -421,6 +497,8 @@ When migrating a Spring app with this cookbook, plan to hand-finish:
 - [ ] SQLAlchemy `Mapped`/`mapped_column` column declarations ([#337](https://github.com/tomanizer/j2py/issues/337))
 - [ ] `__tablename__` if you want the idiomatic form instead of the shim decorator
 - [ ] JPA relationships (`@OneToMany`, `@ManyToOne`, …) — cookbook v2
+- [ ] Spring JDBC bean topology and `JdbcTemplate` calls — see the JDBC roadmap
+      ([#554](https://github.com/tomanizer/j2py/issues/554))
 - [ ] Transaction propagation / rollback rules / isolation
 - [ ] Spring Security, `@Scheduled`, `@Cacheable`, `@Async` — cookbook v2
 
@@ -430,3 +508,4 @@ When migrating a Spring app with this cookbook, plan to hand-finish:
 - A runnable Petclinic from the cookbook alone.
 - Spring Security, `@Scheduled`, `@Cacheable`, `@Async` (cookbook v2).
 - JPA relationships in v1.
+- Native JDBC/JayDeBeApi runtime emulation or pyodbc-first code generation.
