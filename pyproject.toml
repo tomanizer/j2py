@@ -53,6 +53,7 @@ Changelog = "https://github.com/tomanizer/j2py/blob/main/CHANGELOG.md"
 
 [project.scripts]
 j2py = "j2py.cli.main:app"
+j2py-wire = "j2py.wire.cli:app"
 
 [project.optional-dependencies]
 yaml = [
