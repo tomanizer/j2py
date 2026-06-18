@@ -115,7 +115,13 @@ def _diagnostic_entries(
     diagnostics: dict[tuple[str, int | None, str, str, str], dict[str, Any]],
     keys: set[tuple[str, int | None, str, str, str]],
 ) -> list[dict[str, Any]]:
-    return [diagnostics[key] for key in sorted(keys)]
+    return [
+        diagnostics[key]
+        for key in sorted(
+            keys,
+            key=lambda k: (k[0], k[1] if k[1] is not None else -1, k[2], k[3], k[4]),
+        )
+    ]
 
 
 def _file_changes(
