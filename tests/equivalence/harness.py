@@ -13,6 +13,7 @@ removal, mirroring the behaviour-corpus discipline.
 from __future__ import annotations
 
 import decimal
+import math
 import sys
 import types
 from collections.abc import Mapping
@@ -174,6 +175,38 @@ class BigDecimal(decimal.Decimal):
 BigDecimal.ZERO = BigDecimal("0")  # type: ignore[attr-defined]
 
 
+class JavaDouble(float):
+    """Small Java-style ``Double`` shim for equivalence fixtures."""
+
+    @classmethod
+    def value_of(cls, value: Any) -> JavaDouble:
+        return cls(float(value))
+
+    def double_value(self) -> float:
+        return float(self)
+
+    def is_infinite(self) -> bool:
+        return math.isinf(self)
+
+
+class JavaFloat(float):
+    """Small Java-style ``Float`` shim for equivalence fixtures."""
+
+    @classmethod
+    def value_of(cls, value: Any) -> JavaFloat:
+        return cls(float(value))
+
+    @classmethod
+    def parse_float(cls, value: Any) -> JavaFloat:
+        return cls.value_of(value)
+
+    def float_value(self) -> float:
+        return float(self)
+
+    def is_infinite(self) -> bool:
+        return math.isinf(self)
+
+
 class RoundingMode:
     """Java ``RoundingMode`` constants mapped to ``decimal`` rounding modes."""
 
@@ -270,15 +303,17 @@ def install_java_lang_stubs() -> list[str]:
         f"{math}.Double",
         "Double",
         types.SimpleNamespace(
-            value_of=float, is_na_n=lambda value: value != value, na_n=float("nan")
+            value_of=JavaDouble.value_of,
+            is_na_n=lambda value: value != value,
+            na_n=float("nan"),
         ),
     )
     installed += install_stub_class(
         f"{math}.Float",
         "Float",
         types.SimpleNamespace(
-            value_of=float,
-            parse_float=float,
+            value_of=JavaFloat.value_of,
+            parse_float=JavaFloat.parse_float,
             is_na_n=lambda value: value != value,
             na_n=float("nan"),
         ),
