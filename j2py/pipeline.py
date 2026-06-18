@@ -9,15 +9,16 @@ import threading
 import warnings
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 import networkx as nx
 
 from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import FileSymbols, extract_symbols
 from j2py.config.loader import TranslationConfig
+from j2py.llm.review import LlmReviewFinding
 from j2py.parse.java_ast import ParsedFile, parse_file
 from j2py.state import StateEntry
 from j2py.translate.diagnostics import TranslationDiagnostics
@@ -29,8 +30,11 @@ WIRING_METADATA_SCHEMA_VERSION = 1
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini", "openai"]
+LlmReviewScope = Literal["all", "warnings", "low-confidence"]
 SEMANTIC_WARNING_CONFIDENCE_CAP = 0.99
 REVIEW_REQUIRED_CONFIDENCE_CAP = 0.79
+LOW_CONFIDENCE_REVIEW_THRESHOLD = 0.8
+_LlmResult = TypeVar("_LlmResult")
 
 
 @dataclass
@@ -44,6 +48,9 @@ class TranslationResult:
     diagnostics: TranslationDiagnostics | None = None
     validation: ValidationResult | None = None
     structural_verification: StructuralVerificationResult | None = None
+    llm_review_ran: bool = False
+    llm_review_findings: list[LlmReviewFinding] = field(default_factory=list)
+    llm_review_error: str | None = None
     skipped: bool = False
 
 
@@ -114,6 +121,8 @@ def translate_file(
     use_llm: bool = True,
     model: str | None = None,
     llm_provider: LLMProvider | None = None,
+    llm_review: bool = False,
+    llm_review_scope: LlmReviewScope = "all",
     validate: bool = True,
 ) -> TranslationResult:
     """Full pipeline: parse → analyse → rule-translate → (optionally) LLM-complete."""
@@ -128,6 +137,8 @@ def translate_file(
         use_llm=use_llm,
         model=effective_model,
         llm_provider=effective_provider,
+        llm_review=llm_review,
+        llm_review_scope=llm_review_scope,
         validate=validate,
         validation_path=path.with_suffix(".py"),
     )
@@ -142,6 +153,8 @@ def _translate_parsed_file(
     use_llm: bool,
     model: str | None,
     llm_provider: LLMProvider,
+    llm_review: bool,
+    llm_review_scope: LlmReviewScope,
     validate: bool,
     validation_path: Path,
     sibling_signatures: dict[str, str] | None = None,
@@ -267,7 +280,7 @@ def _translate_parsed_file(
         structural_verification=structural_verification,
     )
 
-    return TranslationResult(
+    result = TranslationResult(
         source_path=path,
         python_source=python_source,
         used_llm=used_llm,
@@ -277,18 +290,94 @@ def _translate_parsed_file(
         validation=validation,
         structural_verification=structural_verification,
     )
+    if llm_review and _review_scope_matches(result, llm_review_scope):
+        _apply_llm_review(
+            result,
+            symbols=symbols,
+            cfg=cfg,
+            model=model,
+            llm_provider=llm_provider,
+            validation_path=validation_path,
+            sibling_signatures=sibling_signatures,
+            llm_semaphore=llm_semaphore,
+        )
+    return result
 
 
 def _call_llm(
-    translate_with_llm: Callable[..., str],
+    translate_with_llm: Callable[..., _LlmResult],
     *,
     llm_semaphore: threading.Semaphore | None,
     **kwargs: object,
-) -> str:
+) -> _LlmResult:
     if llm_semaphore is None:
         return translate_with_llm(**kwargs)
     with llm_semaphore:
         return translate_with_llm(**kwargs)
+
+
+def _apply_llm_review(
+    result: TranslationResult,
+    *,
+    symbols: FileSymbols,
+    cfg: TranslationConfig,
+    model: str | None,
+    llm_provider: LLMProvider,
+    validation_path: Path,
+    sibling_signatures: dict[str, str] | None,
+    llm_semaphore: threading.Semaphore | None,
+) -> None:
+    from j2py.llm.client import review_translation_with_llm
+
+    result.llm_review_ran = True
+    try:
+        result.llm_review_findings = _call_llm(
+            review_translation_with_llm,
+            llm_semaphore=llm_semaphore,
+            java_source=result.source_path.read_text(),
+            python_source=result.python_source,
+            context=_project_context(symbols, sibling_signatures=sibling_signatures),
+            diagnostics=_review_diagnostics_context(result.diagnostics),
+            validation_summary=_validation_summary(result.validation),
+            structural_summary=_structural_summary(result.structural_verification),
+            source_path=str(result.source_path),
+            output_path=str(result.output_path or validation_path),
+            config_fingerprint=_config_fingerprint(cfg),
+            model=model,
+            provider=llm_provider,
+            base_url=cfg.llm_base_url,
+        )
+        result.llm_review_error = None
+    except Exception as exc:
+        result.llm_review_findings = []
+        result.llm_review_error = str(exc)
+
+
+def _review_scope_matches(result: TranslationResult, scope: LlmReviewScope) -> bool:
+    if scope == "all":
+        return True
+    if scope == "low-confidence":
+        return result.confidence < LOW_CONFIDENCE_REVIEW_THRESHOLD
+    if scope == "warnings":
+        diagnostics = result.diagnostics
+        has_diagnostics = diagnostics is not None and (
+            bool(diagnostics.unhandled)
+            or bool(diagnostics.warnings)
+            or bool(diagnostics.framework_metadata)
+        )
+        validation_failed = result.validation is not None and not result.validation.ok
+        structural_failed = (
+            result.structural_verification is not None and not result.structural_verification.ok
+        )
+        has_todos = "TODO(j2py)" in result.python_source or "__j2py_todo__" in result.python_source
+        return (
+            not result.parse_ok
+            or has_diagnostics
+            or validation_failed
+            or structural_failed
+            or has_todos
+        )
+    return False
 
 
 def _surface_confidence(
@@ -405,6 +494,8 @@ def translate_directory(
     use_llm: bool = True,
     model: str | None = None,
     llm_provider: LLMProvider | None = None,
+    llm_review: bool = False,
+    llm_review_scope: LlmReviewScope = "all",
     validate: bool = True,
     workers: int | None = None,
     llm_concurrency: int | None = None,
@@ -470,6 +561,9 @@ def translate_directory(
             use_llm=use_llm,
             model=effective_model,
             llm_provider=effective_provider,
+            llm_review=llm_review,
+            llm_review_scope=llm_review_scope,
+            validate_for_review=validate and llm_review,
             sibling_signatures=sibling_signatures,
             workers=effective_workers,
             llm_semaphore=llm_semaphore,
@@ -537,6 +631,9 @@ def _translate_ready_paths(
     use_llm: bool,
     model: str | None,
     llm_provider: LLMProvider,
+    llm_review: bool,
+    llm_review_scope: LlmReviewScope,
+    validate_for_review: bool,
     sibling_signatures: dict[str, dict[str, str]],
     workers: int,
     llm_semaphore: threading.Semaphore,
@@ -574,7 +671,9 @@ def _translate_ready_paths(
             use_llm=use_llm,
             model=model,
             llm_provider=llm_provider,
-            validate=False,
+            llm_review=llm_review,
+            llm_review_scope=llm_review_scope,
+            validate=validate_for_review,
             validation_path=output_path,
             sibling_signatures=direct_sibling_signatures,
             llm_semaphore=llm_semaphore,
@@ -737,6 +836,42 @@ def _diagnostics_context(diagnostics: TranslationDiagnostics) -> str:
         f"- line {item.line}: {item.node_type}: {item.reason}: {item.text}"
         for item in diagnostics.unhandled
     )
+
+
+def _review_diagnostics_context(diagnostics: TranslationDiagnostics | None) -> str:
+    if diagnostics is None:
+        return "No rule-layer diagnostics available."
+    rows: list[str] = []
+    rows.extend(
+        f"- unhandled line {item.line}: {item.node_type}: {item.reason}: {item.text}"
+        for item in diagnostics.unhandled
+    )
+    rows.extend(
+        f"- semantic warning line {item.line}: {item.node_type}: {item.reason}: {item.text}"
+        for item in diagnostics.warnings
+    )
+    rows.extend(
+        f"- framework metadata {item.kind} {item.java_name}: plugin={item.plugin}"
+        for item in diagnostics.framework_metadata
+    )
+    return "\n".join(rows) if rows else "No unresolved or warning diagnostics."
+
+
+def _validation_summary(validation: ValidationResult | None) -> str:
+    if validation is None:
+        return "Validation was not run."
+    if validation.ok:
+        return "Validation passed."
+    errors = validation.syntax_errors + validation.ruff_errors + validation.mypy_errors
+    return "\n".join(errors) if errors else "Validation failed without captured errors."
+
+
+def _structural_summary(verification: StructuralVerificationResult | None) -> str:
+    if verification is None:
+        return "Structural verification was not run."
+    if verification.ok:
+        return "Structural verification passed."
+    return "\n".join(verification.errors)
 
 
 def _config_fingerprint(cfg: TranslationConfig) -> str:

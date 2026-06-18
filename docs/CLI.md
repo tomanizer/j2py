@@ -32,6 +32,9 @@ Common options:
 | `--incremental` | Skip unchanged directory files using `.j2py-state.json`. |
 | `--workers N` | Directory translation worker threads. |
 | `--llm-concurrency N` | Maximum concurrent LLM calls during directory translation. |
+| `--llm-review` | Run an opt-in, non-mutating LLM review after translation. |
+| `--llm-review-scope all\|warnings\|low-confidence` | Select which translated files receive LLM review. Default: `all`. |
+| `--review-report PATH` | Write machine-readable LLM review findings as JSON. |
 | `--json` | Emit machine-readable translation result JSON. |
 
 Examples:
@@ -41,11 +44,29 @@ j2py translate SomeClass.java --no-llm --dry-run
 j2py translate src/main/java --output translated_py --no-llm --incremental
 j2py translate src/main/java --output translated_py --dashboard dashboard.html --no-llm
 j2py translate SomeClass.java --llm-provider openai --llm-base-url https://provider.example/v1 --model provider-model-id
+j2py translate src/main/java --output translated_py --no-llm --llm-review --review-report review.json
 ```
 
 Exit status is non-zero when validation or structural verification finds blocking issues.
 Rule-layer TODOs and semantic warnings are surfaced in diagnostics, but they are not the
 same as Python validation failures.
+
+LLM review is a second-opinion audit pass, not a repair pass. It can run even when
+translation used `--no-llm`, and it can review full-confidence files. Review findings are
+reported separately from rule-layer diagnostics and do not change generated Python,
+coverage, or confidence score.
+
+Review scopes:
+
+| Scope | Reviewed files |
+|-------|----------------|
+| `all` | Every translated file, including full-confidence files. |
+| `warnings` | Files with parse, validation, or structural issues, semantic warnings, framework metadata, or TODO markers. |
+| `low-confidence` | Files below the low-confidence review threshold. |
+
+When `--json` is used, each result includes `llm_review_ran`,
+`llm_review_findings`, and `llm_review_error`. `--review-report` writes the same review
+surface in a compact per-file JSON document for automation.
 
 ## `j2py analyze`
 

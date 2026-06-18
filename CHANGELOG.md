@@ -56,6 +56,10 @@ remain open; see **Known limitations** under 0.5.0b1 for other tracked issues.
 - OpenAI-compatible LLM provider endpoints can now be selected with
   `--llm-provider openai`, optional `--llm-base-url`, explicit endpoint model IDs, and
   cache separation by provider endpoint (#509).
+- `j2py translate --llm-review` adds an opt-in, non-mutating LLM audit pass with
+  structured findings in CLI JSON, `--review-report`, HTML reports, dashboards, and the
+  Python API. Review findings are cached separately from repair/completion calls and do
+  not change generated Python, coverage, or confidence (#510).
 
 ### Changed
 - Agent instructions now require syncing from `origin/main` before creating branches or

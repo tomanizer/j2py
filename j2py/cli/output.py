@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 
+from j2py.llm.review import review_findings_payload
 from j2py.pipeline import PARSE_ERROR_LLM_SKIP_MSG
 
 if TYPE_CHECKING:
@@ -25,6 +26,9 @@ def result_payload(result: TranslationResult) -> dict[str, object]:
         "output": str(result.output_path) if result.output_path else None,
         "confidence": result.confidence,
         "used_llm": result.used_llm,
+        "llm_review_ran": result.llm_review_ran,
+        "llm_review_findings": review_findings_payload(result.llm_review_findings),
+        "llm_review_error": result.llm_review_error,
         "skipped": result.skipped,
         "parse_ok": result.parse_ok,
         "validation": None
@@ -104,6 +108,10 @@ def print_result_summary(result: TranslationResult) -> None:
         print_validation(result.validation)
     if result.structural_verification is not None:
         print_structural_verification(result.structural_verification)
+    if result.llm_review_error:
+        console.print(f"[yellow]LLM review failed:[/yellow] {result.llm_review_error}")
+    elif result.llm_review_findings:
+        console.print(f"[yellow]LLM review findings:[/yellow] {len(result.llm_review_findings)}")
 
 
 def print_validation(validation: ValidationResult) -> None:

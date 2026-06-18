@@ -10,9 +10,10 @@ ready.
 2. Review confidence and rule-layer diagnostics.
 3. Inspect `TODO(j2py)` and `__j2py_todo__` markers.
 4. Read semantic warnings.
-5. Compare method order and control flow against Java.
-6. Review framework/runtime boundaries manually.
-7. Run project-specific tests or equivalence checks.
+5. Read opt-in LLM review findings, if the run requested them.
+6. Compare method order and control flow against Java.
+7. Review framework/runtime boundaries manually.
+8. Run project-specific tests or equivalence checks.
 
 ## Confidence
 
@@ -30,6 +31,9 @@ It starts from rule-layer node coverage and is capped or dropped when:
 Confidence is not semantic equivalence. A high-confidence file can still require manual
 review for business logic, framework behavior, data-access behavior, concurrency, or
 reflection.
+
+Opt-in LLM review findings do not reduce confidence. They are advisory review notes,
+kept separate from rule-layer diagnostics and validation failures.
 
 ## Rule Coverage
 
@@ -61,6 +65,46 @@ Warnings are visible in:
 - HTML review reports;
 - dashboards;
 - `j2py doctor` assessments.
+
+## LLM Review Findings
+
+`j2py translate --llm-review` runs a separate LLM audit pass after translation. The pass
+compares the original Java, generated Python, rule diagnostics, validation summary, and
+structural verification summary, then returns structured findings for human review.
+
+This mode is intentionally non-mutating:
+
+- it does not rewrite `python_source`;
+- it does not change rule coverage or confidence;
+- it does not merge review findings into rule-layer diagnostics;
+- it does not create GitHub issues or alerts by default.
+
+Use it when a migration needs an additional semantic or framework-boundary check even
+for files that reached full rule coverage.
+
+```bash
+j2py translate src/main/java \
+  --output translated_py \
+  --no-llm \
+  --llm-review \
+  --llm-review-scope warnings \
+  --review-report review.json \
+  --report review.html
+```
+
+Findings use this shape in CLI JSON and review reports:
+
+| Field | Meaning |
+|-------|---------|
+| `severity` | `info`, `warning`, or `error` as reported by the review model. |
+| `category` | Short category such as `semantic`, `framework`, or `api`. |
+| `source_line` | Optional Java source line reference. |
+| `output_line` | Optional Python output line reference. |
+| `message` | Human-readable review finding. |
+| `recommendation` | Optional manual follow-up suggestion. |
+
+Treat review findings as reviewer prompts, not proof. Confirm important claims against
+the source, generated output, project tests, and any available equivalence checks.
 
 ## Validation
 
@@ -101,6 +145,11 @@ For a directory:
 ```bash
 j2py translate src/main/java --output translated_py --dashboard dashboard.html --no-llm
 ```
+
+Reports and dashboards include a clearly labeled LLM review section when review mode ran.
+The dashboard counts reviewed files and total review findings; the side-by-side report
+lists finding severity, category, line references, message, and recommendation separately
+from diagnostics.
 
 Regenerate a dashboard from existing state:
 

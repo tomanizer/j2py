@@ -10,6 +10,7 @@ import j2py.pipeline as pipeline
 from j2py.cli import compare as cli_compare
 from j2py.cli.main import app
 from j2py.cli.output import console
+from j2py.llm.review import LlmReviewFinding
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
 
@@ -64,6 +65,8 @@ def test_cli_translate_auto_discovery_ignores_python_config(
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed_target_python.append(cfg.target_python)
@@ -97,6 +100,9 @@ def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
     assert "--llm-provider" in option_help
     assert "anthropic, gemini, or openai" in option_help["--llm-provider"]
     assert "--llm-base-url" in option_help
+    assert "--llm-review" in option_help
+    assert "--llm-review-scope" in option_help
+    assert "--review-report" in option_help
     assert "LLM model ID" in option_help["--model"]
     assert "ANTHROPIC_API_KEY" not in option_help["--llm"]
     assert "Claude model" not in option_help["--model"]
@@ -117,6 +123,8 @@ def test_cli_translate_forwards_llm_provider_and_model(
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed.update(
@@ -124,6 +132,8 @@ def test_cli_translate_forwards_llm_provider_and_model(
                 "use_llm": use_llm,
                 "model": model,
                 "llm_provider": llm_provider,
+                "llm_review": llm_review,
+                "llm_review_scope": llm_review_scope,
                 "validate": validate,
             }
         )
@@ -154,6 +164,8 @@ def test_cli_translate_forwards_llm_provider_and_model(
         "use_llm": True,
         "model": "gemini-test",
         "llm_provider": "gemini",
+        "llm_review": False,
+        "llm_review_scope": "all",
         "validate": False,
     }
 
@@ -173,6 +185,8 @@ def test_cli_translate_forwards_openai_provider_and_base_url(
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed.update(
@@ -214,6 +228,133 @@ def test_cli_translate_forwards_openai_provider_and_base_url(
     }
 
 
+def test_cli_translate_forwards_llm_review_options_and_emits_json(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update(
+            {
+                "llm_review": llm_review,
+                "llm_review_scope": llm_review_scope,
+            }
+        )
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+            llm_review_ran=True,
+            llm_review_findings=[
+                LlmReviewFinding(
+                    severity="warning",
+                    category="semantics",
+                    source_line=1,
+                    output_line=2,
+                    message="Verify behavior.",
+                    recommendation="Compare with Java tests.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--llm-review",
+            "--llm-review-scope",
+            "low-confidence",
+            "--no-validate",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert observed == {
+        "llm_review": True,
+        "llm_review_scope": "low-confidence",
+    }
+    assert payload["llm_review_ran"] is True
+    assert payload["llm_review_findings"][0]["message"] == "Verify behavior."
+    assert payload["llm_review_error"] is None
+
+
+def test_cli_translate_writes_review_report(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    review_report = tmp_path / "review.json"
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+            llm_review_ran=True,
+            llm_review_findings=[
+                LlmReviewFinding(
+                    severity="info",
+                    category="framework",
+                    source_line=None,
+                    output_line=1,
+                    message="Review framework boundary.",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--no-llm",
+            "--llm-review",
+            "--review-report",
+            str(review_report),
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(review_report.read_text())
+    assert payload["files"][0]["llm_review_ran"] is True
+    assert payload["files"][0]["llm_review_findings"][0]["category"] == "framework"
+
+
 def test_cli_translate_uses_configured_llm_defaults(
     tmp_path: Path,
     monkeypatch,
@@ -235,6 +376,8 @@ model = "gemini-3.5-flash"
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed.update({"model": model, "llm_provider": llm_provider})
@@ -280,6 +423,8 @@ model = "provider-model-id"
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed.update(
@@ -331,6 +476,8 @@ model = "gemini-3.5-flash"
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         observed.update({"model": model, "llm_provider": llm_provider})
@@ -625,6 +772,8 @@ model = "gemini-3.5-flash"
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
         workers: int | None = None,
         llm_concurrency: int | None = None,
@@ -710,6 +859,8 @@ def test_cli_translate_exits_nonzero_on_structural_failure(
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
     ) -> pipeline.TranslationResult:
         return pipeline.TranslationResult(
@@ -748,6 +899,8 @@ def test_cli_translate_directory_exits_nonzero_on_structural_failure(
         use_llm: bool,
         model: str | None,
         llm_provider: str,
+        llm_review: bool,
+        llm_review_scope: str,
         validate: bool,
         workers: int | None = None,
         llm_concurrency: int | None = None,

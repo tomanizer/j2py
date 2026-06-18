@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, NotRequired, TypedDict
 
 PROMPT_VERSION = "j2py-translation-v8"
+REVIEW_PROMPT_VERSION = "j2py-review-v1"
 
 
 class TextPromptBlock(TypedDict):
@@ -79,6 +80,24 @@ Rules:
 """
 )
 
+REVIEW_SYSTEM_PROMPT = """\
+You are reviewing Java-to-Python translation output for migration risk. Your task is to
+find likely semantic mismatches, framework/API boundary assumptions, behavior that a human
+reviewer should verify, and maintainability risks that syntax, lint, and type checks may
+not catch.
+
+Rules:
+- Do not rewrite the Python output.
+- Do not mark style preferences as findings unless they affect reviewability or behavior.
+- Be conservative: report concrete, checkable risks only.
+- Keep findings distinct from rule-layer TODOs unless the TODO points to a real manual
+  verification risk.
+- Output only JSON with this shape:
+  {"findings":[{"severity":"info|warning|error","category":"...","source_line":1|null,
+  "output_line":1|null,"message":"...","recommendation":"..."|null}]}
+- If there are no findings, output {"findings":[]}.
+"""
+
 
 def build_translation_prompt(
     *,
@@ -134,3 +153,41 @@ def build_translation_prompt(
 
     messages = [{"role": "user", "content": "\n\n".join(user_parts)}]
     return system, messages
+
+
+def build_review_prompt(
+    *,
+    java_source: str,
+    python_source: str,
+    context: str = "",
+    diagnostics: str = "",
+    validation_summary: str = "",
+    structural_summary: str = "",
+    source_path: str = "",
+    output_path: str = "",
+) -> tuple[list[TextPromptBlock], list[dict[str, Any]]]:
+    """Build the system prompt and messages list for a non-mutating review call."""
+    system: list[TextPromptBlock] = [
+        {
+            "type": "text",
+            "text": REVIEW_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        },
+    ]
+    user_parts: list[str] = []
+    if source_path:
+        user_parts.append(f"<source_path>{source_path}</source_path>")
+    if output_path:
+        user_parts.append(f"<output_path>{output_path}</output_path>")
+    if context:
+        user_parts.append(f"<project_context>\n{context}\n</project_context>")
+    if diagnostics:
+        user_parts.append(f"<rule_diagnostics>\n{diagnostics}\n</rule_diagnostics>")
+    if validation_summary:
+        user_parts.append(f"<validation_summary>\n{validation_summary}\n</validation_summary>")
+    if structural_summary:
+        user_parts.append(f"<structural_summary>\n{structural_summary}\n</structural_summary>")
+    user_parts.append(f"<java_source>\n{java_source}\n</java_source>")
+    user_parts.append(f"<python_output>\n{python_source}\n</python_output>")
+    user_parts.append("Review the Java and Python above. Return only the structured JSON findings.")
+    return system, [{"role": "user", "content": "\n\n".join(user_parts)}]

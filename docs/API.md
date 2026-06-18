@@ -38,6 +38,9 @@ Important fields:
 | `diagnostics` | Rule-layer coverage, warnings, imports, unhandled constructs, and framework metadata. |
 | `validation` | Python syntax, ruff, and mypy validation result when validation ran. |
 | `structural_verification` | Post-LLM class/method presence and order check result when applicable. |
+| `llm_review_ran` | Whether the opt-in LLM review pass ran for this result. |
+| `llm_review_findings` | Structured non-mutating review findings returned by the LLM review pass. |
+| `llm_review_error` | Review failure message when review was requested but failed for this file. |
 | `skipped` | Whether directory incremental mode reused an existing output. |
 
 ## Directory Translation
@@ -177,6 +180,36 @@ result = translate_file(
     model="provider-model-id",
 )
 ```
+
+Set `llm_review=True` to run the separate, non-mutating review pass after translation.
+The review pass uses the same provider/model selection path as LLM completion, but it has
+its own prompt and cache key and stores findings on `TranslationResult` instead of
+rewriting the output.
+
+```python
+result = translate_file(
+    path,
+    cfg=cfg,
+    use_llm=False,
+    llm_review=True,
+    llm_review_scope="all",
+    llm_provider="anthropic",
+)
+
+for finding in result.llm_review_findings:
+    print(finding.severity, finding.category, finding.message)
+```
+
+`llm_review_scope` accepts:
+
+| Scope | Reviewed files |
+|-------|----------------|
+| `all` | Every translated file, including full-confidence files. |
+| `warnings` | Files with parse, validation, or structural issues, semantic warnings, framework metadata, or TODO markers. |
+| `low-confidence` | Files below the low-confidence review threshold. |
+
+Review failures are captured in `llm_review_error` and do not corrupt
+`python_source`, coverage, or confidence.
 
 ## Stability Notes
 

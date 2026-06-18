@@ -169,7 +169,7 @@ Java source file(s)
   - `naming.py`: `camel_to_snake`, `safe_identifier`, reserved-word collision handling
   - `literals.py`: literal token normalisation
 
-### `llm/` — LLM completion
+### `llm/` — LLM completion and review
 - Called when `skeleton.py` coverage < 1.0, or when a full-coverage skeleton fails
   syntax/type pre-validation
 - `prompts.py`: builds a structured prompt with the Java source, partial skeleton, and
@@ -180,9 +180,15 @@ Java source file(s)
   provider, provider endpoint identity, prompt version, file hashes, model, config
   fingerprint, diagnostics, and validation feedback; 3 retries with exponential back-off
   via `tenacity`
+- `review.py`: structured non-mutating review findings for the opt-in review pass
 - `harvest.py`: appends deterministic repair records to `.j2py/harvest/records.jsonl`
   when the LLM runs; batch orchestration, content cache, and promotion live under
   `scripts/harvest/` — see [LLM_HARVEST.md](LLM_HARVEST.md)
+- The opt-in review path (`j2py translate --llm-review`) runs after translation and
+  validation. It can review full-confidence output, uses the same provider/model
+  configuration as completion, caches separately from repair calls, and stores findings
+  on `TranslationResult` without changing generated Python, rule coverage, or
+  confidence.
 
 ### `verify/` — Structural verification
 - Runs after LLM completion and compares Java symbols with the returned Python AST
@@ -207,7 +213,7 @@ Java source file(s)
 - `translate_directory(source_root, output_root, cfg, use_llm, model, llm_provider,
   validate) → DirectoryTranslationResult`
 - Calls parse → analyze → skeleton → (optionally) LLM with post-LLM verification →
-  validation
+  validation → confidence scoring → optional non-mutating LLM review
 - Directory mode builds the dependency graph and translates files in dependency order
 
 ### `cli/` — User interface

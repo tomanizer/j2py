@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from j2py.pipeline import TranslationResult
 
 STATE_FILE_NAME = ".j2py-state.json"
-STATE_VERSION = "0.3.0"
+STATE_VERSION = "0.4.0"
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,9 @@ class StateEntry:
     todo_count: int
     unhandled_count: int
     loc: int
+    llm_review_ran: bool = False
+    llm_review_count: int = 0
+    llm_review_error: str | None = None
 
 
 def state_path(output_root: Path) -> Path:
@@ -84,6 +87,13 @@ def load_state(output_root: Path) -> dict[str, StateEntry]:
                 todo_count=int(raw.get("todo_count", 0)),
                 unhandled_count=int(raw.get("unhandled_count", 0)),
                 loc=int(raw.get("loc", 0)),
+                llm_review_ran=bool(raw.get("llm_review_ran", False)),
+                llm_review_count=int(raw.get("llm_review_count", 0)),
+                llm_review_error=(
+                    str(raw["llm_review_error"])
+                    if raw.get("llm_review_error") is not None
+                    else None
+                ),
             )
     return entries
 
@@ -120,6 +130,9 @@ def entry_from_result(
         unhandled_count=(
             len(result.diagnostics.unhandled) if result.diagnostics is not None else 0
         ),
+        llm_review_count=len(result.llm_review_findings),
+        llm_review_ran=result.llm_review_ran,
+        llm_review_error=result.llm_review_error,
         loc=len(result.source_path.read_text().splitlines()),
     )
 
@@ -144,6 +157,9 @@ def _entry_to_json(entry: StateEntry) -> dict[str, object]:
         "ruff_ok": entry.ruff_ok,
         "todo_count": entry.todo_count,
         "unhandled_count": entry.unhandled_count,
+        "llm_review_ran": entry.llm_review_ran,
+        "llm_review_count": entry.llm_review_count,
+        "llm_review_error": entry.llm_review_error,
         "loc": entry.loc,
     }
 

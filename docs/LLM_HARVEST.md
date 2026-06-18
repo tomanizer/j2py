@@ -39,6 +39,13 @@ Override path: `J2PY_LLM_HARVEST_PATH=/path/to/records.jsonl`
 
 Disable recording: `J2PY_LLM_HARVEST=0`
 
+LLM review calls are explicitly outside the harvest log. `j2py translate --llm-review`
+uses the configured provider/model path, but it is an audit pass over completed output,
+not a repair/completion pass. Review findings go to `TranslationResult`, CLI JSON,
+HTML reports, dashboards, and `--review-report`; they do not append
+`.j2py/harvest/records.jsonl` entries and they are not promoted into rule-layer backlog
+issues by default.
+
 ### Record schema (version 1)
 
 | Field | Meaning |

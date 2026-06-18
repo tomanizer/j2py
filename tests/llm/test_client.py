@@ -294,6 +294,56 @@ def test_translate_with_llm_cache_key_includes_provider(monkeypatch) -> None:
     assert sorted(cache.written.values()) == ["anthropic python", "gemini python"]
 
 
+def test_review_translation_with_llm_calls_client_and_writes_separate_cache(monkeypatch) -> None:
+    cache = FakeCache()
+    calls: list[str] = []
+
+    class Messages:
+        def stream(self, **kwargs: Any) -> FakeStream:
+            calls.append(kwargs["messages"][0]["content"])
+            return FakeStream(
+                _message(
+                    json.dumps(
+                        {
+                            "findings": [
+                                {
+                                    "severity": "warning",
+                                    "category": "semantics",
+                                    "source_line": 2,
+                                    "output_line": 3,
+                                    "message": "Check null handling.",
+                                    "recommendation": "Compare behavior with Java tests.",
+                                }
+                            ]
+                        }
+                    )
+                )
+            )
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="same-model",
+    )
+    findings = client_mod.review_translation_with_llm(
+        java_source="class A {}",
+        python_source="class A:\n    pass\n",
+        model="same-model",
+        validation_summary="Validation passed.",
+    )
+
+    assert len(cache.written) == 2
+    assert len(calls) == 2
+    assert "<python_output>" in calls[1]
+    assert findings[0].severity == "warning"
+    assert findings[0].category == "semantics"
+    assert findings[0].source_line == 2
+    assert findings[0].output_line == 3
+
+
 def test_translate_with_llm_cache_key_includes_openai_base_url(monkeypatch) -> None:
     cache = FakeCache()
     calls: list[str | None] = []

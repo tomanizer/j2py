@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
+from j2py.llm.review import LlmReviewFinding
 from j2py.pipeline import TranslationResult
 from j2py.state import StateEntry, entry_from_result, load_state
 
@@ -19,6 +20,9 @@ class ReportInput:
     confidence: float
     used_llm: bool
     diagnostics: list[str]
+    llm_review_ran: bool = False
+    llm_review_findings: list[LlmReviewFinding] | None = None
+    llm_review_error: str | None = None
 
 
 def write_translation_report(
@@ -38,6 +42,9 @@ def write_translation_report(
                 f"line {item.line}: {item.reason}"
                 for item in (result.diagnostics.unhandled if result.diagnostics else [])
             ],
+            llm_review_ran=result.llm_review_ran,
+            llm_review_findings=result.llm_review_findings,
+            llm_review_error=result.llm_review_error,
         )
         for result in results
     ]
@@ -111,6 +118,8 @@ def render_dashboard(entries: list[StateEntry], *, title: str) -> str:
     validation_known = [item for item in entries if item.validation_ok is not None]
     validation_pass = sum(1 for item in validation_known if item.validation_ok)
     todo_files = sum(1 for item in entries if item.todo_count)
+    review_files = sum(1 for item in entries if item.llm_review_ran)
+    review_findings = sum(item.llm_review_count for item in entries)
     table_rows = "\n".join(_dashboard_table_row(item) for item in entries)
     treemap = "\n".join(_treemap_item(item) for item in entries)
     breakdown = _unhandled_breakdown(entries)
@@ -141,6 +150,8 @@ def render_dashboard(entries: list[StateEntry], *, title: str) -> str:
         )
     }
     {_metric("Files with TODOs", str(todo_files))}
+    {_metric("LLM-reviewed files", str(review_files))}
+    {_metric("LLM review findings", str(review_findings))}
   </section>
   <section>
     <div class="section-head">
@@ -170,6 +181,7 @@ def render_dashboard(entries: list[StateEntry], *, title: str) -> str:
           <th data-type="text">Validation</th>
           <th data-type="number">TODOs</th>
           <th data-type="number">Unhandled</th>
+          <th data-type="text">LLM review</th>
         </tr>
       </thead>
       <tbody>
@@ -200,6 +212,7 @@ def _file_section(index: int, item: ReportInput) -> str:
     diagnostics = "<br>".join(escape(diagnostic) for diagnostic in item.diagnostics)
     if not diagnostics:
         diagnostics = "No unresolved rule-layer diagnostics."
+    review = _review_findings_html(item)
     return f"""
 <article id="file-{index}" class="file">
   <div class="file-head">
@@ -207,6 +220,7 @@ def _file_section(index: int, item: ReportInput) -> str:
     <span class="badge">{item.confidence:.0%}</span>
   </div>
   <div class="diagnostics">{diagnostics}</div>
+  {review}
   <div class="split">
     <div class="pane">
       <h3>Java</h3>
@@ -225,6 +239,46 @@ def _file_section(index: int, item: ReportInput) -> str:
   </div>
 </article>
 """
+
+
+def _review_findings_html(item: ReportInput) -> str:
+    if not item.llm_review_ran:
+        return ""
+    if item.llm_review_error:
+        return (
+            '<div class="llm-review error">'
+            "<strong>LLM review failed:</strong> "
+            f"{escape(item.llm_review_error)}</div>"
+        )
+    findings = item.llm_review_findings or []
+    if not findings:
+        return '<div class="llm-review"><strong>LLM review:</strong> no findings.</div>'
+    rows = "\n".join(
+        "<li>"
+        f"<strong>{escape(finding.severity)}</strong> "
+        f"{escape(finding.category)}"
+        f"{_review_line_refs(finding)}"
+        f": {escape(finding.message)}"
+        f"{_review_recommendation(finding)}"
+        "</li>"
+        for finding in findings
+    )
+    return f'<div class="llm-review"><strong>LLM review findings</strong><ul>{rows}</ul></div>'
+
+
+def _review_line_refs(finding: LlmReviewFinding) -> str:
+    refs: list[str] = []
+    if finding.source_line is not None:
+        refs.append(f"Java line {finding.source_line}")
+    if finding.output_line is not None:
+        refs.append(f"Python line {finding.output_line}")
+    return f" ({escape(', '.join(refs))})" if refs else ""
+
+
+def _review_recommendation(finding: LlmReviewFinding) -> str:
+    if not finding.recommendation:
+        return ""
+    return f"<br><span>{escape(finding.recommendation)}</span>"
 
 
 def _source_lines(source: str, *, provenance: str, diagnostics: list[str]) -> str:
@@ -275,6 +329,7 @@ def _dashboard_table_row(item: StateEntry) -> str:
   <td>{validation}</td>
   <td data-value="{item.todo_count}">{item.todo_count}</td>
   <td data-value="{item.unhandled_count}">{item.unhandled_count}</td>
+  <td data-value="{item.llm_review_count}">{_dashboard_review_cell(item)}</td>
 </tr>"""
 
 
@@ -324,8 +379,19 @@ def _entry_payload(item: StateEntry) -> dict[str, object]:
         "validation_ok": item.validation_ok,
         "todo_count": item.todo_count,
         "unhandled_count": item.unhandled_count,
+        "llm_review_ran": item.llm_review_ran,
+        "llm_review_count": item.llm_review_count,
+        "llm_review_error": item.llm_review_error,
         "loc": item.loc,
     }
+
+
+def _dashboard_review_cell(item: StateEntry) -> str:
+    if not item.llm_review_ran:
+        return "not run"
+    if item.llm_review_error:
+        return "error"
+    return str(item.llm_review_count)
 
 
 _REPORT_CSS = """
@@ -396,6 +462,16 @@ nav a:hover { background: var(--bg); }
   padding: 10px 12px;
 }
 .diagnostics { color: var(--muted); display: block; font-size: 12px; }
+.llm-review {
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.llm-review.error { color: #a61b1b; }
+.llm-review ul { margin: 6px 0 0; padding-left: 18px; }
+.llm-review li + li { margin-top: 6px; }
+.llm-review span { color: var(--muted); }
 .score, .badge {
   background: #edf2f7;
   border: 1px solid var(--line);
