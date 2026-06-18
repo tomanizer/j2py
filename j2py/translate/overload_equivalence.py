@@ -76,6 +76,9 @@ def _deduplicate_same_body_erased_sig(
 
 
 def _member_body_equivalence_key(member: JavaNode, cfg: TranslationConfig) -> str:
+    minmax_key = _numeric_minmax_body_equivalence_key(member, cfg)
+    if minmax_key is not None:
+        return minmax_key
     form = _comparison_body_form(member, cfg)
     if form is not None:
         return _COMPARISON_BODY_KEY
@@ -213,6 +216,93 @@ def _base_java_type(java_type: str) -> str:
 
 def _normalise_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text)
+
+
+def _numeric_minmax_body_equivalence_key(member: JavaNode, cfg: TranslationConfig) -> str | None:
+    """Recognise primitive ``min``/``max`` overload bodies that erase safely in Python.
+
+    Apache Commons Lang carries byte/short/int/long and float/double variants whose Java
+    source differs only by primitive width and loop variable spelling. Once those widths
+    erase to Python ``int``/``float``, one representative branch is enough.
+    """
+    name_node = member.child_by_field("name")
+    if name_node is None or name_node.text not in {"min", "max"}:
+        return None
+    params = parameter_infos(member, cfg)
+    body = method_body(member)
+    if body is None:
+        return None
+    if len(params) == 1 and params[0].is_spread:
+        return _numeric_minmax_varargs_key(
+            body.text,
+            method_name=name_node.text,
+            array_name=params[0].raw_name,
+        )
+    if len(params) == 3 and not any(param.is_spread for param in params):
+        return _numeric_minmax_three_arg_key(body.text, method_name=name_node.text)
+    return None
+
+
+def _numeric_minmax_three_arg_key(
+    body_text: str,
+    *,
+    method_name: str,
+) -> str:
+    compact = _compact_java_body(body_text)
+    compact = compact.replace("Double.isNaN", "FloatType.isNaN")
+    compact = compact.replace("Float.isNaN", "FloatType.isNaN")
+    compact = compact.replace("Double.NaN", "FloatType.NaN")
+    compact = compact.replace("Float.NaN", "FloatType.NaN")
+    return f"<numeric-{method_name}-three-arg>:{compact}"
+
+
+def _numeric_minmax_varargs_key(
+    body_text: str,
+    *,
+    method_name: str,
+    array_name: str,
+) -> str | None:
+    compact = _compact_java_body(body_text)
+    compact = re.sub(rf"\b{re.escape(array_name)}\b", "array", compact)
+    compact = re.sub(
+        r"for\(int([A-Za-z_]\w*)=1;\1<array\.length;(?:\1\+\+|\+\+\1)\)",
+        "for(int_=1;_<array.length;_++)",
+        compact,
+    )
+    compact = re.sub(r"array\[[A-Za-z_]\w*\]", "array[_]", compact)
+    compact = re.sub(
+        r"\b(?:byte|short|int|long|float|double)(min|max)=array\[0\];",
+        r"number\1=array[0];",
+        compact,
+    )
+    compact = compact.replace("Double.isNaN", "FloatType.isNaN")
+    compact = compact.replace("Float.isNaN", "FloatType.isNaN")
+    compact = compact.replace("Double.NaN", "FloatType.NaN")
+    compact = compact.replace("Float.NaN", "FloatType.NaN")
+
+    operator = ">" if method_name == "max" else "<"
+    plain = (
+        f"{{validateArray(array);number{method_name}=array[0];"
+        f"for(int_=1;_<array.length;_++){{if(array[_]{operator}{method_name})"
+        f"{{{method_name}=array[_];}}}}return{method_name};}}"
+    )
+    nan_aware = (
+        f"{{validateArray(array);number{method_name}=array[0];"
+        f"for(int_=1;_<array.length;_++){{if(FloatType.isNaN(array[_]))"
+        f"{{returnFloatType.NaN;}}if(array[_]{operator}{method_name})"
+        f"{{{method_name}=array[_];}}}}return{method_name};}}"
+    )
+    if compact == plain:
+        return f"<numeric-{method_name}-varargs>"
+    if compact == nan_aware:
+        return f"<numeric-{method_name}-varargs-nan-aware>"
+    return None
+
+
+def _compact_java_body(body_text: str) -> str:
+    without_line_comments = re.sub(r"//[^\n\r]*", "", body_text)
+    without_block_comments = re.sub(r"/\*.*?\*/", "", without_line_comments, flags=re.DOTALL)
+    return re.sub(r"\s+", "", without_block_comments)
 
 
 def _comparison_body_form(member: JavaNode, cfg: TranslationConfig) -> str | None:
