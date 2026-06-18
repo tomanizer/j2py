@@ -187,7 +187,6 @@ def _normalised_body_text(
         name = re.escape(param.raw_name)
         for method in _BOXED_UNBOXING_METHODS:
             text = re.sub(rf"\b{name}\s*\.\s*{method}\s*\(\s*\)", param.raw_name, text)
-        text = re.sub(rf"\([^()]+\)\s*{name}\b", param.raw_name, text)
     if _is_floating_family_member(member, cfg):
         text = re.sub(r"\b(?:Float|Double)\b", "FloatDouble", text)
         text = re.sub(r"\b(?:float|double)\b", "floatdouble", text)

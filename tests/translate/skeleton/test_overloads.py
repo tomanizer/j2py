@@ -381,6 +381,32 @@ def test_non_equivalent_boxed_primitive_bodies_remain_manual() -> None:
     assert_valid_python(result.source)
 
 
+def test_cast_dependent_overload_bodies_do_not_merge_as_equivalent() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CastOverload {
+            public Object coerce(Object value) {
+                return (String) value;
+            }
+
+            public String coerce(String value) {
+                return value;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from typing import cast, overload" in result.source
+    assert "def coerce(self, *args: object) -> object | str:" in result.source
+    assert "return cast(str, value)" in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings].count(
+        "Java reference cast translated to typing.cast; verify runtime type",
+    ) == 1
+    assert_valid_python(result.source)
+
+
 def test_float_double_numeric_family_fixed_and_varargs_collapse() -> None:
     result = translate_source_with_diagnostics(
         """
