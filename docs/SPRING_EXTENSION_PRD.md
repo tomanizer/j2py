@@ -161,4 +161,4 @@ Unacceptable locations are:
 See [ADR 0024](decisions/0024-spring-extension-boundary.md) for the architecture decision
 that formalizes this boundary. See
 [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) for the implementation
-checklist future Spring roadmap PRs must use.
+checklist that future Spring roadmap PRs must use.
