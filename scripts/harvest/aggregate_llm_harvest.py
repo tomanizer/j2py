@@ -8,27 +8,11 @@ from collections import Counter
 from pathlib import Path
 
 from j2py.llm.harvest import harvest_records_path, latest_harvest_records, load_harvest_records
+from scripts.harvest.triage_lib import repair_signals, trigger_kinds
 
 
 def _load_records(path: Path) -> list[dict[str, object]]:
     return load_harvest_records(path)
-
-
-def _trigger_kinds(record: dict[str, object]) -> tuple[str, ...]:
-    trigger = record.get("trigger")
-    if not isinstance(trigger, dict):
-        return ("unknown",)
-    kinds = trigger.get("kinds")
-    if isinstance(kinds, list):
-        return tuple(str(item) for item in kinds)
-    return ("unknown",)
-
-
-def _repair_signals(record: dict[str, object]) -> tuple[str, ...]:
-    signals = record.get("repair_signals")
-    if isinstance(signals, list):
-        return tuple(str(item) for item in signals)
-    return ()
 
 
 def _mypy_error_prefix(error: str) -> str:
@@ -75,9 +59,9 @@ def main() -> int:
         if record.get("status") == "resolved":
             continue
         source = str(record.get("source_path", "?"))
-        for kind in _trigger_kinds(record):
+        for kind in trigger_kinds(record):
             trigger_counts[kind] += 1
-        for signal in _repair_signals(record):
+        for signal in repair_signals(record):
             signal_counts[signal] += 1
             open_by_signal.setdefault(signal, []).append(source)
         trigger = record.get("trigger")

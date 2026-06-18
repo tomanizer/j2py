@@ -2,20 +2,38 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+from scripts.harvest.aggregate_llm_harvest import main as aggregate_harvest_main
 from scripts.harvest.harvest_state import HarvestState, load_state, save_state
 from scripts.harvest.promote_harvest_signals import draft_issues, render_issue_body
 from scripts.harvest.signal_patterns import grouped_rank, primary_signal
 from scripts.harvest.triage_lib import (
     aggregate_signal_evidence,
     is_clean_harvest_path,
+    repair_signals,
+    trigger_kinds,
 )
 
 
 def test_is_clean_harvest_path() -> None:
     assert not is_clean_harvest_path("/var/folders/x/pytest-of-u/pytest-0/Foo.java")
     assert is_clean_harvest_path("/repo/tests/fixtures/llm/AssertProbe.java")
+
+
+def test_harvest_record_extractors_normalize_missing_fields() -> None:
+    assert trigger_kinds({"trigger": {"kinds": ["coverage_gap", 42]}}) == (
+        "coverage_gap",
+        "42",
+    )
+    assert trigger_kinds({"trigger": {"kinds": "coverage_gap"}}) == ("unknown",)
+    assert trigger_kinds({}) == ("unknown",)
+    assert repair_signals({"repair_signals": ["unsupported-stmt-removed", 7]}) == (
+        "unsupported-stmt-removed",
+        "7",
+    )
+    assert repair_signals({"repair_signals": "unsupported-stmt-removed"}) == ()
 
 
 def test_primary_signal_groups_related() -> None:
@@ -144,3 +162,48 @@ def test_aggregate_signal_evidence(tmp_path: Path, monkeypatch) -> None:
     evidence = aggregate_signal_evidence(records, repo_root=REPO_ROOT)
     assert evidence[0].signal == "unsupported-stmt-removed"
     assert evidence[0].count == 1
+
+
+def test_aggregate_llm_harvest_uses_shared_record_extractors(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    path = tmp_path / "records.jsonl"
+    records = [
+        {
+            "source_path": "A.java",
+            "repair_signals": ["unsupported-stmt-removed"],
+            "trigger": {
+                "kinds": ["coverage_gap"],
+                "pre_validation_errors": ['A.py:1: error: Name "Foo" is not defined'],
+            },
+        },
+        {
+            "source_path": "B.java",
+            "status": "resolved",
+            "repair_signals": ["resolved-signal"],
+            "trigger": {"kinds": ["resolved-kind"]},
+        },
+        {
+            "source_path": "C.java",
+            "repair_signals": "not-a-list",
+            "trigger": {"kinds": "not-a-list"},
+        },
+    ]
+    path.write_text(
+        "\n".join(json.dumps(record, sort_keys=True) for record in records) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["aggregate_llm_harvest.py", "--path", str(path), "--top", "10"],
+    )
+
+    assert aggregate_harvest_main() == 0
+    output = capsys.readouterr().out
+    assert "coverage_gap" in output
+    assert "unsupported-stmt-removed" in output
+    assert "undefined-name" in output
+    assert "resolved-signal" not in output
+    assert "resolved-kind" not in output
