@@ -79,6 +79,11 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   slices `s[start:]` and `s[start:end]` respectively, unblocking `StringUtils.strip`
   translation. Lands `StringUtils.strip` on the equivalence-verified surface (34/97 →
   35/97) (#470).
+- `String.toCharArray()` now lowers to `list(s)` and instance `String.indexOf(sub[, from])`
+  now lowers to `s.find(sub[, from])` (guarded against static utility-class calls).
+  Unlocks `NumberUtils.isCreatable` and `NumberUtils.isDigits`. Adds
+  `StringUtils.length`, `strip(String,String)`, `stripEnd`, `stripStart` to the
+  verified surface. Combined gain: 35/97 → 41/97.
 
 ## 0.5.0b3 - 2026-06-17
 
