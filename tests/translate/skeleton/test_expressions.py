@@ -502,6 +502,36 @@ def test_static_standard_library_mapping_cases(body: str, expected: str) -> None
     assert_valid_python(result.source)
 
 
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ('return value.toString("debug");', 'return value.to_string("debug")'),
+        ('return value.hashCode("debug");', 'return value.hash_code("debug")'),
+        ("return value.equals();", "return value.equals()"),
+        ("return value.equalsIgnoreCase();", "return value.equals_ignore_case()"),
+        ('return value.charAt(0, "extra");', 'return value.char_at(0, "extra")'),
+    ],
+)
+def test_jdk_instance_mappings_fall_back_for_unexpected_arity(
+    body: str,
+    expected: str,
+) -> None:
+    result = translate_source_with_diagnostics(
+        f"""
+        public class InstanceArityFallback {{
+            public Object value(String value) {{
+                {body}
+            }}
+        }}
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert expected in result.source
+    assert_valid_python(result.source)
+
+
 def test_unknown_static_import_emits_todo_and_diagnostic() -> None:
     result = translate_source_with_diagnostics(
         """
