@@ -96,6 +96,38 @@ def test_component_name_uses_spring_decapitalize_rules() -> None:
     assert metadata[("class", "NamedComponent")]["component_name"] == "explicitName"
 
 
+def test_stereotype_class_roles_emit_metadata() -> None:
+    _result, metadata = _metadata_by_kind(
+        """
+        @interface Service {}
+        @interface Repository {}
+        @interface Component {}
+        @interface Configuration {}
+
+        @Service
+        public class OwnerService {
+        }
+
+        @Repository
+        public class OwnerRepository {
+        }
+
+        @Component
+        public class OwnerWorker {
+        }
+
+        @Configuration
+        public class OwnerConfig {
+        }
+        """,
+    )
+
+    assert metadata[("class", "OwnerService")]["role"] == "service"
+    assert metadata[("class", "OwnerRepository")]["role"] == "repository"
+    assert metadata[("class", "OwnerWorker")]["role"] == "component"
+    assert metadata[("class", "OwnerConfig")]["role"] == "configuration"
+
+
 def test_http_method_annotations_emit_route_metadata() -> None:
     _result, metadata = _metadata_by_kind(
         """
@@ -205,6 +237,23 @@ def test_route_parameters_request_body_and_response_status_are_metadata() -> Non
         "required": True,
     }
     assert "@response_status(422)" in result.source
+
+
+def test_response_status_without_route_preserves_marker_without_metadata() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface ResponseStatus { int value(); }
+
+        public class OwnerController {
+            @ResponseStatus(204)
+            public void helper() {}
+        }
+        """,
+        cfg=_spring_cfg(),
+    )
+
+    assert "@response_status(204)" in result.source
+    assert result.diagnostics.framework_metadata == []
 
 
 def test_autowired_field_injection_emits_metadata_and_init_param() -> None:
