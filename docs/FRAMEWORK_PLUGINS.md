@@ -408,6 +408,10 @@ to build the target framework layer:
 - SQLAlchemy: use entity/field annotations to emit metadata for table names, primary
   keys, columns, and relationships; generate or hand-finish declarative models in a
   project-owned step.
+- Spring JDBC: discover `@Configuration` / `@Bean` topology for `DataSource`,
+  `JdbcTemplate`, `NamedParameterJdbcTemplate`, and transaction managers, then emit
+  sidecar metadata for a project-owned SQLAlchemy engine/session layer. Keep pyodbc as a
+  possible SQLAlchemy dialect/driver, not as a core j2py codegen target.
 
 For simple Spring annotations that are truly one-to-one, prefer
 [`annotation_map`](configuration.md#schema). Use a plugin when the rule
