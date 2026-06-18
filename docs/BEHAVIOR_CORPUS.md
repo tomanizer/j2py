@@ -75,8 +75,9 @@ JDK implementation source or Oracle/OpenJDK documentation examples.
   bitwise `& | ^`. Comparisons, `&&`/`||`/`!`, ternaries.
 - `if`/`else if`/`else`, `while`, `do/while`, counted `for (int i = 0; i < N; i++)`,
   ascending/descending, nested loops, `break`, `continue`, `switch` (in a method).
-- Strings: `length`, `toUpperCase`, `toLowerCase`, `replace`, `trim`, `isEmpty`,
-  `contains`, `startsWith`, `equals`, `split`; `+` concatenation **inside `println`**.
+- Strings: `length`, `charAt`, `substring`, `toUpperCase`, `toLowerCase`, `replace`,
+  `trim`, `isEmpty`, `contains`, `startsWith`, `equals`, `split`; `+` concatenation
+  **inside `println`**.
 - Arrays (`int[]`, `String[]`, `int[][]`): literals, indexing, `.length`, enhanced-for.
 - `List<T>` via simple import: `add`, `get`, `size`, `contains`, enhanced-for,
   `Collections.sort`. `Math.max/min/abs`, `Integer.parseInt`.
@@ -87,7 +88,7 @@ JDK implementation source or Oracle/OpenJDK documentation examples.
 **Avoid (known rule-layer gaps — these belong to the LLM layer, not this gate)**
 
 - Printing raw `boolean` (`true`≠`True`), `null` (`null`≠`None`), `float`, or a `char`.
-- `String.charAt` / `substring` / `indexOf`; `StringBuilder`; `Map` / `.put`; enums.
+- `String.indexOf`; `StringBuilder`; `Map` / `.put`; enums.
 - Nested classes referenced from a `static main`, static fields/constants read from code,
   or classpath-dependent static imports.
 - A field and a method with the same name (Java namespaces them; Python does not).
