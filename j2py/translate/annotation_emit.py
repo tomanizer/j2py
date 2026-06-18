@@ -116,6 +116,7 @@ def record_annotation_diagnostics(
     *,
     target_kind: str | None = None,
     target_name: str | None = None,
+    skip_names: set[str] | None = None,
 ) -> None:
     from j2py.translate.framework_annotations import (
         annotation_full_name,
@@ -126,6 +127,8 @@ def record_annotation_diagnostics(
     for annotation in annotation_nodes(node):
         annotation_name = annotation_simple_name(annotation)
         if annotation_name is None:
+            continue
+        if skip_names and annotation_name in skip_names:
             continue
         entry = annotation_map_entry(annotation, cfg)
         if entry is not None:

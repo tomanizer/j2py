@@ -366,6 +366,63 @@ def test_request_body_pojo_promotes_to_pydantic_model_fixture() -> None:
     assert_valid_python(result.source)
 
 
+def test_configuration_properties_fixture_lowers_to_base_settings() -> None:
+    parsed = parse_file(FIXTURES / "java" / "SpringConfigurationProperties.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.source == (FIXTURES / "python" / "SpringConfigurationProperties.py").read_text()
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert not result.diagnostics.warnings
+    assert "from pydantic_settings import BaseSettings, SettingsConfigDict" in result.source
+    assert "class AppConfig(BaseSettings):" in result.source
+    assert 'model_config = SettingsConfigDict(env_prefix="APP_")' in result.source
+    assert 'datasource_url: str = "jdbc:h2:mem:testdb"' in result.source
+    assert "max_connections: int = 10" in result.source
+    assert "# @ConfigurationProperties" not in result.source
+    assert "@configuration_properties" not in result.source
+    assert "# TODO(j2py): @Value injection is hard to lower statically" in result.source
+    assert "self.cache_seconds: int = 512" in result.source
+    assert_valid_python(result.source)
+
+
+def test_configuration_properties_prefix_normalizes_to_env_prefix() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import org.springframework.boot.context.properties.ConfigurationProperties;
+
+        @ConfigurationProperties(prefix = "petclinic.cache")
+        class PetclinicProperties {
+            private boolean enabled = true;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "class PetclinicProperties(BaseSettings):" in result.source
+    assert 'model_config = SettingsConfigDict(env_prefix="PETCLINIC_CACHE_")' in result.source
+    assert "enabled: bool = True" in result.source
+    assert_valid_python(result.source)
+
+
+def test_value_field_without_placeholder_default_uses_java_default() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import org.springframework.beans.factory.annotation.Value;
+
+        class Worker {
+            @Value("${app.cache-seconds}")
+            private int cacheSeconds;
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert '# @Value("${app.cache-seconds}") -> cacheSeconds' in result.source
+    assert "self.cache_seconds: int = 0" in result.source
+    assert_valid_python(result.source)
+
+
 def test_generic_request_body_parameter_promotes_contained_model() -> None:
     result = translate_source_with_diagnostics(
         """

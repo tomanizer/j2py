@@ -68,6 +68,7 @@ from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCall
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
+from j2py.translate.spring_settings import configuration_properties_env_prefix
 from j2py.translate.statements import (
     class_uses_synchronized_this,
     instance_lock_init_line,
@@ -140,10 +141,18 @@ def translate_class(
     fields = _class_fields(node, cfg)
     sqlalchemy_entity_table_name = env.sqlalchemy_entity_table_names.get(name_node.text)
     promote_to_sqlalchemy = sqlalchemy_entity_table_name is not None
-    promote_to_pydantic = not promote_to_sqlalchemy and (
-        name_node.text in env.pydantic_model_class_names
-        or class_name in env.pydantic_model_class_names
-        or should_promote_to_pydantic_model(node, fields)
+    settings_env_prefix = (
+        None if promote_to_sqlalchemy else configuration_properties_env_prefix(node)
+    )
+    promote_to_settings = settings_env_prefix is not None
+    promote_to_pydantic = (
+        not promote_to_sqlalchemy
+        and not promote_to_settings
+        and (
+            name_node.text in env.pydantic_model_class_names
+            or class_name in env.pydantic_model_class_names
+            or should_promote_to_pydantic_model(node, fields)
+        )
     )
     instance_field_names = _instance_field_names(fields)
     class_field_types = {
@@ -179,6 +188,14 @@ def translate_class(
     )
     if promote_to_pydantic:
         members = _data_model_members(members, fields, cfg, diagnostics, model_name="Pydantic")
+    if promote_to_settings:
+        members = _data_model_members(
+            members,
+            fields,
+            cfg,
+            diagnostics,
+            model_name="Pydantic Settings",
+        )
     if promote_to_sqlalchemy:
         members = _data_model_members(members, fields, cfg, diagnostics, model_name="SQLAlchemy")
     class_method_names = member_method_names(members, cfg)
@@ -250,7 +267,7 @@ def translate_class(
         java_name=name_node.text,
         py_name=class_name,
     )
-    if not class_transform.handled and not promote_to_sqlalchemy:
+    if not class_transform.handled and not promote_to_sqlalchemy and not promote_to_settings:
         record_annotation_diagnostics(
             node,
             cfg,
@@ -272,13 +289,20 @@ def translate_class(
     )
     if promote_to_pydantic:
         diagnostics.imports.need_line("from pydantic import BaseModel")
+    if promote_to_settings:
+        diagnostics.imports.need_line(
+            "from pydantic_settings import BaseSettings, SettingsConfigDict"
+        )
     lines: list[str] = []
-    if not class_transform.handled and not promote_to_sqlalchemy:
+    if not class_transform.handled and not promote_to_sqlalchemy and not promote_to_settings:
         lines.extend(annotation_comment_lines(node, cfg, skip_names={"Transactional"}))
-    lines.extend(class_transform.prefix_lines)
-    extra_bases = list(class_transform.base_classes)
+    if not promote_to_settings:
+        lines.extend(class_transform.prefix_lines)
+    extra_bases = [] if promote_to_settings else list(class_transform.base_classes)
     if promote_to_pydantic:
         extra_bases.append("BaseModel")
+    if promote_to_settings:
+        extra_bases.append("BaseSettings")
     if promote_to_sqlalchemy:
         extra_bases.append("Base")
     class_bases = base_suffix(
@@ -306,7 +330,7 @@ def translate_class(
         enclosing_static_dispatch=enclosing_dispatch,
         name_resolver=resolver,
         field_transforms=field_transforms,
-        pydantic_model=promote_to_pydantic,
+        pydantic_model=promote_to_pydantic or promote_to_settings,
         sqlalchemy_model=promote_to_sqlalchemy,
         sqlalchemy_entity_table_names=env.sqlalchemy_entity_table_names,
     )
@@ -315,6 +339,12 @@ def translate_class(
         if static_field_lines:
             table_lines.append("")
         static_field_lines = [*table_lines, *static_field_lines]
+    if promote_to_settings:
+        if static_field_lines:
+            static_field_lines.append("")
+        static_field_lines.append(
+            f'    model_config = SettingsConfigDict(env_prefix="{settings_env_prefix}")'
+        )
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
 
