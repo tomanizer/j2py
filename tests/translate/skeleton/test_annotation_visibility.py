@@ -284,6 +284,53 @@ def test_mapping_return_type_promotes_response_body_model() -> None:
     assert_valid_python(result.source)
 
 
+def test_request_body_list_parameter_promotes_wrapped_model() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import org.springframework.web.bind.annotation.PostMapping;
+        import org.springframework.web.bind.annotation.RequestBody;
+
+        class OwnerController {
+            @PostMapping("/owners")
+            public void createAll(@RequestBody List<OwnerRequest> forms) {}
+        }
+
+        class OwnerRequest {
+            private String firstName;
+        }
+        """,
+    )
+
+    assert "class OwnerRequest(BaseModel):" in result.source
+    assert "def get_first_name" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_mapping_return_type_promotes_wrapped_response_body_model() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import org.springframework.http.ResponseEntity;
+        import org.springframework.web.bind.annotation.GetMapping;
+
+        class OwnerController {
+            @GetMapping("/owners/1")
+            public ResponseEntity<OwnerResponse> getOwner() {
+                return ResponseEntity.ok(new OwnerResponse());
+            }
+        }
+
+        class OwnerResponse {
+            private String firstName;
+        }
+        """,
+    )
+
+    assert "class OwnerResponse(BaseModel):" in result.source
+    assert "def get_first_name" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_jackson_model_annotation_promotes_to_pydantic_model() -> None:
     result = translate_source_with_diagnostics(
         """

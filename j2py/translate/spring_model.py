@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import annotation_nodes
@@ -14,7 +16,7 @@ _RESPONSE_MAPPING_ANNOTATIONS = frozenset(
     {"DeleteMapping", "GetMapping", "PatchMapping", "PostMapping", "PutMapping", "RequestMapping"}
 )
 _DTO_BASE_CLASS_NAMES = frozenset({"BaseDto", "BaseDTO", "BaseEntity", "ValidatableEntity"})
-_NON_MODEL_RETURN_TYPES = frozenset({"ResponseEntity", "void", "Void"})
+_TYPE_NAME_TOKEN_RE = re.compile(r"\b\w+\b")
 
 
 def collect_pydantic_model_class_names(root: JavaNode, cfg: TranslationConfig) -> set[str]:
@@ -33,9 +35,7 @@ def collect_pydantic_model_class_names(root: JavaNode, cfg: TranslationConfig) -
         if node.type != "method_declaration":
             continue
         model_names.update(_request_body_parameter_types(node, declared_names))
-        response_type = _response_body_return_type(node, declared_names, cfg)
-        if response_type is not None:
-            model_names.add(response_type)
+        model_names.update(_response_body_return_types(node, declared_names, cfg))
     return model_names
 
 
@@ -78,28 +78,27 @@ def _request_body_parameter_types(node: JavaNode, declared_names: set[str]) -> s
         type_node = param.child_by_field("type")
         if type_node is None:
             continue
-        type_name = java_type_simple_name(type_node.text)
-        if type_name in declared_names:
-            model_names.add(type_name)
+        model_names.update(_declared_types_in_signature(type_node.text, declared_names))
     return model_names
 
 
-def _response_body_return_type(
+def _declared_types_in_signature(type_text: str, declared_names: set[str]) -> set[str]:
+    return set(_TYPE_NAME_TOKEN_RE.findall(type_text)) & declared_names
+
+
+def _response_body_return_types(
     node: JavaNode,
     declared_names: set[str],
     cfg: TranslationConfig,
-) -> str | None:
+) -> set[str]:
     if not _has_annotation(node, _RESPONSE_MAPPING_ANNOTATIONS):
-        return None
+        return set()
     if any(
         annotation_simple_name(annotation) in cfg.annotation_map
         for annotation in annotation_nodes(node)
     ):
-        return None
+        return set()
     type_node = node.child_by_field("type")
     if type_node is None:
-        return None
-    type_name = java_type_simple_name(type_node.text)
-    if type_name in _NON_MODEL_RETURN_TYPES:
-        return None
-    return type_name if type_name in declared_names else None
+        return set()
+    return _declared_types_in_signature(type_node.text, declared_names)
