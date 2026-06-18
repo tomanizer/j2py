@@ -8,6 +8,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_collection_calls import translate_collection_method_invocation
+from j2py.translate.expr_jdbc_calls import translate_jdbc_template_method_invocation
 from j2py.translate.expr_jdk_calls import translate_jdk_instance_method_invocation
 from j2py.translate.expr_static_calls import (
     translate_static_imported_method,
@@ -191,6 +192,18 @@ def _translate_receiver_special_method_invocation(
 ) -> str | None:
     if not receiver:
         return None
+
+    jdbc_call = translate_jdbc_template_method_invocation(
+        node,
+        method_name=parts.method_name,
+        receiver=receiver,
+        receiver_nodes=parts.receiver_nodes,
+        arg_nodes=parts.arg_nodes,
+        arg_expressions=parts.arg_expressions,
+        ctx=ctx,
+    )
+    if jdbc_call is not None:
+        return jdbc_call
 
     collection_call = translate_collection_method_invocation(
         node,
