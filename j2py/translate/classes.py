@@ -9,6 +9,7 @@ from j2py.translate.annotation_emit import (
     annotation_comment_lines,
     record_annotation_diagnostics,
 )
+from j2py.translate.bean_validation import should_promote_to_pydantic_model
 from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_fields import (
     _class_field_java_types,
@@ -249,16 +250,22 @@ def translate_class(
         for field in fields
     ]
     injected_init_params = _annotation_init_params(fields, field_transforms)
+    promote_to_pydantic = should_promote_to_pydantic_model(node, fields)
+    if promote_to_pydantic:
+        diagnostics.imports.need_line("from pydantic import BaseModel")
     lines: list[str] = []
     if not class_transform.handled:
         lines.extend(annotation_comment_lines(node, cfg))
     lines.extend(class_transform.prefix_lines)
+    extra_bases = list(class_transform.base_classes)
+    if promote_to_pydantic:
+        extra_bases.append("BaseModel")
     class_bases = base_suffix(
         node,
         diagnostics,
         resolver=resolver,
         scope=base_scope,
-        extra_bases=list(class_transform.base_classes),
+        extra_bases=extra_bases,
     )
     lines.append(f"class {class_name}{class_bases}:")
     if env.docstring_lines:
@@ -278,6 +285,7 @@ def translate_class(
         enclosing_static_dispatch=enclosing_dispatch,
         name_resolver=resolver,
         field_transforms=field_transforms,
+        pydantic_model=promote_to_pydantic,
     )
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
