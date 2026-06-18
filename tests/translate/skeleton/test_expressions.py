@@ -519,6 +519,30 @@ def test_character_char_value_lowers_to_python_str_identity() -> None:
     assert_valid_python(result.source)
 
 
+def test_user_defined_char_value_method_remains_normal_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Probe {
+            static class Token {
+                public int charValue() {
+                    return 7;
+                }
+            }
+
+            public int read(Token token) {
+                return token.charValue();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def char_value(self) -> int:" in result.source
+    assert "return token.char_value()" in result.source
+    assert "return token\n" not in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [

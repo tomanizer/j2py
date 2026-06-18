@@ -7,6 +7,7 @@ from typing import TypeAlias
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.java_types import java_expression_type, java_type_simple_name
 from j2py.translate.rules.naming import _receiver_simple_name
 
 StaticCallTranslator: TypeAlias = Callable[
@@ -430,7 +431,14 @@ def _translate_char_value_call(
     args: str,
     ctx: TranslationContext,
 ) -> str | None:
-    if not args:
+    if args or not receiver_nodes:
+        return None
+    receiver_type = java_expression_type(receiver_nodes[0], ctx)
+    if receiver_type is None:
+        receiver_type = ctx.variable_java_types.get(raw_receiver) or ctx.variable_java_types.get(
+            receiver,
+        )
+    if receiver_type is not None and java_type_simple_name(receiver_type) == "Character":
         return receiver
     return None
 
