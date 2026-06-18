@@ -190,11 +190,22 @@ def install_java_lang_stubs() -> list[str]:
         "Byte",
         types.SimpleNamespace(value_of=_id, parse_byte=_parse_byte),
     )
-    installed += install_stub_class(f"{math}.Double", "Double", types.SimpleNamespace(value_of=_id))
+    installed += install_stub_class(
+        f"{math}.Double",
+        "Double",
+        types.SimpleNamespace(
+            value_of=_id, is_na_n=lambda value: value != value, na_n=float("nan")
+        ),
+    )
     installed += install_stub_class(
         f"{math}.Float",
         "Float",
-        types.SimpleNamespace(value_of=_id, parse_float=float),
+        types.SimpleNamespace(
+            value_of=_id,
+            parse_float=float,
+            is_na_n=lambda value: value != value,
+            na_n=float("nan"),
+        ),
     )
     installed += install_stub_class(
         f"{math}.Integer",
@@ -223,7 +234,11 @@ def install_java_lang_stubs() -> list[str]:
         "Validate",
         types.SimpleNamespace(is_true=lambda *_: None),
     )
-    installed += install_stub_class("java.lang.reflect.Array", "Array", types.SimpleNamespace())
+    installed += install_stub_class(
+        "java.lang.reflect.Array",
+        "Array",
+        types.SimpleNamespace(get_length=len),
+    )
     installed += install_stub_class(
         "java.math.RoundingMode",
         "RoundingMode",

@@ -862,6 +862,80 @@ def test_fixed_arity_beats_varargs_in_value_dispatcher() -> None:
     assert stats.run_varargs() == 4  # type: ignore[attr-defined]
 
 
+def test_equivalent_varargs_erasure_collisions_collapse_to_value_dispatcher() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Stats {
+            public static void validateArray(Object values) {
+            }
+
+            public static int max(int... values) {
+                validateArray(values);
+                int max = values[0];
+                for (int i = 1; i < values.length; i++) {
+                    if (values[i] > max) {
+                        max = values[i];
+                    }
+                }
+                return max;
+            }
+
+            public static long max(long... values) {
+                validateArray(values);
+                /* same reduction after primitive erasure */
+                long max = values[0];
+                for (int j = 1; j < values.length; ++j) {
+                    if (values[j] > max) {
+                        max = values[j];
+                    }
+                }
+                return max;
+            }
+
+            public static int max(int a, int b, int c) {
+                if (b > a) {
+                    a = b;
+                }
+                if (c > a) {
+                    a = c;
+                }
+                return a;
+            }
+
+            public static long max(long a, long b, long c) {
+                if (b > a) {
+                    a = b;
+                }
+                if (c > a) {
+                    a = c;
+                }
+                return a;
+            }
+
+            public static int runThree() {
+                return max(1, 2, 3);
+            }
+
+            public static int runVarargs() {
+                return max(4, 7);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "TODO(j2py): overloaded method max_" not in python_source
+    assert "NotImplementedError" not in python_source
+    assert "def max_(*args: object) -> int:" in python_source
+    assert python_source.index("len(args) == 3") < python_source.index("len(args) >= 0")
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<stats>", "exec"), namespace)
+    stats = namespace["Stats"]
+    assert stats.run_three() == 3  # type: ignore[attr-defined]
+    assert stats.run_varargs() == 7  # type: ignore[attr-defined]
+
+
 def test_varargs_erasure_collision_keeps_manual_dispatch_fallback() -> None:
     python_source, coverage = translate_source(
         """
