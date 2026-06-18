@@ -35,6 +35,7 @@ from j2py.translate.framework_dispatch import resolve_class, resolve_method
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.rules.types import _map_type_vars, translate_type
+from j2py.translate.spring_repository import translate_spring_data_repository_interface
 from j2py.translate.statements import translate_body
 
 _NodeKey = tuple[int, int, int, int, str]
@@ -150,9 +151,18 @@ def translate_interface(
     static_method_imports = env.static_method_imports
     name_resolver = env.name_resolver
     diagnostics.record(node, supported=True, reason="translated interface declaration")
-    diagnostics.imports.need_typing("Protocol")
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
+    spring_repository_lines = translate_spring_data_repository_interface(
+        node,
+        cfg,
+        diagnostics,
+        env=env,
+    )
+    if spring_repository_lines is not None:
+        return spring_repository_lines
+
+    diagnostics.imports.need_typing("Protocol")
     body = node.child_by_field("body")
     methods = (
         []
