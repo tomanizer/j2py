@@ -55,6 +55,17 @@ CLUSTER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("unsupported statement", re.compile(r"^unsupported statement ")),
 )
 
+STRUCTURED_BINDING_CLUSTERS = {
+    "missing_static_import_owner",
+    "wildcard_static_import_unresolved",
+    "missing_receiver_type",
+    "opaque_receiver_shape",
+    "overload_erasure_collision",
+    "unsafe_numeric_width_boundary",
+    "unknown_static_intrinsic",
+    "unsupported_framework_member",
+}
+
 ISSUE_TITLES: dict[str, str] = {
     SYNTAX_OUTPUT_CLUSTER: "P0: Fix invalid Python output (comment-only blocks, wildcard types, …)",
     PARSE_FAILURE_CLUSTER: "Investigate corpus parse failures",
@@ -70,6 +81,11 @@ ISSUE_TITLES: dict[str, str] = {
     "equals unexpected args": "Expressions: handle equals() invocations with non-standard arity",
     "anonymous class scope": "Classes: anonymous inner classes in local helper scope",
     "unsupported statement": "Statements: extend unsupported statement coverage",
+    "wildcard_static_import_unresolved": (
+        "Member binding: resolve configured wildcard static imports"
+    ),
+    "missing_receiver_type": "Member binding: propagate receiver Java type shapes into calls",
+    "opaque_receiver_shape": "Member binding: refine receiver Java type-shape lowering",
 }
 
 
@@ -130,6 +146,8 @@ class ClusterStats:
             "unsupported assert",
             "unsupported statement",
             "anonymous class scope",
+            "overload_erasure_collision",
+            "unsafe_numeric_width_boundary",
         }:
             return 2
         return 1
@@ -215,6 +233,40 @@ def _add_output_quality_clusters(
     stats.exemplars.append(_file_exemplar(preset, file_metric))
 
 
+def _add_structured_binding_clusters(
+    clusters: dict[str, ClusterStats],
+    *,
+    preset: str,
+    file_metric: dict[str, Any],
+) -> None:
+    diagnostics = file_metric.get("binding_diagnostics") or []
+    if not isinstance(diagnostics, list):
+        return
+    exemplar = _file_exemplar(preset, file_metric)
+    seen_clusters_in_file: set[str] = set()
+    for diagnostic in diagnostics:
+        if not isinstance(diagnostic, dict):
+            continue
+        category = diagnostic.get("category")
+        if not isinstance(category, str) or not category:
+            continue
+        cluster = category
+        stats = clusters.setdefault(cluster, ClusterStats(cluster=cluster))
+        stats.total_count += 1
+        stats.corpora.add(preset)
+        reason = diagnostic.get("reason")
+        reason_text = reason if isinstance(reason, str) and reason else category
+        stats.raw_reasons[reason_text] += 1
+        if cluster not in seen_clusters_in_file:
+            stats.file_hits += 1
+            seen_clusters_in_file.add(cluster)
+            if not file_metric.get("syntax_ok"):
+                stats.syntax_fail_files += 1
+            if not file_metric.get("parse_ok"):
+                stats.parse_fail_files += 1
+            stats.exemplars.append(exemplar)
+
+
 def load_baselines(baseline_dir: Path) -> list[tuple[str, dict[str, Any]]]:
     baselines: list[tuple[str, dict[str, Any]]] = []
     for path in sorted(baseline_dir.glob("*-baseline.json")):
@@ -249,6 +301,7 @@ def build_report(baseline_dir: Path) -> HotspotReport:
         for file_metric in data.get("files", []):
             reasons = parse_counter_summary(file_metric.get("unhandled_reasons", ""))
             _add_output_quality_clusters(clusters, preset=preset, file_metric=file_metric)
+            _add_structured_binding_clusters(clusters, preset=preset, file_metric=file_metric)
 
             if not file_metric.get("parse_ok"):
                 parse_failures.append(

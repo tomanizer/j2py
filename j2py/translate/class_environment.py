@@ -33,6 +33,7 @@ class ClassTranslationEnvironment:
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
     static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)
+    wildcard_static_imports: dict[str, str] = field(default_factory=dict)
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     docstring_lines: list[str] | None = None
     outer_self_alias: str | None = None

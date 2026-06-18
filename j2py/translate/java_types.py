@@ -46,6 +46,21 @@ def java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
 
 
 def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    if node.type in {
+        "decimal_integer_literal",
+        "hex_integer_literal",
+        "octal_integer_literal",
+        "binary_integer_literal",
+    }:
+        return "long" if node.text.lower().endswith("l") else "int"
+    if node.type == "decimal_floating_point_literal":
+        return "float" if node.text.lower().endswith("f") else "double"
+    if node.type == "string_literal":
+        return "String"
+    if node.type == "character_literal":
+        return "char"
+    if node.type in {"true", "false"}:
+        return "boolean"
     if node.type == "identifier":
         return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
     if node.type == "field_access":
@@ -59,6 +74,10 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
         return java_expression_type(node.named_children[0], ctx)
     if node.type == "cast_expression" and node.named_children:
         return node.named_children[0].text
+    if node.type == "object_creation_expression":
+        type_node = node.child_by_field("type")
+        if type_node is not None:
+            return type_node.text
     if node.type == "method_invocation":
         return method_invocation_java_type(node)
     return None

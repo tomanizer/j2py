@@ -37,6 +37,20 @@ class AnnotationMapEntry(BaseModel):
     preserve_comment: bool | None = None
 
 
+class MemberMapEntry(BaseModel):
+    """User-supplied Java member binding fact."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    kind: Literal["method", "field", "unknown"] = "unknown"
+    python_owner: str | None = None
+    python_member: str | None = None
+    source: str = "config"
+    return_type: str | None = None
+    return_shape: str | None = None
+    intrinsic: str | None = None
+
+
 class TranslationConfig(BaseModel):
     """Merged, validated configuration for the translation pipeline."""
 
@@ -48,6 +62,7 @@ class TranslationConfig(BaseModel):
     literal_map: dict[str, str] = Field(default_factory=dict)
     import_map: dict[str, str] = Field(default_factory=dict)
     annotation_map: dict[str, AnnotationMapEntry] = Field(default_factory=dict)
+    member_map: dict[str, MemberMapEntry] = Field(default_factory=dict)
     framework_plugins: list[FrameworkPlugin] = Field(default_factory=list)
     drop_imports: set[str] = Field(default_factory=set)
     drop_annotations: set[str] = Field(default_factory=set)

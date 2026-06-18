@@ -61,7 +61,7 @@ from j2py.translate.diagnostics import (
     TranslationDiagnostics,
 )
 from j2py.translate.framework_dispatch import resolve_class, resolve_field
-from j2py.translate.member_resolution import JavaMemberBinding
+from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
 from j2py.translate.rules.naming import translate_class_name
@@ -198,6 +198,7 @@ def translate_class(
     static_instance_instance_zero_arg = set(own_instance_zero) | set(inherited_instance_zero)
     static_instance_static_zero_arg = set(own_static_zero) | set(inherited_static_zero)
     method_return_types = class_method_return_types(members, cfg)
+    overload_call_targets = _overload_call_targets_for_members(members, cfg)
     enclosing_dispatch = dict(env.enclosing_static_dispatch)
     enclosing_dispatch.update(
         inherited_static_dispatch(
@@ -401,6 +402,8 @@ def translate_class(
             static_field_aliases=env.static_field_aliases,
             static_method_imports=env.static_method_imports,
             static_member_bindings=env.static_member_bindings,
+            wildcard_static_imports=env.wildcard_static_imports,
+            overload_call_targets=overload_call_targets,
             name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
@@ -646,3 +649,18 @@ def translate_overloaded_members(
         static_instance_static_zero_arg_names=static_instance_static_zero_arg_names,
         python_name_override=python_name_override,
     )
+
+
+def _overload_call_targets_for_members(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, list[JavaOverloadCallTarget]]:
+    from j2py.translate.overloads import overload_call_targets_for_group
+
+    targets: dict[str, list[JavaOverloadCallTarget]] = {}
+    for group in member_groups(members):
+        if len(group) < 2:
+            continue
+        for target in overload_call_targets_for_group(group, cfg):
+            targets.setdefault(target.member, []).append(target)
+    return targets

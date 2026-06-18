@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from j2py.config.loader import TranslationConfig
 from j2py.translate.overload_signatures import _erase_py_type
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.types import _split_type_params, translate_type
 
+if TYPE_CHECKING:
+    from j2py.parse.java_ast import JavaNode
+    from j2py.translate.diagnostics import TranslationContext
+
 JavaMemberKind = Literal["method", "field", "unknown"]
 JavaMemberSource = Literal[
+    "config",
     "explicit_static_import",
     "wildcard_static_import",
     "qualified_receiver",
@@ -44,6 +49,19 @@ class JavaMemberBinding:
     python_owner: str | None
     python_member: str
     intrinsic: str | None = None
+    return_type: str | None = None
+    return_shape: str | None = None
+
+
+@dataclass(frozen=True)
+class JavaOverloadCallTarget:
+    """Body-backed overload branch available for source-proven call-site binding."""
+
+    member: str
+    python_member: str
+    java_shape_signature: tuple[str, ...]
+    is_static: bool
+    helper_name: str
 
 
 @dataclass(frozen=True)
@@ -65,6 +83,21 @@ def static_import_binding(
     intrinsic: str | None = None,
 ) -> JavaMemberBinding:
     """Bind an explicit static import to owner/member plus Python fallback names."""
+    configured = configured_member_binding(imported_name, cfg, source="explicit_static_import")
+    if configured is not None:
+        if kind != "unknown" and configured.kind == "unknown":
+            return JavaMemberBinding(
+                owner=configured.owner,
+                member=configured.member,
+                kind=kind,
+                source=configured.source,
+                python_owner=configured.python_owner,
+                python_member=configured.python_member,
+                intrinsic=intrinsic or configured.intrinsic,
+                return_type=configured.return_type,
+                return_shape=configured.return_shape,
+            )
+        return configured
     owner, _, member = imported_name.rpartition(".")
     python_owner = translate_class_name(owner.rsplit(".", 1)[-1]) if owner else None
     python_member = (
@@ -83,6 +116,226 @@ def static_import_binding(
     )
 
 
+def configured_member_binding(
+    qualified_member: str,
+    cfg: TranslationConfig,
+    *,
+    source: JavaMemberSource = "config",
+) -> JavaMemberBinding | None:
+    """Return a configured project member binding if one exists."""
+    entry = cfg.member_map.get(qualified_member)
+    if entry is None:
+        return None
+    owner, _, member = qualified_member.rpartition(".")
+    python_owner = entry.python_owner
+    if python_owner is None and owner:
+        python_owner = translate_class_name(owner.rsplit(".", 1)[-1])
+    python_member = entry.python_member
+    if python_member is None:
+        python_member = (
+            translate_field_name(member, snake_case=cfg.snake_case_fields)
+            if entry.kind == "field"
+            else _translate_member_method_name(member, cfg)
+        )
+    return JavaMemberBinding(
+        owner=owner,
+        member=member,
+        kind=entry.kind,
+        source=source,
+        python_owner=python_owner,
+        python_member=python_member,
+        intrinsic=entry.intrinsic or None,
+        return_type=entry.return_type,
+        return_shape=entry.return_shape,
+    )
+
+
+def configured_member_binding_for_receiver(
+    receiver: str,
+    member: str,
+    ctx: TranslationContext,
+    *,
+    source: JavaMemberSource = "config",
+) -> JavaMemberBinding | None:
+    """Resolve configured member facts for a possibly simple receiver name."""
+    for qualified_member in _qualified_member_candidates(receiver, member, ctx):
+        binding = configured_member_binding(qualified_member, ctx.cfg, source=source)
+        if binding is not None:
+            return binding
+    return None
+
+
+def _qualified_member_candidates(
+    receiver: str,
+    member: str,
+    ctx: TranslationContext,
+) -> tuple[str, ...]:
+    candidates: list[str] = [f"{receiver}.{member}"]
+    type_binding = ctx.name_resolver.bindings.imported_types.get(receiver)
+    if type_binding is not None and type_binding.import_line:
+        imported_owner = _owner_from_python_import_line(type_binding.import_line)
+        if imported_owner:
+            candidates.append(f"{imported_owner}.{member}")
+    if ctx.name_resolver.bindings.package_name and "." not in receiver:
+        candidates.append(f"{ctx.name_resolver.bindings.package_name}.{receiver}.{member}")
+    return tuple(dict.fromkeys(candidates))
+
+
+def _owner_from_python_import_line(import_line: str) -> str | None:
+    match = re.match(r"from\s+([\w.]+)\s+import\s+\w+\s*$", import_line.strip())
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def wildcard_static_import_binding(
+    owner: str,
+    member: str,
+    ctx: TranslationContext,
+    *,
+    kind: JavaMemberKind = "unknown",
+) -> JavaMemberBinding | None:
+    """Resolve a wildcard static import using local/configured member facts only."""
+    configured = configured_member_binding(
+        f"{owner}.{member}",
+        ctx.cfg,
+        source="wildcard_static_import",
+    )
+    if configured is not None:
+        if kind != "unknown" and configured.kind == "unknown":
+            return JavaMemberBinding(
+                owner=configured.owner,
+                member=configured.member,
+                kind=kind,
+                source=configured.source,
+                python_owner=configured.python_owner,
+                python_member=configured.python_member,
+                intrinsic=configured.intrinsic,
+                return_type=configured.return_type,
+                return_shape=configured.return_shape,
+            )
+        return configured
+
+    simple_owner = owner.rsplit(".", 1)[-1]
+    py_owner = translate_class_name(simple_owner)
+    py_member = (
+        translate_field_name(member, snake_case=ctx.cfg.snake_case_fields)
+        if kind == "field"
+        else _translate_member_method_name(member, ctx.cfg)
+    )
+    local_static_methods = ctx.declared_type_method_return_types.get(py_owner) or {}
+    local_static_fields = ctx.declared_type_java_fields.get(py_owner) or {}
+    if kind in {"method", "unknown"} and member in local_static_methods:
+        return JavaMemberBinding(
+            owner=owner,
+            member=member,
+            kind="method",
+            source="wildcard_static_import",
+            python_owner=py_owner,
+            python_member=py_member,
+            return_type=local_static_methods.get(member),
+        )
+    if kind in {"field", "unknown"} and member in local_static_fields:
+        return JavaMemberBinding(
+            owner=owner,
+            member=member,
+            kind="field",
+            source="wildcard_static_import",
+            python_owner=py_owner,
+            python_member=py_member,
+            return_type=local_static_fields.get(member),
+        )
+    return None
+
+
+def resolve_unqualified_member(
+    member: str,
+    ctx: TranslationContext,
+    *,
+    kind: JavaMemberKind = "method",
+) -> JavaMemberBinding | None:
+    """Resolve a receiverless member reference from shared class/static bindings."""
+    py_method = _translate_member_method_name(member, ctx.cfg)
+    py_field = translate_field_name(member, snake_case=ctx.cfg.snake_case_fields)
+    if kind in {"method", "unknown"}:
+        static_py_method = ctx.static_instance_static_aliases.get(py_method, py_method)
+        if static_py_method in ctx.class_static_methods and ctx.containing_class_name:
+            return JavaMemberBinding(
+                owner=ctx.containing_class_name,
+                member=member,
+                kind="method",
+                source="same_class",
+                python_owner=ctx.containing_class_name,
+                python_member=static_py_method,
+                return_type=ctx.class_method_return_types.get(member),
+            )
+        if member in ctx.self_dispatch_methods and ctx.in_instance_method:
+            return JavaMemberBinding(
+                owner=ctx.containing_class_name or "",
+                member=member,
+                kind="method",
+                source="same_class",
+                python_owner="self",
+                python_member=py_method,
+                return_type=ctx.class_method_return_types.get(member),
+            )
+        if ctx.in_instance_method and py_method in ctx.class_methods:
+            return JavaMemberBinding(
+                owner=ctx.containing_class_name or "",
+                member=member,
+                kind="method",
+                source="same_class",
+                python_owner="self",
+                python_member=py_method,
+                return_type=ctx.class_method_return_types.get(member),
+            )
+        inherited_owner = ctx.enclosing_static_dispatch.get(py_method)
+        if inherited_owner is not None:
+            return JavaMemberBinding(
+                owner=inherited_owner,
+                member=member,
+                kind="method",
+                source="inherited",
+                python_owner=inherited_owner,
+                python_member=static_py_method,
+            )
+    if kind in {"field", "unknown"}:
+        if member in ctx.class_fields and ctx.in_instance_method:
+            return JavaMemberBinding(
+                owner=ctx.containing_class_name or "",
+                member=member,
+                kind="field",
+                source="same_class",
+                python_owner="self",
+                python_member=py_field,
+                return_type=ctx.class_field_java_types.get(member),
+            )
+        if member in ctx.class_field_java_types and ctx.containing_class_name:
+            return JavaMemberBinding(
+                owner=ctx.containing_class_name,
+                member=member,
+                kind="field",
+                source="same_class",
+                python_owner=ctx.containing_class_name,
+                python_member=py_field,
+                return_type=ctx.class_field_java_types.get(member),
+            )
+    return None
+
+
+def java_type_shape_of_value(
+    node: JavaNode,
+    ctx: TranslationContext,
+) -> JavaTypeShape | None:
+    """Return Java type-shape facts for a value expression when locally knowable."""
+    from j2py.translate.java_types import java_expression_type
+
+    java_type = java_expression_type(node, ctx)
+    if java_type is None:
+        return None
+    return java_type_shape(java_type, ctx.cfg)
+
+
 def static_import_field_fallback(binding: JavaMemberBinding, cfg: TranslationConfig) -> str:
     """Return a reviewable Python field reference for a static import binding."""
     if binding.python_owner is None:
@@ -98,8 +351,8 @@ def static_import_method_fallback(
 ) -> str:
     """Return a reviewable Python method call for a static import binding."""
     if binding.python_owner is None:
-        return f"{_translate_member_method_name(binding.member, cfg)}({', '.join(args)})"
-    py_method = _translate_member_method_name(binding.member, cfg)
+        return f"{binding.python_member}({', '.join(args)})"
+    py_method = binding.python_member
     return f"{binding.python_owner}.{py_method}({', '.join(args)})"
 
 

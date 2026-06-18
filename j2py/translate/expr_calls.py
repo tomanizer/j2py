@@ -14,6 +14,12 @@ from j2py.translate.expr_static_calls import (
     translate_static_method_invocation,
 )
 from j2py.translate.expressions import translate_expression
+from j2py.translate.member_resolution import (
+    java_type_shape_signature,
+    resolve_unqualified_member,
+    static_import_method_fallback,
+    wildcard_static_import_binding,
+)
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_attribute_method_name,
@@ -70,6 +76,10 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return static_call
 
     receiver = _receiver_expression(parts, ctx)
+    overload_call = _translate_source_proven_overload_call(node, parts, receiver, ctx)
+    if overload_call is not None:
+        return overload_call
+
     special_call = _translate_receiver_special_method_invocation(node, parts, receiver, ctx)
     if special_call is not None:
         return special_call
@@ -123,6 +133,34 @@ def _translate_static_or_platform_method_invocation(
         )
         if static_call is not None:
             return static_call
+
+    if not parts.receiver_nodes and ctx.wildcard_static_imports:
+        for owner in ctx.wildcard_static_imports.values():
+            binding = wildcard_static_import_binding(owner, parts.method_name, ctx, kind="method")
+            if binding is None:
+                continue
+            static_call = translate_static_imported_method(
+                node,
+                imported_name=f"{binding.owner}.{binding.member}",
+                binding=binding,
+                arg_nodes=parts.arg_nodes,
+                args=parts.arg_expressions,
+                ctx=ctx,
+            )
+            if static_call is not None:
+                return static_call
+        ctx.diagnostics.warn(
+            node,
+            reason=(
+                f"wildcard static import could not resolve member {parts.method_name}; "
+                "verify unqualified call"
+            ),
+            category="wildcard_static_import_unresolved",
+            facts={
+                "member": parts.method_name,
+                "owners": ",".join(sorted(ctx.wildcard_static_imports.values())),
+            },
+        )
 
     static_call = translate_static_method_invocation(
         node,
@@ -184,6 +222,93 @@ def _translate_receiver_special_method_invocation(
     return None
 
 
+def _translate_source_proven_overload_call(
+    node: JavaNode,
+    parts: _MethodInvocationParts,
+    receiver: str,
+    ctx: TranslationContext,
+) -> str | None:
+    targets = ctx.overload_call_targets.get(parts.method_name)
+    if not targets:
+        return None
+
+    from j2py.translate.java_types import java_expression_type
+
+    java_types = [java_expression_type(arg, ctx) for arg in parts.arg_nodes]
+    if any(java_type is None for java_type in java_types):
+        ctx.diagnostics.warn(
+            node,
+            reason=f"overload call {parts.method_name} lacks source Java argument types",
+            category="overload_erasure_collision",
+            facts={"method": parts.method_name},
+        )
+        return None
+    signature = java_type_shape_signature(
+        [java_type or "Object" for java_type in java_types],
+        ctx.cfg,
+    )
+    matches = [target for target in targets if target.java_shape_signature == signature]
+    if len(matches) != 1:
+        ctx.diagnostics.warn(
+            node,
+            reason=f"overload call {parts.method_name} did not match one body-backed branch",
+            category="overload_erasure_collision",
+            facts={
+                "method": parts.method_name,
+                "java_shapes": "|".join(signature),
+            },
+        )
+        return None
+
+    target = matches[0]
+    if target.is_static:
+        owner = receiver or ctx.containing_class_name
+        if owner is None:
+            return None
+        if receiver and not _receiver_is_current_overload_owner(parts, receiver, ctx):
+            return None
+        return f"{owner}.{target.helper_name}({parts.args})"
+    if receiver:
+        if not _receiver_is_current_overload_owner(parts, receiver, ctx):
+            return None
+        return f"{receiver}.{target.helper_name}({parts.args})"
+    if ctx.in_instance_method:
+        return f"self.{target.helper_name}({parts.args})"
+    return None
+
+
+def _receiver_is_current_overload_owner(
+    parts: _MethodInvocationParts,
+    receiver: str,
+    ctx: TranslationContext,
+) -> bool:
+    """Whether a receiver can use helpers emitted on the current class."""
+    if not ctx.containing_class_name:
+        return False
+    if receiver in {"self", ctx.containing_class_name}:
+        return True
+    if parts.raw_receiver in {"this", ctx.containing_class_name}:
+        return True
+    if not parts.receiver_nodes:
+        return True
+
+    from j2py.translate.java_types import java_expression_type
+
+    receiver_type = java_expression_type(parts.receiver_nodes[0], ctx)
+    if receiver_type is None:
+        ctx.diagnostics.warn(
+            parts.receiver_nodes[0],
+            reason=(
+                f"overload call {parts.method_name} receiver type is unknown; "
+                "leaving normal receiver dispatch"
+            ),
+            category="missing_receiver_type",
+            facts={"method": parts.method_name, "receiver": parts.raw_receiver or receiver},
+        )
+        return False
+    return type_simple_name(receiver_type) == ctx.containing_class_name
+
+
 def _translate_generic_method_invocation(
     parts: _MethodInvocationParts,
     receiver: str,
@@ -241,6 +366,17 @@ def _translate_unqualified_dispatch(
         and _route_static_instance_collision_to_static(py_method, parts.args, ctx)
     ):
         return f"{ctx.static_dispatch_class_name}.{static_py_method}({parts.args})"
+
+    binding = resolve_unqualified_member(parts.method_name, ctx, kind="method")
+    if binding is not None:
+        if (
+            binding.python_owner == ctx.containing_class_name
+            and not _route_static_instance_collision_to_static(py_method, parts.args, ctx)
+        ):
+            return None
+        if binding.python_owner:
+            return f"{binding.python_owner}.{binding.python_member}({parts.args})"
+        return static_import_method_fallback(binding, parts.arg_expressions, ctx.cfg)
 
     return None
 

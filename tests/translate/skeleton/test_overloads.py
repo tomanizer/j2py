@@ -268,7 +268,215 @@ def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
         and "Java numeric widths erase to one Python runtime int" in reason
         for reason in reasons
     )
+    assert {item.category for item in result.diagnostics.unhandled} == {
+        "unsafe_numeric_width_boundary"
+    }
+    assert all(item.facts["method"] == "width" for item in result.diagnostics.unhandled)
     assert_valid_python(python_source)
+
+
+def test_declared_numeric_width_call_sites_use_body_backed_overload_helpers() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+
+            public static int runLong() {
+                long value = 1L;
+                return pick(value);
+            }
+
+            public static int runInt() {
+                int value = 1;
+                return pick(value);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage < 1.0
+    assert "def _j2py_overload_pick_1(value: int) -> int:" in result.source
+    assert "def _j2py_overload_pick_2(value: int) -> int:" in result.source
+    assert "return Widths._j2py_overload_pick_2(value)" in result.source
+    assert "return Widths._j2py_overload_pick_1(value)" in result.source
+    assert "TODO(j2py): overloaded method pick requires manual dispatch" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_call_site_uses_self_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runLong() {
+                long value = 1L;
+                return pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return self._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_receiver_call_uses_receiver_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runLong() {
+                long value = 1L;
+                return this.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return self._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_same_class_receiver_uses_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runOn(Widths other) {
+                long value = 1L;
+                return other.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return other._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_other_receiver_stays_normal_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Other {
+            public int pick(long value) { return 2; }
+        }
+
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runOn(Other other) {
+                long value = 1L;
+                return other.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return other.pick(value)" in result.source
+    assert "return other._j2py_overload_pick_2(value)" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_casted_numeric_width_call_site_uses_cast_shape_only_for_expression() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+
+            public static int runCast(int value) {
+                return pick((long) value);
+            }
+        }
+        """,
+    )
+
+    assert "return Widths._j2py_overload_pick_2(int(value))  # cast: (long)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_numeric_width_call_site_with_no_matching_shape_stays_manual() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+
+            public static int runString() {
+                return pick("x");
+            }
+        }
+        """,
+    )
+
+    assert 'return Widths.pick("x")' in result.source
+    assert any(
+        warning.category == "overload_erasure_collision"
+        and warning.facts["method"] == "pick"
+        and "string:String->str" in warning.facts["java_shapes"]
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_untyped_numeric_width_call_site_stays_manual_with_diagnostic() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+
+            public static int runUnknown(int value) {
+                return pick(value + 1);
+            }
+        }
+        """,
+    )
+
+    assert "return Widths.pick(value + 1)" in result.source
+    assert any(
+        warning.category == "overload_erasure_collision" and warning.facts["method"] == "pick"
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
+
+
+def test_generic_erasure_collision_without_argument_type_facts_stays_manual() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        public class GenericCollision {
+            public Object first(List<String> values) { return values.get(0); }
+            public Object first(List<Integer> values) { return values.get(0) + 1; }
+
+            Object source() {
+                return null;
+            }
+
+            Object run() {
+                return first(source());
+            }
+        }
+        """,
+    )
+
+    assert "return self.first(self.source())" in result.source
+    assert "_j2py_overload_first_1" in result.source
+    assert "_j2py_overload_first_2" in result.source
+    assert any(
+        warning.category == "overload_erasure_collision" and warning.facts["method"] == "first"
+        for warning in result.diagnostics.warnings
+    )
+    assert_valid_python(result.source)
 
 
 def test_static_forwarding_overload_merges_defaults() -> None:

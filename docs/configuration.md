@@ -99,6 +99,12 @@ MyType = "mymodule.MyType"
 [tool.j2py.annotation_map.RestController]
 python_decorator = "rest_controller"
 import = "from myapp.spring_shim import rest_controller"
+
+[tool.j2py.member_map."com.example.Factory.of"]
+kind = "method"
+python_owner = "Factory"
+python_member = "of"
+return_shape = "object:Thing->Thing"
 ```
 
 ## Python
@@ -156,6 +162,7 @@ Mapping options:
 - `import_map`: map Java imports to Python import statements
 - `annotation_map`: map Java annotation simple names or fully qualified names to explicit
   Python lowering behavior
+- `member_map`: map fully qualified Java members to explicit member-binding facts
 - `framework_plugins`: trusted Python plugin objects for programmatic framework lowering
 
 Each `annotation_map` entry is strict. Supported entry fields:
@@ -175,6 +182,23 @@ Each `annotation_map` entry is strict. Supported entry fields:
 `annotation_map` is opt-in project policy. j2py does not ship a default Spring, FastAPI,
 JPA, or DI mapping. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus
 optional line comments.
+
+Each `member_map` key is a fully qualified Java member, such as
+`com.example.Util.max` or `com.example.Factory.of`. Supported entry fields:
+
+- `kind`: `method`, `field`, or `unknown`; defaults to `unknown`.
+- `python_owner`: Python owner/class name to emit for qualified fallbacks.
+- `python_member`: Python method or field name to emit.
+- `source`: free-form source label for diagnostics; defaults to `config`.
+- `return_type`: Java return type to feed local type inference.
+- `return_shape`: compact Java type-shape signature, for example `object:Thing->Thing`.
+- `intrinsic`: optional intrinsic name for future plugin/built-in lowering.
+
+`member_map` feeds the shared member-binding layer used by explicit static imports,
+wildcard static imports when the owner/member fact is configured, qualified static calls,
+and return-type inference. It is intentionally opt-in: j2py core does not ship default
+Spring, JPA, servlet, or other framework member semantics. Put project/framework facts in
+config or a trusted plugin instead of hardcoding them in core.
 
 For simple worked Spring mappings, see the [Spring -> FastAPI/SQLAlchemy mapping
 cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as both

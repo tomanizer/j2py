@@ -80,6 +80,7 @@ def translate_skeleton_with_diagnostics(
         static_field_aliases,
         static_method_imports,
         static_member_bindings,
+        wildcard_static_imports,
         static_import_todos,
     ) = _static_import_info(parsed, diagnostics, cfg)
     file_name_bindings = build_file_name_bindings(
@@ -110,6 +111,7 @@ def translate_skeleton_with_diagnostics(
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
         static_member_bindings=static_member_bindings,
+        wildcard_static_imports=wildcard_static_imports,
         name_resolver=name_resolver,
         file_class_static_methods=file_class_static_methods,
         file_class_static_instance_aliases=file_class_static_instance_aliases,
@@ -248,10 +250,17 @@ def _static_import_info(
     parsed: ParsedFile,
     diagnostics: TranslationDiagnostics,
     cfg: TranslationConfig,
-) -> tuple[dict[str, str], dict[str, str], dict[str, JavaMemberBinding], list[str]]:
+) -> tuple[
+    dict[str, str],
+    dict[str, str],
+    dict[str, JavaMemberBinding],
+    dict[str, str],
+    list[str],
+]:
     field_aliases: dict[str, str] = {}
     method_imports: dict[str, str] = {}
     member_bindings: dict[str, JavaMemberBinding] = {}
+    wildcard_imports: dict[str, str] = {}
     todos: list[str] = []
     for java_import in parsed.root.find_all("import_declaration"):
         if not is_static_import(java_import):
@@ -266,13 +275,15 @@ def _static_import_info(
             todos.append("# TODO(j2py): malformed static import declaration")
             continue
         member = imported_name.rsplit(".", 1)[-1]
-        if "*" in member:
-            diagnostics.record(
+        if ".*" in java_import.text:
+            owner = imported_name
+            wildcard_imports[owner.rsplit(".", 1)[-1]] = owner
+            diagnostics.warn(
                 java_import,
-                supported=False,
-                reason=f"unsupported wildcard static import {imported_name}",
+                reason=f"wildcard static import {owner}.* requires local/configured member facts",
+                category="wildcard_static_import_unresolved",
+                facts={"owner": owner},
             )
-            todos.append(f"# TODO(j2py): wildcard static import {imported_name}")
             continue
         field_alias = known_static_field_alias(imported_name)
         if field_alias is not None:
@@ -306,6 +317,24 @@ def _static_import_info(
             )
             continue
         binding = static_import_binding(imported_name, cfg, kind="unknown")
+        if binding.kind == "field":
+            field_aliases[member] = static_import_field_fallback(binding, cfg)
+            member_bindings[member] = binding
+            diagnostics.record(
+                java_import,
+                supported=True,
+                reason="bound configured static field import",
+            )
+            continue
+        if binding.kind == "method":
+            method_imports[member] = f"{binding.owner}.{binding.member}"
+            member_bindings[member] = binding
+            diagnostics.record(
+                java_import,
+                supported=True,
+                reason="bound configured static method import",
+            )
+            continue
         diagnostics.record(
             java_import,
             supported=True,
@@ -322,4 +351,4 @@ def _static_import_info(
         field_aliases[member] = static_import_field_fallback(binding, cfg)
         method_imports[member] = imported_name
         member_bindings[member] = binding
-    return field_aliases, method_imports, member_bindings, todos
+    return field_aliases, method_imports, member_bindings, wildcard_imports, todos
