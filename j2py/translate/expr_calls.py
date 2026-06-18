@@ -155,6 +155,9 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
     if method_name == "hashCode" and receiver and not args:
         return f"hash({receiver})"
 
+    if method_name == "charAt" and receiver and args and len(arg_nodes) == 1:
+        return f"{receiver}[{args}]"
+
     if method_name == "startsWith" and receiver and args:
         return f"{receiver}.startswith({args})"
 

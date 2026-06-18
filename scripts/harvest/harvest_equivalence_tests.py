@@ -438,7 +438,25 @@ def _assertion_args(invocation: JavaNode) -> list[JavaNode]:
 
 
 def _drop_optional_message_arg(args: list[JavaNode], *, expected_arg_count: int) -> list[JavaNode]:
-    if len(args) == expected_arg_count + 1 and args[0].type == "string_literal":
+    """Strip a JUnit failure-message argument so the remaining args are the oracle.
+
+    JUnit 4 places the message first (``assertEquals(message, expected, actual)``);
+    JUnit 5 places it last (``assertEquals(expected, actual, message)``). Only a
+    ``string_literal`` is treated as a message — a trailing numeric ``delta`` arg is
+    left in place so the caller skips it rather than harvesting an exact-equality
+    oracle from an approximate comparison. When both ends are string literals the
+    position is ambiguous, so the args are returned unchanged and the assertion is
+    skipped on arity rather than guessed.
+    """
+    if len(args) != expected_arg_count + 1:
+        return args
+    leading_message = args[0].type == "string_literal"
+    trailing_message = args[-1].type == "string_literal"
+    if leading_message and trailing_message:
+        return args
+    if trailing_message:
+        return args[:-1]
+    if leading_message:
         return args[1:]
     return args
 
