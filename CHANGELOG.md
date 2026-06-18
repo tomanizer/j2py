@@ -5,7 +5,18 @@ All notable changes to j2py will be documented in this file.
 The format follows the repository commit types: `feat`, `fix`, `refactor`, `test`,
 `docs`, `chore`, and `adr`.
 
-## Unreleased
+## 0.6.0b1 - 2026-06-18
+
+First 0.6 beta. The headline is a step-change in proven correctness: the equivalence-verified
+surface climbs from 28.9% (at 0.5.0b3) to **68% (66/97 public methods)**, driven by a JDK
+call-lowering wave and comprehensive `NumberUtils` min/max/isNumber coverage. User-facing
+documentation (install, getting started, CLI reference, Python API, output review) ships for
+the first time. The rule layer gains support for static initializer blocks, annotation
+constants, anonymous class initializers, local-class outer-self capture, labeled statements,
+and shape-aware constructor overload merging. All remaining complexity hotspots from the prior
+audit are resolved: `expr_ops`, `cli/main`, and `doctor` are each split into focused modules.
+Known limitations from 0.5.0b1 (BigDecimal/null-return methods, erased-signature collisions)
+remain open; see **Known limitations** under 0.5.0b1.
 
 ### Added
 - `j2py doctor` adds a rule-only project assessment command with JSON and static HTML
@@ -47,6 +58,15 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - Agent instructions now require syncing from `origin/main` before creating branches or
   worktrees, and corpus/harvest examples use relative paths so worktree agents can share
   the main checkout's state without machine-specific paths (#451).
+- Static-imported method bindings are now threaded into the call-lowering path so calls
+  to statically-imported methods resolve with the correct owner class and member name
+  instead of producing unresolved bare calls (#486).
+- Constructor overload dispatch is now shape-aware: same-parameter-shape constructor
+  groups merge into a single `__init__`, super-constructor forwarding args are preserved,
+  and cast-dependent overload bodies are kept intact rather than collapsed.
+- Literal-oracle equivalence tests now cover all 24 `NumberUtils.min`/`max` overloads
+  (six numeric types × 3-arg and varargs) and `NumberUtils.isNumber`, raising the
+  equivalence-verified surface from 41/97 to **66/97 (68%)** (#495).
 
 ### Fixed
 - `BitSet` and `*BitSet` single-argument `get(index)` calls now stay method calls instead
@@ -60,7 +80,7 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   declarations, emit local `Protocol` placeholders for simple custom bounds, and import
   required typing helpers so overload stubs validate cleanly (#416).
 - Ternary translation now selects condition/consequence/alternative from tree-sitter
-  fields rather than raw child positions, so comments and trivia near branches no longer
+  fields rather than raw child positions, so comments and trivia near branches do not
   create malformed ternary diagnostics or incorrect branch typing (#421).
 - JSpecify-style annotated varargs ellipses such as
   `@Nullable Object @Nullable ... args` parse successfully by normalizing the rejected
@@ -86,7 +106,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   now lowers to `s.find(sub[, from])` (guarded against static utility-class calls).
   Unlocks `NumberUtils.isCreatable` and `NumberUtils.isDigits`. Adds
   `StringUtils.length`, `strip(String,String)`, `stripEnd`, `stripStart` to the
-  verified surface. Combined gain: 35/97 → 41/97.
+  verified surface. Combined gain: 35/97 → 41/97 (#474).
+- CLI subcommands now normalize path arguments to absolute paths before translation,
+  giving a clear error on missing or mistyped input paths instead of a bare
+  `FileNotFoundError` traceback (#496).
 
 ## 0.5.0b3 - 2026-06-17
 
