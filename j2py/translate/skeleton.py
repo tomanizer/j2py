@@ -34,7 +34,7 @@ from j2py.translate.name_resolution import (
     is_static_import,
     java_import_name,
 )
-from j2py.translate.rules.imports import java_import_policy
+from j2py.translate.rules.imports import is_jdbc_boundary_import, java_import_policy
 from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
@@ -252,6 +252,22 @@ def _import_lines(
         policy = java_import_policy(imported_name, cfg)
         if policy is not None:
             imports.update(policy.import_lines)
+            if policy.source == "platform_placeholder" and is_jdbc_boundary_import(
+                imported_name,
+            ):
+                imports.add(
+                    "# TODO(j2py): JDBC boundary uses placeholders; configure "
+                    "import_map/type_map or migrate through SQLAlchemy/project DB shim."
+                )
+                diagnostics.warn(
+                    java_import,
+                    reason=(
+                        "JDBC boundary import preserved as placeholder; configure "
+                        "project import_map/type_map or migrate through SQLAlchemy/project DB shim"
+                    ),
+                    category="jdbc-boundary",
+                    facts={"java_import": imported_name},
+                )
 
     imports.update(diagnostics.imports.render())
     imports.update(static_import_todos or [])

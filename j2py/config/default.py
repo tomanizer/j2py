@@ -85,6 +85,7 @@ EXCEPTION_MAP: dict[str, str] = {
     "ArithmeticException": "ArithmeticError",
     "UnsupportedOperationException": "NotImplementedError",
     "IOException": "OSError",
+    "SQLException": "OSError",
     "FileNotFoundException": "FileNotFoundError",
     "InterruptedException": "InterruptedError",
     "NumberFormatException": "ValueError",

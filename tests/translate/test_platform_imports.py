@@ -47,6 +47,24 @@ from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_wit
             ("from typing import Any as NativeDetector",),
             "external_placeholder",
         ),
+        (
+            "java.sql.Connection",
+            "Connection",
+            ("from typing import Any as Connection",),
+            "platform_placeholder",
+        ),
+        (
+            "java.sql.SQLException",
+            "OSError",
+            (),
+            "platform_placeholder",
+        ),
+        (
+            "javax.sql.DataSource",
+            "DataSource",
+            ("from typing import Any as DataSource",),
+            "platform_placeholder",
+        ),
     ],
 )
 def test_java_import_policy_classifies_evidence_types(
@@ -96,6 +114,91 @@ def test_platform_import_bindings_do_not_request_java_module_imports() -> None:
         python_name="ProjectType",
         import_line="from com.example.ProjectType import ProjectType",
     )
+
+
+def test_raw_jdbc_fixture_preserves_boundaries_without_java_imports() -> None:
+    parsed = parse_file(FIXTURES / "java" / "RawJdbcBoundary.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert "from java.sql" not in result.source
+    assert "from javax.sql" not in result.source
+    assert "from typing import Any as Connection" in result.source
+    assert "from typing import Any as DataSource" in result.source
+    assert "from typing import Any as DriverManager" in result.source
+    assert "from typing import Any as PreparedStatement" in result.source
+    assert "from typing import Any as ResultSet" in result.source
+    assert (
+        "# TODO(j2py): JDBC boundary uses placeholders; configure "
+        "import_map/type_map or migrate through SQLAlchemy/project DB shim." in result.source
+    )
+    assert "def load_name(self, connection: Connection," in result.source
+    assert "-> str:" in result.source
+    assert "def open_(self, url: str) -> Connection:" in result.source
+    assert "return DriverManager.get_connection(url)" in result.source
+    assert 'raise OSError("missing owner")' in result.source
+    assert any(
+        warning.category == "jdbc-boundary"
+        and "SQLAlchemy" in warning.reason
+        and warning.facts.get("java_import") == "java.sql.Connection"
+        for warning in result.diagnostics.warnings
+    )
+
+
+def test_configured_jdbc_import_map_suppresses_boundary_todo() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "import_map": {
+                **CFG.import_map,
+                "java.sql.Connection": "from project.db import Connection",
+            },
+        },
+    )
+    result = translate_source_with_diagnostics(
+        """
+        import java.sql.Connection;
+
+        public class ConfiguredJdbcBoundary {
+            public Connection connection() {
+                return null;
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    ast.parse(result.source)
+    assert "from project.db import Connection" in result.source
+    assert "# TODO(j2py): JDBC boundary uses placeholders;" not in result.source
+    assert not [
+        warning for warning in result.diagnostics.warnings if warning.category == "jdbc-boundary"
+    ]
+
+
+def test_sql_exception_maps_to_oserror_in_catch_and_throw() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.sql.SQLException;
+
+        public class SqlExceptionBoundary {
+            public void wrap() {
+                try {
+                    throw new SQLException("bad");
+                }
+                catch (SQLException ex) {
+                    throw new SQLException("wrapped", ex);
+                }
+            }
+        }
+        """,
+    )
+
+    ast.parse(result.source)
+    assert "from java.sql" not in result.source
+    assert "# TODO(j2py): JDBC boundary uses placeholders;" in result.source
+    assert 'raise OSError("bad")' in result.source
+    assert "except OSError as ex:" in result.source
+    assert 'raise OSError("wrapped") from ex' in result.source
 
 
 def test_implicit_java_lang_type_does_not_become_same_package_import() -> None:

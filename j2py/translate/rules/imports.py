@@ -69,6 +69,9 @@ PLATFORM_PLACEHOLDER_TYPES: frozenset[str] = frozenset(
 )
 
 
+JDBC_BOUNDARY_PREFIXES: tuple[str, ...] = ("java.sql.", "javax.sql.")
+
+
 PLACEHOLDER_IMPORTS: dict[str, str] = {
     "java.util.Comparator": "from j2py_runtime import Comparator",
     "java.util.concurrent.Callable": "from collections.abc import Callable",
@@ -113,6 +116,20 @@ def java_import_policy(java_name: str, cfg: TranslationConfig) -> ImportPolicy |
     if implicit is not None and java_name == implicit.java_name:
         return implicit
 
+    if is_jdbc_boundary_import(java_name):
+        if raw_name == "SQLException":
+            return ImportPolicy(
+                java_name=java_name,
+                python_name="OSError",
+                source="platform_placeholder",
+            )
+        return ImportPolicy(
+            java_name=java_name,
+            python_name=py_name,
+            import_lines=(f"from typing import Any as {py_name}",),
+            source="platform_placeholder",
+        )
+
     if java_name in PLATFORM_PLACEHOLDER_TYPES:
         mapped = PLACEHOLDER_IMPORTS.get(java_name, "")
         return ImportPolicy(
@@ -132,6 +149,12 @@ def java_import_policy(java_name: str, cfg: TranslationConfig) -> ImportPolicy |
         )
 
     return None
+
+
+def is_jdbc_boundary_import(java_name: str) -> bool:
+    """Return whether a Java import names the project-specific JDBC boundary."""
+
+    return java_name.startswith(JDBC_BOUNDARY_PREFIXES)
 
 
 def implicit_java_lang_type_policy(raw_name: str) -> ImportPolicy | None:
