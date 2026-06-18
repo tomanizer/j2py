@@ -288,3 +288,30 @@ def test_to_short_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_short(None, 5) == 5
     assert NumberUtils.to_short("32768", 5) == 5
     assert NumberUtils.to_short("-32769", 5) == 5
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.isParsable(String)")
+def test_is_parsable_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_isParsable")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+    # from NumberUtilsTest.java lines 1006-1024
+    assert NumberUtils.is_parsable(None) is False
+    assert NumberUtils.is_parsable("") is False
+    assert NumberUtils.is_parsable("0xC1AB") is False
+    assert NumberUtils.is_parsable("65CBA2") is False
+    assert NumberUtils.is_parsable("pendro") is False
+    assert NumberUtils.is_parsable("64, 2") is False
+    assert NumberUtils.is_parsable("64.2.2") is False
+    assert NumberUtils.is_parsable("64.") is False  # trailing-dot guard
+    assert NumberUtils.is_parsable("64L") is False
+    assert NumberUtils.is_parsable("-") is False
+    assert NumberUtils.is_parsable("--2") is False
+    assert NumberUtils.is_parsable("64.2") is True
+    assert NumberUtils.is_parsable("64") is True
+    assert NumberUtils.is_parsable("018") is True
+    assert NumberUtils.is_parsable(".18") is True
+    assert NumberUtils.is_parsable("-65") is True
+    assert NumberUtils.is_parsable("-018") is True
+    assert NumberUtils.is_parsable("-018.2") is True
+    assert NumberUtils.is_parsable("-.236") is True

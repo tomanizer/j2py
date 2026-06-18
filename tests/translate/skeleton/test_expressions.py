@@ -1165,6 +1165,28 @@ def test_char_at_lowers_to_subscript() -> None:
     assert_valid_python(python_source)
 
 
+def test_char_at_compared_to_char_literal_is_str_comparison() -> None:
+    """charAt(i) == 'x' is char-vs-char: a str comparison, not wrapped in ord().
+
+    charAt lowers to a 1-char str, so the char literal must stay a str. Wrapping only
+    the literal in ord() would compare str to int and silently always be False.
+    """
+    python_source, coverage = translate_source(
+        """
+        public class Chars {
+            public boolean endsWithDot(String text) {
+                return text.charAt(text.length() - 1) == '.';
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'text[len(text) - 1] == "."' in python_source
+    assert "ord(" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_map_get_preserves_missing_key_semantics() -> None:
     python_source, coverage = translate_source(
         """
