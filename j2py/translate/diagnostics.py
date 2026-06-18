@@ -18,7 +18,7 @@ from j2py.translate.runtime import (
 )
 
 if TYPE_CHECKING:
-    from j2py.translate.member_resolution import JavaMemberBinding
+    from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 
 
 @dataclass(frozen=True)
@@ -222,6 +222,7 @@ class TranslationContext:
     static_method_imports: dict[str, str] = field(default_factory=dict)
     static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)
     wildcard_static_imports: dict[str, str] = field(default_factory=dict)
+    overload_call_targets: dict[str, list[JavaOverloadCallTarget]] = field(default_factory=dict)
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False

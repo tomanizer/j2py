@@ -7,17 +7,22 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import record_annotation_diagnostics
 from j2py.translate.class_members import (
     member_python_name,
+    raw_member_name,
     static_instance_collision_static_python_name,
     static_instance_collision_zero_arg_names,
 )
-from j2py.translate.class_methods import translate_method
+from j2py.translate.class_methods import parameter_infos, translate_method
 from j2py.translate.class_model import ParameterInfo, _modifiers
 from j2py.translate.diagnostics import (
     ClassTranslationState,
     TranslationContext,
     TranslationDiagnostics,
 )
-from j2py.translate.member_resolution import JavaMemberBinding
+from j2py.translate.member_resolution import (
+    JavaMemberBinding,
+    JavaOverloadCallTarget,
+    java_type_shape_signature,
+)
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.overload_classification import (
     OverloadClassification,
@@ -40,7 +45,41 @@ from j2py.translate.overload_signatures import (
     _static_instance_overload_stubs,
 )
 
-__all__ = ["translate_overloaded_members"]
+__all__ = ["overload_call_targets_for_group", "translate_overloaded_members"]
+
+
+def overload_call_targets_for_group(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+    *,
+    python_name_override: str | None = None,
+) -> list[JavaOverloadCallTarget]:
+    """Return body-backed helper targets for manual-dispatch overload groups."""
+    if not members or members[0].type != "method_declaration":
+        return []
+    classification = classify_overload_group(members, cfg)
+    if classification.kind is not OverloadKind.ERASURE_COLLISION_UNSAFE:
+        return []
+    name = python_name_override or member_python_name(members[0])
+    targets: list[JavaOverloadCallTarget] = []
+    for index, member in enumerate(members, 1):
+        targets.append(
+            JavaOverloadCallTarget(
+                member=raw_member_name(member),
+                python_member=name,
+                java_shape_signature=java_type_shape_signature(
+                    [param.java_type for param in parameter_infos(member, cfg)],
+                    cfg,
+                ),
+                is_static="static" in _modifiers(member),
+                helper_name=_overload_branch_helper_name(name, index),
+            ),
+        )
+    return targets
+
+
+def _overload_branch_helper_name(name: str, index: int) -> str:
+    return f"_j2py_overload_{name}_{index}"
 
 
 def _emit_static_instance_collision_split(
@@ -494,6 +533,37 @@ def translate_overloaded_members(
             facts=manual_facts,
         )
     lines = _overload_stubs(members, cfg, diagnostics)
+    branch_targets = overload_call_targets_for_group(
+        members,
+        cfg,
+        python_name_override=name,
+    )
+    if branch_targets:
+        lines.extend(
+            _manual_overload_branch_helpers(
+                members,
+                branch_targets,
+                cfg=cfg,
+                diagnostics=diagnostics,
+                containing_class_name=containing_class_name,
+                class_fields=class_fields,
+                class_field_types=field_types,
+                class_field_java_types=field_java_types,
+                declared_type_fields=nested_type_fields,
+                declared_type_java_fields=nested_type_java_fields,
+                class_methods=class_methods or set(),
+                class_static_methods=static_class_methods,
+                enclosing_static_dispatch=enclosing_dispatch,
+                class_method_return_types=method_return_types,
+                static_field_aliases=static_fields,
+                static_method_imports=static_methods,
+                static_member_bindings=static_member_map,
+                name_resolver=resolver,
+                class_state=class_state,
+                inner_class_names_requiring_outer=inner_capture_names,
+                nested_class_names=direct_nested_names,
+            ),
+        )
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"
     is_static = "static" in _modifiers(members[0])
     if is_static:
@@ -510,6 +580,70 @@ def translate_overloaded_members(
     )
     lines.append(f"        # {manual_reason}")
     lines.append('        raise NotImplementedError("j2py overload dispatch required")')
+    return lines
+
+
+def _manual_overload_branch_helpers(
+    members: list[JavaNode],
+    targets: list[JavaOverloadCallTarget],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding],
+    name_resolver: NameResolver,
+    class_state: ClassTranslationState | None,
+    inner_class_names_requiring_outer: set[str],
+    nested_class_names: set[str],
+) -> list[str]:
+    lines: list[str] = []
+    target_map = {targets[0].member: list(targets)}
+    for member, target in zip(members, targets, strict=True):
+        lines.append("")
+        ctx = TranslationContext(
+            cfg=cfg,
+            diagnostics=diagnostics,
+            class_fields=class_fields,
+            class_field_types=dict(class_field_types),
+            class_field_java_types=dict(class_field_java_types),
+            declared_type_fields=dict(declared_type_fields),
+            declared_type_java_fields=dict(declared_type_java_fields),
+            class_methods=class_methods,
+            class_static_methods=class_static_methods,
+            enclosing_static_dispatch=dict(enclosing_static_dispatch),
+            class_method_return_types=dict(class_method_return_types),
+            static_field_aliases=dict(static_field_aliases),
+            static_method_imports=dict(static_method_imports),
+            static_member_bindings=dict(static_member_bindings),
+            overload_call_targets=target_map,
+            name_resolver=name_resolver,
+            allow_local_helpers=True,
+            class_state=class_state,
+            inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+            containing_class_name=containing_class_name,
+            nested_class_names=nested_class_names,
+        )
+        lines.extend(
+            translate_method(
+                member,
+                ctx,
+                python_name_override=target.helper_name,
+                supported_reason="translated body-backed overload branch",
+            ),
+        )
+    if lines:
+        lines.append("")
     return lines
 
 

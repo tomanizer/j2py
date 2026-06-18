@@ -15,6 +15,7 @@ from j2py.translate.expr_static_calls import (
 )
 from j2py.translate.expressions import translate_expression
 from j2py.translate.member_resolution import (
+    java_type_shape_signature,
     wildcard_static_import_binding,
 )
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
@@ -73,6 +74,10 @@ def _translate_method_invocation(node: JavaNode, ctx: TranslationContext) -> str
         return static_call
 
     receiver = _receiver_expression(parts, ctx)
+    overload_call = _translate_source_proven_overload_call(node, parts, receiver, ctx)
+    if overload_call is not None:
+        return overload_call
+
     special_call = _translate_receiver_special_method_invocation(node, parts, receiver, ctx)
     if special_call is not None:
         return special_call
@@ -212,6 +217,57 @@ def _translate_receiver_special_method_invocation(
     )
     if jdk_instance_call is not None:
         return jdk_instance_call
+    return None
+
+
+def _translate_source_proven_overload_call(
+    node: JavaNode,
+    parts: _MethodInvocationParts,
+    receiver: str,
+    ctx: TranslationContext,
+) -> str | None:
+    targets = ctx.overload_call_targets.get(parts.method_name)
+    if not targets:
+        return None
+
+    from j2py.translate.java_types import java_expression_type
+
+    java_types = [java_expression_type(arg, ctx) for arg in parts.arg_nodes]
+    if any(java_type is None for java_type in java_types):
+        ctx.diagnostics.warn(
+            node,
+            reason=f"overload call {parts.method_name} lacks source Java argument types",
+            category="overload_erasure_collision",
+            facts={"method": parts.method_name},
+        )
+        return None
+    signature = java_type_shape_signature(
+        [java_type or "Object" for java_type in java_types],
+        ctx.cfg,
+    )
+    matches = [target for target in targets if target.java_shape_signature == signature]
+    if len(matches) != 1:
+        ctx.diagnostics.warn(
+            node,
+            reason=f"overload call {parts.method_name} did not match one body-backed branch",
+            category="overload_erasure_collision",
+            facts={
+                "method": parts.method_name,
+                "java_shapes": "|".join(signature),
+            },
+        )
+        return None
+
+    target = matches[0]
+    if target.is_static:
+        owner = receiver or ctx.containing_class_name
+        if owner is None:
+            return None
+        return f"{owner}.{target.helper_name}({parts.args})"
+    if receiver:
+        return f"{receiver}.{target.helper_name}({parts.args})"
+    if ctx.in_instance_method:
+        return f"self.{target.helper_name}({parts.args})"
     return None
 
 

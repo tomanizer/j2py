@@ -54,6 +54,17 @@ class JavaMemberBinding:
 
 
 @dataclass(frozen=True)
+class JavaOverloadCallTarget:
+    """Body-backed overload branch available for source-proven call-site binding."""
+
+    member: str
+    python_member: str
+    java_shape_signature: tuple[str, ...]
+    is_static: bool
+    helper_name: str
+
+
+@dataclass(frozen=True)
 class JavaTypeShape:
     """Java type facts retained before translation erases them to Python shapes."""
 
