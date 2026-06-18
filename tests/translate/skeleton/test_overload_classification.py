@@ -206,6 +206,95 @@ def test_classifies_fixed_arity_beats_varargs_as_value_dispatch_varargs_safe() -
     )
 
 
+def test_classifies_equivalent_varargs_erasure_collisions_as_value_dispatch() -> None:
+    group = _overload_group(
+        """
+        public class Stats {
+            public static int max(int... values) {
+                validateArray(values);
+                int max = values[0];
+                for (int i = 1; i < values.length; i++) {
+                    if (values[i] > max) {
+                        max = values[i];
+                    }
+                }
+                return max;
+            }
+
+            public static long max(long... values) {
+                validateArray(values);
+                /* same reduction after primitive erasure */
+                long max = values[0];
+                for (int j = 1; j < values.length; ++j) {
+                    if (values[j] > max) {
+                        max = values[j];
+                    }
+                }
+                return max;
+            }
+
+            public static int max(int a, int b, int c) {
+                if (b > a) {
+                    a = b;
+                }
+                if (c > a) {
+                    a = c;
+                }
+                return a;
+            }
+
+            public static long max(long a, long b, long c) {
+                if (b > a) {
+                    a = b;
+                }
+                if (c > a) {
+                    a = c;
+                }
+                return a;
+            }
+        }
+        """,
+        "max_",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.VALUE_DISPATCH_VARARGS_SAFE
+    assert "guard collisions collapsed" in classification.reason
+    assert classification.guard_signatures == (
+        ("varargs", "0", "int:spread"),
+        ("fixed", "3", "int", "int", "int"),
+    )
+
+
+def test_classifies_explicit_floating_nan_minmax_three_arg_as_equivalent() -> None:
+    group = _overload_group(
+        """
+        public class Stats {
+            public static double max(double a, double b, double c) {
+                if (Double.isNaN(a)) {
+                    return Double.NaN;
+                }
+                return Math.max(Math.max(a, b), c);
+            }
+
+            public static float max(float a, float b, float c) {
+                if (Float.isNaN(a)) {
+                    return Float.NaN;
+                }
+                return Math.max(Math.max(a, b), c);
+            }
+        }
+        """,
+        "max_",
+    )
+
+    classification = classify_overload_group(group, CFG)
+
+    assert classification.kind is OverloadKind.VALUE_DISPATCH_SAFE
+    assert "equivalent arity/guard collisions collapsed" in classification.reason
+
+
 def test_classifies_varargs_erasure_collisions_as_unsafe() -> None:
     group = _overload_group(
         """

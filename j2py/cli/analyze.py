@@ -20,6 +20,10 @@ def analyze(
     from j2py.analyze.symbols import extract_symbols
     from j2py.parse.java_ast import parse_file
 
+    if not source.exists():
+        console.print(f"[red]Error:[/red] source path not found: {source}")
+        raise typer.Exit(code=1)
+
     java_files = sorted(source.rglob("*.java")) if source.is_dir() else [source]
     if not java_files:
         console.print("[yellow]No .java files found.[/yellow]")

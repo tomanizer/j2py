@@ -158,21 +158,21 @@ def classify_overload_group(
             varargs_guard_signatures,
             java_type_shape_signatures=java_shapes,
         )
-    if (
-        varargs_guard_signatures is not None
-        and _collapse_equivalent_arity_guard_members(
-            members,
-            cfg,
-        )
-        is not None
-    ):
-        return OverloadClassification(
-            OverloadKind.VALUE_DISPATCH_VARARGS_SAFE,
-            "equivalent fixed/varargs guard collisions collapsed for value dispatch",
-            erased,
-            varargs_guard_signatures,
-            java_type_shape_signatures=java_shapes,
-        )
+    collapsed_varargs = (
+        _collapse_equivalent_arity_guard_members(members, cfg)
+        if varargs_guard_signatures is not None
+        else None
+    )
+    if collapsed_varargs is not None:
+        collapsed_varargs_signatures = _varargs_guard_signatures(collapsed_varargs, cfg)
+        if collapsed_varargs_signatures is not None:
+            return OverloadClassification(
+                OverloadKind.VALUE_DISPATCH_VARARGS_SAFE,
+                "equivalent fixed/varargs guard collisions collapsed for value dispatch",
+                erased,
+                collapsed_varargs_signatures,
+                java_type_shape_signatures=java_shapes,
+            )
 
     if len(set(erased)) == len(erased):
         return OverloadClassification(

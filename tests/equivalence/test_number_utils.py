@@ -218,6 +218,108 @@ def test_compare_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.compare(9223372036854775807, -9223372036854775808) > 0
 
 
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.max(byte,byte,byte)")
+@surface(JAVA_CLASS, "NumberUtils.max(double,double,double)")
+@surface(JAVA_CLASS, "NumberUtils.max(float,float,float)")
+@surface(JAVA_CLASS, "NumberUtils.max(int,int,int)")
+@surface(JAVA_CLASS, "NumberUtils.max(long,long,long)")
+@surface(JAVA_CLASS, "NumberUtils.max(short,short,short)")
+def test_max_three_arg_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_maxThree")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.max_(-128, 0, 127) == 127
+    assert NumberUtils.max_(-32768, 32767, 0) == 32767
+    assert NumberUtils.max_(-2147483648, 2147483647, 0) == 2147483647
+    assert NumberUtils.max_(-9223372036854775808, 0, 9223372036854775807) == (9223372036854775807)
+    assert NumberUtils.max_(-1.25, 3.5, 2.0) == approx_double(3.5)
+    assert NumberUtils.max_(1.0, -4.25, 0.5) == approx_double(1.0)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.max(byte...)")
+@surface(JAVA_CLASS, "NumberUtils.max(double...)")
+@surface(JAVA_CLASS, "NumberUtils.max(float...)")
+@surface(JAVA_CLASS, "NumberUtils.max(int...)")
+@surface(JAVA_CLASS, "NumberUtils.max(long...)")
+@surface(JAVA_CLASS, "NumberUtils.max(short...)")
+def test_max_varargs_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_maxVarargs")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.max_(-128, 0, 127, 12) == 127
+    assert NumberUtils.max_(-32768, 32767, 0, 22) == 32767
+    assert NumberUtils.max_(-2147483648, 0, 2147483647) == 2147483647
+    assert NumberUtils.max_(-9223372036854775808, 0, 9223372036854775807) == (9223372036854775807)
+    assert NumberUtils.max_(-1.25, 3.5, 2.0, 0.0) == approx_double(3.5)
+    assert NumberUtils.max_(1.0, -4.25, 0.5) == approx_double(1.0)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.min(byte,byte,byte)")
+@surface(JAVA_CLASS, "NumberUtils.min(double,double,double)")
+@surface(JAVA_CLASS, "NumberUtils.min(float,float,float)")
+@surface(JAVA_CLASS, "NumberUtils.min(int,int,int)")
+@surface(JAVA_CLASS, "NumberUtils.min(long,long,long)")
+@surface(JAVA_CLASS, "NumberUtils.min(short,short,short)")
+def test_min_three_arg_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_minThree")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.min_(-128, 0, 127) == -128
+    assert NumberUtils.min_(0, 32767, -32768) == -32768
+    assert NumberUtils.min_(2147483647, 0, -2147483648) == -2147483648
+    assert NumberUtils.min_(9223372036854775807, 0, -9223372036854775808) == (-9223372036854775808)
+    assert NumberUtils.min_(-1.25, 3.5, 2.0) == approx_double(-1.25)
+    assert NumberUtils.min_(1.0, -4.25, 0.5) == approx_double(-4.25)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.min(byte...)")
+@surface(JAVA_CLASS, "NumberUtils.min(double...)")
+@surface(JAVA_CLASS, "NumberUtils.min(float...)")
+@surface(JAVA_CLASS, "NumberUtils.min(int...)")
+@surface(JAVA_CLASS, "NumberUtils.min(long...)")
+@surface(JAVA_CLASS, "NumberUtils.min(short...)")
+def test_min_varargs_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_minVarargs")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.min_(-128, 0, 127, 12) == -128
+    assert NumberUtils.min_(0, 32767, -32768, 22) == -32768
+    assert NumberUtils.min_(2147483647, 0, -2147483648) == -2147483648
+    assert NumberUtils.min_(9223372036854775807, 0, -9223372036854775808) == (-9223372036854775808)
+    assert NumberUtils.min_(-1.25, 3.5, 2.0, 0.0) == approx_double(-1.25)
+    assert NumberUtils.min_(1.0, -4.25, 0.5) == approx_double(-4.25)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.isNumber(String)")
+def test_is_number_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_isNumber")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    assert NumberUtils.is_number("12345") is True
+    assert NumberUtils.is_number("1234.5") is True
+    assert NumberUtils.is_number(".12345") is True
+    assert NumberUtils.is_number("1234E+5") is True
+    assert NumberUtils.is_number("-1234") is True
+    assert NumberUtils.is_number("-0xABC123") is True
+    assert NumberUtils.is_number("22338L") is True
+    assert NumberUtils.is_number("+0xF") is True
+    assert NumberUtils.is_number(None) is False
+    assert NumberUtils.is_number("") is False
+    assert NumberUtils.is_number(" ") is False
+    assert NumberUtils.is_number("--2.3") is False
+    assert NumberUtils.is_number(".12.3") is False
+    assert NumberUtils.is_number("-123E") is False
+    assert NumberUtils.is_number("0xGF") is False
+    assert NumberUtils.is_number(".") is False
+    assert NumberUtils.is_number("11a") is False
+    assert NumberUtils.is_number("1.1L") is False
+
+
 # ── Phase 2 converters (toFloat / toByte / toShort) ───────────────────────────
 #
 # Literal-oracle source: NumberUtilsTest.java testToFloatString / testToFloatStringF,
