@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -9,6 +10,12 @@ import typer
 
 from j2py.wire.loader import WiringLoadDiagnostic, load_wiring_sidecars, spring_elements
 from j2py.wire.targets.fastapi import FastAPITarget
+from j2py.wire.validation import (
+    ValidationContext,
+    ValidationFinding,
+    validate_fastapi_wiring,
+    validation_exit_code,
+)
 
 app = typer.Typer(
     name="j2py-wire",
@@ -86,11 +93,46 @@ def validate(
         Literal["fastapi"],
         typer.Option("--target", help="Wiring target to validate."),
     ] = "fastapi",
+    wiring_dir: Annotated[
+        Path,
+        typer.Option("--wiring-dir", help="Generated wiring directory."),
+    ] = Path("wiring"),
+    output_format: Annotated[
+        Literal["text", "json"],
+        typer.Option("--format", help="Validation output format."),
+    ] = "text",
 ) -> None:
-    """Placeholder for target wiring validation."""
-    _ = (translated_output_dir, target)
-    typer.echo("j2py-wire validate is scaffolded; FastAPI validation is tracked by issue #530.")
-    raise typer.Exit(code=2)
+    """Validate generated target wiring."""
+    result = load_wiring_sidecars(translated_output_dir)
+    _print_diagnostics(result.diagnostics)
+    if result.has_errors:
+        raise typer.Exit(code=2)
+
+    if target != "fastapi":
+        raise typer.Exit(code=2)
+    findings = validate_fastapi_wiring(
+        ValidationContext(
+            translated_root=translated_output_dir,
+            wiring_dir=wiring_dir,
+            sidecars=result.sidecars,
+        ),
+    )
+    exit_code = validation_exit_code(findings)
+    if output_format == "json":
+        typer.echo(
+            json.dumps(
+                {
+                    "errors": sum(1 for finding in findings if finding.severity == "error"),
+                    "warnings": sum(1 for finding in findings if finding.severity == "warning"),
+                    "findings": [finding.to_json() for finding in findings],
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+        )
+    else:
+        _print_validation_summary(findings)
+    raise typer.Exit(code=exit_code)
 
 
 def _print_diagnostics(diagnostics: list[WiringLoadDiagnostic]) -> None:
@@ -99,6 +141,20 @@ def _print_diagnostics(diagnostics: list[WiringLoadDiagnostic]) -> None:
             f"{diagnostic.level}: {diagnostic.path}: {diagnostic.message}",
             err=diagnostic.level == "error",
         )
+
+
+def _print_validation_summary(findings: list[ValidationFinding]) -> None:
+    errors = sum(1 for finding in findings if finding.severity == "error")
+    warnings = sum(1 for finding in findings if finding.severity == "warning")
+    typer.echo(f"j2py-wire validate - {len(findings)} issues found")
+    typer.echo("")
+    for finding in findings:
+        location = finding.path + (f":{finding.line}" if finding.line is not None else "")
+        typer.echo(f"{finding.severity.upper()}  {location}")
+        typer.echo(f"  {finding.message}")
+        typer.echo(f"  Fix: {finding.fix}")
+        typer.echo("")
+    typer.echo(f"{errors} errors, {warnings} warnings")
 
 
 if __name__ == "__main__":
