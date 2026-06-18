@@ -59,7 +59,26 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
         return java_expression_type(node.named_children[0], ctx)
     if node.type == "cast_expression" and node.named_children:
         return node.named_children[0].text
+    if node.type == "method_invocation":
+        return method_invocation_java_type(node)
     return None
+
+
+def method_invocation_java_type(node: JavaNode) -> str | None:
+    """Java return type for the JDK call patterns the rule layer lowers structurally.
+
+    ``String``/``CharSequence#charAt(int)`` returns a Java ``char``; the rule layer
+    lowers single-argument ``charAt`` to Python indexing (a 1-char ``str``), so the
+    char model must agree here or a ``char == 'x'`` comparison wraps only the literal
+    in ``ord()`` and silently compares ``str`` to ``int``.
+    """
+    name_node = node.child_by_field("name")
+    if name_node is None or name_node.text != "charAt":
+        return None
+    arguments = node.child_by_field("arguments")
+    if arguments is None or len(arguments.named_children) != 1:
+        return None
+    return "char"
 
 
 def java_type_strip_one_array_dimension(java_type: str) -> str | None:
