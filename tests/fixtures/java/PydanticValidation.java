@@ -7,9 +7,18 @@ class CreateOwnerForm {
     @Max(150)
     private int age;
 
+    @Max(10)
+    private int retries = 3;
+
     @Pattern(regexp = "[A-Z]+")
     @NotEmpty
     private String code;
+
+    @Size(max = 60)
+    private String nickname;
+
+    @Pattern(regexp = "[a-z]+")
+    private String slug;
 
     @Digits(integer = 3, fraction = 2)
     private int price;

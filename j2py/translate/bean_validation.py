@@ -42,7 +42,11 @@ _FIELD_KWARG_ORDER = ("min_length", "max_length", "ge", "le", "gt", "pattern")
 _EMAIL_PATTERN = r"[^@]+@[^@]+\.[^@]+"
 
 
-def bean_validation_field(field: FieldInfo) -> BeanValidationField | None:
+def bean_validation_field(
+    field: FieldInfo,
+    *,
+    default_value: str = "...",
+) -> BeanValidationField | None:
     """Return the Pydantic field expression for a validated Java field, if any."""
 
     kwargs: dict[str, int | str] = {}
@@ -92,11 +96,21 @@ def bean_validation_field(field: FieldInfo) -> BeanValidationField | None:
     rendered_kwargs = [
         f"{key}={_render_value(kwargs[key])}" for key in _FIELD_KWARG_ORDER if key in kwargs
     ]
-    args = ["...", *rendered_kwargs]
+    args = [default_value, *rendered_kwargs]
     return BeanValidationField(
         expression=f"Field({', '.join(args)})",
         comment_lines=tuple(dict.fromkeys(comments)),
     )
+
+
+def is_required_field(field: FieldInfo) -> bool:
+    """Return true when Bean Validation semantics require a non-null value."""
+
+    for annotation in annotation_nodes(field.node):
+        name = annotation_simple_name(annotation)
+        if name in {"NotBlank", "NotEmpty", "NotNull"}:
+            return True
+    return False
 
 
 def has_bean_validation(field: FieldInfo) -> bool:

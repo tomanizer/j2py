@@ -8,7 +8,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkTransformResult
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import annotation_comment_lines, record_annotation_diagnostics
-from j2py.translate.bean_validation import bean_validation_field
+from j2py.translate.bean_validation import bean_validation_field, is_required_field
 from j2py.translate.class_members import iter_type_declarations
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
 from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
@@ -300,7 +300,8 @@ def _translate_pydantic_model_field(
     diagnostics: TranslationDiagnostics,
     transform: FrameworkTransformResult,
 ) -> list[str]:
-    validation = bean_validation_field(field)
+    helper_lines, default_value, annotation = _pydantic_field_default_and_annotation(field, ctx)
+    validation = bean_validation_field(field, default_value=default_value)
     if validation is not None:
         diagnostics.record(
             field.node,
@@ -309,11 +310,12 @@ def _translate_pydantic_model_field(
         )
         diagnostics.imports.need_line("from pydantic import Field")
         if ctx.cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(field.py_type)
-        validation_lines = [f"    {comment}" for comment in validation.comment_lines]
+            diagnostics.imports.need_type_annotation(annotation)
+        validation_lines = helper_lines
+        validation_lines.extend(f"    {comment}" for comment in validation.comment_lines)
         validation_lines.extend(transform.prefix_lines)
         validation_lines.append(
-            f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = "
+            f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = "
             f"{validation.expression}",
         )
         return validation_lines
@@ -351,11 +353,35 @@ def _translate_pydantic_model_field(
         reason="translated Java default value for Pydantic model field",
     )
     default_value = java_default_value(field.java_type)
-    annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+    annotation = field.py_type if default_value != "None" else _nullable_annotation(field.py_type)
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(annotation)
     lines.append(f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {default_value}")
     return lines
+
+
+def _pydantic_field_default_and_annotation(
+    field: FieldInfo,
+    ctx: TranslationContext,
+) -> tuple[list[str], str, str]:
+    helper_lines: list[str] = []
+    if field.initializer is not None:
+        default_value = translate_expression(field.initializer, ctx)
+        _extend_with_local_helpers(helper_lines, ctx, base_indent="    ")
+        return helper_lines, default_value, field.py_type
+
+    java_default = java_default_value(field.java_type)
+    if java_default != "None":
+        return helper_lines, java_default, field.py_type
+    if is_required_field(field):
+        return helper_lines, "...", field.py_type
+    return helper_lines, "None", _nullable_annotation(field.py_type)
+
+
+def _nullable_annotation(py_type: str) -> str:
+    if py_type == "None" or "None" in {part.strip() for part in py_type.split("|")}:
+        return py_type
+    return f"{py_type} | None"
 
 
 def _translate_instance_field(
