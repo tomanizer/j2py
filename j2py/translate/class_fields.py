@@ -19,6 +19,7 @@ from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
+from j2py.translate.sqlalchemy_model import sqlalchemy_model_field_lines
 from j2py.translate.statements import translate_body
 
 
@@ -185,6 +186,8 @@ def _translate_fields(
     name_resolver: NameResolver | None = None,
     field_transforms: list[FrameworkTransformResult] | None = None,
     pydantic_model: bool = False,
+    sqlalchemy_model: bool = False,
+    sqlalchemy_entity_table_names: dict[str, str] | None = None,
 ) -> tuple[list[str], list[str]]:
     body = class_node.child_by_field("body")
     if body is None:
@@ -255,6 +258,14 @@ def _translate_fields(
                 elif pydantic_model:
                     static_lines.extend(
                         _translate_pydantic_model_field(field, static_ctx, diagnostics, transform)
+                    )
+                elif sqlalchemy_model:
+                    static_lines.extend(
+                        sqlalchemy_model_field_lines(
+                            field,
+                            diagnostics,
+                            entity_table_names=sqlalchemy_entity_table_names or {},
+                        )
                     )
                 else:
                     instance_init_lines.extend(

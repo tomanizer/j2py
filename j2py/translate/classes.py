@@ -137,7 +137,9 @@ def translate_class(
         ]
 
     fields = _class_fields(node, cfg)
-    promote_to_pydantic = (
+    sqlalchemy_entity_table_name = env.sqlalchemy_entity_table_names.get(name_node.text)
+    promote_to_sqlalchemy = sqlalchemy_entity_table_name is not None
+    promote_to_pydantic = not promote_to_sqlalchemy and (
         name_node.text in env.pydantic_model_class_names
         or class_name in env.pydantic_model_class_names
         or should_promote_to_pydantic_model(node, fields)
@@ -175,7 +177,9 @@ def translate_class(
         ]
     )
     if promote_to_pydantic:
-        members = _pydantic_model_members(members, fields, cfg, diagnostics)
+        members = _data_model_members(members, fields, cfg, diagnostics, model_name="Pydantic")
+    if promote_to_sqlalchemy:
+        members = _data_model_members(members, fields, cfg, diagnostics, model_name="SQLAlchemy")
     class_method_names = member_method_names(members, cfg)
     class_static_method_names = member_static_method_names(members, cfg)
     merged_static_methods = merge_class_static_method_indexes(
@@ -245,7 +249,7 @@ def translate_class(
         java_name=name_node.text,
         py_name=class_name,
     )
-    if not class_transform.handled:
+    if not class_transform.handled and not promote_to_sqlalchemy:
         record_annotation_diagnostics(
             node,
             cfg,
@@ -259,7 +263,7 @@ def translate_class(
     ]
     injected_init_params = (
         []
-        if promote_to_pydantic
+        if promote_to_pydantic or promote_to_sqlalchemy
         else _annotation_init_params(
             fields,
             field_transforms,
@@ -268,19 +272,22 @@ def translate_class(
     if promote_to_pydantic:
         diagnostics.imports.need_line("from pydantic import BaseModel")
     lines: list[str] = []
-    if not class_transform.handled:
+    if not class_transform.handled and not promote_to_sqlalchemy:
         lines.extend(annotation_comment_lines(node, cfg))
     lines.extend(class_transform.prefix_lines)
     extra_bases = list(class_transform.base_classes)
     if promote_to_pydantic:
         extra_bases.append("BaseModel")
-    class_bases = base_suffix(
-        node,
-        diagnostics,
-        resolver=resolver,
-        scope=base_scope,
-        extra_bases=extra_bases,
-    )
+    if promote_to_sqlalchemy:
+        class_bases = "(Base)"
+    else:
+        class_bases = base_suffix(
+            node,
+            diagnostics,
+            resolver=resolver,
+            scope=base_scope,
+            extra_bases=extra_bases,
+        )
     lines.append(f"class {class_name}{class_bases}:")
     if env.docstring_lines:
         lines.extend(env.docstring_lines)
@@ -300,7 +307,14 @@ def translate_class(
         name_resolver=resolver,
         field_transforms=field_transforms,
         pydantic_model=promote_to_pydantic,
+        sqlalchemy_model=promote_to_sqlalchemy,
+        sqlalchemy_entity_table_names=env.sqlalchemy_entity_table_names,
     )
+    if promote_to_sqlalchemy:
+        table_lines = [f'    __tablename__ = "{sqlalchemy_entity_table_name}"']
+        if static_field_lines:
+            table_lines.append("")
+        static_field_lines = [*table_lines, *static_field_lines]
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
 
@@ -463,11 +477,13 @@ def translate_class(
     return lines
 
 
-def _pydantic_model_members(
+def _data_model_members(
     members: list[JavaNode],
     fields: list[FieldInfo],
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    *,
+    model_name: str,
 ) -> list[JavaNode]:
     field_names = {field.name for field in fields if not field.is_static}
     emitted: list[JavaNode] = []
@@ -476,21 +492,21 @@ def _pydantic_model_members(
             diagnostics.record(
                 member,
                 supported=True,
-                reason="suppressed Pydantic model constructor",
+                reason=f"suppressed {model_name} model constructor",
             )
             continue
-        if _is_pydantic_accessor(member, field_names, cfg):
+        if _is_data_model_accessor(member, field_names, cfg):
             diagnostics.record(
                 member,
                 supported=True,
-                reason="suppressed Pydantic model accessor method",
+                reason=f"suppressed {model_name} model accessor method",
             )
             continue
         emitted.append(member)
     return emitted
 
 
-def _is_pydantic_accessor(
+def _is_data_model_accessor(
     member: JavaNode,
     field_names: set[str],
     cfg: TranslationConfig,
@@ -536,6 +552,7 @@ _LEGACY_ENV_KEYS = frozenset(
         "module_class_static_instance_aliases",
         "module_class_declarations",
         "pydantic_model_class_names",
+        "sqlalchemy_entity_table_names",
         "enclosing_static_dispatch",
         "interface_type_var_maps",
     },
