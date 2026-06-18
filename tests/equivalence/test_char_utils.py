@@ -6,9 +6,9 @@ the literals the upstream test uses, which are JVM-independent — a failure her
 transpiler divergence.
 
 Overloaded methods (``toChar``, ``toIntValue``, ``toCharacterObject``, ``toString``,
-``unicodeEscaped``) are intentionally out of the first surface: Java's ``char`` and
-``Character`` both erase to Python ``str``, making same-arity overloads ambiguous at
-dispatch. Non-overloaded static predicates and constants are fully covered here.
+``unicodeEscaped``) are covered with literal-oracle cases where Java's ``char`` and
+``Character`` both erase to Python ``str`` but still produce the same observable value.
+Non-overloaded static predicates and constants are fully covered here.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import pytest
 
 from tests.equivalence.harness import (
     install_array_utils_stub_package,
+    install_java_lang_stubs,
     load_translated_module,
     translate_rule_layer,
 )
@@ -37,6 +38,7 @@ def char_utils(char_utils_source: str):
     # Stub ArrayUtils so the class body static cache initializer can run and
     # the pure CharUtils methods under test become callable.
     stub_modules = install_array_utils_stub_package()
+    stub_modules.extend(install_java_lang_stubs())
     module = load_translated_module(char_utils_source, "char_utils_fixture")
     yield module.CharUtils
     sys.modules.pop("char_utils_fixture", None)
@@ -361,6 +363,148 @@ def test_is_ascii_printable_range_true(char_utils, i):
 @surface("CharUtils.java", "CharUtils.isAsciiPrintable(char)")
 def test_is_ascii_printable_range_false(char_utils, i):
     assert char_utils.is_ascii_printable(chr(i)) is False  # CharUtilsTest:166-172
+
+
+# ---------------------------------------------------------------------------
+# toChar — CharUtilsTest literal-oracle cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("ch", ["A", " ", "k"])
+@surface("CharUtils.java", "CharUtils.toChar(Character)")
+def test_to_char_character(char_utils, ch):
+    assert char_utils.to_char(ch) == ch
+
+
+@pytest.mark.parametrize(
+    ("ch", "default", "expected"),
+    [
+        ("A", "X", "A"),
+        (None, "X", "X"),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.toChar(Character,char)")
+def test_to_char_character_default(char_utils, ch, default, expected):
+    assert char_utils.to_char(ch, default) == expected
+
+
+@pytest.mark.parametrize(("value", "expected"), [("A", "A"), ("BA", "B")])
+@surface("CharUtils.java", "CharUtils.toChar(String)")
+def test_to_char_string(char_utils, value, expected):
+    assert char_utils.to_char(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "default", "expected"),
+    [
+        ("A", "X", "A"),
+        ("BA", "X", "B"),
+        (None, "X", "X"),
+        ("", "X", "X"),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.toChar(String,char)")
+def test_to_char_string_default(char_utils, value, default, expected):
+    assert char_utils.to_char(value, default) == expected
+
+
+# ---------------------------------------------------------------------------
+# toCharacterObject — CharUtilsTest literal-oracle cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("ch", ["A", "T"])
+@surface("CharUtils.java", "CharUtils.toCharacterObject(char)")
+def test_to_character_object_char(char_utils, ch):
+    assert char_utils.to_character_object(ch) == ch
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("A", "A"),
+        ("AB", "A"),
+        (None, None),
+        ("", None),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.toCharacterObject(String)")
+def test_to_character_object_string(char_utils, value, expected):
+    assert char_utils.to_character_object(value) == expected
+
+
+# ---------------------------------------------------------------------------
+# toIntValue — CharUtilsTest literal-oracle cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("ch", "expected"), [("3", 3), ("0", 0), ("9", 9)])
+@surface("CharUtils.java", "CharUtils.toIntValue(char)")
+@surface("CharUtils.java", "CharUtils.toIntValue(Character)")
+def test_to_int_value_char_and_character(char_utils, ch, expected):
+    assert char_utils.to_int_value(ch) == expected
+
+
+@pytest.mark.parametrize(
+    ("ch", "default", "expected"),
+    [
+        ("3", -1, 3),
+        ("A", -1, -1),
+        (None, -1, -1),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.toIntValue(char,int)")
+@surface("CharUtils.java", "CharUtils.toIntValue(Character,int)")
+def test_to_int_value_default(char_utils, ch, default, expected):
+    assert char_utils.to_int_value(ch, default) == expected
+
+
+# ---------------------------------------------------------------------------
+# toString — CharUtilsTest literal-oracle cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("ch", [" ", "A"])
+@surface("CharUtils.java", "CharUtils.toString(char)")
+def test_to_string_char(char_utils, ch):
+    assert char_utils.to_string(ch) == ch
+
+
+@pytest.mark.parametrize(("ch", "expected"), [("A", "A"), (None, None)])
+@surface("CharUtils.java", "CharUtils.toString(Character)")
+def test_to_string_character(char_utils, ch, expected):
+    assert char_utils.to_string(ch) == expected
+
+
+# ---------------------------------------------------------------------------
+# unicodeEscaped — CharUtilsTest literal-oracle cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("ch", "expected"),
+    [
+        (" ", "\\u0020"),
+        ("A", "\\u0041"),
+        ("\x00", "\\u0000"),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.unicodeEscaped(char)")
+def test_unicode_escaped_char(char_utils, ch, expected):
+    assert char_utils.unicode_escaped(ch) == expected
+
+
+@pytest.mark.parametrize(
+    ("ch", "expected"),
+    [
+        (" ", "\\u0020"),
+        ("A", "\\u0041"),
+        (None, None),
+    ],
+)
+@surface("CharUtils.java", "CharUtils.unicodeEscaped(Character)")
+def test_unicode_escaped_character(char_utils, ch, expected):
+    assert char_utils.unicode_escaped(ch) == expected
 
 
 # ---------------------------------------------------------------------------

@@ -166,6 +166,40 @@ def _value_dispatch_overload(
         key=lambda item: (*_value_dispatch_branch_order_key(item[1]), item[0]),
     )
     for _, (member, params, guards) in ordered:
+        null_condition = _value_dispatch_null_condition(guards, params)
+        if null_condition is None:
+            continue
+        lines.append(f"        if {null_condition}:")
+        lines.extend(_value_dispatch_assignments(params, member=member, indent="            "))
+        branch_lines = (
+            _translate_static_overload_branch_body if is_static else _translate_overload_branch_body
+        )(
+            member,
+            cfg=cfg,
+            diagnostics=diagnostics,
+            containing_class_name=containing_class_name,
+            class_fields=class_fields,
+            class_field_types=class_field_types,
+            class_field_java_types=class_field_java_types,
+            declared_type_fields=declared_type_fields,
+            declared_type_java_fields=declared_type_java_fields,
+            class_methods=class_methods,
+            class_static_methods=class_static_methods,
+            enclosing_static_dispatch=enclosing_static_dispatch,
+            class_method_return_types=class_method_return_types,
+            static_field_aliases=static_field_aliases,
+            static_method_imports=static_method_imports,
+            static_member_bindings=static_member_bindings,
+            name_resolver=name_resolver,
+            class_state=class_state,
+            inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
+            nested_class_names=nested_class_names or set(),
+            indent="            ",
+            static_instance_static_aliases=static_instance_static_aliases or {},
+        )
+        lines.extend(branch_lines)
+
+    for _, (member, params, guards) in ordered:
         condition = _value_dispatch_condition(guards, params)
         lines.append(f"        if {condition}:")
         lines.extend(_value_dispatch_assignments(params, member=member, indent="            "))
@@ -199,6 +233,43 @@ def _value_dispatch_overload(
 
     lines.append(f'        raise TypeError("{name} overload dispatch failed")')
     return lines
+
+
+def _value_dispatch_null_condition(
+    guards: list[_DispatchGuard],
+    params: list[ParameterInfo],
+) -> str | None:
+    """Return a null-only branch for nullable Java references.
+
+    Java overload resolution can route ``null`` to reference-typed overloads, while
+    Python's normal value guards intentionally keep ``String`` as ``str`` and
+    ``Character`` as a one-character ``str``. This branch preserves that null path
+    without weakening the ordinary non-null guards.
+    """
+    if any(param.is_spread for param in params):
+        return None
+    parts = [f"len(args) == {len(params)}"]
+    none_checks: list[str] = []
+    for index, (param, guard) in enumerate(zip(params, guards, strict=True)):
+        arg = f"args[{index}]"
+        if _is_nullable_reference_param(param):
+            none_checks.append(f"{arg} is None")
+            if guard.condition_template is None:
+                parts.append(f"{arg} is None")
+            else:
+                rendered_guard = guard.condition_template.format(arg=arg)
+                parts.append(f"({arg} is None or {rendered_guard})")
+            continue
+        if guard.condition_template is not None:
+            parts.append(guard.condition_template.format(arg=arg))
+    if not none_checks:
+        return None
+    parts.append("(" + " or ".join(none_checks) + ")")
+    return " and ".join(parts)
+
+
+def _is_nullable_reference_param(param: ParameterInfo) -> bool:
+    return param.java_type.rsplit(".", 1)[-1] in {"Character", "String"}
 
 
 def _value_dispatch_preconditions(

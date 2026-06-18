@@ -7,6 +7,7 @@ from typing import TypeAlias
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.java_types import java_expression_type, java_type_simple_name
 from j2py.translate.rules.naming import _receiver_simple_name
 
 StaticCallTranslator: TypeAlias = Callable[
@@ -420,6 +421,28 @@ def _translate_to_char_array_call(
     return None
 
 
+def _translate_char_value_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if args or not receiver_nodes:
+        return None
+    receiver_type = java_expression_type(receiver_nodes[0], ctx)
+    if receiver_type is None:
+        receiver_type = ctx.variable_java_types.get(raw_receiver) or ctx.variable_java_types.get(
+            receiver,
+        )
+    if receiver_type is not None and java_type_simple_name(receiver_type) == "Character":
+        return receiver
+    return None
+
+
 def _translate_index_of_call(
     node: JavaNode,
     receiver: str,
@@ -629,6 +652,7 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
 
 
 _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
+    "charValue": _translate_char_value_call,
     "charAt": _translate_char_at_call,
     "compareTo": _translate_compare_to_call,
     "contains": _translate_contains_call,

@@ -524,14 +524,6 @@ def translate_overloaded_members(
         "erased": _format_signature_set(classification.erased_signatures),
         "java_shapes": _format_signature_set(classification.java_type_shape_signatures),
     }
-    for member in members:
-        diagnostics.record(
-            member,
-            supported=False,
-            reason=manual_reason,
-            category=manual_category,
-            facts=manual_facts,
-        )
     lines = _overload_stubs(members, cfg, diagnostics)
     branch_targets = overload_call_targets_for_group(
         members,
@@ -566,6 +558,33 @@ def translate_overloaded_members(
         )
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"
     is_static = "static" in _modifiers(members[0])
+    if branch_targets:
+        char_dispatch = _manual_char_string_erasure_dispatcher(
+            members,
+            branch_targets,
+            cfg,
+            name=name,
+            is_static=is_static,
+            return_type=fallback_return,
+            containing_class_name=containing_class_name,
+        )
+        if char_dispatch is not None:
+            for member in members:
+                diagnostics.record(
+                    member,
+                    supported=True,
+                    reason="translated char/String erasure overload via helper dispatch",
+                )
+            lines.extend(char_dispatch)
+            return lines
+    for member in members:
+        diagnostics.record(
+            member,
+            supported=False,
+            reason=manual_reason,
+            category=manual_category,
+            facts=manual_facts,
+        )
     if is_static:
         lines.append("    @staticmethod")
     fallback_params = "*args: object" if is_static else "self, *args: object"
@@ -656,6 +675,185 @@ def _manual_dispatch_reason(name: str, classification: OverloadClassification) -
     if boundary:
         details.append(boundary)
     return f"overloaded method {name} requires manual dispatch [{' | '.join(details)}]"
+
+
+def _manual_char_string_erasure_dispatcher(
+    members: list[JavaNode],
+    targets: list[JavaOverloadCallTarget],
+    cfg: TranslationConfig,
+    *,
+    name: str,
+    is_static: bool,
+    return_type: str,
+    containing_class_name: str,
+) -> list[str] | None:
+    """Route char/Character/String erasure collisions through emitted helpers."""
+    if len(members) != len(targets):
+        return None
+    params_by_member = [parameter_infos(member, cfg) for member in members]
+    if any(any(param.is_spread for param in params) for params in params_by_member):
+        return None
+    if not _is_char_string_erasure_group(params_by_member):
+        return None
+    if not _character_wrappers_are_reviewable(members, params_by_member):
+        return None
+
+    entries = list(zip(members, targets, params_by_member, strict=True))
+    lines: list[str] = []
+    if is_static:
+        lines.append("    @staticmethod  # type: ignore[misc]")
+        signature = f"def {name}(*args: object) -> {return_type}:"
+    else:
+        signature = f"def {name}(self, *args: object) -> {return_type}:"
+    lines.append(f"    {signature}")
+    indent = "        "
+    emitted = False
+    for arity in sorted({len(params) for _, _, params in entries}):
+        arity_entries = [entry for entry in entries if len(entry[2]) == arity]
+        null_entry = _nullable_reference_entry(arity_entries)
+        if null_entry is not None:
+            _, target, params = null_entry
+            condition = _char_erasure_condition(params, nullable=True, require_none=True)
+            if condition is not None:
+                helper_call = _helper_call(
+                    target,
+                    params,
+                    is_static=is_static,
+                    owner=containing_class_name,
+                )
+                lines.append(f"{indent}if {condition}:")
+                lines.append(f"{indent}    return {helper_call}")
+                emitted = True
+        for _, target, params in sorted(
+            arity_entries,
+            key=lambda entry: _char_erasure_specificity(entry[2]),
+            reverse=True,
+        ):
+            condition = _char_erasure_condition(params, nullable=False, require_none=False)
+            if condition is None:
+                return None
+            helper_call = _helper_call(
+                target,
+                params,
+                is_static=is_static,
+                owner=containing_class_name,
+            )
+            lines.append(f"{indent}if {condition}:")
+            lines.append(f"{indent}    return {helper_call}")
+            emitted = True
+    if not emitted:
+        return None
+    lines.append(f'{indent}raise TypeError("{name} overload dispatch failed")')
+    return lines
+
+
+def _is_char_string_erasure_group(params_by_member: list[list[ParameterInfo]]) -> bool:
+    saw_erased_collision = False
+    by_arity: dict[int, set[tuple[str, ...]]] = {}
+    for params in params_by_member:
+        signature: list[str] = []
+        for param in params:
+            simple = param.java_type.rsplit(".", 1)[-1]
+            if simple in {"char", "Character", "String"}:
+                signature.append("str")
+            elif simple in {"int", "Integer"}:
+                signature.append("int")
+            else:
+                return False
+        signatures = by_arity.setdefault(len(params), set())
+        current = tuple(signature)
+        if current in signatures:
+            saw_erased_collision = True
+        signatures.add(current)
+    return saw_erased_collision
+
+
+def _character_wrappers_are_reviewable(
+    members: list[JavaNode],
+    params_by_member: list[list[ParameterInfo]],
+) -> bool:
+    for member, params in zip(members, params_by_member, strict=True):
+        if not any(param.java_type.rsplit(".", 1)[-1] == "Character" for param in params):
+            continue
+        body = member.child_by_field("body")
+        text = body.text if body is not None else ""
+        if "charValue()" not in text and "requireNonNull" not in text and "toChar(" not in text:
+            return False
+    return True
+
+
+def _nullable_reference_entry(
+    entries: list[tuple[JavaNode, JavaOverloadCallTarget, list[ParameterInfo]]],
+) -> tuple[JavaNode, JavaOverloadCallTarget, list[ParameterInfo]] | None:
+    for simple_name in ("Character", "String"):
+        for entry in entries:
+            if any(param.java_type.rsplit(".", 1)[-1] == simple_name for param in entry[2]):
+                return entry
+    return None
+
+
+def _char_erasure_condition(
+    params: list[ParameterInfo],
+    *,
+    nullable: bool,
+    require_none: bool,
+) -> str | None:
+    parts = [f"len(args) == {len(params)}"]
+    none_checks: list[str] = []
+    for index, param in enumerate(params):
+        simple = param.java_type.rsplit(".", 1)[-1]
+        arg = f"args[{index}]"
+        if simple == "char":
+            parts.append(f"isinstance({arg}, str) and len({arg}) == 1")
+        elif simple == "Character":
+            if nullable:
+                parts.append(f"({arg} is None or (isinstance({arg}, str) and len({arg}) == 1))")
+                none_checks.append(f"{arg} is None")
+            else:
+                parts.append(f"isinstance({arg}, str) and len({arg}) == 1")
+        elif simple == "String":
+            if nullable:
+                parts.append(f"({arg} is None or isinstance({arg}, str))")
+                none_checks.append(f"{arg} is None")
+            else:
+                parts.append(f"isinstance({arg}, str)")
+        elif simple in {"int", "Integer"}:
+            parts.append(f"isinstance({arg}, int) and not isinstance({arg}, bool)")
+        else:
+            return None
+    if require_none:
+        if not none_checks:
+            return None
+        parts.append("(" + " or ".join(none_checks) + ")")
+    return " and ".join(parts)
+
+
+def _char_erasure_specificity(params: list[ParameterInfo]) -> tuple[int, int]:
+    score = 0
+    for param in params:
+        simple = param.java_type.rsplit(".", 1)[-1]
+        if simple == "char":
+            score += 30
+        elif simple == "Character":
+            score += 20
+        elif simple == "String":
+            score += 10
+        else:
+            score += 5
+    return (score, len(params))
+
+
+def _helper_call(
+    target: JavaOverloadCallTarget,
+    params: list[ParameterInfo],
+    *,
+    is_static: bool,
+    owner: str,
+) -> str:
+    args = ", ".join(f"args[{index}]" for index in range(len(params)))
+    if is_static:
+        return f"{owner}.{target.helper_name}({args})"
+    return f"self.{target.helper_name}({args})"
 
 
 def _format_signature_set(signatures: tuple[tuple[str, ...], ...]) -> str:
