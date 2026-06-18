@@ -47,14 +47,15 @@ make corpus-hotspots
 
 As of the current committed baselines, `make corpus-hotspots` reports approximately:
 
-| Preset | Avg coverage | Syntax OK | Unhandled files | Full-coverage files |
-|--------|-------------|-----------|-----------------|-------------------|
-| `spring-dense` | 100% | 100% | 0/100 | 43/43 |
-| `commons-lang-dense` | ~100% | 100% | 1/100 | 99/100 |
-| `jackson-dense` | ~99.5% | 99% | 6/100 | 83/89 |
-| `caffeine-dense` | ~99.6% | 97% | 8/36 | 25/33 |
-| `guava-dense` | ~98% | 94% | 14/100 | 86/100 |
-| `spring-lexical` | ~100% | 100% | 7/100 | 92/99 |
+| Preset | Files scanned | Avg coverage | Parse OK | Syntax OK | Unhandled files | Full-coverage files |
+|--------|--------------:|-------------:|---------:|----------:|----------------:|--------------------:|
+| `spring-dense` | 200 | 99.9% | 100% | 100% | 1/200 | 199/200 |
+| `spring-app-dense` | 200 | 99.7% | 100% | 100% | 3/200 | 197/200 |
+| `jackson-dense` | 200 | 99.6% | 100% | 100% | 4/200 | 196/200 |
+| `commons-lang-dense` | 200 | 99.0% | 100% | 99% | 11/200 | 189/200 |
+| `caffeine-dense` | 43 | 99.5% | 100% | 100% | 15/43 | 28/43 |
+| `guava-dense` | 200 | 98.2% | 99% | 100% | 55/200 | 145/200 |
+| `spring-lexical` | 200 | 100.0% | 98.5% | 99% | 6/200 | 194/200 |
 
 Re-run `make corpus-hotspots` after refreshing any baseline. The command also prints
 syntax/parse failures and a ranked hotspot backlog for cross-library triage (#152).

@@ -8,24 +8,77 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- `j2py doctor` adds a rule-only project assessment command with JSON and static HTML
+  reports covering parse failures, symbol inventory, dependency warnings, annotation
+  inventory, unresolved import boundary candidates, semantic warnings, TODOs, and
+  conservative config suggestions (#453).
+- Framework plugin wiring metadata sidecars: plugins can now emit versioned
+  `*.wiring.json` metadata through the framework dispatch chokepoint, with
+  JSON-serializability checks, diagnostics warnings, CLI emission, and documented Tier 4
+  plugin guidance for framework-specific migrations (#417, #422).
+- `make agent-worktree`, `make agent-clean`, and `make agent-evacuate` now provide
+  locked agent worktree creation from `origin/main`, safe merged-state cleanup reporting,
+  and dirty-main evacuation for agent workflows (#457).
+- Named class static initializer blocks now translate while preserving order with static
+  fields, and plain class-body initializer blocks become constructor pre-body lines
+  before Java constructor statements (#419).
+- Annotation type declarations now translate constants as `ClassVar[...]` values and
+  route nested annotation helper declarations through the normal class translator while
+  preserving declaration order (#440).
+- Anonymous class bodies now translate static/final fields as helper class attributes and
+  member initializer blocks as helper `__init__` bodies with preserved instance-field
+  initialization and receiverless self-dispatch (#442).
+- Java trailing-unsized array creation such as `new T[rows][]` and `new T[a][b][]` now
+  lowers to allocated outer lists with `None` inner-array slots while preserving fully
+  sized array behavior (#430).
+- Local classes declared inside instance methods now capture outer `self` for
+  `Outer.this` references, pass it into local-class constructor calls, and preserve
+  explicit constructor bodies on captured nested classes (#439).
 - Equivalence harvester now recognizes JUnit 5 trailing failure-message arguments
   (`assertEquals(expected, actual, "msg")`), keeps trailing numeric `delta` args so
   approximate float comparisons are skipped rather than mis-harvested as exact equality,
   and refuses to guess when a message position is ambiguous. Lifts NumberUtils harvest
-  yield from 19 to 32 literal-oracle assertions.
+  yield from 19 to 32 literal-oracle assertions (#458).
+
+### Changed
+- Agent instructions now require syncing from `origin/main` before creating branches or
+  worktrees, and corpus/harvest examples use relative paths so worktree agents can share
+  the main checkout's state without machine-specific paths (#451).
 
 ### Fixed
+- `BitSet` and `*BitSet` single-argument `get(index)` calls now stay method calls instead
+  of ambiguous collection-access diagnostics, while unknown receivers still require
+  review (#414).
+- Integral division certainty now carries through method returns, `.length`, wrapper
+  integral constants, `ordinal()`, and nested numeric expressions; JDK wrapper constants
+  such as `Long.SIZE` lower to concrete Python integer values, while ambiguous Java `/`
+  remains diagnosed (#415).
+- Generic overload groups now preserve module-level bounded method `TypeVar`
+  declarations, emit local `Protocol` placeholders for simple custom bounds, and import
+  required typing helpers so overload stubs validate cleanly (#416).
+- Ternary translation now selects condition/consequence/alternative from tree-sitter
+  fields rather than raw child positions, so comments and trivia near branches no longer
+  create malformed ternary diagnostics or incorrect branch typing (#421).
+- JSpecify-style annotated varargs ellipses such as
+  `@Nullable Object @Nullable ... args` parse successfully by normalizing the rejected
+  type-use annotation shape before tree-sitter while preserving line/source length (#438).
+- Nested classes declared inside interfaces no longer inherit outer static-dispatch
+  state from the containing class/interface environment (#444).
+- CLI compare-generated output now uses the shared translation-result writer and emits
+  framework wiring metadata sidecars when configured, matching single-file, directory,
+  and watch translation flows (#456).
 - `String.charAt(i)` now lowers to Python indexing `s[i]` instead of an undefined
   `s.char_at(i)` method call, and is typed as returning `str`. Lands
-  `StringUtils.isBlank` on the equivalence-verified surface (32/97 → 33/97).
+  `StringUtils.isBlank` on the equivalence-verified surface (32/97 → 33/97) (#458).
 - `charAt(i)`-returned chars are now recognized as Java `char` in expression-type
   inference, so a `charAt(i) == 'x'` comparison stays a str comparison instead of
   wrapping only the literal in `ord()` (which silently compared `str` to `int`, always
   False). Fixes `NumberUtils.isParsable` trailing-dot handling and lands it on the
-  equivalence-verified surface (33/97 → 34/97).
+  equivalence-verified surface (33/97 → 34/97) (#464).
 - `String.substring(start)` and `String.substring(start, end)` now lower to Python
   slices `s[start:]` and `s[start:end]` respectively, unblocking `StringUtils.strip`
-  translation. Lands `StringUtils.strip` on the equivalence-verified surface (34/97 → 35/97).
+  translation. Lands `StringUtils.strip` on the equivalence-verified surface (34/97 →
+  35/97) (#470).
 
 ## 0.5.0b3 - 2026-06-17
 

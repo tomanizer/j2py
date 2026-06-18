@@ -189,11 +189,17 @@ Java source file(s)
 
 ### `cli/` — User interface
 - `typer`-based CLI; `j2py translate`, `j2py analyze`, `j2py compare`, `j2py watch`
-  (incremental re-translate on file changes), and `j2py dashboard` (HTML review report)
+  (incremental re-translate on file changes), `j2py dashboard` (HTML review report), and
+  `j2py doctor` / `j2py sarif` (rule-only project assessment and diagnostic export)
 - All output via `rich`; directory translation reports order, per-file confidence,
   diagnostics counts, validation status, and cycle warnings
 - `compare` is a single-file review shortcut that reuses an existing Python file or
   generates one through the normal file pipeline, then opens an editor diff command
+- `doctor` reuses parse/analyze/rule-only translation to emit JSON/HTML migration
+  assessment reports, conservative config suggestions, and assessment diffs without live
+  LLM calls; see [DOCTOR.md](DOCTOR.md)
+- `sarif` converts doctor assessment JSON into SARIF 2.1.0 for GitHub code scanning,
+  CI artifacts, and review tooling; see [SARIF.md](SARIF.md)
 
 ## Key design decisions
 

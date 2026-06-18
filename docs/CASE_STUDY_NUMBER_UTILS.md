@@ -6,8 +6,8 @@ large parts of the fixture, but the verified number is the runtime surface exerc
 literal-oracle tests in `tests/equivalence/test_number_utils.py`, not the node-coverage
 score.
 
-As of #372 Option 1, `NumberUtils.java` has **16 of 61** public method signatures verified
-by the equivalence gate. The verified methods are:
+As of #464, `NumberUtils.java` has **17 of 61** public method signatures verified by the
+equivalence gate. The verified methods are:
 
 | Java surface | Verified signatures |
 |---|---:|
@@ -18,9 +18,12 @@ by the equivalence gate. The verified methods are:
 | `toByte` | `NumberUtils.toByte(String)`, `NumberUtils.toByte(String,byte)` |
 | `toShort` | `NumberUtils.toShort(String)`, `NumberUtils.toShort(String,short)` |
 | `compare` | `NumberUtils.compare(byte,byte)`, `NumberUtils.compare(short,short)`, `NumberUtils.compare(int,int)`, `NumberUtils.compare(long,long)` |
+| `isParsable` | `NumberUtils.isParsable(String)` |
 
-The total checked-in equivalence surface rises from **28/97** to **32/97** public
-signatures when these `compare` assertions are included.
+The NumberUtils slice raised the checked-in equivalence surface from **28/97** to
+**34/97** public signatures as `compare` and `isParsable` landed. The current repository
+floor is **35/97** after the `StringUtils.isBlank`, `NumberUtils.isParsable`, and
+`StringUtils.strip` equivalence fixes.
 
 ## Stub boundary
 
@@ -43,7 +46,7 @@ The following `NumberUtils` areas remain intentionally outside this case-study s
 
 | Excluded surface | Reason |
 |---|---|
-| `createNumber` | The method depends on switch fall-through and literal `.substring(...)` call shapes that are not yet a stable Python semantic match. |
+| `createNumber` | The method depends on broader numeric-construction, BigInteger/BigDecimal, suffix, and radix semantics that are outside the current harness boundary. |
 | `createBigInteger`, `createBigDecimal`, BigInteger/BigDecimal converters, `toScaledBigDecimal` | Python has no direct parity with Java `BigInteger`/`BigDecimal` construction, scale, and rounding contracts in the current harness boundary. |
 | `min` / `max` | Deferred because the Java overload set mixes varargs and fixed arity, and the erased Python dispatch policy is still ambiguous. |
 
