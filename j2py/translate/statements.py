@@ -145,6 +145,9 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
     if node.type == "assert_statement":
         return _translate_assert_statement(node, ctx, indent=indent)
 
+    if node.type == "labeled_statement":
+        return _translate_labeled_statement(node, ctx, indent=indent)
+
     if node.type == "local_variable_declaration":
         return _translate_local_variable_declaration(node, ctx, indent=indent)
 
@@ -262,6 +265,48 @@ def translate_statement(node: JavaNode, ctx: TranslationContext, *, indent: str)
 
     ctx.diagnostics.record(node, supported=False, reason=f"unsupported statement {node.type}")
     return [f"{indent}# TODO(j2py): unsupported {node.type}", f"{indent}pass"]
+
+
+def _translate_labeled_statement(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    indent: str,
+) -> list[str]:
+    label_node = first_child_by_type(node, "identifier")
+    label = label_node.text if label_node is not None else ""
+    body = node.named_children[1] if len(node.named_children) > 1 else None
+    if body is None:
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason="unsupported labeled statement without body",
+        )
+        return [f"{indent}# TODO(j2py): unsupported labeled_statement", f"{indent}pass"]
+
+    if label and _has_labeled_jump_target(body, label):
+        ctx.diagnostics.record(
+            node,
+            supported=False,
+            reason=f"unsupported labeled break/continue target {label}",
+        )
+        return [
+            f"{indent}# TODO(j2py): unsupported labeled_statement target {label}",
+            f"{indent}pass",
+        ]
+
+    ctx.diagnostics.record(node, supported=True, reason="translated label-only statement")
+    return [f"{indent}# label: {label}"] + translate_statement(body, ctx, indent=indent)
+
+
+def _has_labeled_jump_target(node: JavaNode, label: str) -> bool:
+    if node.type in TYPE_DECLARATION_NODES or node.type == "class_body":
+        return False
+    if node.type in {"break_statement", "continue_statement"}:
+        return any(
+            child.type == "identifier" and child.text == label for child in node.named_children
+        )
+    return any(_has_labeled_jump_target(child, label) for child in node.named_children)
 
 
 def _translate_assert_statement(

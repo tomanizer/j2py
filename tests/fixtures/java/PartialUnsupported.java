@@ -10,4 +10,11 @@ public class PartialUnsupported {
         positive:
         return;
     }
+
+    public void stop() {
+        outer:
+        while (true) {
+            break outer;
+        }
+    }
 }
