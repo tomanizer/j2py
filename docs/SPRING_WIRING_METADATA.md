@@ -269,7 +269,22 @@ known JDBC infrastructure types:
 - `PlatformTransactionManager`
 - `DataSourceTransactionManager`
 
-The method element stores bean topology under `jdbc_bean`:
+The method element stores bean topology under `jdbc_bean`. The field contract is:
+
+| Field | Meaning |
+|---|---|
+| `name` | Spring bean name. Explicit `@Bean("...")` wins; otherwise this is the Java method name. |
+| `java_name` | Source Java method name for review traceability. |
+| `python_name` | Translated Python method/bean name. |
+| `java_type` | Java return type text when known. |
+| `python_type` | Translated Python type text when known. |
+| `source_location` | Best-effort Java source range for review tooling. |
+| `dependencies` | Method-parameter dependencies, including translated name, Java name, type, and source. |
+| `constructor_args` | Constructor calls returned by the bean method, preserving the target type and visible arguments. |
+| `method_calls` | Builder or chained method calls visible in the bean method. |
+| `properties` | Visible datasource property keys, usually from `env.getProperty(...)`. |
+
+For a `JdbcTemplate` bean:
 
 ```json
 {
@@ -309,6 +324,41 @@ The method element stores bean topology under `jdbc_bean`:
 }
 ```
 
+For a `NamedParameterJdbcTemplate` bean that depends on `JdbcTemplate`, the shape is the
+same:
+
+```json
+{
+  "spring": {
+    "profile_version": 1,
+    "jdbc_bean": {
+      "name": "namedParameterJdbcTemplate",
+      "java_name": "namedParameterJdbcTemplate",
+      "python_name": "named_parameter_jdbc_template",
+      "java_type": "NamedParameterJdbcTemplate",
+      "python_type": "NamedParameterJdbcTemplate",
+      "dependencies": [
+        {
+          "name": "jdbc_template",
+          "java_name": "jdbcTemplate",
+          "type": "JdbcTemplate",
+          "java_type": "JdbcTemplate",
+          "source": "parameter"
+        }
+      ],
+      "constructor_args": [
+        {
+          "type": "NamedParameterJdbcTemplate",
+          "arguments": [{"kind": "identifier", "value": "jdbc_template"}]
+        }
+      ],
+      "method_calls": [],
+      "properties": []
+    }
+  }
+}
+```
+
 For `DataSourceBuilder`-style beans, `properties` records visible
 `env.getProperty(...)` keys attached to JDBC configuration setters:
 
@@ -332,6 +382,10 @@ downstream generator or manual port uses to replace those placeholders with a re
 SQLAlchemy `Connection` or `Session` policy. See the
 [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md#6-spring-jdbc-datasource--jdbctemplate)
 for the supported `update`, `queryForObject`, `query`, RowMapper, and manual-port cases.
+
+The profile intentionally does not include engine URLs, pool settings, credentials,
+transaction propagation, SQLAlchemy session lifecycle, migrations, or exception policy.
+Those are application runtime choices, not source-translation facts.
 
 ## Fixture
 
