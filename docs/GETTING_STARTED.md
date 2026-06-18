@@ -188,9 +188,27 @@ make corpus-hotspots
 When running from a worktree, set `J2PY_CORPUS_ROOT` to the main checkout. See
 [Corpus scoreboard](CORPUS_SCOREBOARD.md).
 
+## 9. Try The Spring Conversion Path
+
+Spring conversion is opt-in and split across two tools: `j2py translate` emits translated
+Python plus framework sidecars, then `j2py-wire` consumes those sidecars and generates
+FastAPI wiring.
+
+Start with the guide:
+
+```bash
+make test-spring-smoke
+```
+
+The smoke gate translates a constrained PetClinic owner slice, emits real Spring wiring
+sidecars, runs `j2py-wire generate`, runs `j2py-wire validate`, starts a FastAPI
+`TestClient`, and checks the owner endpoints. For the full workflow, configuration, and
+limits, see [Spring conversion](SPRING_CONVERSION.md).
+
 ## Where to Go Next
 
 - [CLI reference](CLI.md)
 - [Python API](API.md)
 - [Output review](OUTPUT_REVIEW.md)
 - [Positioning](POSITIONING.md)
+- [Spring conversion](SPRING_CONVERSION.md)

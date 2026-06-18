@@ -61,6 +61,16 @@ uv sync --locked --extra spring
 uv run --extra spring j2py translate src/main/java --config j2py_config.py --output translated_py
 ```
 
+The Spring workflow usually also runs `j2py-wire` and the optional smoke test:
+
+```bash
+uv run --extra spring j2py-wire --help
+uv run --extra spring --extra test pytest tests/integration/test_petclinic_smoke.py -m spring_smoke
+```
+
+See [Spring conversion](SPRING_CONVERSION.md) for the full translate -> sidecar ->
+`j2py-wire` -> FastAPI smoke path.
+
 Fresh worktrees may need to build the project before the first `uv run`. If the local
 `uv` cache is cold, that build resolves backend dependencies such as `hatchling` from
 PyPI. In network-restricted environments, pre-warm the cache from the main checkout or
@@ -186,4 +196,5 @@ The `watch` optional dependency remains reserved for future watcher implementati
 - [Getting started](GETTING_STARTED.md)
 - [CLI reference](CLI.md)
 - [Configuration](configuration.md)
+- [Spring conversion](SPRING_CONVERSION.md)
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
