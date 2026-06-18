@@ -75,9 +75,10 @@ It covers the opt-in Spring config, `SpringWiringPlugin` sidecars, `j2py-wire ge
 `j2py-wire validate`, the PetClinic smoke gate, and the corpus checks that show whether
 Spring translation improved or regressed. The [Spring -> FastAPI/SQLAlchemy mapping
 cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md) documents lower-level
-`annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`) with verified
-before/after pairs and explicit manual-port callouts. For programmatic framework lowering
-beyond one-to-one mappings, see the [framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
+`annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`),
+Spring JDBC/RowMapper SQLAlchemy scaffolding, and explicit manual-port callouts. For
+programmatic framework lowering beyond one-to-one mappings, see the
+[framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
 Install `j2py-converter[spring]` only when you need the optional Spring/FastAPI/SQLAlchemy
 runtime packages; installing that extra does not enable Spring behavior without explicit
 configuration.

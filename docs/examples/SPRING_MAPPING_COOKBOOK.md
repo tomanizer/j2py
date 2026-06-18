@@ -458,14 +458,48 @@ Keep the Spring JDBC route opt-in:
 - A Spring framework plugin should record `@Configuration` / `@Bean` JDBC metadata in
   `*.wiring.json` sidecars ([#558](https://github.com/tomanizer/j2py/issues/558)).
 - Deterministic call lowering can handle common `JdbcTemplate.update(...)`,
-  `queryForObject(...)`, and named-parameter forms only when the generated SQLAlchemy Core
-  scaffold remains visibly equivalent to the Java source
-  ([#557](https://github.com/tomanizer/j2py/issues/557)).
+  `query(...)`, `queryForObject(...)`, simple `RowMapper` forms, and named-parameter
+  forms only when the generated SQLAlchemy Core scaffold remains visibly equivalent to the
+  Java source ([#557](https://github.com/tomanizer/j2py/issues/557),
+  [#573](https://github.com/tomanizer/j2py/issues/573)).
 - Project config owns real imports, engine/session construction, dialect URLs, and
   database-specific behavior. For SQL Server, that may still mean `pyodbc`, but through
   SQLAlchemy or an internal `myapp.db` facade.
 - ADR 0020 remains the boundary: j2py lowers reviewable call structure and metadata, not a
   native JDBC runtime or driver bridge.
+
+### Current deterministic JDBC lowering
+
+The rule layer now recognizes the common Spring JDBC repository surface and emits
+SQLAlchemy Core scaffolding. It does not create a live engine or session; the generated
+receiver names are placeholders that make the expected dependency explicit:
+
+| Java source shape | Python scaffold |
+|---|---|
+| `jdbcTemplate.update(sql, id)` | `self.jdbc_template_connection.execute(text(sql), {"p1": id_}).rowcount` |
+| `jdbcTemplate.queryForObject(sql, Integer.class, id)` | `self.jdbc_template_connection.execute(text(sql), {"p1": id_}).scalar_one()` |
+| `namedJdbcTemplate.update(sql, params)` | `self.named_jdbc_template_connection.execute(text(sql), params).rowcount` |
+| `jdbcTemplate.query(sql, rowMapper)` | `[... for row in self.jdbc_template_connection.execute(text(sql)).mappings()]` |
+| `namedJdbcTemplate.queryForObject(sql, params, rowMapper)` | `(lambda row: ...)(self.named_jdbc_template_connection.execute(text(sql), params).mappings().one())` |
+
+Supported row-mapping forms are intentionally simple:
+
+- Lambda mappers whose body is a single expression, for example
+  `(rs, rowNum) -> new Owner(rs.getLong("id"), rs.getString("name"))`.
+- Anonymous `new RowMapper<T>() { mapRow(...) { return ...; } }` classes when `mapRow`
+  has a single return expression.
+- `BeanPropertyRowMapper.newInstance(Owner.class)` and
+  `new BeanPropertyRowMapper<>(Owner.class)`, rendered as `Owner(**dict(row))`.
+- Common `ResultSet` getters with string-literal column names:
+  `getString`, `getInt`, `getLong`, `getBoolean`, `getBigDecimal`, `getDate`, and
+  `getTimestamp`, rendered as `row["column"]`.
+
+Unsupported mapper and callback shapes stay explicit. Method references, dynamic column
+lookups, multi-statement `mapRow` bodies, `ResultSetExtractor`, generated keys, batch
+updates, stored procedures, vendor-specific result handling, and transaction/runtime
+policy still emit TODO diagnostics or remain manual-port work. That is deliberate: these
+cases usually require application-specific model construction, null policy, dialect
+behavior, or transaction scoping.
 
 ### Recommended j2py flow
 
@@ -483,8 +517,10 @@ emit_wiring_metadata = True
 Run translation with that trusted project config, then inspect both outputs:
 
 1. The translated repository methods show SQLAlchemy Core scaffolding for simple
-   `JdbcTemplate.update(...)`, `queryForObject(...)`, and named-parameter variants, for
-   example `connection.execute(text("..."), params).scalar_one()`.
+   `JdbcTemplate.update(...)`, `query(...)`, `queryForObject(...)`, simple RowMapper, and
+   named-parameter variants, for example
+   `connection.execute(text("..."), params).scalar_one()` or
+   `[Owner(row["id"], row["name"]) for row in connection.execute(text("...")).mappings()]`.
 2. The `*.wiring.json` sidecar records `DataSource`, `JdbcTemplate`,
    `NamedParameterJdbcTemplate`, and transaction-manager bean topology, including visible
    `Environment.getProperty(...)` keys.
@@ -499,8 +535,8 @@ wire an equivalent SQLAlchemy dependency from the bean metadata.
 
 ### Manual port required
 
-- `RowMapper`, `ResultSetExtractor`, callbacks, generated keys, batch updates, stored
-  procedures, and vendor SQL behavior.
+- Complex `RowMapper` bodies, method-reference mappers, `ResultSetExtractor`, callbacks,
+  generated keys, batch updates, stored procedures, and vendor SQL behavior.
 - Transaction propagation, isolation, read-only hints, and rollback rules beyond a
   project-owned `@transactional` shim.
 - Production engine/session lifecycle. `j2py-wire` may generate scaffolding later, but

@@ -420,8 +420,10 @@ to build the target framework layer:
   project-owned step.
 - Spring JDBC: discover `@Configuration` / `@Bean` topology for `DataSource`,
   `JdbcTemplate`, `NamedParameterJdbcTemplate`, and transaction managers, then emit
-  sidecar metadata for a project-owned SQLAlchemy engine/session layer. Keep pyodbc as a
-  possible SQLAlchemy dialect/driver, not as a core j2py codegen target.
+  sidecar metadata for a project-owned SQLAlchemy engine/session layer. The rule layer can
+  lower simple `JdbcTemplate` calls and RowMapper expressions to SQLAlchemy Core
+  scaffolding, but the plugin/runtime layer still owns real connection/session wiring.
+  Keep pyodbc as a possible SQLAlchemy dialect/driver, not as a core j2py codegen target.
 
 For simple Spring annotations that are truly one-to-one, prefer
 [`annotation_map`](configuration.md#schema). Use a plugin when the rule
