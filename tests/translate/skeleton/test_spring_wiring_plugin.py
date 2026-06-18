@@ -418,6 +418,45 @@ def test_spring_jdbc_configuration_writes_real_sidecar_payload(tmp_path: Path) -
     assert all(bean["source_location"]["line"] > 0 for bean in jdbc_beans.values())
 
 
+def test_spring_jdbc_migration_smoke_fixture_links_beans_to_sqlalchemy_scaffold(
+    tmp_path: Path,
+) -> None:
+    fixture = FIXTURES / "java" / "SpringJdbcMigrationSmoke.java"
+    output = tmp_path / "spring_jdbc_migration_smoke.py"
+    result = translate_file(fixture, cfg=_spring_cfg(), use_llm=False, validate=False)
+    result.output_path = output
+
+    sidecar = pipeline.write_wiring_metadata_sidecar(result)
+
+    assert sidecar is not None
+    assert "from sqlalchemy import text" in result.python_source
+    assert "class JdbcTemplate(Protocol):" in result.python_source
+    assert (
+        "self.jdbc_template_connection.execute("
+        "text('update owners set first_name = :p1 where id = :p2'), "
+        "{'p1': first_name, 'p2': id_}).rowcount"
+    ) in result.python_source
+    assert (
+        "self.jdbc_template_connection.execute("
+        "text('select first_name from owners where id = :p1'), "
+        "{'p1': id_}).scalar_one()"
+    ) in result.python_source
+
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    jdbc_beans = {
+        element["java_name"]: element["metadata"]["spring"]["jdbc_bean"]
+        for element in payload["elements"]
+        if "jdbc_bean" in element["metadata"]["spring"]
+    }
+    assert set(jdbc_beans) == {"dataSource", "jdbcTemplate", "transactionManager"}
+    assert {prop["target"]: prop["key"] for prop in jdbc_beans["dataSource"]["properties"]} == {
+        "url": "app.datasource.url",
+        "username": "app.datasource.username",
+    }
+    assert jdbc_beans["jdbcTemplate"]["dependencies"][0]["name"] == "data_source"
+    assert jdbc_beans["transactionManager"]["dependencies"][0]["name"] == "data_source"
+
+
 def test_petclinic_owner_controller_fixture_emits_wiring_contract(tmp_path: Path) -> None:
     fixture = FIXTURES / "java" / "PetClinicOwnerController.java"
     output = tmp_path / "owner_controller.py"
