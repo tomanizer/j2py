@@ -216,15 +216,17 @@ def _configured_member_return_type(
     method_name: str,
     ctx: TranslationContext,
 ) -> str | None:
-    from j2py.translate.member_resolution import configured_member_binding
+    from j2py.translate.member_resolution import configured_member_binding_for_receiver
 
-    binding = configured_member_binding(f"{receiver}.{method_name}", ctx.cfg, source="config")
+    binding = configured_member_binding_for_receiver(receiver, method_name, ctx)
     if binding is None:
         return None
     if binding.return_type:
         return translate_type(binding.return_type, ctx.cfg)
     if binding.return_shape:
-        _, _, shape = binding.return_shape.partition(":")
+        shape = binding.return_shape
+        if ":" in shape:
+            _, _, shape = shape.partition(":")
         simple = shape.split("->", 1)[0].split("[", 1)[0]
         return translate_type(simple or shape, ctx.cfg)
     return None

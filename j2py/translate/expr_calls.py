@@ -265,12 +265,48 @@ def _translate_source_proven_overload_call(
         owner = receiver or ctx.containing_class_name
         if owner is None:
             return None
+        if receiver and not _receiver_is_current_overload_owner(parts, receiver, ctx):
+            return None
         return f"{owner}.{target.helper_name}({parts.args})"
     if receiver:
+        if not _receiver_is_current_overload_owner(parts, receiver, ctx):
+            return None
         return f"{receiver}.{target.helper_name}({parts.args})"
     if ctx.in_instance_method:
         return f"self.{target.helper_name}({parts.args})"
     return None
+
+
+def _receiver_is_current_overload_owner(
+    parts: _MethodInvocationParts,
+    receiver: str,
+    ctx: TranslationContext,
+) -> bool:
+    """Whether a receiver can use helpers emitted on the current class."""
+    if not ctx.containing_class_name:
+        return False
+    if receiver in {"self", ctx.containing_class_name}:
+        return True
+    if parts.raw_receiver in {"this", ctx.containing_class_name}:
+        return True
+    if not parts.receiver_nodes:
+        return True
+
+    from j2py.translate.java_types import java_expression_type
+
+    receiver_type = java_expression_type(parts.receiver_nodes[0], ctx)
+    if receiver_type is None:
+        ctx.diagnostics.warn(
+            parts.receiver_nodes[0],
+            reason=(
+                f"overload call {parts.method_name} receiver type is unknown; "
+                "leaving normal receiver dispatch"
+            ),
+            category="missing_receiver_type",
+            facts={"method": parts.method_name, "receiver": parts.raw_receiver or receiver},
+        )
+        return False
+    return type_simple_name(receiver_type) == ctx.containing_class_name
 
 
 def _translate_generic_method_invocation(

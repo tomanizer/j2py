@@ -150,6 +150,44 @@ def configured_member_binding(
     )
 
 
+def configured_member_binding_for_receiver(
+    receiver: str,
+    member: str,
+    ctx: TranslationContext,
+    *,
+    source: JavaMemberSource = "config",
+) -> JavaMemberBinding | None:
+    """Resolve configured member facts for a possibly simple receiver name."""
+    for qualified_member in _qualified_member_candidates(receiver, member, ctx):
+        binding = configured_member_binding(qualified_member, ctx.cfg, source=source)
+        if binding is not None:
+            return binding
+    return None
+
+
+def _qualified_member_candidates(
+    receiver: str,
+    member: str,
+    ctx: TranslationContext,
+) -> tuple[str, ...]:
+    candidates: list[str] = [f"{receiver}.{member}"]
+    type_binding = ctx.name_resolver.bindings.imported_types.get(receiver)
+    if type_binding is not None and type_binding.import_line:
+        imported_owner = _owner_from_python_import_line(type_binding.import_line)
+        if imported_owner:
+            candidates.append(f"{imported_owner}.{member}")
+    if ctx.name_resolver.bindings.package_name and "." not in receiver:
+        candidates.append(f"{ctx.name_resolver.bindings.package_name}.{receiver}.{member}")
+    return tuple(dict.fromkeys(candidates))
+
+
+def _owner_from_python_import_line(import_line: str) -> str | None:
+    match = re.match(r"from\s+([\w.]+)\s+import\s+\w+\s*$", import_line.strip())
+    if match is None:
+        return None
+    return match.group(1)
+
+
 def wildcard_static_import_binding(
     owner: str,
     member: str,

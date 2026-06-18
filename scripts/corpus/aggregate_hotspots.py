@@ -250,7 +250,7 @@ def _add_structured_binding_clusters(
         category = diagnostic.get("category")
         if not isinstance(category, str) or not category:
             continue
-        cluster = category if category in STRUCTURED_BINDING_CLUSTERS else category
+        cluster = category
         stats = clusters.setdefault(cluster, ClusterStats(cluster=cluster))
         stats.total_count += 1
         stats.corpora.add(preset)

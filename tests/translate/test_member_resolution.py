@@ -4,6 +4,7 @@ from j2py.config.loader import MemberMapEntry
 from j2py.parse.java_ast import parse_source
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expr_static_calls import translate_static_imported_method
+from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.member_resolution import (
     configured_member_binding,
     java_type_shape,
@@ -15,6 +16,7 @@ from j2py.translate.member_resolution import (
     static_import_method_fallback,
     wildcard_static_import_binding,
 )
+from j2py.translate.name_resolution import FileNameBindings, NameResolver, TypeBinding
 from tests.translate.skeleton.helpers import CFG, translate_source_with_diagnostics
 
 
@@ -338,3 +340,101 @@ def test_configured_static_method_import_lowers_through_member_map() -> None:
 
     assert "return Util.max_value(1, 2)" in result.source
     assert not result.diagnostics.unhandled
+
+
+def test_configured_qualified_static_call_resolves_imported_simple_receiver() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "member_map": {
+                "com.example.Util.max": MemberMapEntry(
+                    kind="method",
+                    python_owner="Util",
+                    python_member="max_value",
+                    return_type="int",
+                ),
+            },
+        },
+    )
+    result = translate_source_with_diagnostics(
+        """
+        import com.example.Util;
+
+        class UseUtil {
+            int run() {
+                return Util.max(1, 2);
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "return Util.max_value(1, 2)" in result.source
+    assert not result.diagnostics.unhandled
+
+
+def test_configured_return_shape_resolves_imported_simple_receiver() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "member_map": {
+                "com.example.Util.make": MemberMapEntry(
+                    kind="method",
+                    return_shape="object:Thing->Thing",
+                ),
+            },
+        },
+    )
+    parsed = parse_source(
+        """
+        import com.example.Util;
+
+        class UseUtil {
+            Object run() {
+                return Util.make();
+            }
+        }
+        """,
+    )
+    invocation = next(parsed.root.find_all("method_invocation"))
+    ctx = TranslationContext(
+        cfg=cfg,
+        diagnostics=TranslationDiagnostics(),
+        name_resolver=NameResolver(
+            FileNameBindings(
+                imported_types={
+                    "Util": TypeBinding(
+                        raw_name="Util",
+                        python_name="Util",
+                        import_line="from com.example.Util import Util",
+                    ),
+                },
+            ),
+        ),
+    )
+
+    assert infer_expression_py_type(invocation, ctx) == "Thing"
+
+
+def test_configured_return_shape_accepts_simple_shape_without_category_prefix() -> None:
+    cfg = CFG.model_copy(
+        update={
+            "member_map": {
+                "Util.make": MemberMapEntry(
+                    kind="method",
+                    return_shape="Thing->Thing",
+                ),
+            },
+        },
+    )
+    parsed = parse_source(
+        """
+        class UseUtil {
+            Object run() {
+                return Util.make();
+            }
+        }
+        """,
+    )
+    invocation = next(parsed.root.find_all("method_invocation"))
+    ctx = TranslationContext(cfg=cfg, diagnostics=TranslationDiagnostics())
+
+    assert infer_expression_py_type(invocation, ctx) == "Thing"

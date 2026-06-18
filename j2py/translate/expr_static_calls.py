@@ -7,7 +7,7 @@ from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_jdk_calls import translate_known_static_method_invocation
 from j2py.translate.member_resolution import (
     JavaMemberBinding,
-    configured_member_binding,
+    configured_member_binding_for_receiver,
     static_import_binding,
     static_import_method_fallback,
 )
@@ -33,11 +33,7 @@ def translate_static_method_invocation(
     if known is not None:
         return known
     if raw_receiver:
-        binding = configured_member_binding(
-            f"{raw_receiver}.{method_name}",
-            ctx.cfg,
-            source="config",
-        )
+        binding = configured_member_binding_for_receiver(raw_receiver, method_name, ctx)
         if binding is not None and binding.kind in {"method", "unknown"}:
             return static_import_method_fallback(binding, args, ctx.cfg)
     return None

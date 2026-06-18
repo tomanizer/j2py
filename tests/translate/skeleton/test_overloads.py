@@ -342,6 +342,49 @@ def test_declared_instance_numeric_width_receiver_call_uses_receiver_helper() ->
     assert_valid_python(result.source)
 
 
+def test_declared_instance_numeric_width_same_class_receiver_uses_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runOn(Widths other) {
+                long value = 1L;
+                return other.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return other._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_other_receiver_stays_normal_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Other {
+            public int pick(long value) { return 2; }
+        }
+
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runOn(Other other) {
+                long value = 1L;
+                return other.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return other.pick(value)" in result.source
+    assert "return other._j2py_overload_pick_2(value)" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_casted_numeric_width_call_site_uses_cast_shape_only_for_expression() -> None:
     result = translate_source_with_diagnostics(
         """
