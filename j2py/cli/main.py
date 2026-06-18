@@ -165,7 +165,7 @@ def _translate_single(
     report: Path | None,
     json_output: bool,
 ) -> None:
-    from j2py.pipeline import translate_file, write_wiring_metadata_sidecar
+    from j2py.pipeline import translate_file
 
     if not json_output:
         console.print(f"[bold]Translating[/bold] {source}")
@@ -190,10 +190,7 @@ def _translate_single(
         return
 
     dest = output or source.with_suffix(".py")
-    result.output_path = dest
-    dest.write_text(result.python_source)
-    if cfg.emit_wiring_metadata:
-        write_wiring_metadata_sidecar(result)
+    _write_translation_result(result, dest, cfg)
     if not json_output:
         console.print(f"[green]Written:[/green] {dest}")
     _emit_runtime_module(dest.parent, [result.python_source], quiet=json_output)
@@ -227,6 +224,52 @@ def _emit_runtime_module(output_root: Path, sources: list[str], *, quiet: bool =
         console.print(f"[green]Written:[/green] {runtime_path} (j2py runtime helpers)")
 
 
+def _write_translation_result(
+    result: TranslationResult,
+    output_path: Path,
+    cfg: TranslationConfig,
+) -> None:
+    from j2py.pipeline import write_wiring_metadata_sidecar
+
+    result.output_path = output_path
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(result.python_source)
+    if cfg.emit_wiring_metadata:
+        write_wiring_metadata_sidecar(result)
+
+
+def _write_directory_translation_results(
+    batch: DirectoryTranslationResult,
+    cfg: TranslationConfig,
+) -> None:
+    for result in batch.files:
+        if result.output_path is not None and not result.skipped:
+            _write_translation_result(result, result.output_path, cfg)
+
+
+def _refresh_directory_state(
+    batch: DirectoryTranslationResult,
+    *,
+    source_root: Path,
+    output_root: Path,
+) -> None:
+    from j2py.state import entry_from_result, load_state, save_state, source_key
+
+    previous_entries = load_state(output_root)
+    entries = {}
+    for result in batch.files:
+        key = source_key(result.source_path, source_root)
+        if result.skipped and key in previous_entries:
+            entries[key] = previous_entries[key]
+        else:
+            entries[key] = entry_from_result(
+                result,
+                source_root=source_root,
+                output_root=output_root,
+            )
+    save_state(output_root, entries)
+
+
 def _translate_dir(
     source: Path,
     output: Path,
@@ -243,7 +286,7 @@ def _translate_dir(
     llm_concurrency: int | None,
     json_output: bool,
 ) -> None:
-    from j2py.pipeline import translate_directory, write_wiring_metadata_sidecar
+    from j2py.pipeline import translate_directory
 
     java_files = sorted(source.rglob("*.java"))
     if not java_files:
@@ -280,12 +323,8 @@ def _translate_dir(
         output.mkdir(parents=True, exist_ok=True)
 
     if json_output:
-        for result in batch.files:
-            if not dry_run and result.output_path is not None and not result.skipped:
-                result.output_path.parent.mkdir(parents=True, exist_ok=True)
-                result.output_path.write_text(result.python_source)
-                if cfg.emit_wiring_metadata:
-                    write_wiring_metadata_sidecar(result)
+        if not dry_run:
+            _write_directory_translation_results(batch, cfg)
     else:
         with Progress(
             SpinnerColumn(), TextColumn("{task.description}"), console=console
@@ -298,33 +337,16 @@ def _translate_dir(
                     console.print(f"\n[bold]{result.source_path}[/bold]")
                     console.print(result.python_source)
                 elif result.output_path is not None and not result.skipped:
-                    result.output_path.parent.mkdir(parents=True, exist_ok=True)
-                    result.output_path.write_text(result.python_source)
-                    if cfg.emit_wiring_metadata:
-                        write_wiring_metadata_sidecar(result)
+                    _write_translation_result(result, result.output_path, cfg)
                 progress.advance(task)
 
     if not dry_run:
-        from j2py.state import entry_from_result, load_state, save_state, source_key
-
         _emit_runtime_module(
             output,
             [result.python_source for result in batch.files],
             quiet=json_output,
         )
-        previous_entries = load_state(output)
-        entries = {}
-        for result in batch.files:
-            key = source_key(result.source_path, source)
-            if result.skipped and key in previous_entries:
-                entries[key] = previous_entries[key]
-            else:
-                entries[key] = entry_from_result(
-                    result,
-                    source_root=source,
-                    output_root=output,
-                )
-        save_state(output, entries)
+        _refresh_directory_state(batch, source_root=source, output_root=output)
         if report is not None:
             from j2py.report import write_translation_report
 
@@ -599,8 +621,7 @@ def compare(
             validate=validate,
         )
         _print_result_summary(result)
-        py_path.parent.mkdir(parents=True, exist_ok=True)
-        py_path.write_text(result.python_source)
+        _write_translation_result(result, py_path, cfg)
         console.print(f"[green]Written:[/green] {py_path}")
         _emit_runtime_module(py_path.parent, [result.python_source])
 
@@ -757,7 +778,7 @@ def _run_watch_translation(
     llm_provider: LLMProvider,
     validate: bool,
 ) -> None:
-    from j2py.pipeline import translate_directory, translate_file, write_wiring_metadata_sidecar
+    from j2py.pipeline import translate_directory, translate_file
 
     if source.is_dir():
         batch = translate_directory(
@@ -773,31 +794,9 @@ def _run_watch_translation(
             llm_concurrency=cfg.llm_concurrency,
         )
         output.mkdir(parents=True, exist_ok=True)
-        for result in batch.files:
-            if result.output_path is not None and not result.skipped:
-                result.output_path.parent.mkdir(parents=True, exist_ok=True)
-                result.output_path.write_text(result.python_source)
-                if cfg.emit_wiring_metadata:
-                    write_wiring_metadata_sidecar(result)
+        _write_directory_translation_results(batch, cfg)
         _emit_runtime_module(output, [result.python_source for result in batch.files])
-        from j2py.state import entry_from_result, load_state, save_state, source_key
-
-        previous_entries = load_state(output)
-        entries = {}
-        for result in batch.files:
-            key = source_key(result.source_path, source)
-            if result.skipped and key in previous_entries:
-                entries[key] = previous_entries[key]
-            else:
-                entries[key] = entry_from_result(
-                    result,
-                    source_root=source,
-                    output_root=output,
-                )
-        save_state(
-            output,
-            entries,
-        )
+        _refresh_directory_state(batch, source_root=source, output_root=output)
         timestamp = time.strftime("%H:%M:%S")
         console.print(
             f"[{timestamp}] {batch.skipped_count} files skipped, "
@@ -813,11 +812,7 @@ def _run_watch_translation(
         llm_provider=llm_provider,
         validate=validate,
     )
-    output.parent.mkdir(parents=True, exist_ok=True)
-    result.output_path = output
-    output.write_text(result.python_source)
-    if cfg.emit_wiring_metadata:
-        write_wiring_metadata_sidecar(result)
+    _write_translation_result(result, output, cfg)
     _emit_runtime_module(output.parent, [result.python_source])
     timestamp = time.strftime("%H:%M:%S")
     console.print(

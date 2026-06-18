@@ -1305,6 +1305,49 @@ def test_cli_compare_uses_config_when_translating_missing_python(
     assert observed_llm == [("gemini-3.5-flash", "gemini")]
 
 
+def test_cli_compare_writes_wiring_metadata_sidecar_when_configured(
+    tmp_path: Path,
+) -> None:
+    java = tmp_path / "Orders.java"
+    python = tmp_path / "Orders.py"
+    config = tmp_path / "j2py_config.py"
+    java.write_text(
+        """
+        @interface MappedController {}
+
+        @MappedController
+        public class Orders {
+        }
+        """,
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "from tests.fixtures.framework.reference_plugin import (",
+                "    ReferenceFrameworkPlugin as _ReferenceFrameworkPlugin,",
+                ")",
+                "framework_plugins = [_ReferenceFrameworkPlugin()]",
+                "emit_wiring_metadata = True",
+            ],
+        ),
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["compare", str(java), "--config", str(config), "--no-open", "--no-validate"],
+    )
+
+    assert result.exit_code == 0
+    assert python.exists()
+    sidecar = python.with_suffix(".wiring.json")
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text())
+    assert payload["source"] == str(java)
+    assert payload["output"] == str(python)
+    assert payload["elements"][0]["metadata"] == {"controller": "Orders"}
+
+
 def test_cli_compare_emits_vendored_dispatch_runtime_for_generated_python(
     tmp_path: Path,
     monkeypatch,
