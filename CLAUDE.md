@@ -80,6 +80,21 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 
 ## Development workflow
 
+Before creating a branch or worktree, update the main checkout from the repo root:
+
+```bash
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+```
+
+If `main` has local modifications, stop and resolve them before pulling. New worktrees
+should be based on `origin/main`, not stale local history:
+
+```bash
+git worktree add ../j2py-task -b branch/name origin/main
+```
+
 ```bash
 uv run pytest               # run tests
 uv run mypy j2py/           # type-check
@@ -108,7 +123,7 @@ among several). External Java repos are **not** in git — they live under
    reuse the same clones:
 
 ```bash
-export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py
+export J2PY_CORPUS_ROOT=../j2py
 make corpus-commons-lang-dense-check   # uses $J2PY_CORPUS_ROOT/.corpus/commons-lang
 make corpus-hotspots                   # rank gaps across all committed baselines
 ```
@@ -122,7 +137,7 @@ Harvest state (`.j2py/harvest/`) and API keys live on the **main** checkout. In 
 worktree, point at the main tree so queue, cache, and `.env` resolve correctly:
 
 ```bash
-export J2PY_CORPUS_ROOT=/Users/you/path/to/j2py   # main checkout
+export J2PY_CORPUS_ROOT=../j2py      # relative path to the main checkout
 make harvest-promote-dry ISSUES=2                   # dry-run promotion pipeline
 ```
 
