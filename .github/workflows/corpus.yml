@@ -53,6 +53,7 @@ jobs:
         preset:
           - spring-dense
           - spring-app-dense
+          - petclinic
           - guava-dense
           - commons-lang-dense
           - jackson-dense

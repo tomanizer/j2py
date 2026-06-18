@@ -170,8 +170,9 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
    and the CharUtils, NumberUtils, StringUtils, and GuavaPrecedenceMath literal-oracle
    equivalence gates.
 6. Committed multi-library corpus baselines provide regression signal; CI gates every
-   committed dense baseline (`spring-dense`, `guava-dense`, `commons-lang-dense`,
-   `spring-app-dense`, `jackson-dense`, and `caffeine-dense`) against baseline drift.
+   committed dense baseline (`spring-dense`, `spring-app-dense`, `petclinic`,
+   `guava-dense`, `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) against
+   baseline drift.
 7. Behavior and equivalence suites provide bounded runtime-correctness signal without
    requiring live LLM calls in normal CI.
 

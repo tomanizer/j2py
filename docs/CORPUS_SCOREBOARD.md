@@ -18,6 +18,7 @@ baselines live under `tests/fixtures/corpus/`.
 | `caffeine-dense` | Caffeine | `caffeine/src/main/java` | `caffeine-dense-baseline.json` | — |
 | `spring-dense` | Spring Framework | `spring-core`, `spring-beans`, DI annotation/config packages, stereotypes | `spring-dense-baseline.json` | yes (`--include-constructs`) |
 | `spring-app-dense` | Spring Framework | context-indexer samples, framework-docs web/data, webmvc tests, scannable examples | `spring-app-dense-baseline.json` | yes (`--include-constructs`) |
+| `petclinic` | Spring PetClinic | `src/main/java` official Spring Boot reference app | `petclinic-baseline.json` | — |
 | `spring-lexical` | Spring Framework | `spring-core`, `spring-beans` | `spring-sample-baseline.json` | — (historical lexical sample) |
 | `spring-broad` | Spring Framework | `spring-context` | — (exploratory; no committed baseline) | yes |
 | `openjdk-java-base` | OpenJDK | selected `java.base` API-surface files | — (exploratory; no committed baseline) | — |
@@ -33,6 +34,7 @@ Density presets (except `spring-lexical`) use `--strategy density --max-loc 1000
 | `caffeine-dense` | Concurrent cache code and lambdas |
 | `spring-dense` | Framework core/beans Java, Spring DI annotations/stereotypes, construct fixtures |
 | `spring-app-dense` | Application-layer Spring: `@RestController`, `@Service`/`@Repository`, `@Transactional`, JPA `@Entity` samples from framework test fixtures and docs |
+| `petclinic` | Real Spring Boot reference application with controllers, services, repositories, JPA entities, validation, and configuration |
 | `spring-lexical` | Historical lexical Spring sample for continuity with older reports |
 | `spring-broad` | Broader `spring-context` surface plus construct fixtures (local exploration) |
 | `openjdk-java-base` | Optional external measurement of selected OpenJDK `java.base` API code; scoreboard/demo only, not product scope |
@@ -51,6 +53,7 @@ As of the current committed baselines, `make corpus-hotspots` reports approximat
 |--------|--------------:|-------------:|---------:|----------:|----------------:|--------------------:|
 | `spring-dense` | 200 | 99.9% | 100% | 100% | 1/200 | 199/200 |
 | `spring-app-dense` | 200 | 99.7% | 100% | 100% | 3/200 | 197/200 |
+| `petclinic` | 25 | 100.0% | 100% | 100% | 0/25 | 25/25 |
 | `jackson-dense` | 200 | 99.6% | 100% | 100% | 4/200 | 196/200 |
 | `commons-lang-dense` | 200 | 99.0% | 100% | 99% | 11/200 | 189/200 |
 | `caffeine-dense` | 43 | 99.5% | 100% | 100% | 15/43 | 28/43 |
@@ -106,7 +109,7 @@ set `J2PY_CORPUS_ROOT` to avoid duplicating those external clones.
 ## Per-preset commands
 
 For presets with a **committed baseline** (`guava-dense`, `commons-lang-dense`,
-`jackson-dense`, `caffeine-dense`, `spring-dense`, `spring-app-dense`):
+`jackson-dense`, `caffeine-dense`, `spring-dense`, `spring-app-dense`, `petclinic`):
 
 ```bash
 make corpus-<name>                  # run without baseline comparison
@@ -123,6 +126,7 @@ make corpus-jackson-dense-check
 make corpus-caffeine-dense-check
 make corpus-spring-dense-check      # Spring dense preset + construct fixtures
 make corpus-spring-app-dense-check  # Spring app-layer samples (REST, JPA, @Transactional)
+make corpus-petclinic-dense-check   # Spring PetClinic reference application
 ```
 
 Historical Spring lexical baseline (`spring-lexical` preset):
@@ -226,7 +230,8 @@ For translation-rule PRs:
      `make corpus-guava-dense-check` for generics/collections,
      `make corpus-commons-lang-dense-check` for utility-class patterns).
 3. CI enforces every committed dense baseline (`spring-dense`, `spring-app-dense`,
-   `guava-dense`, `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`) before merge.
+   `petclinic`, `guava-dense`, `commons-lang-dense`, `jackson-dense`, and
+   `caffeine-dense`) before merge.
 4. Use `make corpus-hotspots` when triaging gaps across libraries or after baseline
    updates.
 5. Update a baseline with `make corpus-<name>-update-baseline` only after confirming no
@@ -241,8 +246,8 @@ harness; this keeps the required unit/type/lint gate fast and deterministic.
 files change:
 
 1. **Dense baseline matrix** — clones the checkout for each committed dense preset and
-   fails on regression for `spring-dense`, `spring-app-dense`, `guava-dense`,
-   `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`.
+   fails on regression for `spring-dense`, `spring-app-dense`, `petclinic`,
+   `guava-dense`, `commons-lang-dense`, `jackson-dense`, and `caffeine-dense`.
 2. **`corpus-hotspots` scorecard** — reads committed `*-baseline.json` files only; no
    clones. Surfaces multi-library baseline drift and validates hotspot aggregation.
 

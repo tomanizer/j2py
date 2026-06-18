@@ -28,6 +28,7 @@ def test_list_preset_names_includes_spring_and_guava() -> None:
     names = presets.list_preset_names()
     assert "spring-dense" in names
     assert "spring-app-dense" in names
+    assert "petclinic" in names
     assert "openjdk-java-base" in names
     assert "guava-dense" in names
     assert names == sorted(names)
@@ -43,6 +44,19 @@ def test_spring_app_dense_preset_targets_application_samples() -> None:
     assert preset.include_path_prefixes == (
         "spring-context-indexer/src/test/java/org/springframework/context/index/sample/",
     )
+
+
+def test_petclinic_preset_targets_official_reference_application() -> None:
+    preset = presets.get_preset("petclinic")
+
+    assert preset.remote == "https://github.com/spring-projects/spring-petclinic.git"
+    assert preset.ref == "a2c2ef994340d3970eb6db51247456a51bb161f8"
+    assert preset.checkout_dir == "spring-petclinic"
+    assert preset.modules == ("src/main/java",)
+    assert preset.baseline.name == "petclinic-baseline.json"
+    assert preset.include_constructs is False
+    assert preset.min_loc == 0
+    assert preset.min_constructs == 0
 
 
 def test_openjdk_java_base_preset_is_manual_external_scoreboard() -> None:
@@ -179,6 +193,7 @@ def test_clone_preset_names_are_unique_checkouts() -> None:
     checkout_dirs = {presets.get_preset(name).checkout_dir for name in presets.CLONE_PRESET_NAMES}
     assert checkout_dirs == {
         "spring-framework",
+        "spring-petclinic",
         "guava",
         "commons-lang",
         "jackson-databind",
