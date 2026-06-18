@@ -20,7 +20,12 @@ import sys
 
 import pytest
 
-from tests.equivalence.comparator import approx_double
+from tests.equivalence.comparator import (
+    approx_double,
+    approx_float,
+    assert_equivalent,
+    assert_raises_mapped,
+)
 from tests.equivalence.harness import (
     install_java_lang_stubs,
     load_translated_module,
@@ -191,6 +196,80 @@ def test_to_double_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.to_double("000.00", 5.1) == approx_double(0.0)
     assert NumberUtils.to_double("", 5.1) == approx_double(5.1)
     assert NumberUtils.to_double(None, 5.1) == approx_double(5.1)
+
+
+# ── create* null-return converters ────────────────────────────────────────────
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createInteger(String)")
+def test_create_integer_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_createInteger")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        ("42", 42),
+        ("0", 0),
+        ("-7", -7),
+        ("0x1F", 31),
+        ("077", 63),
+        (None, None),
+    ]:
+        assert_equivalent(expected, NumberUtils.create_integer(value))
+    for invalid in ["abc", " 123", "123 "]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_integer(invalid)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createLong(String)")
+def test_create_long_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_createLong")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        ("1000000000000", 1_000_000_000_000),
+        ("0", 0),
+        ("0X1F", 31),
+        ("077", 63),
+        (None, None),
+    ]:
+        assert_equivalent(expected, NumberUtils.create_long(value))
+    for invalid in ["xyz", " 123", "123 "]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_long(invalid)
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createFloat(String)")
+def test_create_float_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_createFloat")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        ("3.14", 3.14),
+        ("0.0", 0.0),
+    ]:
+        assert NumberUtils.create_float(value) == approx_float(expected)
+    assert_equivalent(None, NumberUtils.create_float(None))
+    with assert_raises_mapped("NumberFormatException"):
+        NumberUtils.create_float("nope")
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createDouble(String)")
+def test_create_double_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_createDouble")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for value, expected in [
+        ("2.718", 2.718),
+        ("1e10", 1e10),
+    ]:
+        assert NumberUtils.create_double(value) == approx_double(expected)
+    assert_equivalent(None, NumberUtils.create_double(None))
+    with assert_raises_mapped("NumberFormatException"):
+        NumberUtils.create_double("nope")
 
 
 @pytest.mark.equivalence

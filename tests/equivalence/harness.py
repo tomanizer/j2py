@@ -175,11 +175,31 @@ def install_java_lang_stubs() -> list[str]:
     def _parse_byte(value: Any) -> int:
         return _parse_ranged_int(value, -(2**7), 2**7 - 1)
 
+    def _decode_integer(value: Any) -> int:
+        text = str(value)
+        if text != text.strip():
+            raise ValueError(value)
+        sign = -1 if text.startswith("-") else 1
+        unsigned = text[1:] if text[:1] in {"+", "-"} else text
+        if unsigned.startswith(("0x", "0X")):
+            parsed = int(unsigned[2:], 16)
+        elif unsigned.startswith("#"):
+            parsed = int(unsigned[1:], 16)
+        elif len(unsigned) > 1 and unsigned.startswith("0"):
+            parsed = int(unsigned[1:], 8)
+        else:
+            parsed = int(unsigned, 10)
+        return sign * parsed
+
     math = "org.apache.commons.lang3.math"
     lang3 = "org.apache.commons.lang3"
 
     installed: list[str] = []
-    installed += install_stub_class(f"{math}.Long", "Long", types.SimpleNamespace(value_of=_id))
+    installed += install_stub_class(
+        f"{math}.Long",
+        "Long",
+        types.SimpleNamespace(value_of=_id, decode=_decode_integer),
+    )
     installed += install_stub_class(
         f"{math}.Short",
         "Short",
@@ -194,14 +214,14 @@ def install_java_lang_stubs() -> list[str]:
         f"{math}.Double",
         "Double",
         types.SimpleNamespace(
-            value_of=_id, is_na_n=lambda value: value != value, na_n=float("nan")
+            value_of=float, is_na_n=lambda value: value != value, na_n=float("nan")
         ),
     )
     installed += install_stub_class(
         f"{math}.Float",
         "Float",
         types.SimpleNamespace(
-            value_of=_id,
+            value_of=float,
             parse_float=float,
             is_na_n=lambda value: value != value,
             na_n=float("nan"),
@@ -212,6 +232,7 @@ def install_java_lang_stubs() -> list[str]:
         "Integer",
         types.SimpleNamespace(
             value_of=_id,
+            decode=_decode_integer,
             MIN_VALUE=-(2**31),
             MAX_VALUE=2**31 - 1,
         ),

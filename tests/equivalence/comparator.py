@@ -104,6 +104,20 @@ def approx_double(value: float, rel: float = 1e-9) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Return-value comparison helper
+# ---------------------------------------------------------------------------
+
+
+def assert_equivalent(expected: Any, actual: Any) -> None:
+    """Assert Java-oracle and translated-Python return values are equivalent."""
+    if expected is None and actual is None:
+        return
+    if (expected is None) != (actual is None):
+        raise AssertionError(f"Null mismatch: expected {expected!r}, got {actual!r}")
+    assert actual == expected
+
+
+# ---------------------------------------------------------------------------
 # Exception mapping helper
 # ---------------------------------------------------------------------------
 

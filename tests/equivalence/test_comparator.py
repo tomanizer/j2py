@@ -20,6 +20,7 @@ from tests.equivalence.comparator import (
     SHORT_MIN,
     approx_double,
     approx_float,
+    assert_equivalent,
     assert_raises_mapped,
     java_int,
     java_long,
@@ -113,6 +114,28 @@ def test_approx_double_rejects_single_precision_error() -> None:
     # A difference that passes approx_float (1e-5) but fails approx_double (1e-9)
     with pytest.raises(AssertionError):
         assert approx_double(1.2345) == 1.2345001
+
+
+# ---------------------------------------------------------------------------
+# Return-value equivalence
+# ---------------------------------------------------------------------------
+
+
+def test_assert_equivalent_accepts_null_none_pair() -> None:
+    assert_equivalent(None, None)
+
+
+def test_assert_equivalent_rejects_null_mismatch() -> None:
+    with pytest.raises(AssertionError, match="Null mismatch: expected None, got 0"):
+        assert_equivalent(None, 0)
+    with pytest.raises(AssertionError, match="Null mismatch: expected 0, got None"):
+        assert_equivalent(0, None)
+
+
+def test_assert_equivalent_compares_non_null_values() -> None:
+    assert_equivalent(42, 42)
+    with pytest.raises(AssertionError):
+        assert_equivalent(42, 43)
 
 
 # ---------------------------------------------------------------------------
