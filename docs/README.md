@@ -10,6 +10,7 @@
 | [OUTPUT_REVIEW.md](OUTPUT_REVIEW.md) | How to review confidence, warnings, TODO markers, validation, and generated reports |
 | [API.md](API.md) | Python API usage for file/directory translation, config loading, diagnostics, and reports |
 | [PRD.md](PRD.md) | Product goals, functional requirements, non-goals, success criteria |
+| [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) | Optional Spring conversion extension scope, v1 target, and boundary rules |
 | [POSITIONING.md](POSITIONING.md) | Useful scope, enterprise framework boundaries, and how to read corpus metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
 | [configuration.md](configuration.md) | Config file schema (`j2py.yaml`, TOML, pyproject) |
@@ -44,7 +45,7 @@
 | Document | Description |
 |----------|-------------|
 | [decisions/0001-record-architecture-decisions.md](decisions/0001-record-architecture-decisions.md) | ADR process template |
-| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0023 (parser, pipeline, LLM providers, overloads, equivalence, harvest, ...) |
+| [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002–0024 (parser, pipeline, LLM providers, overloads, equivalence, framework boundaries, ...) |
 | [decisions/AUDIT-2026-06-17.md](decisions/AUDIT-2026-06-17.md) | Latest dated maturity and gap audit snapshot |
 | [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Prior maturity and gap audit snapshot |
 | [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Earliest rule-layer breadth snapshot |

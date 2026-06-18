@@ -8,13 +8,15 @@ j2py enables **no** Spring, FastAPI, JPA, or DI semantics by default
 ([ADR 0019](../decisions/0019-annotation-map-framework-lowering.md)). The core package
 does include `annotation_map_preset: spring` for no-op Spring marker decorators; the
 FastAPI/SQLAlchemy profile in this cookbook remains project policy realized through the
-tiers below.
+tiers below. Product scope and architectural boundaries for the optional Spring extension
+are recorded in [SPRING_EXTENSION_PRD.md](../SPRING_EXTENSION_PRD.md) and
+[ADR 0024](../decisions/0024-spring-extension-boundary.md).
 
 | Tier | Mechanism | Status | Issue |
 |---|---|---|---|
 | Tier 1 | Default lowering + audit comments | shipped | — |
 | Tier 2 | `annotation_map` config | shipped | [#335](https://github.com/tomanizer/j2py/issues/335) |
-| Tier 4 | Framework plugins (richer transforms) | planned | [#337](https://github.com/tomanizer/j2py/issues/337) |
+| Tier 4 | Framework plugins (richer transforms) | shipped | [#337](https://github.com/tomanizer/j2py/issues/337), [ADR 0022](../decisions/0022-framework-plugin-architecture.md) |
 | Tier 5 | `j2py-wire` (DI/route bootstrap) | planned | [#338](https://github.com/tomanizer/j2py/issues/338) |
 
 Related: [#333](https://github.com/tomanizer/j2py/issues/333) (enterprise audit),

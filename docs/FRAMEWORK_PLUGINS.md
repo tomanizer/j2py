@@ -8,6 +8,8 @@ MVC routes, dependency injection, transactions, and persistence markers.
 Design decision: [ADR 0022](decisions/0022-framework-plugin-architecture.md).
 Configuration reference: [configuration.md](configuration.md#framework-plugins).
 Related Tier 2 mapping: [ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
+Spring extension boundary: [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+[ADR 0024](decisions/0024-spring-extension-boundary.md).
 
 ## What plugins are for
 
@@ -415,5 +417,8 @@ needs code, correlation, metadata, or project-specific precedence.
   `framework_plugins`.
 - [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md) shows Tier 2
   `annotation_map` recipes and manual-port callouts.
+- [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+  [ADR 0024](decisions/0024-spring-extension-boundary.md) define the optional Spring
+  extension scope and the rule that Spring is one consumer of these generic hooks.
 - [ADR 0022](decisions/0022-framework-plugin-architecture.md) records the architecture
   tradeoffs behind the plugin contract.
