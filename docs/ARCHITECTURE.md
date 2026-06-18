@@ -31,10 +31,13 @@ Java source file(s)
 │   ├── framework_annotations.py Config-driven annotation_map lowering
 │   ├── class_members.py     Member index, Javadoc, static dispatch
 │   ├── class_methods.py     Method/constructor emission
+│   ├── overload_guards.py   Overload runtime guard helpers
+│   ├── overload_equivalence.py Overload branch equivalence helpers
 │   ├── class_nested.py      Nested type emission
 │   ├── class_fields.py      Field extraction/emission
 │   ├── class_model.py       Shared dataclasses
 │   ├── name_resolution.py   Deterministic partial name binding
+│   ├── member_resolution.py Static import/member binding helpers
 │   ├── statements.py        Statement facade / router
 │   ├── stmt_control.py      if/for/while/do control-flow lowering
 │   ├── stmt_exceptions.py   try/catch/throw and try-with-resources lowering
@@ -42,11 +45,22 @@ Java source file(s)
 │   ├── stmt_sync.py         synchronized block lowering
 │   ├── expressions.py       Expression facade / router
 │   ├── expr_access.py       Identifiers, fields, arrays, casts, instanceof
-│   ├── expr_calls.py        Method calls and Java standard-library shims
+│   ├── expr_calls.py        Method invocation facade / router
+│   ├── expr_collection_calls.py Collection-like add/get call lowering
+│   ├── expr_jdk_calls.py    JDK/platform static and instance call shims
+│   ├── expr_static_calls.py Static and static-import call dispatch
 │   ├── expr_lambdas.py      Lambdas and method references
 │   ├── expr_objects.py      Object and anonymous-class creation
-│   ├── expr_ops.py          Operators, assignment, ternary, switch expressions
-│   ├── expr_streams.py      Stream pipelines and collectors
+│   ├── expr_ops.py          Operator/conditional facade / router
+│   ├── expr_assignments.py  Assignment expression lowering
+│   ├── expr_binary.py       Binary operator lowering
+│   ├── expr_conditionals.py Ternary expression lowering
+│   ├── expr_switch.py       Switch expression lowering
+│   ├── expr_unary.py        Unary and update expression lowering
+│   ├── expr_streams.py      Stream pipeline facade / router
+│   ├── stream_sources.py    Stream source chains and item naming
+│   ├── stream_ops.py        Stream intermediate operations and state
+│   ├── stream_collectors.py Stream terminal collector lowering
 │   └── expr_types.py        Best-effort expression type helpers
 │                                                       │
 │   Returns source, diagnostics, and coverage           │
@@ -97,10 +111,10 @@ Java source file(s)
   `class_annotations.py`, `class_members.py`, `class_methods.py`, and `class_nested.py`
   hold declaration-kind emitters and shared helpers.
 - Overload translation (ADR 0006/0009/0013) lives in the `overloads.py` facade plus the
-  focused `overload_classification.py`, `overload_merge.py`, `overload_dispatch.py`, and
-  `overload_signatures.py` modules; `class_methods.py` routes overloaded method groups
-  through it. Smaller shared helpers include `annotation_emit.py`, `comments.py`,
-  `node_utils.py`, and `diagnostics.py`.
+  focused `overload_classification.py`, `overload_merge.py`, `overload_dispatch.py`,
+  `overload_signatures.py`, `overload_guards.py`, and `overload_equivalence.py` modules;
+  `class_methods.py` routes overloaded method groups through it. Smaller shared helpers
+  include `annotation_emit.py`, `comments.py`, `node_utils.py`, and `diagnostics.py`.
 - `framework_annotations.py` owns opt-in `annotation_map` lowering: configured Java
   annotations can emit Python decorators, base classes, field comments, constructor
   injection parameters, imports, and mapped diagnostics. Unmapped annotations keep the
@@ -118,12 +132,19 @@ Java source file(s)
   live in:
   - `expr_access.py`: identifiers, field/array access, array creation, casts, class
     literals, and `instanceof`
-  - `expr_calls.py`: method invocations and Java standard-library shims
+  - `expr_calls.py`: method invocation routing. Collection-like receiver calls live in
+    `expr_collection_calls.py`, JDK/platform static and instance call shims live in
+    `expr_jdk_calls.py`, and static/static-import dispatch lives in
+    `expr_static_calls.py`.
   - `expr_lambdas.py`: lambdas and method references
   - `expr_objects.py`: object construction and anonymous classes
-  - `expr_ops.py`: assignment, update/unary/binary operators, ternaries, and switch
-    expressions
-  - `expr_streams.py`: stream pipelines and collectors
+  - `expr_ops.py`: operator and conditional routing. Assignments live in
+    `expr_assignments.py`, binary operators in `expr_binary.py`, ternaries in
+    `expr_conditionals.py`, switch expressions in `expr_switch.py`, and unary/update
+    expressions in `expr_unary.py`.
+  - `expr_streams.py`: stream pipeline routing. Source-chain discovery and item naming
+    live in `stream_sources.py`, intermediate operation state and lowering live in
+    `stream_ops.py`, and terminal collector lowering lives in `stream_collectors.py`.
   - `expr_types.py`: best-effort expression type inference helpers
 - Contributor import rule: route new statement and expression node kinds through the
   facade (`translate_statement` / `translate_expression`) so callers have one stable
@@ -135,10 +156,11 @@ Java source file(s)
 - The rule layer is intentionally imperative today; a prior unused declarative
   selector/transform prototype was removed.
 - `name_resolution.py` owns deterministic partial name binding for expression
-  identifiers. `skeleton.py` builds file-level `FileNameBindings` from the current
-  file, config import maps, package name, compilation-unit types, and static imports;
-  `TranslationContext` carries a `NameResolver`; `expr_access.py` asks the resolver
-  for each identifier and records required generated imports through
+  identifiers, while `member_resolution.py` owns static import/member binding helpers
+  used by call lowering. `skeleton.py` builds file-level `FileNameBindings` from the
+  current file, config import maps, package name, compilation-unit types, and static
+  imports; `TranslationContext` carries a `NameResolver`; `expr_access.py` asks the
+  resolver for each identifier and records required generated imports through
   `TranslationDiagnostics.imports` only when a referenced binding is emitted.
   This is intentionally not a full Java compiler resolver: it does not expand
   wildcard imports, inspect project-wide symbols, or resolve classpaths. See ADR 0016.
@@ -191,13 +213,18 @@ Java source file(s)
 - `typer`-based CLI; `j2py translate`, `j2py analyze`, `j2py compare`, `j2py watch`
   (incremental re-translate on file changes), `j2py dashboard` (HTML review report), and
   `j2py doctor` / `j2py sarif` (rule-only project assessment and diagnostic export)
+- `main.py` owns Typer app wiring and delegates command bodies to focused command modules:
+  `translate.py`, `analyze.py`, `compare.py`, `watch.py`, `doctor.py`, `output.py`, and
+  `config.py`.
 - All output via `rich`; directory translation reports order, per-file confidence,
   diagnostics counts, validation status, and cycle warnings
 - `compare` is a single-file review shortcut that reuses an existing Python file or
   generates one through the normal file pipeline, then opens an editor diff command
 - `doctor` reuses parse/analyze/rule-only translation to emit JSON/HTML migration
   assessment reports, conservative config suggestions, and assessment diffs without live
-  LLM calls; see [DOCTOR.md](DOCTOR.md)
+  LLM calls; `j2py/doctor.py` is the public facade over `doctor_assessment.py`,
+  `doctor_diff.py`, `doctor_io.py`, `doctor_models.py`, and `doctor_renderers.py`.
+  See [DOCTOR.md](DOCTOR.md)
 - `sarif` converts doctor assessment JSON into SARIF 2.1.0 for GitHub code scanning,
   CI artifacts, and review tooling; see [SARIF.md](SARIF.md)
 
@@ -234,7 +261,7 @@ codebases, but together they cover breadth, triage, and bounded correctness.
 | Layer | What it measures | How to run |
 |-------|------------------|------------|
 | Fixture + target tests | Exact expected output for curated Java constructs | `make check`, `make test-targets` |
-| Multi-library corpus baselines | Rule-layer coverage, syntax validity, unhandled nodes on pinned library samples | `make corpus-<name>-check`, `make corpus-hotspots` |
+| Multi-library corpus baselines | Rule-layer coverage, syntax validity, unhandled nodes on pinned library samples | `make corpus-<preset>-check`, `make corpus-hotspots` |
 | Behavior equivalence | stdout/stderr/exit-code match on small hand-written programs | `make test-behavior` (JDK required) |
 | Harvested equivalence (phased) | Method-level Java-vs-Python differential tests with JVM-independent oracles | `tests/equivalence/` (see [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md)) |
 | LLM harvest log | Local backlog of LLM repairs; triage, cache, promotion to targets/issues | `make harvest-promote-dry`, `make harvest-triage` (see [LLM_HARVEST.md](LLM_HARVEST.md)) |

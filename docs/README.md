@@ -4,6 +4,11 @@
 
 | Document | Description |
 |----------|-------------|
+| [INSTALL.md](INSTALL.md) | Package install, optional extras, API keys, JDK/corpus setup, common install issues |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First-run workflow: assess, configure, translate, review, and measure |
+| [CLI.md](CLI.md) | Command reference for `translate`, `analyze`, `compare`, `watch`, `dashboard`, `doctor`, and `sarif` |
+| [OUTPUT_REVIEW.md](OUTPUT_REVIEW.md) | How to review confidence, warnings, TODO markers, validation, and generated reports |
+| [API.md](API.md) | Python API usage for file/directory translation, config loading, diagnostics, and reports |
 | [PRD.md](PRD.md) | Product goals, functional requirements, non-goals, success criteria |
 | [POSITIONING.md](POSITIONING.md) | Useful scope, enterprise framework boundaries, and how to read corpus metrics |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, ADR index |
@@ -50,3 +55,4 @@
 |----------|-------------|
 | [../AGENTS.md](../AGENTS.md) | Agent guidance (mirrored in `CLAUDE.md`) |
 | [../.cursor/skills/README.md](../.cursor/skills/README.md) | Cursor agent skills (harvest promotion, etc.) |
+| [../packages/j2py-vscode/README.md](../packages/j2py-vscode/README.md) | VS Code extension commands, settings, and VSIX build notes |

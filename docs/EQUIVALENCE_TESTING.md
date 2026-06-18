@@ -273,9 +273,9 @@ By library:
 
 | Library | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
-| `commons-lang` | 33/95 | 34.7% | 33/81 (40.7%) | 14 |
+| `commons-lang` | 39/95 | 41.1% | 39/81 (48.1%) | 14 |
 | `guava` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| **Total** | 35/97 | 36.1% | 35/83 (42.2%) | 14 |
+| **Total** | 41/97 | 42.3% | 41/83 (49.4%) | 14 |
 
 By fixture:
 
@@ -283,9 +283,9 @@ By fixture:
 |---|---:|---:|---:|---:|
 | `CharUtils.java` | 9/23 | 39.1% | 9/9 (100.0%) | 14 |
 | `GuavaPrecedenceMath.java` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| `NumberUtils.java` | 17/61 | 27.9% | 17/61 (27.9%) | 0 |
-| `StringUtils.java` | 7/11 | 63.6% | 7/11 (63.6%) | 0 |
-| **Total** | 35/97 | 36.1% | 35/83 (42.2%) | 14 |
+| `NumberUtils.java` | 19/61 | 31.1% | 19/61 (31.1%) | 0 |
+| `StringUtils.java` | 11/11 | 100.0% | 11/11 (100.0%) | 0 |
+| **Total** | 41/97 | 42.3% | 41/83 (49.4%) | 14 |
 
 ## 10. Open questions
 

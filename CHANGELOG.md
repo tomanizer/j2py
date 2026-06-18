@@ -39,6 +39,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   approximate float comparisons are skipped rather than mis-harvested as exact equality,
   and refuses to guess when a message position is ambiguous. Lifts NumberUtils harvest
   yield from 19 to 32 literal-oracle assertions (#458).
+- User-facing docs now include installation, getting started, CLI reference, Python API,
+  and output-review guides, with the VS Code extension surfaced from the docs index
+  (#497).
 
 ### Changed
 - Agent instructions now require syncing from `origin/main` before creating branches or
