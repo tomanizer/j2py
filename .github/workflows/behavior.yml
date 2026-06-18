@@ -11,6 +11,7 @@ on:
       - ".github/workflows/behavior.yml"
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "j2py/**"
       - "tests/behavior/**"
@@ -26,6 +27,7 @@ concurrency:
 jobs:
   behavior-equivalence:
     name: Behavior equivalence (rule-layer, JDK)
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
