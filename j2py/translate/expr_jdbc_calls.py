@@ -7,6 +7,7 @@ import ast
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.java_types import java_expression_type, java_type_simple_name
+from j2py.translate.jdbc_row_mapper import is_row_mapper_shape, lower_row_mapper
 from j2py.translate.rules.naming import translate_field_name
 
 _JDBC_TEMPLATE_TYPES = frozenset({"JdbcTemplate", "NamedParameterJdbcTemplate"})
@@ -52,8 +53,15 @@ def translate_jdbc_template_method_invocation(
             arg_expressions=arg_expressions,
             ctx=ctx,
         )
-    if method_name == "query" and _has_row_mapper_or_callback(arg_nodes[1:]):
-        return _unsupported_row_mapper(node, ctx)
+    if method_name == "query":
+        return _translate_query(
+            node,
+            template_type=template_type,
+            receiver=receiver,
+            arg_nodes=arg_nodes,
+            arg_expressions=arg_expressions,
+            ctx=ctx,
+        )
     return None
 
 
@@ -107,6 +115,17 @@ def _translate_query_for_object(
 ) -> str:
     if not arg_nodes:
         return _unsupported(node, ctx, reason="JdbcTemplate.queryForObject without SQL argument")
+    mapper_call = _translate_query_with_row_mapper(
+        node,
+        template_type=template_type,
+        receiver=receiver,
+        arg_nodes=arg_nodes,
+        arg_expressions=arg_expressions,
+        ctx=ctx,
+        single=True,
+    )
+    if mapper_call is not None:
+        return mapper_call
     if _has_row_mapper_or_callback(arg_nodes[1:]):
         return _unsupported_row_mapper(node, ctx)
 
@@ -141,6 +160,88 @@ def _translate_query_for_object(
     return f"{execute}.scalar_one()"
 
 
+def _translate_query(
+    node: JavaNode,
+    *,
+    template_type: str,
+    receiver: str,
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if not arg_nodes:
+        return _unsupported(node, ctx, reason="JdbcTemplate.query without SQL argument")
+    mapper_call = _translate_query_with_row_mapper(
+        node,
+        template_type=template_type,
+        receiver=receiver,
+        arg_nodes=arg_nodes,
+        arg_expressions=arg_expressions,
+        ctx=ctx,
+        single=False,
+    )
+    if mapper_call is not None:
+        return mapper_call
+    if _has_row_mapper_or_callback(arg_nodes[1:]):
+        return _unsupported_row_mapper(node, ctx)
+    return None
+
+
+def _translate_query_with_row_mapper(
+    node: JavaNode,
+    *,
+    template_type: str,
+    receiver: str,
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    ctx: TranslationContext,
+    single: bool,
+) -> str | None:
+    mapper_index = _row_mapper_arg_index(template_type, arg_nodes)
+    if mapper_index is None:
+        return None
+    mapper = lower_row_mapper(arg_nodes[mapper_index], ctx)
+    if mapper is None:
+        return None
+    _discard_lowered_anonymous_mapper_helper(
+        arg_nodes[mapper_index],
+        arg_expressions[mapper_index],
+        ctx,
+    )
+
+    params, positional_count = _query_mapper_params(
+        template_type,
+        mapper_index,
+        arg_expressions,
+    )
+    ctx.diagnostics.record(
+        node,
+        supported=True,
+        reason=(
+            "lowered JdbcTemplate RowMapper queryForObject to SQLAlchemy row mapping"
+            if single
+            else "lowered JdbcTemplate RowMapper query to SQLAlchemy row mapping"
+        ),
+        category="spring-jdbc-row-mapper",
+        facts={
+            "template_type": template_type,
+            "mapper_kind": mapper.kind,
+            **({"target_type": mapper.target_type} if mapper.target_type else {}),
+        },
+    )
+    execute = _execute_expression(
+        receiver,
+        arg_nodes[0],
+        params=params,
+        positional_count=positional_count,
+        ctx=ctx,
+    )
+    mappings = f"{execute}.mappings()"
+    if single:
+        return f"(lambda row: {mapper.expression})({mappings}.one())"
+    return f"[{mapper.expression} for row in {mappings}]"
+
+
 def _execute_expression(
     receiver: str,
     sql_node: JavaNode,
@@ -155,6 +256,50 @@ def _execute_expression(
     if params:
         return f"{connection}.execute({text_call}, {params})"
     return f"{connection}.execute({text_call})"
+
+
+def _row_mapper_arg_index(template_type: str, arg_nodes: list[JavaNode]) -> int | None:
+    if template_type == "NamedParameterJdbcTemplate":
+        for index in (2, 1):
+            if len(arg_nodes) > index and is_row_mapper_shape(arg_nodes[index]):
+                return index
+        return None
+    for index, arg in enumerate(arg_nodes[1:], start=1):
+        if is_row_mapper_shape(arg):
+            return index
+    return None
+
+
+def _query_mapper_params(
+    template_type: str,
+    mapper_index: int,
+    arg_expressions: list[str],
+) -> tuple[str | None, int]:
+    if template_type == "NamedParameterJdbcTemplate":
+        if mapper_index == 2 and len(arg_expressions) >= 2:
+            return arg_expressions[1], 0
+        return None, 0
+    params = _positional_param_dict(arg_expressions[mapper_index + 1 :])
+    return params, len(arg_expressions) - mapper_index - 1
+
+
+def _discard_lowered_anonymous_mapper_helper(
+    mapper_node: JavaNode,
+    mapper_expression: str,
+    ctx: TranslationContext,
+) -> None:
+    if mapper_node.type != "object_creation_expression" or "class_body" not in {
+        child.type for child in mapper_node.named_children
+    }:
+        return
+    helper_name = mapper_expression.split("(", 1)[0]
+    if not helper_name.startswith("_J2pyAnonymous"):
+        return
+    for index in range(len(ctx.pending_local_helpers) - 1, -1, -1):
+        helper = ctx.pending_local_helpers[index]
+        if any(f"class {helper_name}" in line for line in helper):
+            del ctx.pending_local_helpers[index]
+            return
 
 
 def _text_call(sql_node: JavaNode, positional_count: int, ctx: TranslationContext) -> str:
@@ -202,13 +347,8 @@ def _connection_placeholder(receiver: str) -> str:
 
 def _has_row_mapper_or_callback(nodes: list[JavaNode]) -> bool:
     return any(
-        child.type
-        in {
-            "lambda_expression",
-            "method_reference",
-            "object_creation_expression",
-            "class_instance_creation_expression",
-        }
+        is_row_mapper_shape(child)
+        or child.type == "class_instance_creation_expression"
         or "RowMapper" in child.text
         for node in nodes
         for child in node.walk()
