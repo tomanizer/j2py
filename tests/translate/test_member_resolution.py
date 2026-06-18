@@ -229,6 +229,37 @@ def test_wildcard_static_import_from_local_class_lowers_method_and_field() -> No
     assert not result.diagnostics.unhandled
 
 
+def test_same_class_unqualified_members_route_through_class_or_self() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class Counter {
+            static int LIMIT = 10;
+
+            int value() {
+                return 1;
+            }
+
+            int runInstance() {
+                return value();
+            }
+
+            static int staticValue() {
+                return LIMIT;
+            }
+
+            static int runStatic() {
+                return staticValue();
+            }
+        }
+        """,
+    )
+
+    assert "return self.value()" in result.source
+    assert "return Counter.static_value()" in result.source
+    assert "return Counter.LIMIT" in result.source
+    assert not result.diagnostics.unhandled
+
+
 def test_unknown_external_wildcard_static_import_warns_without_unhandled_import() -> None:
     result = translate_source_with_diagnostics(
         """

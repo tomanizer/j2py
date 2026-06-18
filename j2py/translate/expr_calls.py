@@ -16,6 +16,8 @@ from j2py.translate.expr_static_calls import (
 from j2py.translate.expressions import translate_expression
 from j2py.translate.member_resolution import (
     java_type_shape_signature,
+    resolve_unqualified_member,
+    static_import_method_fallback,
     wildcard_static_import_binding,
 )
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
@@ -328,6 +330,17 @@ def _translate_unqualified_dispatch(
         and _route_static_instance_collision_to_static(py_method, parts.args, ctx)
     ):
         return f"{ctx.static_dispatch_class_name}.{static_py_method}({parts.args})"
+
+    binding = resolve_unqualified_member(parts.method_name, ctx, kind="method")
+    if binding is not None:
+        if (
+            binding.python_owner == ctx.containing_class_name
+            and not _route_static_instance_collision_to_static(py_method, parts.args, ctx)
+        ):
+            return None
+        if binding.python_owner:
+            return f"{binding.python_owner}.{binding.python_member}({parts.args})"
+        return static_import_method_fallback(binding, parts.arg_expressions, ctx.cfg)
 
     return None
 
