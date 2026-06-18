@@ -100,10 +100,11 @@ Assess a Java source tree before migration:
 uv run j2py doctor path/to/java/root --json j2py-assessment.json --html j2py-assessment.html
 uv run j2py doctor path/to/java/root --config-suggestions j2py.suggested.yaml
 uv run j2py doctor diff before.json after.json
+uv run j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 
 See [docs/DOCTOR.md](docs/DOCTOR.md) for the current assessment report format and
-limitations.
+limitations, and [docs/SARIF.md](docs/SARIF.md) for code-scanning export.
 
 Translate a directory in dependency order:
 

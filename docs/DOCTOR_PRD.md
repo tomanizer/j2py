@@ -41,6 +41,7 @@ The first implementation provides:
 - hotspot aggregation for common unhandled nodes, warning reasons, import packages, and
   low-coverage files
 - assessment diffs via `j2py doctor diff before.json after.json`
+- standalone SARIF export via `j2py sarif j2py-assessment.json --output j2py.sarif`
 - optional validation via `--include-validation`
 
 ## Functional requirements
@@ -134,7 +135,13 @@ The report includes ranked clusters:
 
 ### D10 - Integrate with SARIF
 
-The assessment schema should feed the SARIF exporter from issue #449. Future command:
+The assessment schema feeds the standalone SARIF exporter from issue #449:
+
+```bash
+j2py sarif j2py-assessment.json --output j2py.sarif
+```
+
+Future integrated command:
 
 ```bash
 j2py doctor src/main/java --sarif j2py.sarif
@@ -205,6 +212,7 @@ as selecting a file subset or applying a reviewed generated config.
 - Advisory config suggestion export.
 - Baseline hotspot aggregation.
 - Assessment diffing.
+- Standalone SARIF export from assessment JSON.
 
 ### Phase 2 - Better prioritization
 
@@ -216,7 +224,8 @@ as selecting a file subset or applying a reviewed generated config.
 
 ### Phase 3 - Workflow integration
 
-- SARIF export integration.
+- Direct `doctor --sarif` integration.
+- Translation-result SARIF export.
 - Manual-port report.
 - Review dashboard alignment.
 
@@ -234,3 +243,4 @@ as selecting a file subset or applying a reviewed generated config.
 - [Architecture](ARCHITECTURE.md)
 - [Framework plugin architecture](FRAMEWORK_PLUGINS.md)
 - [JDK lowering vs platform boundaries](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)
+- [SARIF export](SARIF.md)

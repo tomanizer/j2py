@@ -1110,6 +1110,48 @@ def test_cli_doctor_reports_missing_source_without_traceback(tmp_path: Path) -> 
     assert not json_path.exists()
 
 
+def test_cli_sarif_writes_report_from_doctor_assessment(tmp_path: Path) -> None:
+    assessment = tmp_path / "assessment.json"
+    output = tmp_path / "j2py.sarif"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "src",
+                "files": [
+                    {
+                        "path": "Sample.java",
+                        "parse_ok": True,
+                        "parse_errors": [],
+                        "unresolved_imports": [
+                            {
+                                "import": "com.external.PaymentClient",
+                                "category": "external-import",
+                                "reason": "not covered by defaults",
+                            }
+                        ],
+                        "translation": {
+                            "semantic_warnings": [],
+                            "unhandled": [],
+                            "todos": [],
+                            "validation": None,
+                        },
+                    }
+                ],
+            }
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["sarif", str(assessment), "--output", str(output)])
+
+    assert result.exit_code == 0
+    assert "SARIF:" in result.output
+    payload = json.loads(output.read_text())
+    assert payload["version"] == "2.1.0"
+    assert payload["runs"][0]["results"][0]["ruleId"] == "j2py.unresolved-import"
+
+
 def test_cli_compare_existing_python_skips_translation_and_opens_diff(
     tmp_path: Path,
     monkeypatch,
