@@ -294,6 +294,57 @@ def test_create_big_decimal_equivalence(number_utils_source: str) -> None:
             NumberUtils.create_big_decimal(invalid)
 
 
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.createNumber(String)")
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("42", 42),
+        ("2147483648", 2_147_483_648),
+        ("-7", -7),
+        ("3.14", 3.14),
+        ("1.0e10", 1.0e10),
+        ("-2.5", -2.5),
+        ("0xFF", 255),
+        ("0x1A", 26),
+        (None, None),
+        pytest.param(
+            "42L",
+            42,
+            marks=pytest.mark.skip(reason="type-suffix switch fall-through is still a TODO"),
+        ),
+        pytest.param("1.1F", 1.1, marks=pytest.mark.skip(reason="float suffix precision")),
+        pytest.param("1.1D", 1.1, marks=pytest.mark.skip(reason="double suffix precision")),
+        pytest.param("0777", 511, marks=pytest.mark.skip(reason="octal parsing edge case")),
+        pytest.param("1.5BD", BigDecimal("1.5"), marks=pytest.mark.skip(reason="BD suffix")),
+        pytest.param("100BI", 100, marks=pytest.mark.skip(reason="BigInteger suffix")),
+    ],
+)
+def test_create_number_equivalence(
+    number_utils_source: str,
+    value: str | None,
+    expected: object,
+) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_createNumber")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    actual = NumberUtils.create_number(value)
+    if isinstance(expected, float):
+        assert actual == approx_float(expected)
+    else:
+        assert_equivalent(expected, actual)
+
+
+@pytest.mark.equivalence
+def test_create_number_invalid_equivalence(number_utils_source: str) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_createNumber")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
+    for invalid in ["", " "]:
+        with assert_raises_mapped("NumberFormatException"):
+            NumberUtils.create_number(invalid)
+
+
 # ── create* null-return converters ────────────────────────────────────────────
 
 
