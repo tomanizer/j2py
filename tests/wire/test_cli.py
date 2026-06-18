@@ -73,3 +73,48 @@ def test_j2py_wire_list_reports_malformed_sidecar(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "malformed JSON" in result.output
+
+
+def test_j2py_wire_generate_fastapi_writes_router_and_app(tmp_path: Path) -> None:
+    translated = tmp_path / "translated"
+    translated.mkdir()
+    module = translated / "owner_controller.py"
+    module.write_text("class OwnerController:\n    pass\n", encoding="utf-8")
+    module.with_suffix(".wiring.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "OwnerController.java",
+                "output": str(module),
+                "elements": [
+                    {
+                        "plugin": "spring-wiring",
+                        "kind": "class",
+                        "java_name": "OwnerController",
+                        "python_name": "OwnerController",
+                        "annotations": [],
+                        "metadata": {
+                            "spring": {
+                                "profile_version": 1,
+                                "role": "controller",
+                                "router_prefix": "/owners",
+                            },
+                        },
+                    },
+                ],
+            },
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "wiring"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["generate", str(translated), "--target", "fastapi", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert "generated" in result.output
+    assert (output / "owner_controller_wiring.py").exists()
+    assert (output / "app_wiring.py").exists()

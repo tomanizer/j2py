@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 import typer
 
 from j2py.wire.loader import WiringLoadDiagnostic, load_wiring_sidecars, spring_elements
+from j2py.wire.targets.fastapi import FastAPITarget
 
 app = typer.Typer(
     name="j2py-wire",
@@ -58,10 +59,21 @@ def generate(
         typer.Option("--output", "-o", help="Generated wiring output directory."),
     ] = Path("wiring"),
 ) -> None:
-    """Placeholder for target wiring generation."""
-    _ = (translated_output_dir, target, output)
-    typer.echo("j2py-wire generate is scaffolded; FastAPI generation is tracked by issue #529.")
-    raise typer.Exit(code=2)
+    """Generate target wiring from sidecars."""
+    result = load_wiring_sidecars(translated_output_dir)
+    _print_diagnostics(result.diagnostics)
+    if result.has_errors:
+        raise typer.Exit(code=1)
+
+    if target == "fastapi":
+        generated = FastAPITarget(translated_root=translated_output_dir).generate(
+            result.sidecars,
+            output,
+        )
+    else:
+        raise typer.Exit(code=2)
+    for path in generated:
+        typer.echo(f"generated {path}")
 
 
 @app.command()
