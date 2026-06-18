@@ -107,8 +107,7 @@ Options:
 | `--validate` / `--no-validate` | Run validation on output. |
 | `--poll-interval` | Polling interval in seconds. Default: `0.5`. |
 
-The current implementation polls file hashes; install the `watch` extra for future
-watch-related dependencies.
+The current implementation polls file hashes and does not require the `watch` extra.
 
 ## `j2py dashboard`
 

@@ -18,7 +18,6 @@ Use extras only when you need the matching feature:
 pip install --pre "j2py-converter[yaml]"      # YAML config files
 pip install --pre "j2py-converter[validate]"  # ruff + mypy validation
 pip install --pre "j2py-converter[gemini]"    # Gemini LLM provider
-pip install --pre "j2py-converter[watch]"     # file-watch dependencies
 ```
 
 The base package includes the Anthropic client. LLM translation requires an API key:
@@ -110,6 +109,11 @@ Corpus check cannot find external source files
 
 Run `make corpus-clone-all` in the main checkout, then set `J2PY_CORPUS_ROOT` in the
 worktree before running dense checks.
+
+`watch` extra seems unused
+
+The current `j2py watch` command polls file hashes and does not require an extra package.
+The `watch` optional dependency remains reserved for future watcher implementations.
 
 ## Next Steps
 

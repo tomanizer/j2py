@@ -140,6 +140,8 @@ The CLI is the stable path for reports and dashboards. Programmatic helpers exis
 `j2py.report`:
 
 ```python
+from pathlib import Path
+
 from j2py.report import write_dashboard_for_results, write_translation_report
 
 write_translation_report(Path("review.html"), [result])

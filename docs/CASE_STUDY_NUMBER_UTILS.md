@@ -6,7 +6,8 @@ large parts of the fixture, but the verified number is the runtime surface exerc
 literal-oracle tests in `tests/equivalence/test_number_utils.py`, not the node-coverage
 score.
 
-As of #464, `NumberUtils.java` has **17 of 61** public method signatures verified by the
+As of the current equivalence surface floor, `NumberUtils.java` has **19 of 61** public
+method signatures verified by the
 equivalence gate. The verified methods are:
 
 | Java surface | Verified signatures |
@@ -19,11 +20,14 @@ equivalence gate. The verified methods are:
 | `toShort` | `NumberUtils.toShort(String)`, `NumberUtils.toShort(String,short)` |
 | `compare` | `NumberUtils.compare(byte,byte)`, `NumberUtils.compare(short,short)`, `NumberUtils.compare(int,int)`, `NumberUtils.compare(long,long)` |
 | `isParsable` | `NumberUtils.isParsable(String)` |
+| `isDigits` | `NumberUtils.isDigits(String)` |
+| `isCreatable` | `NumberUtils.isCreatable(String)` |
 
 The NumberUtils slice raised the checked-in equivalence surface from **28/97** to
-**34/97** public signatures as `compare` and `isParsable` landed. The current repository
-floor is **35/97** after the `StringUtils.isBlank`, `NumberUtils.isParsable`, and
-`StringUtils.strip` equivalence fixes.
+**34/97** public signatures as `compare` and `isParsable` landed. Later fixes for
+`StringUtils.isBlank`, `StringUtils.strip`, `StringUtils.contains`,
+`StringUtils.startsWith`, `StringUtils.endsWith`, `NumberUtils.isDigits`, and
+`NumberUtils.isCreatable` moved the repository floor to **41/97**.
 
 ## Stub boundary
 
@@ -46,7 +50,7 @@ The following `NumberUtils` areas remain intentionally outside this case-study s
 
 | Excluded surface | Reason |
 |---|---|
-| `createNumber` | The method depends on broader numeric-construction, BigInteger/BigDecimal, suffix, and radix semantics that are outside the current harness boundary. |
+| `createNumber` | The method depends on broader numeric-construction, BigInteger/BigDecimal, suffix, and radix semantics that are outside the current harness boundary. `isCreatable` is now covered, but the object-construction method itself remains outside the verified surface. |
 | `createBigInteger`, `createBigDecimal`, BigInteger/BigDecimal converters, `toScaledBigDecimal` | Python has no direct parity with Java `BigInteger`/`BigDecimal` construction, scale, and rounding contracts in the current harness boundary. |
 | `min` / `max` | Deferred because the Java overload set mixes varargs and fixed arity, and the erased Python dispatch policy is still ambiguous. |
 
