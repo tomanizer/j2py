@@ -332,7 +332,7 @@ def _translate_dir(
             if not json_output:
                 console.print(f"[green]Report:[/green] {report}")
         if dashboard is not None:
-            from j2py.dashboard import write_dashboard_for_results
+            from j2py.report import write_dashboard_for_results
 
             write_dashboard_for_results(
                 dashboard,
@@ -370,7 +370,7 @@ def dashboard(
     ),
 ) -> None:
     """Regenerate a dashboard from an existing translation state file."""
-    from j2py.dashboard import write_dashboard_from_state
+    from j2py.report import write_dashboard_from_state
 
     dashboard_path = output or output_root / "dashboard.html"
     write_dashboard_from_state(output_root, dashboard_path)
