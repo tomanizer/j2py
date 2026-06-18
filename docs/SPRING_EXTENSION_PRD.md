@@ -125,6 +125,18 @@ slice:
 4. `j2py-wire validate` reports no blocking wiring gaps for the smoke slice.
 5. The generated smoke app imports, starts, and returns the selected HTTP responses.
 
+Run the optional integration gate with:
+
+```bash
+make test-spring-smoke
+```
+
+This target is intentionally excluded from normal `make check` because it exercises the
+Spring/FastAPI/SQLAlchemy optional dependency stack. The smoke harness validates the real
+translate -> sidecar -> `j2py-wire generate` -> `j2py-wire validate` path, then supplies
+project-owned FastAPI dependency overrides for the session factory and minimal HTTP 404
+runtime policy.
+
 ## Non-goals
 
 - A Python implementation of the Spring container.
