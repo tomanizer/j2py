@@ -464,6 +464,38 @@ Keep the Spring JDBC route opt-in:
 - Project config owns real imports, engine/session construction, dialect URLs, and
   database-specific behavior. For SQL Server, that may still mean `pyodbc`, but through
   SQLAlchemy or an internal `myapp.db` facade.
+- ADR 0020 remains the boundary: j2py lowers reviewable call structure and metadata, not a
+  native JDBC runtime or driver bridge.
+
+### Recommended j2py flow
+
+Use the Spring wiring plugin when translating bean-configured JDBC packages:
+
+```python
+# j2py_config.py
+from j2py.framework_plugins.spring import SpringWiringPlugin as _SpringWiringPlugin
+
+annotation_map_preset = "spring"
+framework_plugins = [_SpringWiringPlugin()]
+emit_wiring_metadata = True
+```
+
+Run translation with that trusted project config, then inspect both outputs:
+
+1. The translated repository methods show SQLAlchemy Core scaffolding for simple
+   `JdbcTemplate.update(...)`, `queryForObject(...)`, and named-parameter variants, for
+   example `connection.execute(text("..."), params).scalar_one()`.
+2. The `*.wiring.json` sidecar records `DataSource`, `JdbcTemplate`,
+   `NamedParameterJdbcTemplate`, and transaction-manager bean topology, including visible
+   `Environment.getProperty(...)` keys.
+3. Project code or a downstream generator turns those sidecar facts into the real
+   SQLAlchemy `Engine`, `Connection`, or `Session` dependency. That layer chooses the URL,
+   pool settings, transaction scope, and dialect such as `postgresql`, `sqlite`, or
+   `mssql+pyodbc`.
+
+The generated repository placeholders deliberately stay reviewable instead of runnable:
+`self.jdbc_template_connection` or `self.named_jdbc_template_connection` is a signal to
+wire an equivalent SQLAlchemy dependency from the bean metadata.
 
 ### Manual port required
 
@@ -497,8 +529,8 @@ When migrating a Spring app with this cookbook, plan to hand-finish:
 - [ ] SQLAlchemy `Mapped`/`mapped_column` column declarations ([#337](https://github.com/tomanizer/j2py/issues/337))
 - [ ] `__tablename__` if you want the idiomatic form instead of the shim decorator
 - [ ] JPA relationships (`@OneToMany`, `@ManyToOne`, …) — cookbook v2
-- [ ] Spring JDBC bean topology and `JdbcTemplate` calls — see the JDBC roadmap
-      ([#554](https://github.com/tomanizer/j2py/issues/554))
+- [ ] Production SQLAlchemy engine/session lifecycle for Spring JDBC bean metadata
+- [ ] Complex Spring JDBC callbacks, row mappers, generated keys, and batch updates
 - [ ] Transaction propagation / rollback rules / isolation
 - [ ] Spring Security, `@Scheduled`, `@Cacheable`, `@Async` — cookbook v2
 
