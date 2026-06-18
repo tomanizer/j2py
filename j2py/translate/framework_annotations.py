@@ -183,6 +183,26 @@ def annotation_template_values(annotation: JavaNode) -> dict[str, str]:
     return _annotation_value_aliases(values)
 
 
+def transactional_annotation_comment_lines(
+    annotation: JavaNode,
+    *,
+    indent: str,
+) -> list[str]:
+    """Render Spring @Transactional as actionable rule-layer comments."""
+    values = annotation_template_values(annotation)
+    attributes = _transactional_attributes(values)
+    suffix = f"({', '.join(attributes)})" if attributes else ""
+    lines = [f"{indent}# @Transactional{suffix}"]
+    read_only = _transactional_bool(values.get("readOnly"))
+    if read_only is True:
+        lines.append(f"{indent}# read-only transaction")
+    rollback_for = values.get("rollbackFor")
+    if rollback_for:
+        normalized = _transactional_exception_list(rollback_for)
+        lines.append(f"{indent}# rollbackFor={normalized}")
+    return lines
+
+
 def render_annotation_template(template: str, values: dict[str, str]) -> str:
     rendered = template.format_map(_TemplateValues(values))
     return _strip_unresolved_keyword_arguments(rendered)
@@ -197,6 +217,36 @@ def _annotation_value_aliases(values: dict[str, str]) -> dict[str, str]:
     if "code" in aliased and "value" not in aliased:
         aliased["value"] = aliased["code"]
     return aliased
+
+
+def _transactional_attributes(values: dict[str, str]) -> list[str]:
+    attributes: list[str] = []
+    for key, value in values.items():
+        if key == "readOnly":
+            rendered = _transactional_bool(value)
+            attributes.append(f"readOnly={rendered if rendered is not None else value}")
+            continue
+        if key == "rollbackFor":
+            attributes.append(f"rollbackFor={_transactional_exception_list(value)}")
+            continue
+        attributes.append(f"{key}={value}")
+    return attributes
+
+
+def _transactional_bool(value: str | None) -> bool | None:
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    return None
+
+
+def _transactional_exception_list(value: str) -> str:
+    exceptions = [part.strip() for part in value.split(",")]
+    return ", ".join(
+        exception.removesuffix(".class") if exception.endswith(".class") else exception
+        for exception in exceptions
+    )
 
 
 def _strip_unresolved_keyword_arguments(rendered: str) -> str:

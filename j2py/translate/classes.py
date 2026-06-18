@@ -62,6 +62,7 @@ from j2py.translate.diagnostics import (
     TranslationContext,
     TranslationDiagnostics,
 )
+from j2py.translate.framework_annotations import transactional_annotation_comment_lines
 from j2py.translate.framework_dispatch import resolve_class, resolve_field
 from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 from j2py.translate.name_resolution import NameResolver, NameScope
@@ -273,7 +274,7 @@ def translate_class(
         diagnostics.imports.need_line("from pydantic import BaseModel")
     lines: list[str] = []
     if not class_transform.handled and not promote_to_sqlalchemy:
-        lines.extend(annotation_comment_lines(node, cfg))
+        lines.extend(annotation_comment_lines(node, cfg, skip_names={"Transactional"}))
     lines.extend(class_transform.prefix_lines)
     extra_bases = list(class_transform.base_classes)
     if promote_to_pydantic:
@@ -375,11 +376,18 @@ def translate_class(
         lines.extend(nested_lines)
 
     member_docstring_map = member_docstrings(body, cfg)
+    class_transactional_lines = _class_transactional_comment_lines(node, cfg, indent="    ")
     outer_self_params = _outer_self_init_params() if env.requires_outer_self else []
     outer_self_init_lines = _outer_self_init_lines() if env.requires_outer_self else []
     for group in member_groups(members):
         lines.append("")
         if len(group) > 1:
+            lines.extend(
+                _inherited_transactional_comment_lines(
+                    group[0],
+                    class_transactional_lines,
+                )
+            )
             lines.extend(
                 translate_overloaded_members(
                     group,
@@ -456,11 +464,16 @@ def translate_class(
             if member.type == "constructor_declaration"
             else []
         )
+        pre_def_lines = _inherited_transactional_comment_lines(
+            member,
+            class_transactional_lines,
+        )
         lines.extend(
             translate_method(
                 member,
                 ctx,
                 pre_body_lines=pre_body_lines,
+                pre_def_lines=pre_def_lines,
                 extra_params=(
                     outer_self_params + injected_init_params
                     if member.type == "constructor_declaration"
@@ -503,6 +516,47 @@ def _data_model_members(
             continue
         emitted.append(member)
     return emitted
+
+
+def _class_transactional_comment_lines(
+    node: JavaNode,
+    cfg: TranslationConfig,
+    *,
+    indent: str,
+) -> list[str]:
+    if not cfg.emit_line_comments:
+        return []
+    from j2py.translate.annotation_emit import annotation_nodes
+    from j2py.translate.framework_annotations import (
+        annotation_map_entry,
+        annotation_simple_name,
+    )
+
+    for annotation in annotation_nodes(node):
+        if annotation_simple_name(annotation) == "Transactional":
+            entry = annotation_map_entry(annotation, cfg)
+            if entry is not None and (entry.drop or entry.preserve_comment is False):
+                return []
+            return transactional_annotation_comment_lines(annotation, indent=indent)
+    return []
+
+
+def _inherited_transactional_comment_lines(
+    member: JavaNode,
+    class_transactional_lines: list[str],
+) -> list[str]:
+    if not class_transactional_lines:
+        return []
+    if member.type != "method_declaration":
+        return []
+    modifiers = _modifiers(member)
+    if "public" not in modifiers:
+        return []
+    from j2py.translate.annotation_emit import annotation_names
+
+    if "Transactional" in annotation_names(member):
+        return []
+    return class_transactional_lines
 
 
 def _is_data_model_accessor(
