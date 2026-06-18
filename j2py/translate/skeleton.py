@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from j2py.analyze.symbols import FileSymbols
@@ -165,33 +166,37 @@ def _module_declared_type_fields(
     parsed: ParsedFile,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
-    fields: dict[str, dict[str, str]] = {}
-    for class_node in parsed.root.named_children:
-        if class_node.type in TYPE_DECLARATION_NODES:
-            fields.update(_collect_declared_type_fields(class_node, cfg))
-    return fields
+    return _module_declared_type_map(parsed, cfg, _collect_declared_type_fields)
 
 
 def _module_declared_type_java_fields(
     parsed: ParsedFile,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
-    fields: dict[str, dict[str, str]] = {}
-    for class_node in parsed.root.named_children:
-        if class_node.type in TYPE_DECLARATION_NODES:
-            fields.update(_collect_declared_type_java_fields(class_node, cfg))
-    return fields
+    return _module_declared_type_map(parsed, cfg, _collect_declared_type_java_fields)
 
 
 def _module_declared_type_method_return_types(
     parsed: ParsedFile,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
-    method_return_types: dict[str, dict[str, str]] = {}
+    return _module_declared_type_map(
+        parsed,
+        cfg,
+        collect_declared_type_method_return_types,
+    )
+
+
+def _module_declared_type_map(
+    parsed: ParsedFile,
+    cfg: TranslationConfig,
+    collector: Callable[[JavaNode, TranslationConfig], dict[str, dict[str, str]]],
+) -> dict[str, dict[str, str]]:
+    declared_types: dict[str, dict[str, str]] = {}
     for class_node in parsed.root.named_children:
         if class_node.type in TYPE_DECLARATION_NODES:
-            method_return_types.update(collect_declared_type_method_return_types(class_node, cfg))
-    return method_return_types
+            declared_types.update(collector(class_node, cfg))
+    return declared_types
 
 
 def _javadoc_docstring(

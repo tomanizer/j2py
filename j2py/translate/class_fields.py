@@ -8,6 +8,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkTransformResult
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import annotation_comment_lines, record_annotation_diagnostics
+from j2py.translate.class_members import iter_type_declarations
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
 from j2py.translate.comments import is_comment, is_javadoc_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
@@ -159,19 +160,11 @@ def _collect_declared_type_field_maps(
 ) -> dict[str, dict[str, FieldInfo]]:
     by_type: dict[str, dict[str, FieldInfo]] = {}
 
-    def add_type(type_node: JavaNode) -> None:
+    for type_node in iter_type_declarations(class_node):
         name_node = type_node.child_by_field("name")
         if name_node is None:
-            return
+            continue
         by_type[name_node.text] = {field.name: field for field in _class_fields(type_node, cfg)}
-        body = type_node.child_by_field("body")
-        if body is None:
-            return
-        for child in body.named_children:
-            if child.type in TYPE_DECLARATION_NODES:
-                add_type(child)
-
-    add_type(class_node)
     return by_type
 
 

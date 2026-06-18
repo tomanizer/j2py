@@ -391,58 +391,26 @@ def _stream_chain(node: JavaNode) -> tuple[JavaNode, list[tuple[str, JavaNode | 
 
 
 def _is_collectors_to_list(node: JavaNode | None) -> bool:
-    if node is None or node.type != "method_invocation":
-        return False
-    receiver = node.child_by_field("object")
-    name = node.child_by_field("name")
-    return (
-        receiver is not None
-        and receiver.text == "Collectors"
-        and name is not None
-        and name.text == "toList"
-    )
+    return _is_collectors_call(node, "toList")
 
 
 def _is_collectors_to_set(node: JavaNode | None) -> bool:
-    if node is None or node.type != "method_invocation":
-        return False
-    receiver = node.child_by_field("object")
-    name = node.child_by_field("name")
-    return (
-        receiver is not None
-        and receiver.text == "Collectors"
-        and name is not None
-        and name.text == "toSet"
-    )
+    return _is_collectors_call(node, "toSet")
 
 
 def _is_collectors_joining(node: JavaNode | None) -> bool:
-    if node is None or node.type != "method_invocation":
-        return False
-    receiver = node.child_by_field("object")
-    name = node.child_by_field("name")
-    return (
-        receiver is not None
-        and receiver.text == "Collectors"
-        and name is not None
-        and name.text == "joining"
-    )
+    return _is_collectors_call(node, "joining")
 
 
 def _is_collectors_grouping_by(node: JavaNode | None) -> bool:
-    if node is None or node.type != "method_invocation":
-        return False
-    receiver = node.child_by_field("object")
-    name = node.child_by_field("name")
-    return (
-        receiver is not None
-        and receiver.text == "Collectors"
-        and name is not None
-        and name.text == "groupingBy"
-    )
+    return _is_collectors_call(node, "groupingBy")
 
 
 def _is_collectors_mapping(node: JavaNode | None) -> bool:
+    return _is_collectors_call(node, "mapping")
+
+
+def _is_collectors_call(node: JavaNode | None, method_name: str) -> bool:
     if node is None or node.type != "method_invocation":
         return False
     receiver = node.child_by_field("object")
@@ -451,7 +419,7 @@ def _is_collectors_mapping(node: JavaNode | None) -> bool:
         receiver is not None
         and receiver.text == "Collectors"
         and name is not None
-        and name.text == "mapping"
+        and name.text == method_name
     )
 
 
@@ -501,16 +469,7 @@ def _is_collectors_mapping_to_list_identity(
 
 
 def _is_collectors_to_map(node: JavaNode | None) -> bool:
-    if node is None or node.type != "method_invocation":
-        return False
-    receiver = node.child_by_field("object")
-    name = node.child_by_field("name")
-    return (
-        receiver is not None
-        and receiver.text == "Collectors"
-        and name is not None
-        and name.text == "toMap"
-    )
+    return _is_collectors_call(node, "toMap")
 
 
 def _method_invocation_arg_count(node: JavaNode | None) -> int | None:
