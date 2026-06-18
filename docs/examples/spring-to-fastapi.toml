@@ -7,7 +7,8 @@
 #   uv run j2py translate <src> -c docs/examples/spring-to-fastapi.toml --no-llm
 #
 # Every entry uses ONLY the supported annotation_map keys (python_decorator,
-# import, python_base, field_comment, emit_init_param, drop, preserve_comment).
+# import, python_base, python_annotation, field_comment, emit_init_param,
+# drop, preserve_comment).
 # Entries are strict — unknown keys are rejected. See SPRING_MAPPING_COOKBOOK.md
 # for the full before/after guide and the "manual port required" callouts.
 

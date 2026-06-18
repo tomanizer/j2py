@@ -182,3 +182,92 @@ IMPORT_MAP: dict[str, str] = {
     "java.math.BigDecimal": "from decimal import Decimal",
     "java.math.BigInteger": "",  # int handles arbitrary precision
 }
+
+# ---------------------------------------------------------------------------
+# Opt-in annotation map presets
+# ---------------------------------------------------------------------------
+
+SPRING_ANNOTATION_MAP: dict[str, dict[str, object]] = {
+    "RestController": {
+        "python_decorator": "rest_controller",
+        "import": "from j2py_runtime import rest_controller",
+    },
+    "Controller": {
+        "python_decorator": "controller",
+        "import": "from j2py_runtime import controller",
+    },
+    "RequestMapping": {
+        "python_decorator": 'request_mapping("{value}", method="{method}")',
+        "import": "from j2py_runtime import request_mapping",
+    },
+    "GetMapping": {
+        "python_decorator": 'get_mapping("{value}")',
+        "import": "from j2py_runtime import get_mapping",
+    },
+    "PostMapping": {
+        "python_decorator": 'post_mapping("{value}")',
+        "import": "from j2py_runtime import post_mapping",
+    },
+    "PutMapping": {
+        "python_decorator": 'put_mapping("{value}")',
+        "import": "from j2py_runtime import put_mapping",
+    },
+    "DeleteMapping": {
+        "python_decorator": 'delete_mapping("{value}")',
+        "import": "from j2py_runtime import delete_mapping",
+    },
+    "PathVariable": {
+        "python_annotation": "path_variable",
+        "import": "from j2py_runtime import path_variable",
+        "preserve_comment": False,
+    },
+    "RequestBody": {
+        "python_annotation": "request_body",
+        "import": "from j2py_runtime import request_body",
+        "preserve_comment": False,
+    },
+    "RequestParam": {
+        "python_annotation": "request_param",
+        "import": "from j2py_runtime import request_param",
+        "preserve_comment": False,
+    },
+    "ResponseStatus": {
+        "python_decorator": "response_status({value})",
+        "import": "from j2py_runtime import response_status",
+    },
+    "Component": {
+        "python_decorator": "component",
+        "import": "from j2py_runtime import component",
+    },
+    "Service": {
+        "python_decorator": "service",
+        "import": "from j2py_runtime import service",
+    },
+    "Repository": {
+        "python_decorator": "repository",
+        "import": "from j2py_runtime import repository",
+    },
+    "Configuration": {
+        "python_decorator": "configuration",
+        "import": "from j2py_runtime import configuration",
+    },
+    "Bean": {
+        "python_decorator": "bean",
+        "import": "from j2py_runtime import bean",
+    },
+    "Autowired": {
+        "field_comment": "# @Autowired",
+        "emit_init_param": True,
+    },
+    "Transactional": {
+        "python_decorator": "transactional",
+        "import": "from j2py_runtime import transactional",
+    },
+    "Value": {
+        "field_comment": '# @Value("{value}")',
+    },
+    "ConfigurationProperties": {
+        "python_decorator": 'configuration_properties(prefix="{prefix}")',
+        "import": "from j2py_runtime import configuration_properties",
+    },
+}

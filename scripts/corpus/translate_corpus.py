@@ -302,6 +302,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
         "include_path_prefixes": None,
         "require_annotations": None,
         "min_annotation_hits": None,
+        "annotation_map_preset": None,
         "baseline": args.baseline,
         "json_out": args.json_out,
         "csv_out": args.csv_out,
@@ -334,6 +335,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
             "include_path_prefixes": [],
             "require_annotations": [],
             "min_annotation_hits": 0,
+            "annotation_map_preset": None,
             "baseline": raw["baseline"] or LEGACY_DEFAULT_BASELINE,
             "json_out": raw["json_out"] or LEGACY_DEFAULT_JSON_OUT,
             "csv_out": raw["csv_out"] or LEGACY_DEFAULT_CSV_OUT,
@@ -356,6 +358,7 @@ def resolve_args(args: argparse.Namespace) -> argparse.Namespace:
     args.include_path_prefixes = tuple(resolved["include_path_prefixes"])
     args.require_annotations = tuple(resolved["require_annotations"])
     args.min_annotation_hits = resolved["min_annotation_hits"]
+    args.annotation_map_preset = resolved["annotation_map_preset"]
     args.baseline = resolved["baseline"]
     args.json_out = resolved["json_out"]
     args.csv_out = resolved["csv_out"]
@@ -429,7 +432,10 @@ def main() -> int:
         print(f"No Java files found under {repo}", file=sys.stderr)
         return 2
 
-    cfg = ConfigLoader().add_defaults().build()
+    loader = ConfigLoader().add_defaults()
+    if args.annotation_map_preset:
+        loader.add_mapping({"annotation_map_preset": args.annotation_map_preset})
+    cfg = loader.build()
     metrics = [
         measure_file(
             path,
@@ -463,6 +469,7 @@ def main() -> int:
         include_path_prefixes=include_path_prefixes,
         require_annotations=require_annotations,
         min_annotation_hits=min_annotation_hits,
+        annotation_map_preset=args.annotation_map_preset,
         annotation_family_file_counts=annotation_counts,
     )
 
@@ -804,6 +811,7 @@ def build_metadata(
     include_path_prefixes: tuple[str, ...] = (),
     require_annotations: tuple[str, ...] = (),
     min_annotation_hits: int = 0,
+    annotation_map_preset: str | None = None,
     annotation_family_file_counts: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     checkout = _git_head(repo)
@@ -825,6 +833,7 @@ def build_metadata(
         "include_path_prefixes": list(include_path_prefixes),
         "require_annotations": list(require_annotations),
         "min_annotation_hits": min_annotation_hits,
+        "annotation_map_preset": annotation_map_preset,
     }
     if require_annotations and annotation_family_file_counts is not None:
         metadata["annotation_family_file_counts"] = annotation_family_file_counts

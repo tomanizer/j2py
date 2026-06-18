@@ -42,7 +42,25 @@ __all__ = [
     "__j2py_todo__",
     "_j2py_idiv",
     "_j2py_monitor",
+    "bean",
+    "component",
+    "configuration",
+    "configuration_properties",
+    "controller",
+    "delete_mapping",
+    "get_mapping",
     "overloaded",
+    "path_variable",
+    "post_mapping",
+    "put_mapping",
+    "repository",
+    "request_body",
+    "request_mapping",
+    "request_param",
+    "response_status",
+    "rest_controller",
+    "service",
+    "transactional",
 ]
 
 
@@ -152,6 +170,102 @@ def _j2py_idiv(left: int, right: int) -> int:
     if (left < 0) != (right < 0):
         return -quotient
     return quotient
+
+
+def _j2py_marker(target: Any, name: str, **metadata: Any) -> Any:
+    payload = {"name": name, **metadata}
+    try:
+        existing = tuple(getattr(target, "__j2py_annotations__", ()))
+        target.__j2py_annotations__ = (*existing, payload)
+    except Exception:
+        pass
+    return target
+
+
+def _j2py_marker_decorator(name: str, **metadata: Any) -> Callable[[Any], Any]:
+    def decorate(target: Any) -> Any:
+        return _j2py_marker(target, name, **metadata)
+
+    return decorate
+
+
+def _j2py_direct_marker(name: str) -> Callable[[Any], Any]:
+    def decorate(target: Any) -> Any:
+        return _j2py_marker(target, name)
+
+    return decorate
+
+
+def _j2py_route_marker(
+    name: str,
+    path: str = "",
+    *,
+    method: str | None = None,
+    **metadata: Any,
+) -> Callable[[Any], Any]:
+    payload: dict[str, Any] = {"path": path, **metadata}
+    if method is not None:
+        payload["method"] = method
+    return _j2py_marker_decorator(name, **payload)
+
+
+rest_controller = _j2py_direct_marker("rest_controller")
+controller = _j2py_direct_marker("controller")
+component = _j2py_direct_marker("component")
+service = _j2py_direct_marker("service")
+repository = _j2py_direct_marker("repository")
+configuration = _j2py_direct_marker("configuration")
+bean = _j2py_direct_marker("bean")
+transactional = _j2py_direct_marker("transactional")
+
+
+def request_mapping(
+    path: str = "",
+    *,
+    method: str | None = None,
+    **metadata: Any,
+) -> Callable[[Any], Any]:
+    return _j2py_route_marker("request_mapping", path, method=method, **metadata)
+
+
+def get_mapping(path: str = "", **metadata: Any) -> Callable[[Any], Any]:
+    return _j2py_route_marker("get_mapping", path, method="GET", **metadata)
+
+
+def post_mapping(path: str = "", **metadata: Any) -> Callable[[Any], Any]:
+    return _j2py_route_marker("post_mapping", path, method="POST", **metadata)
+
+
+def put_mapping(path: str = "", **metadata: Any) -> Callable[[Any], Any]:
+    return _j2py_route_marker("put_mapping", path, method="PUT", **metadata)
+
+
+def delete_mapping(path: str = "", **metadata: Any) -> Callable[[Any], Any]:
+    return _j2py_route_marker("delete_mapping", path, method="DELETE", **metadata)
+
+
+def response_status(status: int | str, **metadata: Any) -> Callable[[Any], Any]:
+    return _j2py_marker_decorator("response_status", status=status, **metadata)
+
+
+def configuration_properties(
+    *,
+    prefix: str = "",
+    **metadata: Any,
+) -> Callable[[Any], Any]:
+    return _j2py_marker_decorator("configuration_properties", prefix=prefix, **metadata)
+
+
+def path_variable(*args: Any, **metadata: Any) -> dict[str, Any]:
+    return {"name": "path_variable", "args": args, **metadata}
+
+
+def request_body(*args: Any, **metadata: Any) -> dict[str, Any]:
+    return {"name": "request_body", "args": args, **metadata}
+
+
+def request_param(*args: Any, **metadata: Any) -> dict[str, Any]:
+    return {"name": "request_param", "args": args, **metadata}
 
 
 _WILDCARD: Any = object()  # annotation cannot be checked at runtime

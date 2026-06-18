@@ -21,6 +21,8 @@ def _load_module(name: str, path: Path) -> ModuleType:
 
 
 _SCRIPT_DIR = Path(__file__).parents[2] / "scripts" / "corpus"
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 enterprise = _load_module("enterprise_metrics", _SCRIPT_DIR / "enterprise_metrics.py")
 
 
@@ -41,6 +43,7 @@ def test_count_annotation_warnings_matches_reason_substrings() -> None:
         type("W", (), {"reason": "unsupported annotation RestController"})(),
         type("W", (), {"reason": "unhandled node"})(),
         type("W", (), {"reason": "preserved annotation Entity"})(),
+        type("W", (), {"reason": "mapped annotation @Service -> @service on class Demo"})(),
     )
     assert enterprise.count_annotation_warnings(warnings) == 2
 

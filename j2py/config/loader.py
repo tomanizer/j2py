@@ -7,6 +7,7 @@ import importlib.util
 import os
 import sys
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
@@ -17,6 +18,7 @@ from j2py.framework import FrameworkPlugin
 
 T = TypeVar("T")
 LLMProvider = Literal["anthropic", "gemini", "openai"]
+AnnotationMapPreset = Literal["spring"]
 
 
 class ConfigError(ValueError):
@@ -31,6 +33,7 @@ class AnnotationMapEntry(BaseModel):
     python_decorator: str | None = None
     import_: str | None = Field(default=None, alias="import")
     python_base: str | None = None
+    python_annotation: str | None = None
     field_comment: str | None = None
     emit_init_param: bool = False
     drop: bool = False
@@ -61,6 +64,7 @@ class TranslationConfig(BaseModel):
     exception_map: dict[str, str] = Field(default_factory=dict)
     literal_map: dict[str, str] = Field(default_factory=dict)
     import_map: dict[str, str] = Field(default_factory=dict)
+    annotation_map_preset: AnnotationMapPreset | None = None
     annotation_map: dict[str, AnnotationMapEntry] = Field(default_factory=dict)
     member_map: dict[str, MemberMapEntry] = Field(default_factory=dict)
     framework_plugins: list[FrameworkPlugin] = Field(default_factory=list)
@@ -149,6 +153,16 @@ class ConfigLoader:
         self._layers.append(overrides)
         return self
 
+    def add_mapping(
+        self,
+        overrides: dict[str, Any],
+        *,
+        source: Path = Path("<config mapping>"),
+    ) -> ConfigLoader:
+        self._validate_layer(overrides, source)
+        self._layers.append(dict(overrides))
+        return self
+
     def _validate_layer(self, layer: dict[str, Any], path: Path) -> None:
         try:
             TranslationConfig(**layer)
@@ -168,9 +182,40 @@ class ConfigLoader:
                 else:
                     merged[key] = value
         try:
+            if merged.get("annotation_map_preset") is not None:
+                merged["annotation_map"] = _merge_annotation_maps(
+                    _annotation_map_for_preset(str(merged["annotation_map_preset"])),
+                    merged.get("annotation_map") or {},
+                )
             return TranslationConfig(**merged)
         except ValidationError as exc:
             raise ConfigError(_format_validation_error(Path("<merged config>"), exc)) from exc
+
+
+def _annotation_map_for_preset(name: str) -> dict[str, dict[str, object]]:
+    if name == "spring":
+        return {key: dict(value) for key, value in default.SPRING_ANNOTATION_MAP.items()}
+    raise ConfigError(f"Unknown annotation_map_preset: {name!r}")
+
+
+def _merge_annotation_maps(
+    base: Mapping[str, AnnotationMapEntry | Mapping[str, object]],
+    override: Mapping[str, AnnotationMapEntry | Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    merged = {key: _annotation_entry_dict(value) for key, value in base.items()}
+    for key, value in override.items():
+        incoming = _annotation_entry_dict(value)
+        if key in merged:
+            merged[key] = {**merged[key], **incoming}
+        else:
+            merged[key] = incoming
+    return merged
+
+
+def _annotation_entry_dict(entry: AnnotationMapEntry | Mapping[str, object]) -> dict[str, object]:
+    if isinstance(entry, AnnotationMapEntry):
+        return entry.model_dump(by_alias=True, exclude_unset=True)
+    return dict(entry)
 
 
 def _load_python(path: Path) -> dict[str, Any]:

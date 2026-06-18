@@ -33,7 +33,12 @@ def count_method_bodies(parsed: ParsedFile) -> int:
 
 
 def count_annotation_warnings(warnings: tuple[Any, ...] | list[Any]) -> int:
-    return sum(1 for warning in warnings if _ANNOTATION_WARNING_RE.search(warning.reason))
+    return sum(
+        1
+        for warning in warnings
+        if _ANNOTATION_WARNING_RE.search(warning.reason)
+        and not warning.reason.startswith("mapped annotation ")
+    )
 
 
 def count_annotation_uses(

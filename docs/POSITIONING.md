@@ -75,7 +75,9 @@ Mapped annotations use the opt-in `annotation_map` configuration described in
 [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) and
 [configuration.md](configuration.md). This lets a project explicitly map known
 annotations to its own Python decorators, imports, bases, comments, or constructor
-parameters. j2py ships no default Spring, FastAPI, SQLAlchemy, or JPA semantics.
+parameters. j2py also ships an explicit `annotation_map_preset: spring` convenience map
+for no-op marker decorators, but it is not enabled by default and does not implement
+Spring, FastAPI, SQLAlchemy, or JPA runtime semantics.
 
 That boundary is intentional. An `annotation_map` entry is project policy, not a claim
 that core j2py understands the source framework. More complex framework lowering belongs
@@ -89,7 +91,8 @@ For a framework-heavy enterprise codebase:
 2. Translate with `--no-llm` first to get deterministic output and diagnostics.
 3. Review with `j2py compare`.
 4. Add project `type_map`, `import_map`, and `annotation_map` entries only when the target
-   Python stack and shims are explicit.
+   Python stack and shims are explicit. Use `annotation_map_preset: spring` only when
+   no-op Spring marker output is useful to the review workflow.
 5. Rebuild framework wiring in the target stack manually or through project-owned tools.
 6. Back critical translated methods with behavior or equivalence tests before trusting
    them in production.

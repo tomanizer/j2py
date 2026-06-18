@@ -63,6 +63,7 @@ drop_annotations:
   - Override
   - SuppressWarnings
 
+annotation_map_preset: spring
 annotation_map:
   RestController:
     python_decorator: rest_controller
@@ -103,6 +104,7 @@ snake_case_methods = true
 llm_provider = "openai"
 llm_base_url = "https://openai-compatible.example/v1"
 model = "provider-model-id"
+annotation_map_preset = "spring"
 
 [tool.j2py.type_map]
 MyType = "mymodule.MyType"
@@ -128,6 +130,7 @@ uv run j2py translate src/main/java --config j2py_config.py
 
 ```python
 type_map = {"MyType": "mymodule.MyType"}
+annotation_map_preset = "spring"
 annotation_map = {
     "RestController": {
         "python_decorator": "rest_controller",
@@ -184,6 +187,7 @@ Mapping options:
 - `exception_map`: map Java exception names to Python exception names
 - `literal_map`: map Java literal tokens to Python literal tokens
 - `import_map`: map Java imports to Python import statements
+- `annotation_map_preset`: optional named annotation map preset; currently `spring`
 - `annotation_map`: map Java annotation simple names or fully qualified names to explicit
   Python lowering behavior
 - `member_map`: map fully qualified Java members to explicit member-binding facts
@@ -195,6 +199,8 @@ Each `annotation_map` entry is strict. Supported entry fields:
   placeholders such as `{value}` and `{path}` are substituted from annotation arguments.
 - `import`: add one or more Python import lines required by the mapped output.
 - `python_base`: append a base class to mapped class declarations.
+- `python_annotation`: wrap mapped method parameters as
+  `typing.Annotated[<type>, <value>]`.
 - `field_comment`: emit a formatted comment above the field initialization. Field
   placeholders include `{field_name}`, `{field_type}`, and `{java_type}`.
 - `emit_init_param`: for instance fields, add the field to `__init__` and assign
@@ -203,9 +209,13 @@ Each `annotation_map` entry is strict. Supported entry fields:
 - `preserve_comment`: controls whether the original `# @Annotation(...)` audit comment is
   emitted for mapped annotations. The default follows `emit_line_comments`.
 
-`annotation_map` is opt-in project policy. j2py does not ship a default Spring, FastAPI,
-JPA, or DI mapping. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus
-optional line comments.
+`annotation_map` is opt-in project policy. j2py does not enable Spring, FastAPI, JPA, or
+DI mappings by default. The named `spring` preset is a convenience map of Spring
+annotations to no-op marker decorators and `typing.Annotated` parameter markers from
+`j2py_runtime`; enable it explicitly with `annotation_map_preset: spring`. Project
+`annotation_map` entries are merged after the preset, so they can override or extend the
+preset. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus optional
+line comments.
 
 Each `member_map` key is a fully qualified Java member, such as
 `com.example.Util.max` or `com.example.Factory.of`. Supported entry fields:

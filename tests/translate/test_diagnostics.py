@@ -1,6 +1,6 @@
 """Tests for translation diagnostics metrics."""
 
-from j2py.translate.diagnostics import TranslationDiagnostic, TranslationDiagnostics
+from j2py.translate.diagnostics import ImportSet, TranslationDiagnostic, TranslationDiagnostics
 from tests.translate.skeleton.helpers import translate_source_with_diagnostics
 
 
@@ -48,3 +48,16 @@ def test_missing_receiver_type_diagnostic_has_structured_category() -> None:
     assert diagnostic.reason == "ambiguous get invocation requires receiver collection type"
     assert diagnostic.category in {"missing_receiver_type", "opaque_receiver_shape"}
     assert diagnostic.facts["receiver"] == "values"
+
+
+def test_import_set_combines_explicit_and_inferred_from_imports() -> None:
+    imports = ImportSet()
+    imports.need_line("from typing import IO")
+    imports.need_line("from j2py_runtime import get_mapping")
+    imports.need_line("from j2py_runtime import rest_controller")
+    imports.need_typing("Iterator")
+
+    assert imports.render() == [
+        "from j2py_runtime import get_mapping, rest_controller",
+        "from typing import IO, Iterator",
+    ]

@@ -33,6 +33,7 @@ class ParameterInfo:
     py_type: str
     java_type: str = "Object"
     is_spread: bool = False
+    py_annotations: tuple[str, ...] = ()
 
 
 def _modifiers(node: JavaNode) -> set[str]:

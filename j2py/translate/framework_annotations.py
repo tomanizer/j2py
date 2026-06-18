@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from j2py.config.loader import AnnotationMapEntry, TranslationConfig
@@ -115,6 +116,26 @@ def field_init_parameter(
     return None
 
 
+def parameter_annotation_metadata(
+    parameter: JavaNode,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[str]:
+    metadata: list[str] = []
+    for annotation in annotation_nodes(parameter):
+        entry = annotation_map_entry(annotation, cfg)
+        if entry is None or entry.drop or not entry.python_annotation:
+            continue
+        _register_import(entry, diagnostics)
+        metadata.append(
+            render_annotation_template(
+                entry.python_annotation,
+                annotation_template_values(annotation),
+            )
+        )
+    return metadata
+
+
 def annotation_map_entry(
     annotation: JavaNode,
     cfg: TranslationConfig,
@@ -159,14 +180,37 @@ def annotation_template_values(annotation: JavaNode) -> dict[str, str]:
         key = "value" if positional_index == 0 else f"value{positional_index + 1}"
         values[key] = _annotation_value_text(child)
         positional_index += 1
-    return values
+    return _annotation_value_aliases(values)
 
 
 def render_annotation_template(template: str, values: dict[str, str]) -> str:
-    return template.format_map(_TemplateValues(values))
+    rendered = template.format_map(_TemplateValues(values))
+    return _strip_unresolved_keyword_arguments(rendered)
+
+
+def _annotation_value_aliases(values: dict[str, str]) -> dict[str, str]:
+    aliased = dict(values)
+    if "path" in aliased and "value" not in aliased:
+        aliased["value"] = aliased["path"]
+    if "value" in aliased and "path" not in aliased:
+        aliased["path"] = aliased["value"]
+    if "code" in aliased and "value" not in aliased:
+        aliased["value"] = aliased["code"]
+    return aliased
+
+
+def _strip_unresolved_keyword_arguments(rendered: str) -> str:
+    return re.sub(
+        r",\s*[A-Za-z_]\w*\s*=\s*(['\"])\{[A-Za-z_]\w*\}\1",
+        "",
+        rendered,
+    )
 
 
 def _annotation_value_text(node: JavaNode) -> str:
+    if node.type == "element_value_array_initializer":
+        values = [_annotation_value_text(child) for child in node.named_children]
+        return values[0] if len(values) == 1 else ", ".join(values)
     if node.type == "string_literal":
         fragments = [child.text for child in node.named_children if child.type == "string_fragment"]
         if fragments:
@@ -174,7 +218,31 @@ def _annotation_value_text(node: JavaNode) -> str:
         text = node.text
         if len(text) >= 2 and text[0] == text[-1] == '"':
             return text[1:-1]
-    return node.text
+    return _spring_enum_literal(node.text) or node.text
+
+
+def _spring_enum_literal(text: str) -> str | None:
+    value = text.rsplit(".", 1)[-1]
+    if value in {"GET", "POST", "PUT", "DELETE", "PATCH"} and (
+        text == value or text.endswith(f".{value}")
+    ):
+        return value
+    status_codes = {
+        "ACCEPTED": "202",
+        "BAD_REQUEST": "400",
+        "CONFLICT": "409",
+        "CREATED": "201",
+        "FORBIDDEN": "403",
+        "FOUND": "302",
+        "INTERNAL_SERVER_ERROR": "500",
+        "NO_CONTENT": "204",
+        "NOT_FOUND": "404",
+        "OK": "200",
+        "UNAUTHORIZED": "401",
+    }
+    if value in status_codes and (text == value or "HttpStatus." in text):
+        return status_codes[value]
+    return None
 
 
 def _register_import(entry: AnnotationMapEntry, diagnostics: TranslationDiagnostics) -> None:

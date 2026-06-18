@@ -4,9 +4,11 @@ Reference mappings for lowering the most common Spring application-layer pattern
 **FastAPI + SQLAlchemy** Python stack. This is a **guide and fixture spec**, not full
 Spring support in j2py core.
 
-j2py ships **no** default Spring, FastAPI, JPA, or DI semantics
-([ADR 0019](../decisions/0019-annotation-map-framework-lowering.md)). Everything here is
-opt-in project policy realized through the tiers below.
+j2py enables **no** Spring, FastAPI, JPA, or DI semantics by default
+([ADR 0019](../decisions/0019-annotation-map-framework-lowering.md)). The core package
+does include `annotation_map_preset: spring` for no-op Spring marker decorators; the
+FastAPI/SQLAlchemy profile in this cookbook remains project policy realized through the
+tiers below.
 
 | Tier | Mechanism | Status | Issue |
 |---|---|---|---|
@@ -56,6 +58,7 @@ config-format details.
 |---|---|
 | `python_decorator` | Emit `@<value>` above a mapped class or method. `{value}`, `{name}`, etc. are substituted from annotation arguments. |
 | `python_base` | Append a base class to a mapped class declaration. |
+| `python_annotation` | Wrap mapped method parameters as `typing.Annotated[<type>, <value>]`. |
 | `field_comment` | Emit a comment above a field. Placeholders: `{field_name}`, `{field_type}`, `{java_type}`. |
 | `emit_init_param` | Promote an instance field into `__init__` as a required, assigned parameter. |
 | `import` | Add one or more import lines required by the mapped output. |

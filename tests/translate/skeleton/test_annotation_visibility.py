@@ -1,6 +1,11 @@
 """Tests for class/field framework annotation visibility (issue #334)."""
 
+from pathlib import Path
+
+import pytest
+
 from j2py.analyze.symbols import extract_symbols
+from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import parse_file
 from j2py.translate.skeleton import translate_skeleton_with_diagnostics
 from tests.translate.skeleton.helpers import (
@@ -217,6 +222,96 @@ def test_annotation_map_fixture_lowers_framework_annotations() -> None:
         'mapped annotation @GetMapping -> @router.get("{value}") on method get',
     ]
     assert_valid_python(result.source)
+
+
+def test_spring_annotation_map_preset_fixture_lowers_rest_controller_get_mapping(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text("annotation_map_preset: spring\n")
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+    parsed = parse_file(FIXTURES / "java" / "SpringAnnotationPreset.java")
+
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), cfg)
+
+    assert result.coverage == 1.0
+    assert result.source == (FIXTURES / "python" / "SpringAnnotationPreset.py").read_text()
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "mapped annotation @RestController -> @rest_controller on class SpringAnnotationPreset",
+        'mapped annotation @GetMapping -> @get_mapping("{value}") on method hello',
+    ]
+    assert_module_executes(result.source)
+
+
+def test_spring_annotation_map_preset_lowers_parameter_and_status_annotations(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text("annotation_map_preset: spring\n")
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    result = translate_source_with_diagnostics(
+        """
+        @RestController
+        public class Pets {
+            @ResponseStatus(HttpStatus.CREATED)
+            @PostMapping("/pets")
+            public Pet create(@RequestBody Pet pet, @RequestParam("trace") String trace) {
+                return pet;
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert "@response_status(201)" in result.source
+    assert '@post_mapping("/pets")' in result.source
+    assert "from typing import Annotated" in result.source
+    assert "pet: Annotated[Pet, request_body]" in result.source
+    assert "trace: Annotated[str, request_param]" in result.source
+    assert_module_executes(result.source)
+
+
+def test_spring_annotation_map_preset_handles_request_mapping_aliases(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text("annotation_map_preset: spring\n")
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    result = translate_source_with_diagnostics(
+        """
+        @Controller
+        public class Routes {
+            @RequestMapping(path="/owners", method=GET)
+            public String owners() {
+                return "owners";
+            }
+
+            @RequestMapping("/pets")
+            public String pets() {
+                return "pets";
+            }
+
+            @ResponseStatus(code=CREATED)
+            @PostMapping({ "/pets" })
+            public String create() {
+                return "ok";
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert '@request_mapping("/owners", method="GET")' in result.source
+    assert '@request_mapping("/pets")' in result.source
+    assert 'method="{method}"' not in result.source
+    assert "@response_status(201)" in result.source
+    assert '@post_mapping("/pets")' in result.source
+    assert_module_executes(result.source)
 
 
 def test_annotation_map_python_base_dedupes_explicit_extends_base() -> None:
