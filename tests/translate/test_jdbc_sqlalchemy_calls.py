@@ -40,19 +40,16 @@ def test_jdbc_template_fixture_lowers_common_calls_to_sqlalchemy_core() -> None:
     ) in result.source
 
 
-def test_jdbc_template_row_mapper_callback_emits_explicit_todo() -> None:
+def test_jdbc_template_lambda_row_mapper_no_longer_emits_callback_todo() -> None:
     parsed = parse_file(FIXTURES / "java" / "JdbcTemplateSqlAlchemyScaffold.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
 
     ast.parse(result.source)
-    assert "from j2py_runtime import __j2py_todo__" in result.source
-    assert (
-        "__j2py_todo__('TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping')"
-    ) in result.source
+    assert "__j2py_todo__('TODO(j2py): JdbcTemplate RowMapper/callback" not in result.source
+    assert "(lambda row:" in result.source
+    assert ".mappings().one())" in result.source
     assert any(
-        diagnostic.category == "spring-jdbc-sqlalchemy-todo"
-        and "RowMapper/callback" in diagnostic.reason
-        for diagnostic in result.diagnostics.unhandled
+        diagnostic.category == "spring-jdbc-row-mapper" for diagnostic in result.diagnostics.handled
     )
 
 
