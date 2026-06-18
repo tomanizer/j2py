@@ -19,9 +19,28 @@ from j2py.translate.framework_annotations import (
     annotation_simple_name,
     annotation_template_values,
 )
+from j2py.translate.rules.literals import java_string_literal_value
 from j2py.translate.rules.naming import translate_field_name
 
 _PROFILE_VERSION = 1
+_JDBC_BEAN_TYPES = frozenset(
+    {
+        "DataSource",
+        "JdbcTemplate",
+        "NamedParameterJdbcTemplate",
+        "PlatformTransactionManager",
+        "DataSourceTransactionManager",
+    },
+)
+_JDBC_PROPERTY_METHODS: Mapping[str, str] = {
+    "url": "url",
+    "jdbcUrl": "url",
+    "username": "username",
+    "user": "username",
+    "password": "password",
+    "driverClassName": "driver",
+    "driver": "driver",
+}
 _CLASS_ROLES: Mapping[str, str] = {
     "RestController": "controller",
     "Controller": "controller",
@@ -143,14 +162,31 @@ class SpringWiringPlugin(FrameworkPlugin):
         )
 
     def transform_method(self, ctx: FrameworkContext) -> FrameworkTransformResult:
+        bean = _annotation(ctx.annotations, "Bean")
+        jdbc_bean = _jdbc_bean_metadata(ctx, bean)
+        if jdbc_bean is not None:
+            ctx.diagnostics.warn(
+                ctx.node,
+                reason=(
+                    "Spring JDBC bean metadata captured; database runtime wiring remains "
+                    "project-owned"
+                ),
+                category="spring-jdbc-boundary",
+            )
         route_annotation = _first_annotation(ctx.annotations, set(_ROUTE_ANNOTATIONS))
         response_status = _annotation(ctx.annotations, "ResponseStatus")
-        if route_annotation is None and response_status is None:
+        if route_annotation is None and response_status is None and jdbc_bean is None:
             return FrameworkTransformResult()
         if route_annotation is None:
+            metadata = (
+                {"spring": {"profile_version": _PROFILE_VERSION, "jdbc_bean": jdbc_bean}}
+                if jdbc_bean is not None
+                else {}
+            )
             return FrameworkTransformResult(
                 prefix_lines=_method_prefix_lines(ctx.annotations),
                 imports=_method_imports(ctx.annotations),
+                metadata=metadata,
                 handled=True,
             )
 
@@ -163,11 +199,14 @@ class SpringWiringPlugin(FrameworkPlugin):
         parameters, request_body = _route_parameters(ctx)
         route["parameters"] = parameters
         route["request_body"] = request_body
+        spring: dict[str, object] = {"profile_version": _PROFILE_VERSION, "route": route}
+        if jdbc_bean is not None:
+            spring["jdbc_bean"] = jdbc_bean
 
         return FrameworkTransformResult(
             prefix_lines=_method_prefix_lines(ctx.annotations),
             imports=_method_imports(ctx.annotations),
-            metadata={"spring": {"profile_version": _PROFILE_VERSION, "route": route}},
+            metadata={"spring": spring},
             handled=True,
         )
 
@@ -190,7 +229,7 @@ def _first_annotation(
 
 
 def _component_name(java_name: str, values: Mapping[str, str]) -> str:
-    explicit = values.get("value") or values.get("name")
+    explicit = _clean_java_string(values.get("value") or values.get("name") or "")
     if explicit:
         return explicit
     if len(java_name) > 1 and java_name[0].isupper() and java_name[1].isupper():
@@ -199,7 +238,7 @@ def _component_name(java_name: str, values: Mapping[str, str]) -> str:
 
 
 def _annotation_path(values: Mapping[str, str]) -> str:
-    return values.get("value") or values.get("path") or ""
+    return _clean_java_string(values.get("value") or values.get("path") or "")
 
 
 def _normalize_route_path(path: str) -> str:
@@ -253,6 +292,11 @@ def _method_prefix_lines(annotations: tuple[FrameworkAnnotation, ...]) -> tuple[
             status = _status_code(annotation)
             if status is not None:
                 lines.append(f"    @response_status({status})")
+            continue
+        if annotation.simple_name == "Bean":
+            bean_name = _bean_name(annotation, "")
+            suffix = f'("{bean_name}")' if bean_name else ""
+            lines.append(f"    # @Bean{suffix}")
     return tuple(lines)
 
 
@@ -385,7 +429,9 @@ def _route_parameter(
     *,
     source: str,
 ) -> dict[str, object]:
-    java_name = values.get("value") or values.get("name") or param.java_name
+    java_name = _clean_java_string(values.get("value") or values.get("name") or "")
+    if not java_name:
+        java_name = param.java_name
     return {
         "name": translate_field_name(java_name, snake_case=True),
         "java_name": param.java_name,
@@ -402,4 +448,122 @@ def _required(values: Mapping[str, str]) -> bool:
 def _qualifier(annotation: FrameworkAnnotation | None) -> str | None:
     if annotation is None:
         return None
-    return annotation.values.get("value") or annotation.values.get("name")
+    return _clean_java_string(annotation.values.get("value") or annotation.values.get("name") or "")
+
+
+def _jdbc_bean_metadata(
+    ctx: FrameworkContext,
+    bean: FrameworkAnnotation | None,
+) -> dict[str, object] | None:
+    if bean is None or _simple_type(ctx.java_type or ctx.py_type or "") not in _JDBC_BEAN_TYPES:
+        return None
+    body = ctx.node.child_by_field("body")
+    if body is None:
+        return None
+
+    location = ctx.node.location
+    constructor_args: list[dict[str, object]] = []
+    method_calls: list[dict[str, object]] = []
+    properties: list[dict[str, object]] = []
+    for node in body.find_all("object_creation_expression"):
+        type_node = node.child_by_field("type")
+        if type_node is None:
+            continue
+        constructor_args.append(
+            {
+                "type": _simple_type(type_node.text),
+                "arguments": _argument_values(node),
+            },
+        )
+    for node in body.find_all("method_invocation"):
+        name_node = node.child_by_field("name")
+        if name_node is None:
+            continue
+        method_calls.append({"name": name_node.text, "arguments": _argument_values(node)})
+        properties.extend(_property_bindings(node, name_node.text))
+
+    return {
+        "name": _bean_name(bean, ctx.java_name),
+        "java_name": ctx.java_name,
+        "python_name": ctx.py_name,
+        "java_type": ctx.java_type or "",
+        "python_type": ctx.py_type or "",
+        "source_location": {
+            "line": location.line,
+            "column": location.column,
+            "end_line": location.end_line,
+            "end_column": location.end_column,
+        },
+        "dependencies": [
+            {
+                "name": param.py_name,
+                "java_name": param.java_name,
+                "type": param.py_type,
+                "java_type": param.java_type,
+                "source": "parameter",
+            }
+            for param in ctx.parameters
+        ],
+        "constructor_args": constructor_args,
+        "method_calls": method_calls,
+        "properties": properties,
+    }
+
+
+def _bean_name(bean: FrameworkAnnotation, fallback: str) -> str:
+    return _clean_java_string(bean.values.get("value") or bean.values.get("name") or "") or fallback
+
+
+def _argument_values(node: JavaNode) -> list[dict[str, object]]:
+    args = node.child_by_field("arguments")
+    if args is None:
+        return []
+    return [_expression_value(arg) for arg in args.named_children]
+
+
+def _expression_value(node: JavaNode) -> dict[str, object]:
+    if node.type == "string_literal":
+        return {"kind": "string", "value": java_string_literal_value(node.text)}
+    if node.type == "identifier":
+        return {"kind": "identifier", "value": translate_field_name(node.text, snake_case=True)}
+    if node.type == "method_invocation":
+        name_node = node.child_by_field("name")
+        return {
+            "kind": "method_call",
+            "name": name_node.text if name_node is not None else node.text,
+            "arguments": _argument_values(node),
+        }
+    return {"kind": node.type, "value": node.text}
+
+
+def _property_bindings(node: JavaNode, method_name: str) -> list[dict[str, object]]:
+    target = _JDBC_PROPERTY_METHODS.get(method_name)
+    if target is None:
+        return []
+    args = node.child_by_field("arguments")
+    if args is None:
+        return []
+    bindings: list[dict[str, object]] = []
+    for arg in args.named_children:
+        if arg.type != "method_invocation":
+            continue
+        name_node = arg.child_by_field("name")
+        if name_node is None or name_node.text != "getProperty":
+            continue
+        nested_args = arg.child_by_field("arguments")
+        if nested_args is None or not nested_args.named_children:
+            continue
+        key_node = nested_args.named_children[0]
+        if key_node.type == "string_literal":
+            bindings.append({"target": target, "key": java_string_literal_value(key_node.text)})
+    return bindings
+
+
+def _clean_java_string(value: str) -> str:
+    if value.startswith('"') and value.endswith('"'):
+        return java_string_literal_value(value)
+    return value
+
+
+def _simple_type(type_name: str) -> str:
+    return type_name.rsplit(".", 1)[-1].split("<", 1)[0].strip()

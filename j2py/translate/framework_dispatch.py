@@ -104,6 +104,12 @@ def resolve_method(
     from j2py.translate.class_methods import parameter_infos, return_type
 
     params = tuple(_framework_param(param) for param in parameter_infos(node, cfg))
+    type_node = node.child_by_field("type")
+    java_type = (
+        None
+        if node.type == "constructor_declaration"
+        else (type_node.text if type_node is not None else "void")
+    )
     ctx = FrameworkContext(
         node=node,
         element_kind="method" if node.type == "method_declaration" else "constructor",
@@ -112,6 +118,7 @@ def resolve_method(
         py_name=py_name,
         annotations=_framework_annotations(node),
         diagnostics=diagnostics,
+        java_type=java_type,
         py_type="None" if node.type == "constructor_declaration" else return_type(node, cfg),
         parameters=params,
     )

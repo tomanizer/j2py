@@ -258,6 +258,72 @@ These hints are enough for `j2py-wire` to associate repository providers and dat
 models in the PetClinic owner-slice smoke test. Full JPA relationship modeling, JPQL, and
 derived-query semantics remain out of scope for profile v1.
 
+## Spring JDBC Beans
+
+Spring JDBC configuration metadata uses method elements for `@Bean` methods that return
+known JDBC infrastructure types:
+
+- `DataSource`
+- `JdbcTemplate`
+- `NamedParameterJdbcTemplate`
+- `PlatformTransactionManager`
+- `DataSourceTransactionManager`
+
+The method element stores bean topology under `jdbc_bean`:
+
+```json
+{
+  "spring": {
+    "profile_version": 1,
+    "jdbc_bean": {
+      "name": "jdbcTemplate",
+      "java_name": "jdbcTemplate",
+      "python_name": "jdbc_template",
+      "java_type": "JdbcTemplate",
+      "python_type": "JdbcTemplate",
+      "source_location": {
+        "line": 42,
+        "column": 4,
+        "end_line": 44,
+        "end_column": 5
+      },
+      "dependencies": [
+        {
+          "name": "data_source",
+          "java_name": "dataSource",
+          "type": "DataSource",
+          "java_type": "DataSource",
+          "source": "parameter"
+        }
+      ],
+      "constructor_args": [
+        {
+          "type": "JdbcTemplate",
+          "arguments": [{"kind": "identifier", "value": "data_source"}]
+        }
+      ],
+      "method_calls": [],
+      "properties": []
+    }
+  }
+}
+```
+
+For `DataSourceBuilder`-style beans, `properties` records visible
+`env.getProperty(...)` keys attached to JDBC configuration setters:
+
+```json
+[
+  {"target": "url", "key": "app.datasource.url"},
+  {"target": "username", "key": "app.datasource.username"},
+  {"target": "driver", "key": "app.datasource.driver-class-name"}
+]
+```
+
+This metadata records trustworthy bean topology only. It does not create a SQLAlchemy
+engine, open a database connection, emulate JDBC, or decide driver/runtime behavior.
+`j2py-wire` or project-owned migration tooling owns those runtime choices.
+
 ## Fixture
 
 The representative profile fixture lives at
