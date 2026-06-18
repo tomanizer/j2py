@@ -3,7 +3,14 @@
 from j2py.config.loader import ConfigLoader
 from j2py.parse.java_ast import JavaNode, parse_source
 from j2py.translate.class_members import member_groups, member_python_name
+from j2py.translate.class_model import ParameterInfo
 from j2py.translate.overload_classification import OverloadKind, classify_overload_group
+from j2py.translate.overload_guards import (
+    _DispatchGuard,
+    _member_dispatch_key,
+    _value_dispatch_condition,
+    _varargs_value_guards_checkable,
+)
 
 CFG = ConfigLoader().add_defaults().build()
 
@@ -273,3 +280,36 @@ def test_classifies_equivalent_arity_guard_collisions_as_value_dispatch_safe() -
 
     assert classification.kind is OverloadKind.VALUE_DISPATCH_SAFE
     assert "equivalent arity/guard collisions collapsed" in classification.reason
+
+
+def test_varargs_guard_helpers_reject_non_trailing_spread_parameter() -> None:
+    params = [
+        ParameterInfo("values", "values", "*int", "int", is_spread=True),
+        ParameterInfo("suffix", "suffix", "str", "String"),
+    ]
+    guards = [
+        _DispatchGuard(
+            "int",
+            36,
+            "isinstance({arg}, int) and not isinstance({arg}, bool)",
+        ),
+        _DispatchGuard("str", 40, "isinstance({arg}, str)"),
+    ]
+
+    assert _member_dispatch_key(params, guards) == ("invalid",)
+    assert not _varargs_value_guards_checkable(params, guards)
+
+
+def test_varargs_condition_skips_wildcard_spread_element_check() -> None:
+    params = [
+        ParameterInfo("prefix", "prefix", "str", "String"),
+        ParameterInfo("values", "values", "*object", "Object", is_spread=True),
+    ]
+    guards = [
+        _DispatchGuard("str", 40, "isinstance({arg}, str)"),
+        _DispatchGuard("object", 0),
+    ]
+
+    condition = _value_dispatch_condition(guards, params)
+
+    assert condition == "len(args) >= 1 and isinstance(args[0], str)"

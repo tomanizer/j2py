@@ -12,10 +12,12 @@ from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import method_body, parameter_infos
 from j2py.translate.class_model import _modifiers
 from j2py.translate.member_resolution import java_type_shape_signature
-from j2py.translate.overload_dispatch import (
+from j2py.translate.overload_equivalence import (
     _collapse_equivalent_arity_guard_members,
     _comparison_body_form,
     _deduplicate_same_body_erased_sig,
+)
+from j2py.translate.overload_guards import (
     _dispatch_guard_for_parameter,
     _member_dispatch_key,
     _varargs_value_guards_checkable,

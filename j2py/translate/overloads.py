@@ -20,10 +20,10 @@ from j2py.translate.diagnostics import (
 from j2py.translate.name_resolution import NameResolver
 from j2py.translate.overload_classification import OverloadKind, classify_overload_group
 from j2py.translate.overload_dispatch import (
-    _deduplicate_same_body_erased_sig,
     _dispatch_overload_members,
     _value_dispatch_overload,
 )
+from j2py.translate.overload_equivalence import _deduplicate_same_body_erased_sig
 from j2py.translate.overload_merge import (
     _merged_constructor_overload,
     _merged_forwarding_method_overload,
