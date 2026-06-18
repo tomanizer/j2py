@@ -241,6 +241,8 @@ For simple worked Spring mappings, see the [Spring -> FastAPI/SQLAlchemy mapping
 cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as both
 [`spring-to-fastapi.toml`](examples/spring-to-fastapi.toml) (loads via the stdlib) and
 [`spring-to-fastapi.yaml`](examples/spring-to-fastapi.yaml) (needs the `[yaml]` extra).
+Install `j2py-converter[spring]` or run `uv sync --extra spring` only when the generated
+Spring path needs FastAPI, HTTPX, SQLAlchemy, or pydantic-settings available at runtime.
 
 ## Framework Plugins
 
@@ -267,6 +269,9 @@ Plugin modules must be importable when the config file executes. For project-loc
 packages, install the package into the active environment or set `PYTHONPATH` appropriately
 when invoking `j2py`. Imported plugin classes should use a private alias, as above, because
 the Python config loader exports every public top-level name as a config key.
+Spring-aware plugin modules that depend on FastAPI, SQLAlchemy, or pydantic-settings
+should document the `spring` extra and raise a clear install hint if those optional
+dependencies are missing.
 
 Resolution is per element: plugins run in registration order, and the first plugin returning
 `handled=True` wins for that class, field, or method. A handled plugin suppresses later

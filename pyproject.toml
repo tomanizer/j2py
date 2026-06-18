@@ -72,7 +72,10 @@ openai = [
     "openai>=1.0",
 ]
 spring = [
+    "fastapi>=0.111",
+    "httpx>=0.27",
     "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
 ]
 test = [
     "mypy>=1.10",

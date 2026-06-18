@@ -67,7 +67,8 @@ Spring roadmap PRs must follow these rules:
    provider graphs, session factories, or Spring container emulation.
 6. `j2py-wire` owns FastAPI/SQLAlchemy application assembly from sidecars.
 7. Spring/FastAPI/SQLAlchemy/Pydantic-settings dependencies must remain optional unless
-   they are already core dependencies for non-Spring translation.
+   they are already core dependencies for non-Spring translation. In this distribution,
+   that boundary is the `j2py-converter[spring]` / `uv sync --extra spring` extra.
 8. Default `j2py translate` with no Spring config must not emit Spring marker imports,
    Spring wiring sidecars, FastAPI code, SQLAlchemy setup, or framework plugin metadata.
 9. Spring tests in `make check` should stay small and fixture-focused. PetClinic and
