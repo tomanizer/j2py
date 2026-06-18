@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_fields import (
     _class_field_java_types,
     _class_field_types,
@@ -46,12 +47,14 @@ def translate_enum(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    name_resolver: NameResolver,
+    env: ClassTranslationEnvironment | None = None,
 ) -> list[str]:
     from j2py.translate.classes import translate_overloaded_members
 
+    env = env or ClassTranslationEnvironment()
+    static_field_aliases = env.static_field_aliases
+    static_method_imports = env.static_method_imports
+    name_resolver = env.name_resolver
     diagnostics.record(node, supported=True, reason="translated enum declaration")
     diagnostics.imports.need_enum()
     name_node = node.child_by_field("name")

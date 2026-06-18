@@ -9,6 +9,7 @@ from j2py.translate.annotation_emit import (
     annotation_comment_lines,
     record_annotation_diagnostics,
 )
+from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_fields import (
     _class_field_java_types,
     _class_field_types,
@@ -88,72 +89,25 @@ def translate_class(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    inherited_class_field_types: dict[str, str] | None = None,
-    inherited_class_field_java_types: dict[str, str] | None = None,
-    inherited_declared_type_fields: dict[str, dict[str, str]] | None = None,
-    inherited_declared_type_java_fields: dict[str, dict[str, str]] | None = None,
-    inherited_declared_type_method_return_types: dict[str, dict[str, str]] | None = None,
-    static_field_aliases: dict[str, str] | None = None,
-    static_method_imports: dict[str, str] | None = None,
-    name_resolver: NameResolver | None = None,
-    docstring_lines: list[str] | None = None,
-    outer_self_alias: str | None = None,
-    requires_outer_self: bool = False,
-    file_class_static_methods: dict[str, set[str]] | None = None,
-    file_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
-    file_class_declarations: dict[str, JavaNode] | None = None,
-    module_class_static_methods: dict[str, set[str]] | None = None,
-    module_class_static_instance_aliases: dict[str, dict[str, str]] | None = None,
-    module_class_declarations: dict[str, JavaNode] | None = None,
-    enclosing_static_dispatch: dict[str, str] | None = None,
-    interface_type_var_maps: dict[tuple[int, int, int, int, str], dict[str, str]] | None = None,
+    env: ClassTranslationEnvironment | None = None,
+    **legacy_env_kwargs: object,
 ) -> list[str]:
-    resolver = name_resolver or NameResolver.empty()
+    env = _translation_env(env, legacy_env_kwargs)
+    resolver = env.name_resolver
     if node.type == "interface_declaration":
         from j2py.translate.class_interfaces import translate_interface
 
-        return translate_interface(
-            node,
-            cfg,
-            diagnostics,
-            static_field_aliases=static_field_aliases or {},
-            static_method_imports=static_method_imports or {},
-            name_resolver=resolver,
-            docstring_lines=docstring_lines,
-            interface_type_var_maps=interface_type_var_maps,
-        )
+        return translate_interface(node, cfg, diagnostics, env=env)
     if node.type == "enum_declaration":
         from j2py.translate.class_enums import translate_enum
 
-        return translate_enum(
-            node,
-            cfg,
-            diagnostics,
-            static_field_aliases=static_field_aliases or {},
-            static_method_imports=static_method_imports or {},
-            name_resolver=resolver,
-        )
+        return translate_enum(node, cfg, diagnostics, env=env)
     if node.type == "record_declaration":
-        return _translate_record(
-            node,
-            cfg,
-            diagnostics,
-            static_field_aliases=static_field_aliases or {},
-            static_method_imports=static_method_imports or {},
-            docstring_lines=docstring_lines,
-        )
+        return _translate_record(node, cfg, diagnostics, env=env)
     if node.type == "annotation_type_declaration":
         from j2py.translate.class_annotations import translate_annotation_declaration
 
-        return translate_annotation_declaration(
-            node,
-            cfg,
-            diagnostics,
-            static_field_aliases=static_field_aliases or {},
-            static_method_imports=static_method_imports or {},
-            name_resolver=resolver,
-            docstring_lines=docstring_lines,
-        )
+        return translate_annotation_declaration(node, cfg, diagnostics, env=env)
 
     is_supported_class = node.type == "class_declaration"
     diagnostics.record(
@@ -182,23 +136,23 @@ def translate_class(
     fields = _class_fields(node, cfg)
     instance_field_names = _instance_field_names(fields)
     class_field_types = {
-        **(inherited_class_field_types or {}),
+        **env.inherited_class_field_types,
         **_class_field_types(fields),
     }
     class_field_java_types = {
-        **(inherited_class_field_java_types or {}),
+        **env.inherited_class_field_java_types,
         **_class_field_java_types(fields),
     }
     declared_type_fields = {
-        **(inherited_declared_type_fields or {}),
+        **env.inherited_declared_type_fields,
         **_collect_declared_type_fields(node, cfg),
     }
     declared_type_java_fields = {
-        **(inherited_declared_type_java_fields or {}),
+        **env.inherited_declared_type_java_fields,
         **_collect_declared_type_java_fields(node, cfg),
     }
     declared_type_method_return_types = {
-        **(inherited_declared_type_method_return_types or {}),
+        **env.inherited_declared_type_method_return_types,
         **collect_declared_type_method_return_types(node, cfg),
     }
     assigned_fields = _constructor_assigned_fields(node)
@@ -215,16 +169,16 @@ def translate_class(
     class_method_names = member_method_names(members, cfg)
     class_static_method_names = member_static_method_names(members, cfg)
     merged_static_methods = merge_class_static_method_indexes(
-        module_class_static_methods or {},
-        file_class_static_methods or {},
+        env.module_class_static_methods,
+        env.file_class_static_methods,
     )
     merged_static_instance_aliases = merge_class_static_instance_alias_indexes(
-        module_class_static_instance_aliases or {},
-        file_class_static_instance_aliases or {},
+        env.module_class_static_instance_aliases,
+        env.file_class_static_instance_aliases,
     )
     merged_class_declarations = merge_class_declaration_indexes(
-        module_class_declarations or {},
-        file_class_declarations or {},
+        env.module_class_declarations,
+        env.file_class_declarations,
     )
     own_collision_aliases = static_instance_collision_static_aliases(members, cfg)
     inherited_collision_aliases = inherited_static_instance_static_aliases(
@@ -243,7 +197,7 @@ def translate_class(
     static_instance_instance_zero_arg = set(own_instance_zero) | set(inherited_instance_zero)
     static_instance_static_zero_arg = set(own_static_zero) | set(inherited_static_zero)
     method_return_types = class_method_return_types(members, cfg)
-    enclosing_dispatch = dict(enclosing_static_dispatch or {})
+    enclosing_dispatch = dict(env.enclosing_static_dispatch)
     enclosing_dispatch.update(
         inherited_static_dispatch(
             node,
@@ -305,8 +259,8 @@ def translate_class(
         extra_bases=list(class_transform.base_classes),
     )
     lines.append(f"class {class_name}{class_bases}:")
-    if docstring_lines:
-        lines.extend(docstring_lines)
+    if env.docstring_lines:
+        lines.extend(env.docstring_lines)
     lines.extend(metadata_lines)
     static_field_lines, instance_init_lines = _translate_fields(
         node,
@@ -326,31 +280,27 @@ def translate_class(
     nested_outer_capture_names = nested_type_names_using_qualified_this(body)
     from j2py.translate.class_nested import nested_type_lines
 
-    nested_lines = nested_type_lines(
-        body,
-        cfg,
-        diagnostics,
+    nested_env = env.with_overrides(
         inherited_class_field_types=class_field_types,
         inherited_class_field_java_types=class_field_java_types,
         inherited_declared_type_fields=declared_type_fields,
         inherited_declared_type_java_fields=declared_type_java_fields,
         inherited_declared_type_method_return_types=declared_type_method_return_types,
-        static_field_aliases=static_field_aliases or {},
-        static_method_imports=static_method_imports or {},
-        name_resolver=resolver,
-        outer_capture_names=nested_outer_capture_names,
-        file_class_static_methods=file_class_static_methods,
-        file_class_static_instance_aliases=file_class_static_instance_aliases,
-        file_class_declarations=file_class_declarations,
-        module_class_static_methods=module_class_static_methods,
-        module_class_static_instance_aliases=module_class_static_instance_aliases,
-        module_class_declarations=module_class_declarations,
         enclosing_static_dispatch=nested_enclosing_dispatch,
-        interface_type_var_maps=interface_type_var_maps,
+        docstring_lines=None,
+        outer_self_alias=None,
+        requires_outer_self=False,
+    )
+    nested_lines = nested_type_lines(
+        body,
+        cfg,
+        diagnostics,
+        env=nested_env,
+        outer_capture_names=nested_outer_capture_names,
     )
     has_constructor = any(member.type == "constructor_declaration" for member in members)
     needs_synthetic_init = (
-        bool(instance_init_lines) or class_state.needs_instance_lock or requires_outer_self
+        bool(instance_init_lines) or class_state.needs_instance_lock or env.requires_outer_self
     ) and not has_constructor
 
     if (
@@ -365,31 +315,31 @@ def translate_class(
         return lines
 
     if static_field_lines:
-        if docstring_lines or metadata_lines:
+        if env.docstring_lines or metadata_lines:
             lines.append("")
         lines.extend(static_field_lines)
 
     if needs_synthetic_init:
-        if static_field_lines or docstring_lines or metadata_lines:
+        if static_field_lines or env.docstring_lines or metadata_lines:
             lines.append("")
         init_params = ["self"]
-        if requires_outer_self:
+        if env.requires_outer_self:
             init_params.append("_outer_self: object" if cfg.emit_type_hints else "_outer_self")
         init_params.extend(_render_init_params(injected_init_params, cfg, diagnostics))
         lines.append(f"    def __init__({', '.join(init_params)}) -> None:")
-        if requires_outer_self:
+        if env.requires_outer_self:
             lines.append("        self._outer_self = _outer_self")
         lines.extend(lock_init_lines)
         lines.extend(instance_init_lines)
 
     if nested_lines:
-        if static_field_lines or needs_synthetic_init or docstring_lines or metadata_lines:
+        if static_field_lines or needs_synthetic_init or env.docstring_lines or metadata_lines:
             lines.append("")
         lines.extend(nested_lines)
 
     member_docstring_map = member_docstrings(body, cfg)
-    outer_self_params = _outer_self_init_params() if requires_outer_self else []
-    outer_self_init_lines = _outer_self_init_lines() if requires_outer_self else []
+    outer_self_params = _outer_self_init_params() if env.requires_outer_self else []
+    outer_self_init_lines = _outer_self_init_lines() if env.requires_outer_self else []
     for group in member_groups(members):
         lines.append("")
         if len(group) > 1:
@@ -408,8 +358,8 @@ def translate_class(
                     class_methods=class_method_names,
                     class_static_methods=class_static_method_names,
                     class_method_return_types=method_return_types,
-                    static_field_aliases=static_field_aliases or {},
-                    static_method_imports=static_method_imports or {},
+                    static_field_aliases=env.static_field_aliases,
+                    static_method_imports=env.static_method_imports,
                     name_resolver=resolver,
                     pre_body_lines=(
                         outer_self_init_lines + lock_init_lines + instance_init_lines
@@ -446,12 +396,12 @@ def translate_class(
             class_methods=class_method_names,
             class_static_methods=class_static_method_names,
             class_method_return_types=method_return_types,
-            static_field_aliases=static_field_aliases or {},
-            static_method_imports=static_method_imports or {},
+            static_field_aliases=env.static_field_aliases,
+            static_method_imports=env.static_method_imports,
             name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
-            outer_self_alias=outer_self_alias,
+            outer_self_alias=env.outer_self_alias,
             inner_class_names_requiring_outer=nested_outer_capture_names,
             containing_class_name=class_name,
             nested_class_names=direct_nested_names,
@@ -485,16 +435,55 @@ def translate_class(
     return lines
 
 
+_LEGACY_ENV_KEYS = frozenset(
+    {
+        "inherited_class_field_types",
+        "inherited_class_field_java_types",
+        "inherited_declared_type_fields",
+        "inherited_declared_type_java_fields",
+        "inherited_declared_type_method_return_types",
+        "static_field_aliases",
+        "static_method_imports",
+        "name_resolver",
+        "docstring_lines",
+        "outer_self_alias",
+        "requires_outer_self",
+        "file_class_static_methods",
+        "file_class_static_instance_aliases",
+        "file_class_declarations",
+        "module_class_static_methods",
+        "module_class_static_instance_aliases",
+        "module_class_declarations",
+        "enclosing_static_dispatch",
+        "interface_type_var_maps",
+    },
+)
+
+
+def _translation_env(
+    env: ClassTranslationEnvironment | None,
+    legacy_env_kwargs: dict[str, object],
+) -> ClassTranslationEnvironment:
+    base = env or ClassTranslationEnvironment()
+    if not legacy_env_kwargs:
+        return base
+    unknown_keys = sorted(set(legacy_env_kwargs) - _LEGACY_ENV_KEYS)
+    if unknown_keys:
+        joined = ", ".join(unknown_keys)
+        raise TypeError(f"translate_class() got unexpected keyword argument(s): {joined}")
+    overrides = {key: value for key, value in legacy_env_kwargs.items() if value is not None}
+    if not overrides:
+        return base
+    return base.with_overrides(**overrides)
+
+
 def _translate_record(
     node: JavaNode,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
     *,
-    static_field_aliases: dict[str, str],
-    static_method_imports: dict[str, str],
-    docstring_lines: list[str] | None = None,
+    env: ClassTranslationEnvironment,
 ) -> list[str]:
-    del static_field_aliases, static_method_imports
     diagnostics.record(node, supported=True, reason="translated record declaration")
     diagnostics.imports.need_dataclass()
     name_node = node.child_by_field("name")
@@ -527,12 +516,12 @@ def _translate_record(
         f"({', '.join(class_transform.base_classes)})" if class_transform.base_classes else ""
     )
     lines.extend(["@dataclass(frozen=True)", f"class {class_name}{base_text}:"])
-    if docstring_lines:
-        lines.extend(docstring_lines)
+    if env.docstring_lines:
+        lines.extend(env.docstring_lines)
     metadata_lines = type_metadata_comment_lines(node, indent="    ")
     lines.extend(metadata_lines)
     if not params:
-        if not docstring_lines and not metadata_lines:
+        if not env.docstring_lines and not metadata_lines:
             lines.append("    pass")
         return lines
     for param in params:
