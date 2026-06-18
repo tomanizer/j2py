@@ -75,6 +75,9 @@ documents opt-in `annotation_map` recipes (controllers, DI, JPA entities, `@Tran
 with verified before/after pairs and explicit manual-port callouts. For programmatic
 framework lowering beyond one-to-one mappings, see the
 [framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
+Install `j2py-converter[spring]` only when you need the optional Spring/FastAPI/SQLAlchemy
+runtime packages; installing that extra does not enable Spring behavior without explicit
+configuration.
 
 ## Quick start
 

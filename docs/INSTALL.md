@@ -19,7 +19,13 @@ pip install --pre "j2py-converter[yaml]"      # YAML config files
 pip install --pre "j2py-converter[validate]"  # ruff + mypy validation
 pip install --pre "j2py-converter[gemini]"    # Gemini LLM provider
 pip install --pre "j2py-converter[openai]"    # OpenAI-compatible LLM providers
+pip install --pre "j2py-converter[spring]"    # opt-in Spring/FastAPI/SQLAlchemy path
 ```
+
+The `spring` extra installs FastAPI, HTTPX, SQLAlchemy, and pydantic-settings for
+Spring-to-Python migration flows. It does not enable Spring lowering by itself. Spring
+marker lowering, framework plugins, wiring metadata, and downstream `j2py-wire` commands
+remain explicit runtime choices.
 
 The base package includes the Anthropic client. LLM translation requires an API key:
 
@@ -46,6 +52,13 @@ For optional live provider probes or harvest commands, use the dev environment b
 
 ```bash
 uv sync --locked --extra dev
+```
+
+For local Spring migration work, include the Spring extra explicitly:
+
+```bash
+uv sync --locked --extra spring
+uv run --extra spring j2py translate src/main/java --config j2py_config.py --output translated_py
 ```
 
 Fresh worktrees may need to build the project before the first `uv run`. If the local
@@ -131,6 +144,21 @@ Install the YAML extra:
 ```bash
 pip install --pre "j2py-converter[yaml]"
 ```
+
+Generated Spring settings or SQLAlchemy modules fail to import
+
+Install the Spring extra in the environment where you import or test generated Spring
+outputs:
+
+```bash
+pip install --pre "j2py-converter[spring]"
+uv sync --locked --extra spring
+```
+
+Installing the extra does not change default `j2py translate` behavior. Enable Spring
+translation policy explicitly with `annotation_map_preset: spring`, a trusted Python
+config that registers framework plugins, and `emit_wiring_metadata = True` when sidecars
+are needed.
 
 No `.java` files found
 

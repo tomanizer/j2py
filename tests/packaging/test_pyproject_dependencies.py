@@ -1,7 +1,26 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
+
+import pytest
+
+SPRING_RUNTIME_DEPENDENCIES = {
+    "fastapi",
+    "httpx",
+    "pydantic-settings",
+    "sqlalchemy",
+}
+SPRING_RUNTIME_IMPORTS = {
+    "fastapi",
+    "httpx",
+    "pydantic_settings",
+    "sqlalchemy",
+}
 
 
 def _pyproject() -> dict[str, object]:
@@ -54,7 +73,7 @@ def test_openai_sdk_is_available_in_openai_and_dev_extras() -> None:
     assert "openai" in _dependency_names(dev)
 
 
-def test_pydantic_settings_is_available_in_spring_extra_only() -> None:
+def test_spring_runtime_dependencies_are_available_in_spring_extra_only() -> None:
     project = _pyproject()["project"]
     assert isinstance(project, dict)
     dependencies = project["dependencies"]
@@ -65,8 +84,68 @@ def test_pydantic_settings_is_available_in_spring_extra_only() -> None:
     spring = optional["spring"]
     assert isinstance(spring, list)
 
-    assert "pydantic-settings" not in _dependency_names(dependencies)
-    assert "pydantic-settings" in _dependency_names(spring)
+    default_names = _dependency_names(dependencies)
+    spring_names = _dependency_names(spring)
+
+    assert SPRING_RUNTIME_DEPENDENCIES.isdisjoint(default_names)
+    assert spring_names >= SPRING_RUNTIME_DEPENDENCIES
+
+
+def test_default_imports_do_not_require_spring_extra_dependencies() -> None:
+    root = Path(__file__).resolve().parents[2]
+    code = """
+from __future__ import annotations
+
+import importlib.abc
+import sys
+
+
+class BlockSpringExtra(importlib.abc.MetaPathFinder):
+    blocked = {"fastapi", "httpx", "pydantic_settings", "sqlalchemy", "starlette"}
+
+    def find_spec(self, fullname, path=None, target=None):
+        root_name = fullname.split(".", 1)[0]
+        if root_name in self.blocked:
+            raise ImportError(
+                f"blocked optional Spring dependency: {fullname}",
+                name=root_name,
+            )
+        return None
+
+
+sys.meta_path.insert(0, BlockSpringExtra())
+
+import j2py
+import j2py.cli.main
+import j2py.config.loader
+import j2py.translate.skeleton
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_spring_extra_runtime_imports_when_installed() -> None:
+    missing = [
+        module_name
+        for module_name in sorted(SPRING_RUNTIME_IMPORTS)
+        if importlib.util.find_spec(module_name) is None
+    ]
+    if missing:
+        pytest.skip(
+            "Install the Spring extra to run this import smoke test: "
+            "uv run --extra spring --extra test pytest "
+            "tests/packaging/test_pyproject_dependencies.py -k spring_extra_runtime",
+        )
+
+    for module_name in sorted(SPRING_RUNTIME_IMPORTS):
+        importlib.import_module(module_name)
 
 
 def test_gemini_harvest_make_targets_request_gemini_extra() -> None:

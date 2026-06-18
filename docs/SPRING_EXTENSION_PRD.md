@@ -106,8 +106,8 @@ explicit opt-in through one or more of:
 - `annotation_map_preset: spring`;
 - a trusted Python config that registers a Spring framework plugin;
 - `emit_wiring_metadata = True`;
-- an optional install extra such as `j2py-converter[spring]`, or a separate plugin
-  package;
+- the optional `j2py-converter[spring]` install extra for FastAPI, HTTPX, SQLAlchemy, and
+  pydantic-settings runtime support, or a future separate plugin package;
 - project-owned runtime shims used by generated imports;
 - `j2py-wire` for FastAPI/SQLAlchemy application assembly.
 
