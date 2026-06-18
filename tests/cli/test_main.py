@@ -1165,7 +1165,7 @@ def test_cli_compare_existing_python_skips_translation_and_opens_diff(
     def fake_popen(args: list[str]) -> None:
         calls.append(args)
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java)])
@@ -1195,7 +1195,7 @@ def test_cli_compare_missing_python_translates_without_llm_and_opens_diff(
     def fake_popen(args: list[str]) -> None:
         calls.append(args)
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java), "--no-validate"])
@@ -1256,7 +1256,7 @@ def test_cli_compare_no_open_prints_paths_without_opening_editor(
     def fake_popen(args: list[str]) -> None:
         calls.append(args)
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java), "--no-open"])
@@ -1279,7 +1279,7 @@ def test_cli_compare_editor_not_found_prints_manual_diff_command(
     def fake_popen(args: list[str]) -> None:
         raise FileNotFoundError
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java), "--editor", "missing-code"])
@@ -1322,7 +1322,7 @@ def test_cli_compare_editor_launch_os_error_prints_manual_diff_command(
     def fake_popen(args: list[str]) -> None:
         raise PermissionError("permission denied")
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java), "--editor", "blocked-code"])
@@ -1346,7 +1346,7 @@ def test_cli_compare_generic_editor_omits_vscode_diff_flag(
     def fake_popen(args: list[str]) -> None:
         calls.append(args)
 
-    monkeypatch.setattr("j2py.cli.main.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
     runner = CliRunner()
 
     result = runner.invoke(app, ["compare", str(java), "--editor", "vimdiff"])
@@ -1381,8 +1381,8 @@ def test_cli_watch_auto_discovery_ignores_python_config(
     def stop_after_first_poll(interval: float) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr("j2py.cli.main._run_watch_translation", fake_run_watch_translation)
-    monkeypatch.setattr("j2py.cli.main.time.sleep", stop_after_first_poll)
+    monkeypatch.setattr("j2py.cli.watch.run_watch_translation", fake_run_watch_translation)
+    monkeypatch.setattr("j2py.cli.watch.time.sleep", stop_after_first_poll)
     runner = CliRunner()
 
     result = runner.invoke(
@@ -1432,8 +1432,8 @@ model = "gemini-3.5-flash"
     def stop_after_first_poll(interval: float) -> None:
         raise KeyboardInterrupt
 
-    monkeypatch.setattr("j2py.cli.main._run_watch_translation", fake_run_watch_translation)
-    monkeypatch.setattr("j2py.cli.main.time.sleep", stop_after_first_poll)
+    monkeypatch.setattr("j2py.cli.watch.run_watch_translation", fake_run_watch_translation)
+    monkeypatch.setattr("j2py.cli.watch.time.sleep", stop_after_first_poll)
     runner = CliRunner()
 
     result = runner.invoke(

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from counter_summary import parse_counter_summary
+
+_OVERLOAD_MANUAL_DISPATCH_RE = re.compile(
+    r"^(overloaded method .+ requires manual dispatch)(?: \[.*\])?$",
+)
 
 
 def compare_baseline(
@@ -241,8 +246,12 @@ def _file_regressions(
                 },
             )
 
-        baseline_reasons = parse_counter_summary(baseline.get("unhandled_reasons", ""))
-        current_reasons = parse_counter_summary(current.get("unhandled_reasons", ""))
+        baseline_reasons = _canonical_unhandled_reasons(
+            parse_counter_summary(baseline.get("unhandled_reasons", "")),
+        )
+        current_reasons = _canonical_unhandled_reasons(
+            parse_counter_summary(current.get("unhandled_reasons", "")),
+        )
         for reason, count in sorted(current_reasons.items()):
             delta = count - baseline_reasons.get(reason, 0)
             if delta > 0:
@@ -263,6 +272,21 @@ def _file_regressions(
         "unhandled_increases": unhandled_increases,
         "new_unhandled_reasons": new_unhandled_reasons,
     }
+
+
+def _canonical_unhandled_reasons(reasons: dict[str, int]) -> dict[str, int]:
+    canonical: dict[str, int] = {}
+    for reason, count in reasons.items():
+        key = _canonical_unhandled_reason(reason)
+        canonical[key] = canonical.get(key, 0) + count
+    return canonical
+
+
+def _canonical_unhandled_reason(reason: str) -> str:
+    overload = _OVERLOAD_MANUAL_DISPATCH_RE.match(reason)
+    if overload:
+        return overload.group(1)
+    return reason
 
 
 def _empty_file_regressions() -> dict[str, list[dict[str, Any]]]:

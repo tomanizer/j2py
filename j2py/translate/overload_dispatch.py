@@ -246,7 +246,12 @@ def _value_dispatch_branches(
     cfg: TranslationConfig,
 ) -> _ValueDispatchBranches | None:
     if has_varargs:
-        return _value_dispatch_varargs_branches(members, params_by_member, guards_by_member)
+        return _value_dispatch_varargs_branches(
+            members,
+            params_by_member,
+            guards_by_member,
+            cfg,
+        )
     return _value_dispatch_fixed_branches(members, params_by_member, guards_by_member, cfg)
 
 
@@ -254,6 +259,7 @@ def _value_dispatch_varargs_branches(
     members: list[JavaNode],
     params_by_member: list[list[ParameterInfo]],
     guards_by_member: list[list[_DispatchGuard]],
+    cfg: TranslationConfig,
 ) -> _ValueDispatchBranches | None:
     for params in params_by_member:
         spread_indices = [index for index, param in enumerate(params) if param.is_spread]
@@ -265,13 +271,25 @@ def _value_dispatch_varargs_branches(
         _member_dispatch_key(params, guards)
         for params, guards in zip(params_by_member, guards_by_member, strict=True)
     ]
-    if len(set(dispatch_keys)) != len(dispatch_keys):
-        return None
     if not all(
         _varargs_value_guards_checkable(params, guards)
         for params, guards in zip(params_by_member, guards_by_member, strict=True)
     ):
         return None
+    if len(set(dispatch_keys)) != len(dispatch_keys):
+        collapsed = _collapse_equivalent_arity_guard_members(members, cfg)
+        if collapsed is None:
+            return None
+        collapsed_params = [parameter_infos(member, cfg) for member in collapsed]
+        collapsed_guards = _value_dispatch_guards(collapsed_params)
+        if collapsed_guards is None:
+            return None
+        return _value_dispatch_varargs_branches(
+            collapsed,
+            collapsed_params,
+            collapsed_guards,
+            cfg,
+        )
     return _ValueDispatchBranches(members, params_by_member, guards_by_member)
 
 
