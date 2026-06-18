@@ -184,6 +184,28 @@ annotation_map:
     assert cfg.annotation_map["GetMapping"].python_decorator == 'get_mapping("{value}")'
 
 
+def test_config_loader_spring_annotation_map_preset_deep_merges_entry_overrides(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text(
+        """
+annotation_map_preset: spring
+annotation_map:
+  RestController:
+    python_decorator: custom_controller
+""",
+    )
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.annotation_map["RestController"].python_decorator == "custom_controller"
+    assert (
+        cfg.annotation_map["RestController"].import_ == "from j2py_runtime import rest_controller"
+    )
+
+
 def test_config_loader_loads_member_map(tmp_path: Path) -> None:
     config_file = tmp_path / "j2py.toml"
     config_file.write_text(

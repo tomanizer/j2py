@@ -7,6 +7,7 @@ import importlib.util
 import os
 import sys
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
@@ -182,9 +183,10 @@ class ConfigLoader:
                     merged[key] = value
         try:
             if merged.get("annotation_map_preset") is not None:
-                merged["annotation_map"] = _annotation_map_for_preset(
-                    str(merged["annotation_map_preset"])
-                ) | dict(merged.get("annotation_map") or {})
+                merged["annotation_map"] = _merge_annotation_maps(
+                    _annotation_map_for_preset(str(merged["annotation_map_preset"])),
+                    merged.get("annotation_map") or {},
+                )
             return TranslationConfig(**merged)
         except ValidationError as exc:
             raise ConfigError(_format_validation_error(Path("<merged config>"), exc)) from exc
@@ -194,6 +196,26 @@ def _annotation_map_for_preset(name: str) -> dict[str, dict[str, object]]:
     if name == "spring":
         return {key: dict(value) for key, value in default.SPRING_ANNOTATION_MAP.items()}
     raise ConfigError(f"Unknown annotation_map_preset: {name!r}")
+
+
+def _merge_annotation_maps(
+    base: Mapping[str, AnnotationMapEntry | Mapping[str, object]],
+    override: Mapping[str, AnnotationMapEntry | Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    merged = {key: _annotation_entry_dict(value) for key, value in base.items()}
+    for key, value in override.items():
+        incoming = _annotation_entry_dict(value)
+        if key in merged:
+            merged[key] = {**merged[key], **incoming}
+        else:
+            merged[key] = incoming
+    return merged
+
+
+def _annotation_entry_dict(entry: AnnotationMapEntry | Mapping[str, object]) -> dict[str, object]:
+    if isinstance(entry, AnnotationMapEntry):
+        return entry.model_dump(by_alias=True, exclude_unset=True)
+    return dict(entry)
 
 
 def _load_python(path: Path) -> dict[str, Any]:

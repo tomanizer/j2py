@@ -109,10 +109,10 @@ class ImportSet:
         self.typing_names.update(other.typing_names)
 
     def render(self) -> list[str]:
-        imports = _combine_simple_from_imports(self.lines)
+        imports = set(self.lines)
         if self.typing_names:
             imports.add(f"from typing import {', '.join(sorted(self.typing_names))}")
-        return sorted(imports)
+        return sorted(_combine_simple_from_imports(imports))
 
 
 @dataclass

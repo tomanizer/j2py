@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from j2py.config.loader import AnnotationMapEntry, TranslationConfig
@@ -179,11 +180,31 @@ def annotation_template_values(annotation: JavaNode) -> dict[str, str]:
         key = "value" if positional_index == 0 else f"value{positional_index + 1}"
         values[key] = _annotation_value_text(child)
         positional_index += 1
-    return values
+    return _annotation_value_aliases(values)
 
 
 def render_annotation_template(template: str, values: dict[str, str]) -> str:
-    return template.format_map(_TemplateValues(values))
+    rendered = template.format_map(_TemplateValues(values))
+    return _strip_unresolved_keyword_arguments(rendered)
+
+
+def _annotation_value_aliases(values: dict[str, str]) -> dict[str, str]:
+    aliased = dict(values)
+    if "path" in aliased and "value" not in aliased:
+        aliased["value"] = aliased["path"]
+    if "value" in aliased and "path" not in aliased:
+        aliased["path"] = aliased["value"]
+    if "code" in aliased and "value" not in aliased:
+        aliased["value"] = aliased["code"]
+    return aliased
+
+
+def _strip_unresolved_keyword_arguments(rendered: str) -> str:
+    return re.sub(
+        r",\s*[A-Za-z_]\w*\s*=\s*(['\"])\{[A-Za-z_]\w*\}\1",
+        "",
+        rendered,
+    )
 
 
 def _annotation_value_text(node: JavaNode) -> str:
@@ -202,7 +223,9 @@ def _annotation_value_text(node: JavaNode) -> str:
 
 def _spring_enum_literal(text: str) -> str | None:
     value = text.rsplit(".", 1)[-1]
-    if text.endswith(f".{value}") and value in {"GET", "POST", "PUT", "DELETE", "PATCH"}:
+    if value in {"GET", "POST", "PUT", "DELETE", "PATCH"} and (
+        text == value or text.endswith(f".{value}")
+    ):
         return value
     status_codes = {
         "ACCEPTED": "202",
@@ -217,7 +240,7 @@ def _spring_enum_literal(text: str) -> str | None:
         "OK": "200",
         "UNAUTHORIZED": "401",
     }
-    if "HttpStatus." in text and value in status_codes:
+    if value in status_codes and (text == value or "HttpStatus." in text):
         return status_codes[value]
     return None
 

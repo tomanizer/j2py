@@ -274,6 +274,46 @@ def test_spring_annotation_map_preset_lowers_parameter_and_status_annotations(
     assert_module_executes(result.source)
 
 
+def test_spring_annotation_map_preset_handles_request_mapping_aliases(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("yaml")
+    config_file = tmp_path / "j2py.yaml"
+    config_file.write_text("annotation_map_preset: spring\n")
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    result = translate_source_with_diagnostics(
+        """
+        @Controller
+        public class Routes {
+            @RequestMapping(path="/owners", method=GET)
+            public String owners() {
+                return "owners";
+            }
+
+            @RequestMapping("/pets")
+            public String pets() {
+                return "pets";
+            }
+
+            @ResponseStatus(code=CREATED)
+            @PostMapping({ "/pets" })
+            public String create() {
+                return "ok";
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert '@request_mapping("/owners", method="GET")' in result.source
+    assert '@request_mapping("/pets")' in result.source
+    assert 'method="{method}"' not in result.source
+    assert "@response_status(201)" in result.source
+    assert '@post_mapping("/pets")' in result.source
+    assert_module_executes(result.source)
+
+
 def test_annotation_map_python_base_dedupes_explicit_extends_base() -> None:
     cfg = CFG.model_copy(update={"annotation_map": {"Entity": {"python_base": "Base"}}})
     result = translate_source_with_diagnostics(
