@@ -1,4 +1,4 @@
-.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov test-ci-py311 test-ci-py312 \
+.PHONY: check lint format typecheck test test-equivalence equivalence-report equivalence-surface-floor-check test-behavior test-targets test-spring-smoke test-llm-e2e test-llm-gemini-e2e harvest-equivalence harvest-run harvest-gemini harvest-triage harvest-suggest-targets harvest-prune harvest-pipeline harvest-llm test-cov test-ci-py311 test-ci-py312 \
 	corpus-list-presets corpus-clone-all corpus-hotspots \
 	corpus-spring corpus-spring-smoke corpus-spring-update-baseline \
 	corpus-petclinic corpus-petclinic-clone corpus-petclinic-check corpus-petclinic-dense-check corpus-petclinic-update-baseline \
@@ -34,7 +34,7 @@ typecheck:  ## Type-check with mypy (strict)
 	uv run --extra validate mypy j2py/
 
 test:  ## Run test suite
-	uv run --extra test pytest -m "not behavior and not live_llm and not target_translation"
+	uv run --extra test pytest -m "not behavior and not live_llm and not target_translation and not spring_smoke"
 
 test-equivalence:  ## Run runtime equivalence gate (rule-layer translations vs literal-oracle assertions; no JDK, no LLM)
 	uv run --extra test pytest tests/equivalence -m equivalence -v
@@ -53,6 +53,9 @@ test-behavior:  ## Run Java/Python behavior-equivalence tests (requires a local 
 
 test-targets:  ## Run future Java-to-Python roadmap xfail targets only
 	uv run --extra test pytest tests/targets -m target_translation -rxXs; status=$$?; if [ $$status -eq 5 ]; then exit 0; fi; exit $$status
+
+test-spring-smoke:  ## Run optional Spring PetClinic translate -> wire -> FastAPI smoke tests
+	uv run --extra spring --extra test pytest tests/integration/test_petclinic_smoke.py -m spring_smoke -v
 
 test-llm-e2e:  ## Run the on-demand live-LLM exploratory test (requires ANTHROPIC_API_KEY)
 	@echo "Running live LLM exploratory test. This is excluded from normal make check."

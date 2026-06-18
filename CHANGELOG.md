@@ -8,6 +8,10 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 ## Unreleased
 
 ### Added
+- Optional `make test-spring-smoke` integration gate now translates a constrained
+  PetClinic owner slice, emits Spring sidecars, runs `j2py-wire generate` and
+  `j2py-wire validate`, imports the generated FastAPI wiring, starts a `TestClient`, and
+  exercises the v1 owner endpoints (#533).
 - OpenAI-compatible LLM provider endpoints can now be selected with
   `--llm-provider openai`, optional `--llm-base-url`, explicit endpoint model IDs, and
   cache separation by provider endpoint (#516).
