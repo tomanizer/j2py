@@ -105,7 +105,7 @@ class BlockSpringExtra(importlib.abc.MetaPathFinder):
 
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split(".", 1)[0] in self.blocked:
-            raise ImportError(f"blocked optional Spring dependency: {fullname}")
+            raise ImportError(f"blocked optional Spring dependency: {fullname}", name=fullname.split(".", 1)[0])
         return None
 
 
