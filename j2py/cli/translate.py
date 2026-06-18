@@ -306,7 +306,7 @@ def write_review_report(path: Path, results: list[TranslationResult]) -> None:
         ]
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _translate_dir(

@@ -331,17 +331,18 @@ def _apply_llm_review(
 
     result.llm_review_ran = True
     try:
+        output_path = result.output_path or validation_path
         result.llm_review_findings = _call_llm(
             review_translation_with_llm,
             llm_semaphore=llm_semaphore,
-            java_source=result.source_path.read_text(),
+            java_source=result.source_path.read_text(encoding="utf-8"),
             python_source=result.python_source,
             context=_project_context(symbols, sibling_signatures=sibling_signatures),
             diagnostics=_review_diagnostics_context(result.diagnostics),
             validation_summary=_validation_summary(result.validation),
             structural_summary=_structural_summary(result.structural_verification),
-            source_path=str(result.source_path),
-            output_path=str(result.output_path or validation_path),
+            source_path=_review_path_label(result.source_path),
+            output_path=_review_path_label(output_path),
             config_fingerprint=_config_fingerprint(cfg),
             model=model,
             provider=llm_provider,
@@ -351,6 +352,15 @@ def _apply_llm_review(
     except Exception as exc:
         result.llm_review_findings = []
         result.llm_review_error = str(exc)
+
+
+def _review_path_label(path: Path) -> str:
+    if not path.is_absolute():
+        return str(path)
+    cwd = Path.cwd()
+    if path.is_relative_to(cwd):
+        return str(path.relative_to(cwd))
+    return path.name
 
 
 def _review_scope_matches(result: TranslationResult, scope: LlmReviewScope) -> bool:

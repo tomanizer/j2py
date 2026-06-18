@@ -91,6 +91,8 @@ def test_translate_file_llm_review_runs_for_full_confidence_fixture(monkeypatch)
     assert observed["model"] == "claude-review-test"
     assert "public class HelloWorld" in observed["java_source"]
     assert expected_python == observed["python_source"]
+    assert observed["source_path"] == "tests/fixtures/java/HelloWorld.java"
+    assert observed["output_path"] == "tests/fixtures/java/HelloWorld.py"
     assert observed["validation_summary"] == "Validation passed."
 
 
