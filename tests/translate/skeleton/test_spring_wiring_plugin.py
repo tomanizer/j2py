@@ -339,6 +339,97 @@ def test_jdbc_bean_methods_emit_topology_metadata_and_boundary_warning() -> None
     assert "# @Bean" in result.source
 
 
+def test_general_bean_methods_emit_definition_metadata_without_jdbc_claim() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Bean {
+            String value() default "";
+            String name() default "";
+            String initMethod() default "";
+            String destroyMethod() default "";
+        }
+        @interface Primary {}
+        @interface Lazy { boolean value() default true; }
+        @interface Qualifier { String value(); }
+
+        interface OwnerRepository {}
+        class OwnerService {
+            OwnerService(OwnerRepository ownerRepository, String mode) {}
+        }
+        class AuditClientFactory {
+            static AuditClient create(OwnerRepository ownerRepository) { return null; }
+        }
+        class AuditClient {}
+
+        public class AppConfig {
+            @Bean(name = "ownerService", initMethod = "start", destroyMethod = "stop")
+            @Primary
+            @Lazy(false)
+            @Qualifier("owner")
+            public OwnerService ownerService(OwnerRepository ownerRepository) {
+                return new OwnerService(ownerRepository, "primary");
+            }
+
+            @Bean
+            public AuditClient auditClient(OwnerRepository ownerRepository) {
+                return AuditClientFactory.create(ownerRepository);
+            }
+        }
+        """,
+        cfg=_spring_cfg(),
+    )
+
+    beans = {
+        record.java_name: record.metadata["spring"]["bean"]
+        for record in result.diagnostics.framework_metadata
+        if "bean" in record.metadata["spring"]
+    }
+    assert set(beans) == {"ownerService", "auditClient"}
+    owner_service = beans["ownerService"]
+    assert owner_service["name"] == "ownerService"
+    assert owner_service["java_name"] == "ownerService"
+    assert owner_service["python_name"] == "owner_service"
+    assert owner_service["java_type"] == "OwnerService"
+    assert owner_service["python_type"] == "OwnerService"
+    assert owner_service["source_location"]["line"] > 0
+    assert owner_service["dependencies"] == [
+        {
+            "name": "owner_repository",
+            "java_name": "ownerRepository",
+            "type": "OwnerRepository",
+            "java_type": "OwnerRepository",
+            "source": "parameter",
+        },
+    ]
+    assert owner_service["constructor_args"] == [
+        {
+            "type": "OwnerService",
+            "arguments": [
+                {"kind": "identifier", "value": "owner_repository"},
+                {"kind": "string", "value": "primary"},
+            ],
+        },
+    ]
+    assert owner_service["factory_methods"] == []
+    assert owner_service["qualifier"] == "owner"
+    assert owner_service["primary"] is True
+    assert owner_service["lazy"] is False
+    assert owner_service["init_method"] == "start"
+    assert owner_service["destroy_method"] == "stop"
+    assert owner_service["unsupported"] == []
+
+    audit_client = beans["auditClient"]
+    assert audit_client["name"] == "auditClient"
+    assert audit_client["factory_methods"] == [
+        {"name": "create", "arguments": [{"kind": "identifier", "value": "owner_repository"}]},
+    ]
+    assert "jdbc_bean" not in next(
+        record.metadata["spring"]
+        for record in result.diagnostics.framework_metadata
+        if record.java_name == "ownerService"
+    )
+
+
 def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> None:
     fixture = FIXTURES / "java" / "SpringWiringController.java"
     output = tmp_path / "spring_wiring_controller.py"
@@ -398,12 +489,21 @@ def test_spring_jdbc_configuration_writes_real_sidecar_payload(tmp_path: Path) -
         for element in elements
         if "jdbc_bean" in element["metadata"]["spring"]
     }
+    beans = {
+        element["java_name"]: element["metadata"]["spring"]["bean"]
+        for element in elements
+        if "bean" in element["metadata"]["spring"]
+    }
     assert set(jdbc_beans) == {
         "dataSource",
         "jdbcTemplate",
         "namedParameterJdbcTemplate",
         "transactionManager",
     }
+    assert set(beans) == set(jdbc_beans)
+    assert beans["jdbcTemplate"]["name"] == "jdbcTemplate"
+    assert beans["jdbcTemplate"]["dependencies"][0]["name"] == "data_source"
+    assert beans["jdbcTemplate"]["unsupported"] == []
     assert jdbc_beans["dataSource"]["python_name"] == "data_source"
     assert {prop["target"]: prop["key"] for prop in jdbc_beans["dataSource"]["properties"]} == {
         "url": "app.datasource.url",

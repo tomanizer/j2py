@@ -16,6 +16,7 @@ from j2py.wire.validation import (
     OrphanControllerCheck,
     RouteHandlerCheck,
     RouteParameterCheck,
+    SpringBeanDefinitionCheck,
     SpringProfileCheck,
     UnresolvedImportCheck,
     ValidationContext,
@@ -68,6 +69,80 @@ def test_spring_profile_check_reports_invalid_profile(tmp_path: Path) -> None:
     assert findings
     assert findings[0].severity == "error"
     assert findings[0].code == "spring-profile"
+
+
+def test_spring_bean_definition_check_reports_duplicate_names(tmp_path: Path) -> None:
+    context = _context(tmp_path)
+    payload = _payload(context.translated_root / "app_config.py")
+    payload["elements"] = [
+        _bean_element("ownerService", "owner_service", name="ownerService"),
+        _bean_element("duplicateOwnerService", "duplicate_owner_service", name="ownerService"),
+    ]
+    _write_sidecar(context.translated_root, payload)
+    context = _loaded_context(context)
+
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert len(findings) == 2
+    assert {finding.code for finding in findings} == {"spring-bean"}
+    assert {finding.severity for finding in findings} == {"error"}
+    assert all(
+        "Duplicate Spring bean name 'ownerService'" in finding.message for finding in findings
+    )
+
+
+def test_spring_bean_definition_check_reports_unresolved_dependencies(tmp_path: Path) -> None:
+    context = _context(tmp_path)
+    payload = _payload(context.translated_root / "app_config.py")
+    payload["elements"] = [
+        _bean_element(
+            "ownerService",
+            "owner_service",
+            name="ownerService",
+            dependencies=[
+                {
+                    "name": "owner_repository",
+                    "java_name": "ownerRepository",
+                    "type": "OwnerRepository",
+                    "java_type": "OwnerRepository",
+                    "source": "parameter",
+                },
+            ],
+        ),
+        _component_element("OwnerRepository", "OwnerRepository", component_name="owner_repository"),
+    ]
+    _write_sidecar(context.translated_root, payload)
+    context = _loaded_context(context)
+
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert findings == []
+
+    payload["elements"] = [
+        _bean_element(
+            "ownerService",
+            "owner_service",
+            name="ownerService",
+            dependencies=[
+                {
+                    "name": "missing_client",
+                    "java_name": "missingClient",
+                    "type": "MissingClient",
+                    "java_type": "MissingClient",
+                    "source": "parameter",
+                },
+            ],
+        ),
+    ]
+    _write_sidecar(context.translated_root, payload)
+    context = _loaded_context(context)
+
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert len(findings) == 1
+    assert findings[0].code == "spring-bean"
+    assert findings[0].severity == "warning"
+    assert "unresolved provider 'missing_client'" in findings[0].message
 
 
 def test_missing_provider_check_reports_injected_dependency_without_provider(
@@ -304,4 +379,69 @@ def _payload(module: Path) -> dict[str, object]:
                 },
             },
         ],
+    }
+
+
+def _bean_element(
+    java_name: str,
+    python_name: str,
+    *,
+    name: str,
+    dependencies: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    return {
+        "plugin": "spring-wiring",
+        "kind": "method",
+        "java_name": java_name,
+        "python_name": python_name,
+        "annotations": [],
+        "metadata": {
+            "spring": {
+                "profile_version": 1,
+                "bean": {
+                    "name": name,
+                    "java_name": java_name,
+                    "python_name": python_name,
+                    "java_type": "OwnerService",
+                    "python_type": "OwnerService",
+                    "source_location": {
+                        "line": 4,
+                        "column": 4,
+                        "end_line": 6,
+                        "end_column": 5,
+                    },
+                    "dependencies": dependencies or [],
+                    "constructor_args": [],
+                    "factory_methods": [],
+                    "qualifier": None,
+                    "primary": False,
+                    "lazy": None,
+                    "init_method": "",
+                    "destroy_method": "",
+                    "unsupported": [],
+                },
+            },
+        },
+    }
+
+
+def _component_element(
+    java_name: str,
+    python_name: str,
+    *,
+    component_name: str,
+) -> dict[str, object]:
+    return {
+        "plugin": "spring-wiring",
+        "kind": "class",
+        "java_name": java_name,
+        "python_name": python_name,
+        "annotations": [],
+        "metadata": {
+            "spring": {
+                "profile_version": 1,
+                "role": "repository",
+                "component_name": component_name,
+            },
+        },
     }
