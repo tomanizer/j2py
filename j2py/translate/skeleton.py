@@ -23,6 +23,10 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.classes import collect_file_class_static_methods, translate_class
 from j2py.translate.comments import is_comment, is_javadoc_comment
 from j2py.translate.diagnostics import TranslationDiagnostics
+from j2py.translate.member_resolution import (
+    static_import_binding,
+    static_import_field_fallback,
+)
 from j2py.translate.name_resolution import (
     NameResolver,
     build_file_name_bindings,
@@ -30,7 +34,6 @@ from j2py.translate.name_resolution import (
     java_import_name,
 )
 from j2py.translate.rules.imports import java_import_policy
-from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.static_imports import (
     is_known_static_method_import,
     known_static_field_alias,
@@ -259,36 +262,57 @@ def _static_import_info(
             todos.append("# TODO(j2py): malformed static import declaration")
             continue
         member = imported_name.rsplit(".", 1)[-1]
+        if "*" in member:
+            diagnostics.record(
+                java_import,
+                supported=False,
+                reason=f"unsupported wildcard static import {imported_name}",
+            )
+            todos.append(f"# TODO(j2py): wildcard static import {imported_name}")
+            continue
         field_alias = known_static_field_alias(imported_name)
         if field_alias is not None:
-            field_aliases[member] = field_alias
+            binding = static_import_binding(
+                imported_name,
+                cfg,
+                kind="field",
+                intrinsic=field_alias,
+            )
+            field_aliases[member] = binding.intrinsic or field_alias
             diagnostics.record(
                 java_import,
                 supported=True,
-                reason="translated known static field import",
+                reason="bound known static field import",
             )
             continue
         if is_known_static_method_import(imported_name):
-            method_imports[member] = imported_name
+            binding = static_import_binding(
+                imported_name,
+                cfg,
+                kind="method",
+                intrinsic=imported_name,
+            )
+            method_imports[member] = f"{binding.owner}.{binding.member}"
             diagnostics.record(
                 java_import,
                 supported=True,
-                reason="translated known static method import",
+                reason="bound known static method import",
             )
             continue
+        binding = static_import_binding(imported_name, cfg, kind="unknown")
         diagnostics.record(
             java_import,
-            supported=False,
-            reason=f"unknown static import {imported_name}",
+            supported=True,
+            reason=f"bound explicit static import fallback {imported_name}",
         )
-        todos.append(f"# TODO(j2py): static import {imported_name} - resolve manually")
-        # Register a syntax-safe fallback so the name always resolves to valid Python.
-        # - field_alias: ClassName.member for identifier uses
-        # - method_imports: FQN for call sites (handled via qualified fallback in expr_calls)
-        declaring_class = imported_name.rsplit(".", 2)[-2] if imported_name.count(".") >= 2 else ""
-        if declaring_class:
-            py_class = translate_class_name(declaring_class)
-            py_member = translate_field_name(member, snake_case=cfg.snake_case_fields)
-            field_aliases[member] = f"{py_class}.{py_member}"
+        diagnostics.warn(
+            java_import,
+            reason=(
+                f"static import {imported_name} emitted as qualified fallback; "
+                "verify external member semantics"
+            ),
+        )
+        # Register syntax-safe fallbacks so both identifier and call sites stay reviewable.
+        field_aliases[member] = static_import_field_fallback(binding, cfg)
         method_imports[member] = imported_name
     return field_aliases, method_imports, todos

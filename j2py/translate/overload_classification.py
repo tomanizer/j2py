@@ -11,6 +11,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import method_body, parameter_infos
 from j2py.translate.class_model import _modifiers
+from j2py.translate.member_resolution import java_type_shape_signature
 from j2py.translate.overload_dispatch import (
     _collapse_equivalent_arity_guard_members,
     _comparison_body_form,
@@ -50,6 +51,7 @@ class OverloadClassification:
     reason: str
     erased_signatures: tuple[tuple[str, ...], ...]
     guard_signatures: tuple[tuple[str, ...], ...] = ()
+    java_type_shape_signatures: tuple[tuple[str, ...], ...] = ()
 
 
 def classify_overload_group(
@@ -62,17 +64,20 @@ def classify_overload_group(
     performing translation. It is a decision table, not a new dispatcher.
     """
     erased = tuple(_erased_overload_signature(member, cfg) for member in members)
+    java_shapes = _java_type_shape_signatures(members, cfg)
     if len(members) < 2:
         return OverloadClassification(
             OverloadKind.MANUAL_UNSUPPORTED,
             "not an overload group",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
     if any(member_python_name(member) != member_python_name(members[0]) for member in members):
         return OverloadClassification(
             OverloadKind.MANUAL_UNSUPPORTED,
             "members do not share one Python name",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
     if any(
         member.type not in {"constructor_declaration", "method_declaration"} for member in members
@@ -81,12 +86,14 @@ def classify_overload_group(
             OverloadKind.MANUAL_UNSUPPORTED,
             "unsupported member kind in overload group",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
     if any(member.type != members[0].type for member in members):
         return OverloadClassification(
             OverloadKind.MANUAL_UNSUPPORTED,
             "mixed constructor and method overload group",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
 
     static_shapes = tuple("static" in _modifiers(member) for member in members)
@@ -95,6 +102,7 @@ def classify_overload_group(
             OverloadKind.STATIC_INSTANCE_COLLISION,
             "static and instance members share one Python name",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
 
     if _is_forwarding_merge_candidate(members, cfg):
@@ -102,12 +110,14 @@ def classify_overload_group(
             OverloadKind.MERGE_FORWARDING,
             "overload group forwards to one implementation",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
     if _has_identical_or_equivalent_bodies(members, cfg):
         return OverloadClassification(
             OverloadKind.MERGE_IDENTICAL_OR_EQUIVALENT,
             "overload bodies are identical or equivalent after Python erasure",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
 
     guard_signatures = _guard_signatures(members, cfg)
@@ -117,6 +127,7 @@ def classify_overload_group(
             "runtime-checkable value guards are pairwise distinct",
             erased,
             guard_signatures,
+            java_type_shape_signatures=java_shapes,
         )
     if (
         guard_signatures is not None
@@ -131,6 +142,7 @@ def classify_overload_group(
             "equivalent arity/guard collisions collapsed for value dispatch",
             erased,
             guard_signatures,
+            java_type_shape_signatures=java_shapes,
         )
 
     varargs_guard_signatures = _varargs_guard_signatures(members, cfg)
@@ -142,6 +154,7 @@ def classify_overload_group(
             "runtime-checkable fixed and varargs guards are pairwise distinct",
             erased,
             varargs_guard_signatures,
+            java_type_shape_signatures=java_shapes,
         )
 
     if len(set(erased)) == len(erased):
@@ -149,6 +162,7 @@ def classify_overload_group(
             OverloadKind.RUNTIME_DISPATCH_SAFE,
             "erased Python signatures are pairwise distinct",
             erased,
+            java_type_shape_signatures=java_shapes,
         )
 
     return OverloadClassification(
@@ -156,7 +170,26 @@ def classify_overload_group(
         "overload signatures erase to indistinguishable Python runtime shapes",
         erased,
         guard_signatures or (),
+        java_type_shape_signatures=java_shapes,
     )
+
+
+def _java_type_shape_signatures(
+    members: list[JavaNode],
+    cfg: TranslationConfig,
+) -> tuple[tuple[str, ...], ...]:
+    signatures: list[tuple[str, ...]] = []
+    for member in members:
+        if member.type not in {"constructor_declaration", "method_declaration"}:
+            signatures.append(())
+            continue
+        signatures.append(
+            java_type_shape_signature(
+                [param.java_type for param in parameter_infos(member, cfg)],
+                cfg,
+            ),
+        )
+    return tuple(signatures)
 
 
 def _is_forwarding_merge_candidate(members: list[JavaNode], cfg: TranslationConfig) -> bool:
