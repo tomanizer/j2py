@@ -24,6 +24,7 @@ from tests.translate.skeleton.helpers import (
         ("RequestBodyPydanticModel", 1.0),
         ("SqlAlchemyEntity", 1.0),
         ("SpringDataRepository", 1.0),
+        ("SpringTransactional", 1.0),
         ("AbstractClass", 1.0),
         ("AssertProbe", 1.0),
         ("JavadocConversion", 1.0),

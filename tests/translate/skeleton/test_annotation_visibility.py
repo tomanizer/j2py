@@ -204,6 +204,115 @@ def test_method_framework_annotation_uses_stripped_reason() -> None:
     assert_valid_python(result.source)
 
 
+def test_transactional_fixture_preserves_method_and_class_level_metadata() -> None:
+    parsed = parse_file(FIXTURES / "java" / "SpringTransactional.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.coverage == 1.0
+    assert result.source == (FIXTURES / "python" / "SpringTransactional.py").read_text()
+    assert not result.diagnostics.unhandled
+    assert "# @Transactional(readOnly=True)" in result.source
+    assert "# read-only transaction" in result.source
+    assert "# @Transactional(rollbackFor=AuditException)" in result.source
+    assert "# rollbackFor=AuditException" in result.source
+    assert result.source.index("# @Transactional(readOnly=True)") < result.source.index(
+        "def find_owner",
+    )
+    assert "# @Transactional(readOnly=True)\n    def package_private_helper" not in result.source
+    assert "# @Transactional(readOnly=True)\n    def describe" not in result.source
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "stripped framework annotation @Transactional on class OwnerService",
+        "dropped annotation @Override",
+        "stripped framework annotation @Transactional on method save_owner",
+    ]
+    assert_valid_python(result.source)
+
+
+def test_transactional_comments_skip_empty_rollback_for_attributes() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Transactional {}
+
+        @Transactional(rollbackFor = {})
+        public class Service {
+            public void run() {
+            }
+        }
+        """,
+        CFG,
+    )
+
+    assert "# @Transactional" in result.source
+    assert "rollbackFor=" not in result.source
+
+
+def test_transactional_comments_respect_disabled_line_comments() -> None:
+    cfg = CFG.model_copy(update={"emit_line_comments": False})
+    result = translate_source_with_diagnostics(
+        """
+        @interface Transactional {}
+
+        @Transactional(readOnly = true)
+        public class Service {
+            public void run() {
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert result.coverage == 1.0
+    assert "# @Transactional" not in result.source
+    assert "# read-only transaction" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_class_transactional_does_not_propagate_to_override_methods() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Override {}
+        @interface Transactional {}
+
+        @Transactional
+        public class Service {
+            @Override
+            public void run() {
+            }
+
+            public void save() {
+            }
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert "    # @Override\n    def run(self) -> None:" in result.source
+    assert "    # @Transactional\n    # @Override\n    def run" not in result.source
+    assert "    # @Transactional\n    def save(self) -> None:" in result.source
+    assert_valid_python(result.source)
+
+
+def test_transactional_comments_skip_empty_rollback_for() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Transactional {
+            Class<?>[] rollbackFor() default {};
+        }
+
+        public class Service {
+            @Transactional(rollbackFor = {})
+            public void save() {
+            }
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert "# @Transactional" in result.source
+    assert "rollbackFor=" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_annotation_map_fixture_lowers_framework_annotations() -> None:
     parsed = parse_file(FIXTURES / "java" / "AnnotationMapFrameworkLowering.java")
     result = translate_skeleton_with_diagnostics(

@@ -108,6 +108,7 @@ def translate_method(
     decorator_lines: list[str] | None = None,
     extra_params: list[ParameterInfo] | None = None,
     def_line_suffix: str = "",
+    pre_def_lines: list[str] | None = None,
     supported_reason: str | None = None,
     docstring_lines: list[str] | None = None,
     python_name_override: str | None = None,
@@ -174,6 +175,7 @@ def translate_method(
             return [f"    # TODO(j2py): {unsupported_reason}", "    pass"]
 
         lines: list[str] = []
+        lines.extend(pre_def_lines or [])
         if not method_transform.handled:
             lines.extend(annotation_comment_lines(node, ctx.cfg, indent="    "))
         lines.extend(method_transform.prefix_lines)
