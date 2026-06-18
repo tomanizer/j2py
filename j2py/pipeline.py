@@ -28,7 +28,7 @@ PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
 WIRING_METADATA_SCHEMA_VERSION = 1
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
-LLMProvider = Literal["anthropic", "gemini"]
+LLMProvider = Literal["anthropic", "gemini", "openai"]
 SEMANTIC_WARNING_CONFIDENCE_CAP = 0.99
 REVIEW_REQUIRED_CONFIDENCE_CAP = 0.79
 
@@ -211,6 +211,7 @@ def _translate_parsed_file(
                 config_fingerprint=config_fingerprint,
                 model=model,
                 provider=llm_provider,
+                base_url=cfg.llm_base_url,
             )
             used_llm = True
             validation = validate_source(python_source, validation_path) if validate else None
@@ -232,6 +233,7 @@ def _translate_parsed_file(
                     config_fingerprint=config_fingerprint,
                     model=model,
                     provider=llm_provider,
+                    base_url=cfg.llm_base_url,
                 )
                 validation = validate_source(python_source, validation_path) if validate else None
                 structural_verification = verify_structure(symbols, python_source)

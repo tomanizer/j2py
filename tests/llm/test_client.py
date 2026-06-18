@@ -65,6 +65,16 @@ def _install_fake_google_genai_types(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "google.genai.types", genai_types_mod)
 
 
+def _install_fake_openai(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    client_factory: type,
+) -> None:
+    openai_mod = ModuleType("openai")
+    openai_mod.OpenAI = client_factory  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openai", openai_mod)
+
+
 def test_translate_with_llm_returns_cached_value(monkeypatch) -> None:
     monkeypatch.setattr(client_mod, "_cache", FakeCache("cached python"))
 
@@ -179,10 +189,51 @@ def test_get_gemini_client_does_not_mask_installed_sdk_import_errors(monkeypatch
     assert not isinstance(exc_info.value, client_mod.MissingGeminiExtraError)
 
 
+def test_get_openai_client_requires_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        client_mod.get_openai_client()
+
+
+def test_get_openai_client_reports_missing_optional_extra(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+    real_import = builtins.__import__
+
+    def fake_import(
+        name: str,
+        globals: dict[str, object] | None = None,
+        locals: dict[str, object] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if name == "openai":
+            raise ImportError("No module named 'openai'", name="openai")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        client_mod.get_openai_client()
+
+    message = str(exc_info.value)
+    assert "optional OpenAI extra" in message
+    assert client_mod.OPENAI_EXTRA_INSTALL_HINT in message
+
+
 def test_resolve_model_defaults_by_provider() -> None:
     assert client_mod.resolve_model("anthropic", None) == "claude-sonnet-4-6"
     assert client_mod.resolve_model("gemini", None) == "gemini-3.5-flash"
     assert client_mod.resolve_model("gemini", "custom-gemini") == "custom-gemini"
+
+
+def test_resolve_model_requires_explicit_openai_model() -> None:
+    with pytest.raises(ValueError, match="requires an explicit --model"):
+        client_mod.resolve_model("openai", None)
+
+    assert client_mod.resolve_model("openai", "provider-model") == "provider-model"
 
 
 def test_translate_with_llm_cache_key_includes_config_fingerprint(monkeypatch) -> None:
@@ -241,6 +292,94 @@ def test_translate_with_llm_cache_key_includes_provider(monkeypatch) -> None:
     )
 
     assert sorted(cache.written.values()) == ["anthropic python", "gemini python"]
+
+
+def test_translate_with_llm_cache_key_includes_openai_base_url(monkeypatch) -> None:
+    cache = FakeCache()
+    calls: list[str | None] = []
+
+    class OpenAIClient:
+        def __init__(self, **kwargs: str) -> None:
+            calls.append(kwargs.get("base_url"))
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **_kwargs: SimpleNamespace(
+                        choices=[
+                            SimpleNamespace(
+                                finish_reason="stop",
+                                message=SimpleNamespace(content="openai python"),
+                            )
+                        ]
+                    )
+                )
+            )
+
+    _install_fake_openai(monkeypatch, client_factory=OpenAIClient)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="same-model",
+        provider="openai",
+        base_url="https://one.example/v1",
+    )
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="same-model",
+        provider="openai",
+        base_url="https://two.example/v1",
+    )
+
+    assert len(cache.written) == 2
+    assert calls == ["https://one.example/v1", "https://two.example/v1"]
+
+
+def test_translate_with_llm_cache_key_includes_openai_base_url_env(monkeypatch) -> None:
+    cache = FakeCache()
+    calls: list[str | None] = []
+
+    class OpenAIClient:
+        def __init__(self, **kwargs: str) -> None:
+            calls.append(kwargs.get("base_url"))
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **_kwargs: SimpleNamespace(
+                        choices=[
+                            SimpleNamespace(
+                                finish_reason="stop",
+                                message=SimpleNamespace(content="openai python"),
+                            )
+                        ]
+                    )
+                )
+            )
+
+    _install_fake_openai(monkeypatch, client_factory=OpenAIClient)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://one.example/v1")
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="same-model",
+        provider="openai",
+    )
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://two.example/v1")
+    client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        model="same-model",
+        provider="openai",
+    )
+
+    assert len(cache.written) == 2
+    assert calls == ["https://one.example/v1", "https://two.example/v1"]
 
 
 def test_translate_with_llm_cache_key_includes_validation_feedback(monkeypatch) -> None:
@@ -362,6 +501,54 @@ def test_translate_with_llm_calls_gemini_and_writes_cache(monkeypatch) -> None:
     assert list(cache.written.values()) == ["translated python"]
 
 
+def test_translate_with_llm_calls_openai_compatible_and_writes_cache(monkeypatch) -> None:
+    cache = FakeCache()
+    observed: dict[str, Any] = {}
+
+    class Completions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            observed.update(kwargs)
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        finish_reason="stop",
+                        message=SimpleNamespace(content="```python\ntranslated python\n```"),
+                    )
+                ]
+            )
+
+    class OpenAIClient:
+        def __init__(self, **kwargs: str) -> None:
+            observed["client_kwargs"] = kwargs
+            self.chat = SimpleNamespace(completions=Completions())
+
+    _install_fake_openai(monkeypatch, client_factory=OpenAIClient)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    result = client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        provider="openai",
+        model="provider-model-id",
+        base_url="https://provider.example/v1",
+    )
+
+    assert result == "translated python\n"
+    assert observed["client_kwargs"] == {
+        "api_key": "openai-key",
+        "base_url": "https://provider.example/v1",
+    }
+    assert observed["model"] == "provider-model-id"
+    assert observed["max_tokens"] == client_mod.MAX_OUTPUT_TOKENS
+    assert observed["messages"][0]["role"] == "system"
+    assert "expert Java-to-Python translator" in observed["messages"][0]["content"]
+    assert "class A {}" in observed["messages"][1]["content"]
+    assert "class A:" in observed["messages"][1]["content"]
+    assert list(cache.written.values()) == ["translated python\n"]
+
+
 def test_translate_with_llm_gemini_records_usage(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -452,6 +639,43 @@ def test_translate_with_llm_retries_transient_gemini_failure(monkeypatch) -> Non
     assert calls["count"] == 2
 
 
+def test_translate_with_llm_retries_transient_openai_failure(monkeypatch) -> None:
+    calls = {"count": 0}
+
+    class Completions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("transient")
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        finish_reason="stop",
+                        message=SimpleNamespace(content="translated after retry"),
+                    )
+                ]
+            )
+
+    class OpenAIClient:
+        def __init__(self, **kwargs: str) -> None:
+            self.chat = SimpleNamespace(completions=Completions())
+
+    _install_fake_openai(monkeypatch, client_factory=OpenAIClient)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    result = client_mod.translate_with_llm(
+        java_source="class A {}",
+        partial_python="class A:\n    pass\n",
+        provider="openai",
+        model="provider-model-id",
+        use_cache=False,
+    )
+
+    assert result == "translated after retry"
+    assert calls["count"] == 2
+
+
 def test_translate_with_llm_raises_on_truncation(monkeypatch) -> None:
     cache = FakeCache()
     calls = {"count": 0}
@@ -503,6 +727,44 @@ def test_translate_with_llm_raises_on_gemini_truncation(monkeypatch) -> None:
             partial_python="class A:\n    pass\n",
             provider="gemini",
             model="gemini-test",
+            use_cache=True,
+        )
+
+    assert calls["count"] == 1
+    assert cache.written == {}
+
+
+def test_translate_with_llm_raises_on_openai_truncation(monkeypatch) -> None:
+    cache = FakeCache()
+    calls = {"count": 0}
+
+    class Completions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            calls["count"] += 1
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        finish_reason="length",
+                        message=SimpleNamespace(content="truncated parti"),
+                    )
+                ]
+            )
+
+    class OpenAIClient:
+        def __init__(self, **kwargs: str) -> None:
+            self.chat = SimpleNamespace(completions=Completions())
+
+    _install_fake_openai(monkeypatch, client_factory=OpenAIClient)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "_openai_clients", {})
+
+    with pytest.raises(client_mod.LLMTruncationError):
+        client_mod.translate_with_llm(
+            java_source="class A {}",
+            partial_python="class A:\n    pass\n",
+            provider="openai",
+            model="provider-model-id",
             use_cache=True,
         )
 

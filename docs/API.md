@@ -162,8 +162,21 @@ output fails syntax/type pre-validation.
 result = translate_file(path, cfg=cfg, use_llm=True, llm_provider="anthropic")
 ```
 
-Provider keys come from the environment (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`). For
-Gemini, install the `gemini` extra.
+Provider keys come from the environment (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`,
+`OPENAI_API_KEY`). For Gemini, install the `gemini` extra. For OpenAI-compatible
+endpoints, install the `openai` extra, set an explicit model, and optionally set
+`cfg.llm_base_url` or `OPENAI_BASE_URL`:
+
+```python
+cfg = cfg.model_copy(update={"llm_base_url": "https://openai-compatible.example/v1"})
+result = translate_file(
+    path,
+    cfg=cfg,
+    use_llm=True,
+    llm_provider="openai",
+    model="provider-model-id",
+)
+```
 
 ## Stability Notes
 

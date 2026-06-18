@@ -16,7 +16,7 @@ from j2py.config import default
 from j2py.framework import FrameworkPlugin
 
 T = TypeVar("T")
-LLMProvider = Literal["anthropic", "gemini"]
+LLMProvider = Literal["anthropic", "gemini", "openai"]
 
 
 class ConfigError(ValueError):
@@ -80,6 +80,7 @@ class TranslationConfig(BaseModel):
     workers: int = Field(default_factory=lambda: min(8, os.cpu_count() or 1))
     llm_concurrency: int = 4
     llm_provider: LLMProvider | None = None
+    llm_base_url: str | None = None
     model: str | None = None
 
     @field_validator("llm_provider", mode="before")
@@ -88,10 +89,12 @@ class TranslationConfig(BaseModel):
         if value is None:
             return None
         if isinstance(value, str):
-            normalized = value.lower()
-            if normalized in {"anthropic", "gemini"}:
+            normalized = value.lower().replace("_", "-")
+            if normalized == "openai-compatible":
+                normalized = "openai"
+            if normalized in {"anthropic", "gemini", "openai"}:
                 return normalized
-        raise ValueError("unsupported LLM provider; choose 'anthropic' or 'gemini'")
+        raise ValueError("unsupported LLM provider; choose 'anthropic', 'gemini', or 'openai'")
 
     @classmethod
     def default(cls) -> TranslationConfig:

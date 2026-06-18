@@ -68,7 +68,7 @@ Java source file(s)
         │  coverage < 1.0 or syntax/type pre-validation fails
         ▼
 ┌───────────────┐
-│   llm/        │  configured LLM provider (Anthropic or Gemini)
+│   llm/        │  configured LLM provider (Anthropic, Gemini, or OpenAI-compatible)
 │               │  prompts.py  → structured system + user messages
 │               │  client.py   → disk-cached, tenacity retry
 └───────┬───────┘
@@ -175,10 +175,11 @@ Java source file(s)
 - `prompts.py`: builds a structured prompt with the Java source, partial skeleton, and
   project context plus rule diagnostics; output is plain Python source (no markdown
   fences)
-- `client.py`: provider dispatcher for Anthropic and Gemini SDK calls with API-key
-  preflight; disk-cached at `~/.cache/j2py/llm/`; cache keys include provider, prompt
-  version, file hashes, model, config fingerprint, diagnostics, and validation feedback;
-  3 retries with exponential back-off via `tenacity`
+- `client.py`: provider dispatcher for Anthropic, Gemini, and OpenAI-compatible SDK calls
+  with API-key preflight; disk-cached at `~/.cache/j2py/llm/`; cache keys include
+  provider, provider endpoint identity, prompt version, file hashes, model, config
+  fingerprint, diagnostics, and validation feedback; 3 retries with exponential back-off
+  via `tenacity`
 - `harvest.py`: appends deterministic repair records to `.j2py/harvest/records.jsonl`
   when the LLM runs; batch orchestration, content cache, and promotion live under
   `scripts/harvest/` — see [LLM_HARVEST.md](LLM_HARVEST.md)
@@ -198,8 +199,8 @@ Java source file(s)
 - `loader.py`: `ConfigLoader` stacks multiple config files (later layers override earlier
   ones for scalars; dicts and sets are merged)
 - `TranslationConfig`: Pydantic model; all translation stages accept this as `cfg`.
-  Optional `llm_provider` and `model` values act as project defaults for LLM-enabled
-  translation; explicit runtime arguments override them.
+  Optional `llm_provider`, `llm_base_url`, and `model` values act as project defaults for
+  LLM-enabled translation; explicit runtime arguments override them.
 
 ### `pipeline.py` — Orchestrator
 - `translate_file(path, cfg, use_llm, model, llm_provider, validate) → TranslationResult`

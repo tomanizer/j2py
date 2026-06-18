@@ -95,7 +95,8 @@ def test_cli_translate_help_uses_provider_neutral_llm_wording() -> None:
     }
 
     assert "--llm-provider" in option_help
-    assert "anthropic or gemini" in option_help["--llm-provider"]
+    assert "anthropic, gemini, or openai" in option_help["--llm-provider"]
+    assert "--llm-base-url" in option_help
     assert "LLM model ID" in option_help["--model"]
     assert "ANTHROPIC_API_KEY" not in option_help["--llm"]
     assert "Claude model" not in option_help["--model"]
@@ -157,6 +158,62 @@ def test_cli_translate_forwards_llm_provider_and_model(
     }
 
 
+def test_cli_translate_forwards_openai_provider_and_base_url(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update(
+            {
+                "model": model,
+                "llm_provider": llm_provider,
+                "llm_base_url": cfg.llm_base_url,
+            }
+        )
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(source),
+            "--llm-provider",
+            "openai-compatible",
+            "--llm-base-url",
+            "https://provider.example/v1",
+            "--model",
+            "provider-model-id",
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "model": "provider-model-id",
+        "llm_provider": "openai",
+        "llm_base_url": "https://provider.example/v1",
+    }
+
+
 def test_cli_translate_uses_configured_llm_defaults(
     tmp_path: Path,
     monkeypatch,
@@ -198,6 +255,58 @@ model = "gemini-3.5-flash"
     assert observed == {
         "model": "gemini-3.5-flash",
         "llm_provider": "gemini",
+    }
+
+
+def test_cli_translate_uses_configured_openai_base_url(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    (tmp_path / "j2py.toml").write_text(
+        """
+llm_provider = "openai"
+llm_base_url = "https://provider.example/v1"
+model = "provider-model-id"
+""",
+    )
+    observed: dict[str, object] = {}
+
+    def fake_translate_file(
+        path: Path,
+        *,
+        cfg,
+        use_llm: bool,
+        model: str | None,
+        llm_provider: str,
+        validate: bool,
+    ) -> pipeline.TranslationResult:
+        observed.update(
+            {
+                "model": model,
+                "llm_provider": llm_provider,
+                "llm_base_url": cfg.llm_base_url,
+            }
+        )
+        return pipeline.TranslationResult(
+            source_path=path,
+            python_source="class Sample:\n    pass\n",
+        )
+
+    monkeypatch.setattr(pipeline, "translate_file", fake_translate_file)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["translate", str(source), "--no-validate", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert observed == {
+        "model": "provider-model-id",
+        "llm_provider": "openai",
+        "llm_base_url": "https://provider.example/v1",
     }
 
 

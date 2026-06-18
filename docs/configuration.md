@@ -25,9 +25,17 @@ Gemini provider configuration requires the optional `gemini` extra at install ti
 pip install "j2py-converter[gemini]"
 ```
 
+OpenAI-compatible provider configuration requires the optional `openai` extra at install
+time:
+
+```bash
+pip install "j2py-converter[openai]"
+```
+
 The default `pip install j2py-converter` path keeps Anthropic support only. If a project
-sets `llm_provider: gemini` without the extra installed, j2py raises an actionable error
-that points at the `j2py-converter[gemini]` install command.
+sets `llm_provider: gemini` or `llm_provider: openai` without the matching extra installed,
+j2py raises an actionable error that points at the install command. `openai-compatible`
+is accepted as an alias for `openai`.
 
 ## YAML
 
@@ -36,8 +44,9 @@ emit_type_hints: true
 snake_case_methods: true
 workers: 8
 llm_concurrency: 4
-llm_provider: gemini
-model: gemini-3.5-flash
+llm_provider: openai
+llm_base_url: https://openai-compatible.example/v1
+model: provider-model-id
 
 type_map:
   MyCustomType: my_module.MyCustomType
@@ -77,8 +86,9 @@ Standalone `j2py.toml` may put keys at the top level:
 emit_type_hints = true
 snake_case_methods = true
 workers = 8
-llm_provider = "gemini"
-model = "gemini-3.5-flash"
+llm_provider = "openai"
+llm_base_url = "https://openai-compatible.example/v1"
+model = "provider-model-id"
 
 [type_map]
 MyType = "mymodule.MyType"
@@ -90,8 +100,9 @@ In `pyproject.toml`, use `[tool.j2py]`:
 [tool.j2py]
 emit_type_hints = true
 snake_case_methods = true
-llm_provider = "gemini"
-model = "gemini-3.5-flash"
+llm_provider = "openai"
+llm_base_url = "https://openai-compatible.example/v1"
+model = "provider-model-id"
 
 [tool.j2py.type_map]
 MyType = "mymodule.MyType"
@@ -125,8 +136,9 @@ annotation_map = {
 }
 drop_imports = {"java.io.Serializable"}
 target_python = "3.12"
-llm_provider = "gemini"
-model = "gemini-3.5-flash"
+llm_provider = "openai"
+llm_base_url = "https://openai-compatible.example/v1"
+model = "provider-model-id"
 ```
 
 ## Schema
@@ -143,15 +155,21 @@ Scalar options:
 - `target_python`: string
 - `workers`: int
 - `llm_concurrency`: int
-- `llm_provider`: optional string, one of `anthropic` or `gemini`
+- `llm_provider`: optional string, one of `anthropic`, `gemini`, or `openai`
+- `llm_base_url`: optional string for OpenAI-compatible provider endpoints
 - `model`: optional string model ID
 
 `llm_provider` and `model` are project defaults for LLM-enabled translation. CLI flags
 still win when present, so `--llm-provider anthropic` or `--model <id>` can override a
-project config default for one command. API keys are runtime secrets and should stay in
-environment variables such as `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`, not config files.
-The Gemini provider also requires installing the `gemini` extra; Anthropic remains the
-default provider and core dependency.
+project config default for one command. `llm_base_url` can be set in config, overridden
+with `--llm-base-url`, or supplied through `OPENAI_BASE_URL` for OpenAI-compatible
+providers.
+
+API keys are runtime secrets and should stay in environment variables such as
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`, not config files. Gemini and
+OpenAI-compatible providers also require installing their matching extras; Anthropic
+remains the default provider and core dependency. OpenAI-compatible providers require an
+explicit `model` because endpoint model IDs are deployment-specific.
 
 Mapping options:
 

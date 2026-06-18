@@ -95,6 +95,9 @@ Tags are **approximate** — always read the diff before implementing a rule.
   Contributor installs using the repository `dev` extra include it for local harvest and
   live Gemini probes.
 - `ANTHROPIC_API_KEY` for `make test-llm-e2e` (Anthropic probes)
+- Optional OpenAI-compatible live translation uses `OPENAI_API_KEY`, the `openai` extra,
+  an explicit model, and optionally `OPENAI_BASE_URL` / `--llm-base-url`. The Makefile
+  harvest presets remain Gemini-oriented.
 - Optional: `gh` CLI authenticated for `make harvest-promote-issues`
 - See [README](../README.md) live LLM section for key setup
 
@@ -243,6 +246,16 @@ uv run --extra gemini python scripts/harvest/run_llm_harvest.py \
   --offset 0 --limit 10 \
   --sleep-seconds 6 \
   --skip-temp-paths --skip-package-info
+```
+
+Manual OpenAI-compatible probes can use the normal translation CLI, which still records
+harvest rows when the LLM runs:
+
+```bash
+uv run --extra openai j2py translate SomeClass.java \
+  --llm-provider openai \
+  --llm-base-url https://openai-compatible.example/v1 \
+  --model provider-model-id
 ```
 
 ## Triage report

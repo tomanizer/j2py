@@ -12,14 +12,16 @@ from j2py.cli.output import console
 if TYPE_CHECKING:
     from j2py.config.loader import TranslationConfig
 
-LLMProvider = Literal["anthropic", "gemini"]
+LLMProvider = Literal["anthropic", "gemini", "openai"]
 
 
 def normalize_llm_provider(value: str) -> LLMProvider:
-    normalized = value.lower()
-    if normalized not in {"anthropic", "gemini"}:
+    normalized = value.lower().replace("_", "-")
+    if normalized == "openai-compatible":
+        normalized = "openai"
+    if normalized not in {"anthropic", "gemini", "openai"}:
         raise typer.BadParameter(
-            "unsupported LLM provider; choose 'anthropic' or 'gemini'",
+            "unsupported LLM provider; choose 'anthropic', 'gemini', or 'openai'",
             param_hint="--llm-provider",
         )
     return cast(LLMProvider, normalized)

@@ -72,7 +72,7 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 
 - **tree-sitter** for Java parsing ([ADR 0002](docs/decisions/0002-tree-sitter-for-java-parsing.md))
 - **Layered pipeline**: rule → LLM, not LLM-only ([ADR 0003](docs/decisions/0003-layered-translation-pipeline.md))
-- **Anthropic by default, Gemini optional** as LLM backend
+- **Anthropic by default, Gemini and OpenAI-compatible optional** as LLM backends
   ([ADR 0004](docs/decisions/0004-claude-as-llm-backend.md),
   [ADR 0017](docs/decisions/0017-multi-provider-llm-backend.md))
 - **Python 3.11+** with full type annotations as output target ([ADR 0005](docs/decisions/0005-python-311-target-with-type-hints.md))

@@ -22,7 +22,8 @@ Common options:
 | `--output`, `-o` | Output file for a source file, or output directory for a source tree. |
 | `--config`, `-c` | Extra config file. Repeat to layer multiple files after auto-discovered config. |
 | `--llm` / `--no-llm` | Enable or disable LLM completion. LLM is enabled by default for this command. |
-| `--llm-provider` | `anthropic` or `gemini`; overrides config. |
+| `--llm-provider` | `anthropic`, `gemini`, or `openai`; overrides config. |
+| `--llm-base-url` | Base URL for OpenAI-compatible providers; overrides config and `OPENAI_BASE_URL`. |
 | `--model`, `-m` | Provider model ID; overrides config/default. |
 | `--validate` / `--no-validate` | Run Python syntax, ruff, and mypy validation when available. |
 | `--dry-run` | Print translated output and do not write files. |
@@ -39,6 +40,7 @@ Examples:
 j2py translate SomeClass.java --no-llm --dry-run
 j2py translate src/main/java --output translated_py --no-llm --incremental
 j2py translate src/main/java --output translated_py --dashboard dashboard.html --no-llm
+j2py translate SomeClass.java --llm-provider openai --llm-base-url https://provider.example/v1 --model provider-model-id
 ```
 
 Exit status is non-zero when validation or structural verification finds blocking issues.
@@ -73,7 +75,8 @@ Options:
 | `--output`, `-o` | Python file to compare against or generate. |
 | `--config`, `-c` | Extra config file. |
 | `--llm` / `--no-llm` | Use LLM while generating the Python file. Default is off for speed. |
-| `--llm-provider` | `anthropic` or `gemini`; overrides config. |
+| `--llm-provider` | `anthropic`, `gemini`, or `openai`; overrides config. |
+| `--llm-base-url` | Base URL for OpenAI-compatible providers; overrides config and `OPENAI_BASE_URL`. |
 | `--model`, `-m` | Provider model ID. |
 | `--editor` | Editor binary for the diff, for example `code`, `code-insiders`, or `cursor`. |
 | `--no-open` | Print Java/Python paths and diff command without launching the editor. |
@@ -102,7 +105,8 @@ Options:
 | `--output`, `-o` | Required output file or directory. |
 | `--config`, `-c` | Extra config file. |
 | `--llm` / `--no-llm` | Use LLM completion for unresolved logic. |
-| `--llm-provider` | `anthropic` or `gemini`; overrides config. |
+| `--llm-provider` | `anthropic`, `gemini`, or `openai`; overrides config. |
+| `--llm-base-url` | Base URL for OpenAI-compatible providers; overrides config and `OPENAI_BASE_URL`. |
 | `--model`, `-m` | Provider model ID. |
 | `--validate` / `--no-validate` | Run validation on output. |
 | `--poll-interval` | Polling interval in seconds. Default: `0.5`. |

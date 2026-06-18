@@ -51,7 +51,7 @@ Deterministic support today includes:
 - configured import emission, naming policy, type maps, exception maps, and comment flags
 - dependency-ordered directory translation
 - structured diagnostics, confidence scoring, validation, post-LLM structural
-  verification, and optional Anthropic or Gemini completion
+  verification, and optional Anthropic, Gemini, or OpenAI-compatible completion
 - side-by-side Java/Python review via `j2py compare`
 - rule-only project assessment via `j2py doctor` with JSON/HTML reports and conservative
   config suggestions
@@ -174,9 +174,25 @@ Selecting `--llm-provider gemini` without the extra installed fails with an inst
 instead of a raw Python import traceback. Contributor installs that use the `dev` extra
 also include the Gemini SDK so live Gemini probes and harvest commands remain available.
 
+LLM completion with OpenAI-compatible endpoints requires the optional OpenAI extra,
+`OPENAI_API_KEY`, and an explicit endpoint model ID. Set `OPENAI_BASE_URL`, configure
+`llm_base_url`, or pass `--llm-base-url` for non-default endpoints:
+
+```bash
+pip install --pre "j2py-converter[openai]"
+OPENAI_API_KEY=... uv run j2py translate SomeClass.java \
+  --llm-provider openai \
+  --llm-base-url https://openai-compatible.example/v1 \
+  --model provider-model-id
+```
+
+Selecting `--llm-provider openai` without the extra installed fails with an install hint.
+`openai-compatible` is accepted as a config/CLI alias for `openai`.
+
 Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
-`pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider` and
-`model` values there, while CLI flags override them for one command. See
+`pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider`,
+`llm_base_url`, and `model` values there, while CLI flags override them for one command.
+See
 [docs/configuration.md](docs/configuration.md) for the schema.
 
 Programmatic callers can use the Python API described in [docs/API.md](docs/API.md).
