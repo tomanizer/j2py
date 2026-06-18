@@ -80,12 +80,20 @@ PLACEHOLDER_IMPORTS: dict[str, str] = {
     ),
     "javax.management.ObjectName": "from j2py_runtime import ObjectName",
     "org.springframework.core.NativeDetector": "from typing import Any as NativeDetector",
+    "org.springframework.jdbc.core.JdbcTemplate": "from typing import Any as JdbcTemplate",
+    "org.springframework.jdbc.core.NamedParameterJdbcTemplate": (
+        "from typing import Any as NamedParameterJdbcTemplate"
+    ),
+    "org.springframework.jdbc.core.RowMapper": "from typing import Any as RowMapper",
 }
 
 
 EXTERNAL_PLACEHOLDER_TYPES: frozenset[str] = frozenset(
     {
         "org.springframework.core.NativeDetector",
+        "org.springframework.jdbc.core.JdbcTemplate",
+        "org.springframework.jdbc.core.NamedParameterJdbcTemplate",
+        "org.springframework.jdbc.core.RowMapper",
     },
 )
 
