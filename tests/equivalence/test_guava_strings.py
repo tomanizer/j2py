@@ -7,6 +7,7 @@ import sys
 import pytest
 
 from tests.equivalence.harness import (
+    GuavaStringBuilder,
     JavaCharSequence,
     JavaString,
     install_guava_strings_stubs,
@@ -77,6 +78,13 @@ def test_repeat(strings) -> None:
     assert strings.repeat(JavaString("ab"), 3) == "ababab"
 
 
+def test_guava_string_stubs_match_java_edge_cases() -> None:
+    assert JavaString("None").__eq__(None) is False
+    assert JavaString("x") == JavaString("x")
+    assert str(GuavaStringBuilder().append(None)) == "null"
+    assert str(GuavaStringBuilder().append(None, 1, 3)) == "ul"
+
+
 @surface(JAVA_CLASS, "Strings.commonPrefix(CharSequence,CharSequence)")
 def test_common_prefix(strings) -> None:
     assert (
@@ -98,3 +106,11 @@ def test_common_suffix(strings) -> None:
 def test_lenient_format_without_args(strings) -> None:
     assert strings.lenient_format("plain template") == "plain template"
     assert strings.lenient_format("%s without args") == "%s without args"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="generated varargs code mutates Python's immutable *args tuple",
+)
+def test_lenient_format_with_args_known_gap(strings) -> None:
+    assert strings.lenient_format("%s scored %s", "Ada", 42) == "Ada scored 42"

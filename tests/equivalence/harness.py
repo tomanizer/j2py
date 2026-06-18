@@ -506,6 +506,10 @@ class JavaString:
         return self.value
 
     def __eq__(self, other: object) -> bool:
+        if other is None:
+            return False
+        if isinstance(other, JavaString):
+            return self.value == other.value
         return self.value == str(other)
 
     def get_chars(self, start: int, end: int, target: list[str], target_start: int) -> None:
@@ -541,7 +545,7 @@ class GuavaStringBuilder:
     def append(
         self, value: Any, start: int | None = None, end: int | None = None
     ) -> GuavaStringBuilder:
-        text = str(value)
+        text = "null" if value is None else str(value)
         self._parts.append(text if start is None or end is None else text[start:end])
         return self
 
