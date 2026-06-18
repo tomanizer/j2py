@@ -80,17 +80,18 @@ def build_report(passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
     for fixture in fixtures:
         public_methods = public_methods_for_fixture(FIXTURE_ROOT / fixture)
         public_signatures = {method.signature for method in public_methods}
+        verified = sorted(set(passed_by_fixture[fixture]) & public_signatures)
+        verified_set = set(verified)
         untestable = {
             signature: reason
             for signature, reason in EXPLICIT_UNTESTABLE_REASONS.get(fixture, {}).items()
-            if signature in public_signatures
+            if signature in public_signatures and signature not in verified_set
         }
-        verified = sorted(set(passed_by_fixture[fixture]) & public_signatures)
         testable_count = len(public_methods) - len(untestable)
         unverified = sorted(
             signature
             for signature in public_signatures
-            if signature not in set(verified) and signature not in untestable
+            if signature not in verified_set and signature not in untestable
         )
         library = FIXTURE_LIBRARIES.get(fixture, "unknown")
         fixture_report = {

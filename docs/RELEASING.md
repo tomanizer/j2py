@@ -28,7 +28,7 @@ harvest workflows.
    ```
 
 4. Open and merge the release PR.
-5. Create a GitHub release tag, for example `v0.5.0b3`.
+5. Create a GitHub release tag, for example `v0.6.0b1`.
 6. Confirm PyPI trusted publishing remains configured for:
 
    - Owner/repository: `tomanizer/j2py`

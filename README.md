@@ -22,6 +22,8 @@ code). Where rules stop, an optional configured LLM provider fills gaps using di
 prompts.
 Every file gets a **confidence** score based on rule-layer coverage, validation status,
 and semantic warnings, plus structured diagnostics for anything left unhandled.
+An optional LLM review pass can run after translation as a non-mutating second opinion:
+it records structured findings without changing generated Python, coverage, or confidence.
 
 ## Status
 
@@ -132,6 +134,7 @@ Generate review reports:
 ```bash
 uv run j2py translate path/to/java/root --output translated_py --dashboard dashboard.html
 uv run j2py translate SomeClass.java --report review.html
+uv run j2py translate SomeClass.java --no-llm --llm-review --review-report review.json
 ```
 
 Watch a source tree and incrementally re-translate changed Java files:
@@ -202,6 +205,7 @@ Programmatic callers can use the Python API described in [docs/API.md](docs/API.
 ```bash
 make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
+make equivalence-report # literal-oracle verified-surface report and floor check
 make test-targets  # future strict-xfail roadmap targets
 make release-check # pre-release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```

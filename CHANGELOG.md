@@ -5,6 +5,25 @@ All notable changes to j2py will be documented in this file.
 The format follows the repository commit types: `feat`, `fix`, `refactor`, `test`,
 `docs`, `chore`, and `adr`.
 
+## Unreleased
+
+### Added
+- OpenAI-compatible LLM provider endpoints can now be selected with
+  `--llm-provider openai`, optional `--llm-base-url`, explicit endpoint model IDs, and
+  cache separation by provider endpoint (#516).
+- `j2py translate --llm-review` adds an opt-in, non-mutating LLM audit pass with
+  structured findings in CLI JSON, `--review-report`, HTML reports, dashboards, and the
+  Python API. Review findings are cached separately from repair/completion calls and do
+  not change generated Python, coverage, or confidence (#518).
+
+### Changed
+- Member binding diagnostics and config maps now make static/member call lowering more
+  explicit for reviewers and downstream config authors (#507).
+- Literal-oracle equivalence coverage now includes the remaining `CharUtils` overload
+  surface, `NumberUtils` create-family methods, `BigDecimal` conversions, and
+  `createNumber`, raising the checked-in equivalence-verified surface to **96/97
+  public methods (99%)** (#515, #517, #519, #520).
+
 ## 0.6.0b1 - 2026-06-18
 
 First 0.6 beta. The headline is a step-change in proven correctness: the equivalence-verified
@@ -53,13 +72,6 @@ remain open; see **Known limitations** under 0.5.0b1 for other tracked issues.
 - User-facing docs now include installation, getting started, CLI reference, Python API,
   and output-review guides, with the VS Code extension surfaced from the docs index
   (#497).
-- OpenAI-compatible LLM provider endpoints can now be selected with
-  `--llm-provider openai`, optional `--llm-base-url`, explicit endpoint model IDs, and
-  cache separation by provider endpoint (#509).
-- `j2py translate --llm-review` adds an opt-in, non-mutating LLM audit pass with
-  structured findings in CLI JSON, `--review-report`, HTML reports, dashboards, and the
-  Python API. Review findings are cached separately from repair/completion calls and do
-  not change generated Python, coverage, or confidence (#510).
 
 ### Changed
 - Agent instructions now require syncing from `origin/main` before creating branches or

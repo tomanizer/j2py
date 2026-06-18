@@ -171,6 +171,12 @@ OpenAI-compatible providers also require installing their matching extras; Anthr
 remains the default provider and core dependency. OpenAI-compatible providers require an
 explicit `model` because endpoint model IDs are deployment-specific.
 
+LLM review is a runtime operation rather than a project config default. Use
+`j2py translate --llm-review` / `--llm-review-scope`, or the Python API
+`translate_file(..., llm_review=True, llm_review_scope="...")`, when a run needs the
+non-mutating review pass. The review pass uses the same provider/model/base-url
+configuration described above.
+
 Mapping options:
 
 - `type_map`: map Java type names to Python type expressions

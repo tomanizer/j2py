@@ -25,7 +25,7 @@
 | [TRANSLATION_TARGETS.md](TRANSLATION_TARGETS.md) | Graduated vs future xfail construct workflow |
 | [LLM_HARVEST.md](LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion pipeline, GitHub issues |
 | [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) | Multi-library corpus presets, baselines, hotspots |
-| [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design (Phase 1 active; CharUtils and NumberUtils literal-oracle gates) |
+| [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design and current equivalence-verified public-surface floor |
 | [BEHAVIOR_CORPUS.md](BEHAVIOR_CORPUS.md) | JDK-backed stdout/exit-code behavior suite |
 | [CASE_STUDY.md](CASE_STUDY.md) | End-to-end multi-file case study (commons-lang `tuple`): what translated, gaps surfaced |
 | [CASE_STUDY_NUMBER_UTILS.md](CASE_STUDY_NUMBER_UTILS.md) | End-to-end NumberUtils equivalence case study: verified surface, stubs, and exclusions |
