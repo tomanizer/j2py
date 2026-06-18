@@ -3,14 +3,28 @@
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import j2py.pipeline as pipeline
+from j2py.cli import compare as cli_compare
 from j2py.cli.main import app
+from j2py.cli.output import console
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def _disable_rich_formatting_in_cli_tests() -> None:
+    """Keep CLI assertions stable when pytest itself is attached to a TTY."""
+    previous_no_color = console.no_color
+    console.no_color = True
+    try:
+        yield
+    finally:
+        console.no_color = previous_no_color
 
 
 def test_cli_translate_dry_run_without_llm() -> None:
@@ -254,6 +268,25 @@ def test_cli_translate_rejects_unknown_llm_provider(tmp_path: Path) -> None:
     assert "unsupported LLM provider" in result.output
 
 
+def test_cli_translate_missing_source_exits_without_traceback(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "translate",
+            str(tmp_path / "Missing.java"),
+            "--no-llm",
+            "--no-validate",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "source path not found" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_cli_translate_writes_wiring_metadata_sidecar(tmp_path: Path) -> None:
     source = tmp_path / "Orders.java"
     output = tmp_path / "Orders.py"
@@ -423,6 +456,16 @@ def test_cli_analyze_prints_dependency_graph_for_directory(tmp_path: Path) -> No
     assert "Translation order:" in result.output
     assert "1. Base.java" in result.output
     assert "2. Child.java" in result.output
+
+
+def test_cli_analyze_missing_source_exits_without_traceback(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["analyze", str(tmp_path / "Missing.java")])
+
+    assert result.exit_code == 1
+    assert "source path not found" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_translate_directory_reports_dependency_order(tmp_path: Path) -> None:
@@ -951,6 +994,53 @@ def test_cli_dashboard_regenerates_from_state(tmp_path: Path) -> None:
     assert "Sample.java" in dashboard.read_text()
 
 
+def test_cli_dashboard_missing_output_root_exits_without_traceback(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["dashboard", str(tmp_path / "missing")])
+
+    assert result.exit_code == 1
+    assert "output directory not found" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_dashboard_rejects_non_directory_output_root(tmp_path: Path) -> None:
+    output_root = tmp_path / "state-file"
+    output_root.write_text("{}")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["dashboard", str(output_root)])
+
+    assert result.exit_code == 1
+    assert "output path is not a directory" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_dashboard_missing_state_file_exits_without_traceback(tmp_path: Path) -> None:
+    output_root = tmp_path / "out"
+    output_root.mkdir()
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["dashboard", str(output_root)])
+
+    assert result.exit_code == 1
+    assert "state file not found" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_dashboard_rejects_state_directory(tmp_path: Path) -> None:
+    output_root = tmp_path / "out"
+    output_root.mkdir()
+    (output_root / ".j2py-state.json").mkdir()
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["dashboard", str(output_root)])
+
+    assert result.exit_code == 1
+    assert "state file not found or is not a file" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
@@ -1355,6 +1445,46 @@ def test_cli_compare_generic_editor_omits_vscode_diff_flag(
     assert calls == [["vimdiff", str(java), str(python)]]
 
 
+def test_cli_compare_editor_accepts_extra_flags(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    java = tmp_path / "Sample.java"
+    python = tmp_path / "Sample.py"
+    java.write_text("public class Sample {}")
+    python.write_text("class Sample:\n    pass\n")
+    calls: list[list[str]] = []
+
+    def fake_popen(args: list[str]) -> None:
+        calls.append(args)
+
+    monkeypatch.setattr("j2py.cli.compare.subprocess.Popen", fake_popen)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["compare", str(java), "--editor", "code --wait"])
+
+    assert result.exit_code == 0
+    assert calls == [["code", "--wait", "--diff", str(java), str(python)]]
+
+
+def test_cli_compare_editor_preserves_windows_backslashes(monkeypatch) -> None:
+    monkeypatch.setattr(cli_compare.sys, "platform", "win32")
+
+    args = cli_compare._diff_args(
+        Path("Sample.java"),
+        Path("Sample.py"),
+        r'"C:\Program Files\Code\bin\code.cmd" --wait',
+    )
+
+    assert args == [
+        r"C:\Program Files\Code\bin\code.cmd",
+        "--wait",
+        "--diff",
+        "Sample.java",
+        "Sample.py",
+    ]
+
+
 def test_cli_watch_auto_discovery_ignores_python_config(
     tmp_path: Path,
     monkeypatch,
@@ -1401,6 +1531,26 @@ def test_cli_watch_auto_discovery_ignores_python_config(
 
     assert result.exit_code == 0
     assert observed_target_python == ["3.11"]
+
+
+def test_cli_watch_missing_source_exits_without_traceback(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "watch",
+            str(tmp_path / "Missing.java"),
+            "--output",
+            str(tmp_path / "Missing.py"),
+            "--no-llm",
+            "--no-validate",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "source path not found" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_watch_uses_configured_llm_defaults(
