@@ -53,3 +53,21 @@ def test_surface_report_counts_verified_and_untestable_buckets() -> None:
         char_utils["untestable_method_reasons"]["CharUtils.toChar(Character)"]
         == "char/Character overload dispatch currently erases to Python str"
     )
+
+
+def test_surface_report_removes_verified_methods_from_untestable_bucket() -> None:
+    report = build_report(
+        [
+            PassedMethod(
+                fixture="CharUtils.java",
+                signature="CharUtils.toChar(Character)",
+                nodeid="tests/equivalence/test_char_utils.py::test_to_char_character[A]",
+            ),
+        ]
+    )
+
+    char_utils = next(item for item in report["fixtures"] if item["fixture"] == "CharUtils.java")
+
+    assert char_utils["verified_methods"] == 1
+    assert char_utils["untestable_methods"] == 13
+    assert "CharUtils.toChar(Character)" not in char_utils["untestable_method_reasons"]

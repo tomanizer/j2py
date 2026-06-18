@@ -7,7 +7,7 @@
 
 Audit refresh performed against local `main` at **`589eadb`** on **2026-06-13** (final deterministic-rule-layer pass).
 
-Full write-up: [`docs/decisions/AUDIT-2026-06-13.md`](docs/decisions/AUDIT-2026-06-13.md)
+Full write-up: [`docs/decisions/AUDIT-2026-06-13.md`](../../docs/decisions/AUDIT-2026-06-13.md)
 
 Ongoing professional-quality work (P0–P3 buckets) is tracked in **#134**.
 

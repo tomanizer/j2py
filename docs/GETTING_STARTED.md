@@ -112,6 +112,21 @@ Regenerate the dashboard later from the output directory state:
 j2py dashboard translated_py --output dashboard.html
 ```
 
+For an additional non-mutating review pass, ask the configured LLM provider to audit the
+generated output and write machine-readable findings:
+
+```bash
+j2py translate src/main/java \
+  --output translated_py \
+  --no-llm \
+  --llm-review \
+  --llm-review-scope warnings \
+  --review-report j2py-review.json
+```
+
+LLM review findings do not repair output or change confidence; treat them as prompts for
+human review.
+
 ## 6. Review Side by Side
 
 Open a Java/Python diff in VS Code or Cursor:
@@ -146,6 +161,17 @@ pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... j2py translate SomeClass.java \
   --llm-provider gemini \
   --model gemini-3.5-flash
+```
+
+OpenAI-compatible endpoints require the optional OpenAI extra, an API key, and an
+endpoint-specific model ID:
+
+```bash
+pip install --pre "j2py-converter[openai]"
+OPENAI_API_KEY=... j2py translate SomeClass.java \
+  --llm-provider openai \
+  --llm-base-url https://openai-compatible.example/v1 \
+  --model provider-model-id
 ```
 
 ## 8. Measure Rule-Layer Breadth

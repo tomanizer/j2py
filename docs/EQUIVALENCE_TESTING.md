@@ -9,9 +9,10 @@ and focused `StringUtils` literal-oracle checks) plus a Guava-style
 criterion. The harness infrastructure lives in `tests/equivalence/harness.py`
 (translate → load → stub) and `tests/equivalence/comparator.py` (normalisation spec —
 float approximation, integer overflow semantics, exception mapping). Overloaded methods
-are explicitly excluded (same-arity Java `char`/`Character` overloads both erase to
-Python `str`, making dispatch ambiguous at the rule layer). `make test-equivalence`
-currently selects **1,650 equivalence tests**, all passing. Run alone with:
+that are now backed by deterministic dispatcher behavior are included in the public
+surface; any remaining skipped rows are explicit fixture-level exclusions. `make
+test-equivalence` currently selects **1,711 equivalence tests**, all passing, with six
+`NumberUtils.createNumber` edge cases skipped. Run alone with:
 
 ```bash
 make test-equivalence         # just the equivalence gate
@@ -163,6 +164,9 @@ math**.
 - ✅ Literal-oracle draft harvester (`scripts/harvest/harvest_equivalence_tests.py`),
   with `make harvest-equivalence`, for conservative upstream JUnit-to-pytest draft
   generation against declared static fixture methods
+- ✅ CharUtils overload coverage, NumberUtils min/max/isNumber, create-family methods,
+  BigDecimal conversions, and `createNumber` are now represented in the public-surface
+  floor. The current floor is **96/97 public signatures**.
 
 **Remaining:**
 - Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
@@ -225,7 +229,7 @@ committed under `tests/fixtures/equivalence/` as the Phase 1 harvester seed.
 
 Per library, per run:
 - **Equivalence-verified surface %** — public methods with ≥1 passing differential test ÷
-  testable public methods.
+  all public Java method signatures in the measured fixture.
 - **Untestable bucket** — count and reasons (reflection / threads / time / random / I/O).
 - **Inputs per verified method** — confidence grows with volume.
 - **Divergences** — the gold; each opens a bug ticket. Trend to zero.
@@ -267,25 +271,25 @@ Do not lower the floor in ordinary feature work. If the measured Java fixture su
 changes for a legitimate reason, call that out in the PR and keep the generated
 `equivalence-surface.json` artifact as evidence.
 
-Current snapshot:
+Current public-surface snapshot:
 
 By library:
 
 | Library | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
-| `commons-lang` | 39/95 | 41.1% | 39/81 (48.1%) | 14 |
+| `commons-lang` | 94/95 | 98.9% | 94/95 (98.9%) | 0 |
 | `guava` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| **Total** | 41/97 | 42.3% | 41/83 (49.4%) | 14 |
+| **Total** | 96/97 | 99.0% | 96/97 (99.0%) | 0 |
 
 By fixture:
 
 | Fixture | Verified / public | Public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
-| `CharUtils.java` | 9/23 | 39.1% | 9/9 (100.0%) | 14 |
+| `CharUtils.java` | 23/23 | 100.0% | 23/23 (100.0%) | 0 |
 | `GuavaPrecedenceMath.java` | 2/2 | 100.0% | 2/2 (100.0%) | 0 |
-| `NumberUtils.java` | 19/61 | 31.1% | 19/61 (31.1%) | 0 |
+| `NumberUtils.java` | 60/61 | 98.4% | 60/61 (98.4%) | 0 |
 | `StringUtils.java` | 11/11 | 100.0% | 11/11 (100.0%) | 0 |
-| **Total** | 41/97 | 42.3% | 41/83 (49.4%) | 14 |
+| **Total** | 96/97 | 99.0% | 96/97 (99.0%) | 0 |
 
 ## 10. Open questions
 

@@ -48,6 +48,16 @@ For optional live provider probes or harvest commands, use the dev environment b
 uv sync --locked --extra dev
 ```
 
+Fresh worktrees may need to build the project before the first `uv run`. If the local
+`uv` cache is cold, that build resolves backend dependencies such as `hatchling` from
+PyPI. In network-restricted environments, pre-warm the cache from the main checkout or
+run with an approved temporary cache:
+
+```bash
+uv sync --locked --extra dev --extra test --extra validate
+UV_CACHE_DIR=/private/tmp/j2py-uv-cache uv run --extra test python -c "import j2py"
+```
+
 ## JDK Requirements
 
 The normal rule-layer tests and `j2py doctor` do not need a JDK. A local JDK is required
@@ -131,6 +141,12 @@ Corpus check cannot find external source files
 
 Run `make corpus-clone-all` in the main checkout, then set `J2PY_CORPUS_ROOT` in the
 worktree before running dense checks.
+
+Fresh worktree benchmark run fails while fetching `hatchling`
+
+This is dependency bootstrap, not a corpus failure. Warm the `uv` cache from the main
+checkout with `uv sync --locked --extra dev --extra test --extra validate`, or rerun with
+an approved network-capable cache path such as `UV_CACHE_DIR=/private/tmp/j2py-uv-cache`.
 
 `watch` extra seems unused
 

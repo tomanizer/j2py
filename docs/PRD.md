@@ -16,11 +16,13 @@ the logic from scratch.
 
 ## Status
 
-**Beta pre-release** (`0.5.0b3` on PyPI as `j2py-converter`). The deterministic rule layer
+**Beta pre-release** (`0.6.0b1` on PyPI as `j2py-converter`, with additional
+post-release work on `main`). The deterministic rule layer
 achieves near-complete **node coverage** on pinned multi-library dense samples (see
 [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
-library scale is still early. Corpus coverage is a rule-layer breadth signal, not an
-enterprise framework-readiness claim; see [docs/POSITIONING.md](POSITIONING.md),
+library scale is still bounded to curated fixtures. Corpus coverage is a rule-layer
+breadth signal, not an enterprise framework-readiness claim; see
+[docs/POSITIONING.md](POSITIONING.md),
 [ADR 0014](decisions/0014-equivalence-differential-testing.md), and
 [docs/EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md).
 
@@ -89,7 +91,9 @@ supports incremental state (`--incremental`) and parallel workers.
 j2py translate <file|dir> [--output <path>] [--no-llm]
                          [--llm-provider <anthropic|gemini|openai>]
                          [--llm-base-url <url>] [--model <id>]
-                         [--incremental] [--json] [--dashboard <path>] [--report <path>]
+                         [--llm-review] [--llm-review-scope <scope>]
+                         [--review-report <path>] [--incremental] [--json]
+                         [--dashboard <path>] [--report <path>]
 j2py analyze  <file|dir>          # inventory classes, print dependency graph
 j2py compare  <file>              # side-by-side Java/Python review (VS Code or paths)
 j2py dashboard <output-root>      # regenerate a directory translation dashboard
@@ -118,7 +122,7 @@ Provide measurable quality signal without live LLM in normal CI:
 
 - **Graduated fixtures** — Java/Python pairs and graduated roadmap targets in `make check`
 - **Equivalence gate** — literal-oracle differential tests on harvested library code
-  (`tests/equivalence/`, Phase 1 active)
+  (`tests/equivalence/`, current floor **96/97 public signatures**)
 - **Behavior corpus** — JDK stdout/exit-code parity on curated programs
   (`make test-behavior`, separate CI workflow)
 - **Multi-library corpus baselines** — node-coverage scoreboards over Spring, Guava,
@@ -162,12 +166,12 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
 4. The `j2py analyze` command correctly identifies all classes, methods, and fields in a
    200-class project in under 10 seconds.
 5. `make check` passes (lint, strict mypy on `j2py/`, pytest excluding `behavior`,
-   `live_llm`, and future `target_translation` xfails) — currently **2,000+** tests
-   including graduated constructs, the
-   CharUtils and NumberUtils literal-oracle equivalence gates.
+   `live_llm`, and future `target_translation` xfails), including graduated constructs
+   and the CharUtils, NumberUtils, StringUtils, and GuavaPrecedenceMath literal-oracle
+   equivalence gates.
 6. Committed multi-library corpus baselines provide regression signal; CI gates every
    committed dense baseline (`spring-dense`, `guava-dense`, `commons-lang-dense`,
-   `jackson-dense`, and `caffeine-dense`) against baseline drift.
+   `spring-app-dense`, `jackson-dense`, and `caffeine-dense`) against baseline drift.
 7. Behavior and equivalence suites provide bounded runtime-correctness signal without
    requiring live LLM calls in normal CI.
 

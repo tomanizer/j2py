@@ -146,7 +146,7 @@ The import package and console script remain `j2py`; the `j2py` PyPI project nam
 already owned by an unrelated project.
 
 Releases are tagged `vX.Y.Z` on `main`; pre-releases use PEP 440 suffixes such as
-`v0.5.0b3`. Versioning follows [SemVer](https://semver.org/) for stable releases:
+`v0.6.0b1`. Versioning follows [SemVer](https://semver.org/) for stable releases:
 
 - `MAJOR` — breaking change to `translate_file()` API or output format
 - `MINOR` — new Java construct support, new CLI flag
