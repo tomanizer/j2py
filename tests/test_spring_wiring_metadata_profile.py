@@ -31,7 +31,7 @@ ALLOWED_ROUTE_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "REQUEST"}
 
 
 def _fixture() -> dict[str, Any]:
-    return json.loads(FIXTURE.read_text())
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
 def _spring(element: dict[str, Any]) -> dict[str, Any]:

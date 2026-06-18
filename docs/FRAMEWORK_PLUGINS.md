@@ -290,7 +290,7 @@ class SpringMigrationPlugin(FrameworkPlugin):
                 "spring": {
                     "profile_version": 1,
                     "role": "controller",
-                    "component_name": ctx.py_name[0].lower() + ctx.py_name[1:],
+                    "component_name": ctx.py_name[:1].lower() + ctx.py_name[1:],
                     "router_prefix": prefix,
                 },
             },
