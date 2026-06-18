@@ -256,6 +256,89 @@ def test_qualifier_without_autowired_does_not_claim_field() -> None:
     assert "# @Qualifier" in result.source
 
 
+def test_jdbc_bean_methods_emit_topology_metadata_and_boundary_warning() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface Bean {
+            String value() default "";
+        }
+
+        interface DataSource {}
+        interface JdbcTemplate {}
+        interface Environment {}
+
+        class DataSourceBuilder {
+            static DataSourceBuilder create() { return new DataSourceBuilder(); }
+            DataSourceBuilder url(String url) { return this; }
+            DataSourceBuilder username(String username) { return this; }
+            DataSource build() { return null; }
+        }
+
+        public class JdbcConfig {
+            private Environment env;
+
+            @Bean
+            public DataSource dataSource() {
+                return DataSourceBuilder.create()
+                    .url(env.getProperty("app.datasource.url"))
+                    .username(env.getProperty("app.datasource.username"))
+                    .build();
+            }
+
+            @Bean("jdbcTemplate")
+            public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+                return new JdbcTemplate(dataSource);
+            }
+        }
+        """,
+        cfg=_spring_cfg(),
+    )
+
+    metadata = {
+        (record.kind, record.java_name): record.metadata["spring"]["jdbc_bean"]
+        for record in result.diagnostics.framework_metadata
+        if "jdbc_bean" in record.metadata["spring"]
+    }
+
+    data_source = metadata[("method", "dataSource")]
+    assert data_source["name"] == "dataSource"
+    assert data_source["python_name"] == "data_source"
+    assert data_source["java_type"] == "DataSource"
+    assert data_source["python_type"] == "DataSource"
+    assert data_source["source_location"]["line"] > 0
+    assert data_source["dependencies"] == []
+    assert {prop["target"]: prop["key"] for prop in data_source["properties"]} == {
+        "url": "app.datasource.url",
+        "username": "app.datasource.username",
+    }
+    assert any(call["name"] == "build" for call in data_source["method_calls"])
+
+    jdbc_template = metadata[("method", "jdbcTemplate")]
+    assert jdbc_template["name"] == "jdbcTemplate"
+    assert jdbc_template["python_name"] == "jdbc_template"
+    assert jdbc_template["dependencies"] == [
+        {
+            "name": "data_source",
+            "java_name": "dataSource",
+            "type": "DataSource",
+            "java_type": "DataSource",
+            "source": "parameter",
+        },
+    ]
+    assert jdbc_template["constructor_args"] == [
+        {
+            "type": "JdbcTemplate",
+            "arguments": [{"kind": "identifier", "value": "data_source"}],
+        },
+    ]
+    assert any(
+        warning.category == "spring-jdbc-boundary"
+        and "database runtime wiring remains project-owned" in warning.reason
+        for warning in result.diagnostics.warnings
+    )
+    assert "# @Bean" in result.source
+
+
 def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> None:
     fixture = FIXTURES / "java" / "SpringWiringController.java"
     output = tmp_path / "spring_wiring_controller.py"
@@ -293,3 +376,43 @@ def test_spring_wiring_plugin_writes_real_sidecar_payload(tmp_path: Path) -> Non
     assert route_elements["createOwner"]["request_body"]["python_type"] == "OwnerForm"
     assert route_elements["updateOwner"]["request_body"]["name"] == "form"
     assert route_elements["deleteOwner"]["http_method"] == "DELETE"
+
+
+def test_spring_jdbc_configuration_writes_real_sidecar_payload(tmp_path: Path) -> None:
+    fixture = FIXTURES / "java" / "SpringJdbcConfiguration.java"
+    output = tmp_path / "spring_jdbc_configuration.py"
+    result = translate_file(fixture, cfg=_spring_cfg(), use_llm=False, validate=False)
+    result.output_path = output
+
+    sidecar = pipeline.write_wiring_metadata_sidecar(result)
+
+    assert sidecar == output.with_suffix(".wiring.json")
+    assert sidecar is not None
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    elements = payload["elements"]
+    class_element = next(element for element in elements if element["kind"] == "class")
+    assert class_element["metadata"]["spring"]["role"] == "configuration"
+
+    jdbc_beans = {
+        element["java_name"]: element["metadata"]["spring"]["jdbc_bean"]
+        for element in elements
+        if "jdbc_bean" in element["metadata"]["spring"]
+    }
+    assert set(jdbc_beans) == {
+        "dataSource",
+        "jdbcTemplate",
+        "namedParameterJdbcTemplate",
+        "transactionManager",
+    }
+    assert jdbc_beans["dataSource"]["python_name"] == "data_source"
+    assert {prop["target"]: prop["key"] for prop in jdbc_beans["dataSource"]["properties"]} == {
+        "url": "app.datasource.url",
+        "username": "app.datasource.username",
+        "driver": "app.datasource.driver-class-name",
+    }
+    assert jdbc_beans["jdbcTemplate"]["dependencies"][0]["name"] == "data_source"
+    assert jdbc_beans["namedParameterJdbcTemplate"]["dependencies"][0]["type"] == "JdbcTemplate"
+    assert jdbc_beans["transactionManager"]["constructor_args"][0]["type"] == (
+        "DataSourceTransactionManager"
+    )
+    assert all(bean["source_location"]["line"] > 0 for bean in jdbc_beans.values())
