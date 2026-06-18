@@ -5,8 +5,8 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
-from j2py.translate.expr_types import _java_type_of_value
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import java_type_of_value
 from j2py.translate.name_resolution import NameScope, scope_from_context
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
@@ -240,7 +240,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
 
     if type_node.type == "floating_point_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
-        src = _java_type_of_value(value_node, ctx)
+        src = java_type_of_value(value_node, ctx)
         if src in {"char", "Character"}:
             return f"float(ord({value_expr}))"
         return f"float({value_expr})"
@@ -248,7 +248,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
     if type_node.type == "integral_type":
         ctx.diagnostics.record(node, supported=True, reason="translated numeric cast")
         type_text = type_node.text
-        src = _java_type_of_value(value_node, ctx)
+        src = java_type_of_value(value_node, ctx)
         is_char_src = src in {"char", "Character"}
         base = f"ord({value_expr})" if is_char_src else f"int({value_expr})"
         if type_text == "char":

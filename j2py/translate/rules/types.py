@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from j2py.config.loader import TranslationConfig
+from j2py.translate.java_types import java_type_simple_name
 
 
 def translate_type(java_type: str, cfg: TranslationConfig) -> str:
@@ -222,15 +223,6 @@ NULL_PASS_THROUGH_METHOD_NAMES: frozenset[str] = frozenset(
 def type_simple_name(py_type: str) -> str:
     """Return the unqualified base name from a translated type hint."""
     base = py_type.split("[", 1)[0].strip()
-    return base.rsplit(".", 1)[-1]
-
-
-def java_type_simple_name(java_type: str) -> str:
-    """Return the unqualified base name from a Java type string."""
-    base = java_type.strip()
-    if "<" in base:
-        base = base.split("<", 1)[0]
-    base = base.rstrip("[]")
     return base.rsplit(".", 1)[-1]
 
 

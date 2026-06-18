@@ -5,6 +5,7 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.java_types import jdk_static_integral_field_type
 from j2py.translate.node_utils import first_child_by_type, ternary_expression_operands
 from j2py.translate.rules.types import (
     LIST_RETURNING_METHOD_NAMES,
@@ -22,40 +23,6 @@ from j2py.translate.rules.types import (
 
 def _expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
     return infer_expression_py_type(node, ctx)
-
-
-def _java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
-    """Return the Java type string for simple identifier/field expressions, or None."""
-    if node.type == "identifier":
-        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
-    if node.type == "field_access" and len(node.named_children) == 2:
-        obj, field = node.named_children
-        if obj.type == "this":
-            return ctx.class_field_java_types.get(field.text)
-    return None
-
-
-def _is_integral_java_type(java_type: str | None) -> bool:
-    if java_type is None:
-        return False
-    simple = java_type.strip()
-    if "<" in simple:
-        simple = simple.split("<", 1)[0]
-    if "." in simple:
-        simple = simple.rsplit(".", 1)[-1]
-    simple = simple.rstrip("[]")
-    return simple in {
-        "Byte",
-        "Character",
-        "Integer",
-        "Long",
-        "Short",
-        "byte",
-        "char",
-        "int",
-        "long",
-        "short",
-    }
 
 
 def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | None:
@@ -128,7 +95,7 @@ def _field_access_py_type(node: JavaNode, ctx: TranslationContext) -> str | None
     if field_name == "length":
         return "int"
 
-    if _jdk_static_integral_field_type(object_node.text, field_name) is not None:
+    if jdk_static_integral_field_type(object_node.text, field_name) is not None:
         return "int"
 
     if object_node.type == "this":
@@ -233,21 +200,6 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
-    return None
-
-
-def _jdk_static_integral_field_type(raw_receiver: str, field_name: str) -> str | None:
-    receiver = type_simple_name(raw_receiver)
-    if receiver not in {
-        "Byte",
-        "Short",
-        "Integer",
-        "Long",
-        "Character",
-    }:
-        return None
-    if field_name in {"SIZE", "BYTES", "MIN_VALUE", "MAX_VALUE"}:
-        return "int"
     return None
 
 

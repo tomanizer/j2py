@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.expr_types import (
-    _expression_py_type,
-    _is_integral_java_type,
-    _java_type_of_value,
-)
+from j2py.translate.expr_types import _expression_py_type
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import (
+    is_integral_java_type,
+    java_expression_type,
+    java_integral_width,
+    java_type_of_value,
+    java_type_simple_name,
+)
 from j2py.translate.node_utils import (
     first_child_by_type,
     ternary_expression_operands,
@@ -49,7 +52,7 @@ def _desugar_embedded_assign(node: JavaNode, ctx: TranslationContext) -> str:
     # Compound operator or attribute/subscript LHS: hoist.
     if operator == "=":
         ctx.hoisted_pre_stmts.append(f"{left} = {right}")
-    elif operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
+    elif operator == "/=" and is_integral_java_type(java_type_of_value(left_node, ctx)):
         ctx.diagnostics.imports.need_idiv()
         ctx.hoisted_pre_stmts.append(f"{left} = _j2py_idiv({left}, {right})")
     else:
@@ -136,7 +139,7 @@ def _translate_assignment_expression(node: JavaNode, ctx: TranslationContext) ->
             return f"__j2py_todo__({node.text!r})"
         if operator == ">>>=":
             return _translate_unsigned_right_shift_assign(node, left_node, right_node, ctx)
-        if operator == "/=" and _is_integral_java_type(_java_type_of_value(left_node, ctx)):
+        if operator == "/=" and is_integral_java_type(java_type_of_value(left_node, ctx)):
             left = translate_expression(left_node, ctx)
             right = translate_expression(right_node, ctx)
             ctx.diagnostics.imports.need_idiv()
@@ -664,7 +667,7 @@ def _translate_unsigned_right_shift(
     ctx: TranslationContext,
     left: str | None = None,
 ) -> str:
-    width = _java_integral_width(left_node, ctx)
+    width = java_integral_width(left_node, ctx)
     if width is None:
         width = 32
         ctx.diagnostics.warn(
@@ -688,7 +691,7 @@ def _translate_unsigned_right_shift_assign(
     right_node: JavaNode,
     ctx: TranslationContext,
 ) -> str:
-    width = _java_integral_width(left_node, ctx)
+    width = java_integral_width(left_node, ctx)
     if width is None:
         width = 32
         ctx.diagnostics.warn(
@@ -729,88 +732,9 @@ def _translate_unsigned_right_shift_assign(
     return f"{left} = ({left} & {mask}) >> {_masked_shift_distance(right, width)}"
 
 
-def _java_integral_width(node: JavaNode, ctx: TranslationContext) -> int | None:
-    java_type = _java_expression_type(node, ctx)
-    if java_type is None:
-        return None
-    return _java_type_width(java_type)
-
-
-def _java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
-    if node.type == "identifier":
-        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
-    if node.type == "field_access":
-        return _field_access_java_type(node, ctx)
-    if node.type == "array_access" and node.named_children:
-        array_java_type = _java_expression_type(node.named_children[0], ctx)
-        if array_java_type is None:
-            return None
-        return _java_type_strip_one_array_dimension(array_java_type)
-    if node.type == "parenthesized_expression" and len(node.named_children) == 1:
-        return _java_expression_type(node.named_children[0], ctx)
-    if node.type == "cast_expression" and node.named_children:
-        return node.named_children[0].text
-    return None
-
-
-def _java_type_strip_one_array_dimension(java_type: str) -> str | None:
-    stripped = java_type.strip()
-    if stripped.endswith("[]"):
-        return stripped[:-2].strip()
-    return None
-
-
 def _masked_shift_distance(right: str, width: int) -> str:
     distance_mask = "0x3F" if width == 64 else "0x1F"
     return f"({right} & {distance_mask})"
-
-
-def _field_access_java_type(node: JavaNode, ctx: TranslationContext) -> str | None:
-    children = node.named_children
-    if len(children) != 2:
-        return None
-    target_node, field_name_node = children
-    field_name = field_name_node.text
-    if target_node.type == "this":
-        return ctx.class_field_java_types.get(field_name)
-
-    object_java_type = _java_expression_type(target_node, ctx)
-    if object_java_type is None:
-        return None
-
-    simple = _java_type_simple_name(object_java_type)
-    type_fields = ctx.declared_type_java_fields.get(simple)
-    if type_fields is None:
-        for type_name, fields in ctx.declared_type_java_fields.items():
-            if simple == type_name or object_java_type.endswith(f".{type_name}"):
-                type_fields = fields
-                break
-    if type_fields is None:
-        return None
-    return type_fields.get(field_name)
-
-
-def _java_type_simple_name(java_type: str) -> str:
-    simple = java_type.strip()
-    if "<" in simple:
-        simple = simple.split("<", 1)[0]
-    if "." in simple:
-        simple = simple.rsplit(".", 1)[-1]
-    return simple.rstrip("[]")
-
-
-def _java_type_width(java_type: str) -> int | None:
-    simple = java_type.strip()
-    if "<" in simple:
-        simple = simple.split("<", 1)[0]
-    if "." in simple:
-        simple = simple.rsplit(".", 1)[-1]
-    simple = simple.rstrip("[]")
-    if simple in {"long", "Long"}:
-        return 64
-    if simple in {"byte", "short", "int", "char", "Byte", "Short", "Integer", "Character"}:
-        return 32
-    return None
 
 
 def _translate_division(
@@ -857,10 +781,10 @@ def _is_char_operand(node: JavaNode, ctx: TranslationContext) -> bool:
         node = node.named_children[0]
     if node.type == "character_literal":
         return True
-    java_type = _java_expression_type(node, ctx)
+    java_type = java_expression_type(node, ctx)
     if java_type is None:
         return False
-    return _java_type_simple_name(java_type) in _CHAR_JAVA_TYPES
+    return java_type_simple_name(java_type) in _CHAR_JAVA_TYPES
 
 
 def _translate_char_arithmetic(

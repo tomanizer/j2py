@@ -6,6 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import java_type_of_value
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     _receiver_simple_name,
@@ -228,7 +229,6 @@ def _translate_get_invocation(
         _expression_py_type,
         _is_list_type,
         _is_this_receiver,
-        _java_type_of_value,
     )
 
     if len(arg_expressions) != 1:
@@ -255,7 +255,7 @@ def _translate_get_invocation(
     if receiver_type is not None and is_indexed_predicate_get_receiver_type(receiver_type):
         return f"{receiver}.get({args})"
     if receiver_nodes:
-        java_receiver_type = _java_type_of_value(receiver_nodes[0], ctx)
+        java_receiver_type = java_type_of_value(receiver_nodes[0], ctx)
         if java_receiver_type is not None and is_indexed_predicate_get_receiver_java_type(
             java_receiver_type,
         ):
