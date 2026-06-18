@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_methods import method_body, parameter_infos
@@ -9,6 +11,7 @@ from j2py.translate.class_model import ParameterInfo
 from j2py.translate.overload_guards import (
     _dispatch_guard_for_parameter,
     _DispatchGuard,
+    _member_dispatch_key,
 )
 from j2py.translate.overload_signatures import _erased_overload_signature
 
@@ -77,7 +80,26 @@ def _member_body_equivalence_key(member: JavaNode, cfg: TranslationConfig) -> st
     if form is not None:
         return _COMPARISON_BODY_KEY
     body = method_body(member)
-    return body.text.strip() if body is not None else ""
+    if body is None:
+        return ""
+    return _normalised_body_text(member, cfg, body)
+
+
+def _member_body_preference_score(member: JavaNode, cfg: TranslationConfig) -> tuple[int, int]:
+    """Prefer representatives whose body needs the least Java-only normalisation."""
+    body = method_body(member)
+    if body is None:
+        return (0, 0)
+    text = body.text
+    params = parameter_infos(member, cfg)
+    raw_names = [re.escape(param.raw_name) for param in params]
+    unboxing = sum(
+        len(re.findall(rf"\b{name}\s*\.\s*{method}\s*\(", text))
+        for name in raw_names
+        for method in _BOXED_UNBOXING_METHODS
+    )
+    casts = sum(len(re.findall(rf"\([^()]+\)\s*{name}\b", text)) for name in raw_names)
+    return (unboxing + casts, len(text))
 
 
 def _arity_guard_signature(
@@ -106,18 +128,20 @@ def _collapse_equivalent_arity_guard_members(
     if any(member.type != "method_declaration" for member in members):
         return None
 
-    groups: dict[tuple[int, tuple[str | None, ...]], list[JavaNode]] = {}
+    groups: dict[tuple[object, ...], list[JavaNode]] = {}
     for member in members:
         params = parameter_infos(member, cfg)
-        if any(param.is_spread for param in params):
-            return None
         guards: list[_DispatchGuard] = []
         for param in params:
             guard = _dispatch_guard_for_parameter(param)
             if guard is None:
                 return None
             guards.append(guard)
-        key = _arity_guard_signature(params, guards)
+        key = (
+            _member_dispatch_key(params, guards)
+            if any(param.is_spread for param in params)
+            else _arity_guard_signature(params, guards)
+        )
         groups.setdefault(key, []).append(member)
 
     reduced: list[JavaNode] = []
@@ -125,6 +149,8 @@ def _collapse_equivalent_arity_guard_members(
         if len(group_members) == 1:
             reduced.append(group_members[0])
             continue
+        if all(_comparison_body_form(member, cfg) is not None for member in group_members):
+            return None
         body_keys = {_member_body_equivalence_key(member, cfg) for member in group_members}
         if len(body_keys) != 1:
             return None
@@ -136,6 +162,57 @@ def _collapse_equivalent_arity_guard_members(
 
 
 _COMPARISON_BODY_KEY = "<two-param-int-comparison>"
+_BOXED_UNBOXING_METHODS = frozenset(
+    {
+        "booleanValue",
+        "byteValue",
+        "shortValue",
+        "intValue",
+        "longValue",
+        "floatValue",
+        "doubleValue",
+        "charValue",
+    },
+)
+_FLOATING_FAMILY_TYPES = frozenset({"float", "double", "Float", "Double"})
+
+
+def _normalised_body_text(
+    member: JavaNode,
+    cfg: TranslationConfig,
+    body: JavaNode,
+) -> str:
+    text = body.text.strip()
+    for param in parameter_infos(member, cfg):
+        name = re.escape(param.raw_name)
+        for method in _BOXED_UNBOXING_METHODS:
+            text = re.sub(rf"\b{name}\s*\.\s*{method}\s*\(\s*\)", param.raw_name, text)
+    if _is_floating_family_member(member, cfg):
+        text = re.sub(r"\b(?:Float|Double)\b", "FloatDouble", text)
+        text = re.sub(r"\b(?:float|double)\b", "floatdouble", text)
+    return _normalise_whitespace(text)
+
+
+def _is_floating_family_member(member: JavaNode, cfg: TranslationConfig) -> bool:
+    type_names = [_base_java_type(param.java_type) for param in parameter_infos(member, cfg)]
+    return_type_node = member.child_by_field("type")
+    if return_type_node is not None:
+        type_names.append(_base_java_type(return_type_node.text))
+    floating = [name for name in type_names if name in _FLOATING_FAMILY_TYPES]
+    return bool(floating) and all(name in _FLOATING_FAMILY_TYPES for name in type_names if name)
+
+
+def _base_java_type(java_type: str) -> str:
+    text = java_type.strip()
+    while text.endswith("[]"):
+        text = text[:-2].strip()
+    if text.endswith("..."):
+        text = text[:-3].strip()
+    return text.split("<", 1)[0].strip()
+
+
+def _normalise_whitespace(text: str) -> str:
+    return re.sub(r"\s+", " ", text)
 
 
 def _comparison_body_form(member: JavaNode, cfg: TranslationConfig) -> str | None:

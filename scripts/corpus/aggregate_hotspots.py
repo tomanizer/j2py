@@ -14,7 +14,8 @@ file counts are deduplicated per cluster/file, not per unhandled reason.
 Example::
 
     uv run python scripts/corpus/aggregate_hotspots.py
-    uv run python scripts/corpus/aggregate_hotspots.py --top 12 --json-out corpus-reports/hotspots.json
+    uv run python scripts/corpus/aggregate_hotspots.py \
+        --top 12 --json-out corpus-reports/hotspots.json
 """
 
 from __future__ import annotations
@@ -36,11 +37,20 @@ PARSE_FAILURE_CLUSTER = "parse failure"
 
 CLUSTER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("unknown static import", re.compile(r"^unknown static import ")),
-    ("overloaded method dispatch", re.compile(r"^overloaded method .+ requires manual dispatch$")),
-    ("ambiguous get invocation", re.compile(r"^ambiguous get invocation requires receiver collection type$")),
+    (
+        "overloaded method dispatch",
+        re.compile(r"^overloaded method .+ requires manual dispatch(?: \[.*\])?$"),
+    ),
+    (
+        "ambiguous get invocation",
+        re.compile(r"^ambiguous get invocation requires receiver collection type$"),
+    ),
     ("equals unexpected args", re.compile(r"^equals invocation with unexpected argument count$")),
     ("anonymous class scope", re.compile(r"^anonymous class requires local helper scope$")),
-    ("enum constant class body", re.compile(r"^enum constant class body requires manual translation$")),
+    (
+        "enum constant class body",
+        re.compile(r"^enum constant class body requires manual translation$"),
+    ),
     ("unsupported assert", re.compile(r"^unsupported statement assert_statement$")),
     ("unsupported statement", re.compile(r"^unsupported statement ")),
 )
@@ -48,8 +58,12 @@ CLUSTER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 ISSUE_TITLES: dict[str, str] = {
     SYNTAX_OUTPUT_CLUSTER: "P0: Fix invalid Python output (comment-only blocks, wildcard types, …)",
     PARSE_FAILURE_CLUSTER: "Investigate corpus parse failures",
-    "unknown static import": "Rule layer: resolve common static imports (Preconditions, Objects.requireNonNull, …)",
-    "overloaded method dispatch": "Rule layer: broaden deterministic overload dispatch (ADR 0009 tier-1 patterns)",
+    "unknown static import": (
+        "Rule layer: resolve common static imports (Preconditions, Objects.requireNonNull, …)"
+    ),
+    "overloaded method dispatch": (
+        "Rule layer: broaden deterministic overload dispatch (ADR 0009 tier-1 patterns)"
+    ),
     "ambiguous get invocation": "Expressions: disambiguate `.get()` by receiver collection type",
     "enum constant class body": "Classes: translate enum constant class bodies",
     "unsupported assert": "Statements: translate Java assert statements",
@@ -176,7 +190,10 @@ def _add_output_quality_clusters(
     file_metric: dict[str, Any],
 ) -> None:
     if not file_metric.get("parse_ok"):
-        stats = clusters.setdefault(PARSE_FAILURE_CLUSTER, ClusterStats(cluster=PARSE_FAILURE_CLUSTER))
+        stats = clusters.setdefault(
+            PARSE_FAILURE_CLUSTER,
+            ClusterStats(cluster=PARSE_FAILURE_CLUSTER),
+        )
         stats.total_count += 1
         stats.corpora.add(preset)
         stats.file_hits += 1
@@ -280,7 +297,12 @@ def build_report(baseline_dir: Path) -> HotspotReport:
 
     ranked_clusters = sorted(
         clusters.values(),
-        key=lambda item: (-item.priority_score, -item.total_count, -len(item.corpora), item.cluster),
+        key=lambda item: (
+            -item.priority_score,
+            -item.total_count,
+            -len(item.corpora),
+            item.cluster,
+        ),
     )
     return HotspotReport(
         corpus_summaries=corpus_summaries,
@@ -369,7 +391,10 @@ def print_report(report: HotspotReport, *, top: int) -> None:
                 f"unhandled={exemplar.unhandled_count}  size={exemplar.construct_size}  {status}",
             )
 
-    static = next((item for item in report.clusters if item.cluster == "unknown static import"), None)
+    static = next(
+        (item for item in report.clusters if item.cluster == "unknown static import"),
+        None,
+    )
     if static is not None:
         print("\n" + "=" * 72)
         print("STATIC IMPORT SUB-BREAKDOWN")
