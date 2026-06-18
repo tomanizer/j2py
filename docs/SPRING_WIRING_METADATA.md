@@ -324,6 +324,15 @@ This metadata records trustworthy bean topology only. It does not create a SQLAl
 engine, open a database connection, emulate JDBC, or decide driver/runtime behavior.
 `j2py-wire` or project-owned migration tooling owns those runtime choices.
 
+The translator may still lower simple `JdbcTemplate` and `NamedParameterJdbcTemplate`
+repository calls to SQLAlchemy Core scaffolding when the call shape is reviewable. Those
+methods intentionally reference placeholders such as `self.jdbc_template_connection` and
+`self.named_jdbc_template_connection`; the wiring metadata above is the evidence a
+downstream generator or manual port uses to replace those placeholders with a real
+SQLAlchemy `Connection` or `Session` policy. See the
+[Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md#6-spring-jdbc-datasource--jdbctemplate)
+for the supported `update`, `queryForObject`, `query`, RowMapper, and manual-port cases.
+
 ## Fixture
 
 The representative profile fixture lives at
