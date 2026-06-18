@@ -40,6 +40,7 @@ from j2py.translate.class_members import (
     merge_class_static_method_indexes,
     nested_type_names_using_qualified_this,
     node_key,
+    raw_member_name,
     static_instance_collision_static_aliases,
     static_instance_collision_zero_arg_names,
     type_metadata_comment_lines,
@@ -136,6 +137,11 @@ def translate_class(
         ]
 
     fields = _class_fields(node, cfg)
+    promote_to_pydantic = (
+        name_node.text in env.pydantic_model_class_names
+        or class_name in env.pydantic_model_class_names
+        or should_promote_to_pydantic_model(node, fields)
+    )
     instance_field_names = _instance_field_names(fields)
     class_field_types = {
         **env.inherited_class_field_types,
@@ -168,6 +174,8 @@ def translate_class(
             if child.type in {"constructor_declaration", "method_declaration"}
         ]
     )
+    if promote_to_pydantic:
+        members = _pydantic_model_members(members, fields, cfg, diagnostics)
     class_method_names = member_method_names(members, cfg)
     class_static_method_names = member_static_method_names(members, cfg)
     merged_static_methods = merge_class_static_method_indexes(
@@ -249,8 +257,14 @@ def translate_class(
         resolve_field(field, cfg, diagnostics, indent="    " if field.is_static else "        ")
         for field in fields
     ]
-    injected_init_params = _annotation_init_params(fields, field_transforms)
-    promote_to_pydantic = should_promote_to_pydantic_model(node, fields)
+    injected_init_params = (
+        []
+        if promote_to_pydantic
+        else _annotation_init_params(
+            fields,
+            field_transforms,
+        )
+    )
     if promote_to_pydantic:
         diagnostics.imports.need_line("from pydantic import BaseModel")
     lines: list[str] = []
@@ -449,6 +463,59 @@ def translate_class(
     return lines
 
 
+def _pydantic_model_members(
+    members: list[JavaNode],
+    fields: list[FieldInfo],
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+) -> list[JavaNode]:
+    field_names = {field.name for field in fields if not field.is_static}
+    emitted: list[JavaNode] = []
+    for member in members:
+        if member.type == "constructor_declaration":
+            diagnostics.record(
+                member,
+                supported=True,
+                reason="suppressed Pydantic model constructor",
+            )
+            continue
+        if _is_pydantic_accessor(member, field_names, cfg):
+            diagnostics.record(
+                member,
+                supported=True,
+                reason="suppressed Pydantic model accessor method",
+            )
+            continue
+        emitted.append(member)
+    return emitted
+
+
+def _is_pydantic_accessor(
+    member: JavaNode,
+    field_names: set[str],
+    cfg: TranslationConfig,
+) -> bool:
+    if member.type != "method_declaration":
+        return False
+    name = raw_member_name(member)
+    params = parameter_infos(member, cfg)
+    if name.startswith("get") and len(params) == 0:
+        return _accessor_field_name(name.removeprefix("get")) in field_names
+    if name.startswith("is") and len(params) == 0:
+        return _accessor_field_name(name.removeprefix("is")) in field_names
+    if name.startswith("set") and len(params) == 1:
+        return _accessor_field_name(name.removeprefix("set")) in field_names
+    return False
+
+
+def _accessor_field_name(suffix: str) -> str:
+    if not suffix:
+        return ""
+    if len(suffix) > 1 and suffix[1].isupper():
+        return suffix
+    return suffix[:1].lower() + suffix[1:]
+
+
 _LEGACY_ENV_KEYS = frozenset(
     {
         "inherited_class_field_types",
@@ -468,6 +535,7 @@ _LEGACY_ENV_KEYS = frozenset(
         "module_class_static_methods",
         "module_class_static_instance_aliases",
         "module_class_declarations",
+        "pydantic_model_class_names",
         "enclosing_static_dispatch",
         "interface_type_var_maps",
     },

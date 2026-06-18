@@ -244,6 +244,95 @@ def test_spring_annotation_map_preset_fixture_lowers_rest_controller_get_mapping
     assert_module_executes(result.source)
 
 
+def test_request_body_pojo_promotes_to_pydantic_model_fixture() -> None:
+    parsed = parse_file(FIXTURES / "java" / "RequestBodyPydanticModel.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.source == (FIXTURES / "python" / "RequestBodyPydanticModel.py").read_text()
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "__init__" not in result.source
+    assert "def get_first_name" not in result.source
+    assert "def set_first_name" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_generic_request_body_parameter_promotes_contained_model() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import org.springframework.web.bind.annotation.PostMapping;
+        import org.springframework.web.bind.annotation.RequestBody;
+
+        class OwnerController {
+            @PostMapping("/owners")
+            public void createOwners(@RequestBody List<OwnerRequest> forms) {}
+        }
+
+        class OwnerRequest {
+            private String firstName;
+
+            public String getFirstName() { return firstName; }
+        }
+        """,
+    )
+
+    assert "from pydantic import BaseModel" in result.source
+    assert "forms: list[OwnerRequest]" in result.source
+    assert "class OwnerRequest(BaseModel):" in result.source
+    assert "first_name: str | None = None" in result.source
+    assert "def get_first_name" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_mapping_return_type_promotes_response_body_model() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import org.springframework.http.ResponseEntity;
+        import org.springframework.web.bind.annotation.GetMapping;
+
+        class OwnerController {
+            @GetMapping("/owners/1")
+            public ResponseEntity<OwnerResponse> getOwner() {
+                return null;
+            }
+        }
+
+        class OwnerResponse {
+            private String firstName;
+
+            public String getFirstName() { return firstName; }
+        }
+        """,
+    )
+
+    assert "from pydantic import BaseModel" in result.source
+    assert "def get_owner(self) -> ResponseEntity[OwnerResponse]:" in result.source
+    assert "class OwnerResponse(BaseModel):" in result.source
+    assert "first_name: str | None = None" in result.source
+    assert "def get_first_name" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_jackson_model_annotation_promotes_to_pydantic_model() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+        @JsonSerialize
+        class OwnerJson {
+            private String firstName;
+        }
+        """,
+    )
+
+    assert "from pydantic import BaseModel" in result.source
+    assert "# @JsonSerialize" in result.source
+    assert "class OwnerJson(BaseModel):" in result.source
+    assert "first_name: str | None = None" in result.source
+    assert_valid_python(result.source)
+
+
 def test_spring_annotation_map_preset_lowers_parameter_and_status_annotations(
     tmp_path: Path,
 ) -> None:
