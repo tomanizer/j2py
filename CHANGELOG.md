@@ -23,6 +23,9 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   wrapping only the literal in `ord()` (which silently compared `str` to `int`, always
   False). Fixes `NumberUtils.isParsable` trailing-dot handling and lands it on the
   equivalence-verified surface (33/97 → 34/97).
+- `String.substring(start)` and `String.substring(start, end)` now lower to Python
+  slices `s[start:]` and `s[start:end]` respectively, unblocking `StringUtils.strip`
+  translation. Lands `StringUtils.strip` on the equivalence-verified surface (34/97 → 35/97).
 
 ## 0.5.0b3 - 2026-06-17
 

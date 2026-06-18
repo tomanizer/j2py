@@ -150,13 +150,7 @@ def test_trim_equivalence(string_utils) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "rule layer emits Java String charAt/substring helpers as str.char_at/substring; "
-        "plain Python strings diverge"
-    ),
-)
+@surface(JAVA_CLASS, "StringUtils.strip(String)")
 def test_strip_equivalence(string_utils) -> None:
     # StringUtilsTrimStripTest.java:34-37
     strip = string_utils.strip

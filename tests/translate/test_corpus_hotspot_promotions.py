@@ -52,9 +52,7 @@ GRADUATED_HOTSPOTS = (
         fixture="CorpusMalformedTernaryProbe.java",
         source="Jackson InetSocketAddressSerializer.java",
         hotspot="malformed ternary expression",
-        expected_fragments=(
-            'str_ = f"[{str_.substring(1)}]" if isinstance(addr, object) else str_.substring(1)',
-        ),
+        expected_fragments=('str_ = f"[{str_[1:]}]" if isinstance(addr, object) else str_[1:]',),
         forbidden_fragments=("malformed ternary expression", "__j2py_todo__"),
     ),
 )

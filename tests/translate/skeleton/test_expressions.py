@@ -1187,6 +1187,23 @@ def test_char_at_compared_to_char_literal_is_str_comparison() -> None:
     assert_valid_python(python_source)
 
 
+def test_substring_lowers_to_slice() -> None:
+    """String.substring(start) → s[start:] and substring(start, end) → s[start:end]."""
+    python_source, coverage = translate_source("""
+    public class Slices {
+        public String tail(String text, int start) { return text.substring(start); }
+        public String mid(String text, int start, int end) { return text.substring(start, end); }
+        public String head(String text) { return text.substring(0, 3); }
+    }
+    """)
+    assert coverage == 1.0
+    assert "return text[start:]" in python_source
+    assert "return text[start:end]" in python_source
+    assert "return text[0:3]" in python_source
+    assert "substring" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_map_get_preserves_missing_key_semantics() -> None:
     python_source, coverage = translate_source(
         """
