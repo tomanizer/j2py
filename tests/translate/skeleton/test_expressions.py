@@ -502,6 +502,23 @@ def test_static_standard_library_mapping_cases(body: str, expected: str) -> None
     assert_valid_python(result.source)
 
 
+def test_character_char_value_lowers_to_python_str_identity() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Characters {
+            public char unwrap(Character ch) {
+                return ch.charValue();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return ch" in result.source
+    assert ".char_value()" not in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [
@@ -1223,6 +1240,24 @@ def test_char_at_compared_to_char_literal_is_str_comparison() -> None:
     assert coverage == 1.0
     assert 'text[len(text) - 1] == "."' in python_source
     assert "ord(" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_char_array_access_with_char_index_uses_ord_index() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Chars {
+            private static final char[] HEX = {'0', '1', '2', '3'};
+
+            public char nibble(char ch) {
+                return HEX[ch & 3];
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return Chars.HEX[ord(ch) & 3]" in python_source
     assert_valid_python(python_source)
 
 

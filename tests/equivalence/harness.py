@@ -232,7 +232,7 @@ def install_java_lang_stubs() -> list[str]:
     installed += install_stub_class(
         f"{lang3}.Validate",
         "Validate",
-        types.SimpleNamespace(is_true=lambda *_: None),
+        types.SimpleNamespace(is_true=lambda *_: None, not_empty=lambda value, *_: value),
     )
     installed += install_stub_class(
         "java.lang.reflect.Array",

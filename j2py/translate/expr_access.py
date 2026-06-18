@@ -6,7 +6,11 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expressions import translate_expression
-from j2py.translate.java_types import java_type_of_value
+from j2py.translate.java_types import (
+    java_expression_type,
+    java_type_of_value,
+    java_type_simple_name,
+)
 from j2py.translate.member_resolution import (
     static_import_field_fallback,
     wildcard_static_import_binding,
@@ -108,6 +112,13 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
         index_expr = _desugar_embedded_assign(index_inner, ctx)
     else:
         index_expr = translate_expression(children[1], ctx)
+    index_type = java_expression_type(index_inner, ctx)
+    if (
+        index_type is not None
+        and java_type_simple_name(index_type) in {"char", "Character"}
+        and not index_expr.startswith("ord(")
+    ):
+        index_expr = f"ord({index_expr})"
     return f"{array_expr}[{index_expr}]"
 
 

@@ -56,6 +56,23 @@ def test_value_dispatch_widens_int_arguments_to_float_overload() -> None:
     assert namespace["NumericDispatch"]().run() == "float"  # type: ignore[index,operator]
 
 
+def test_value_dispatch_routes_null_to_reference_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class NullableDispatch {
+            public String pick(int value) { return "int"; }
+            public String pick(String value) { return value; }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if len(args) == 1 and (args[0] is None or isinstance(args[0], str))" in python_source
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    assert namespace["NullableDispatch"]().pick(None) is None  # type: ignore[index,operator]
+
+
 def test_static_value_dispatch_widens_int_arguments_to_float_overload() -> None:
     python_source, coverage = translate_source(
         """
@@ -1504,6 +1521,33 @@ def test_char_utils_three_way_overloads_keep_review_stubs_with_value_dispatch() 
     char_utils = namespace["CharUtils"]
     assert char_utils.to_int_value("a") == "a"  # type: ignore[attr-defined]
     assert char_utils.to_int_value("b", 9) == 9  # type: ignore[attr-defined]
+
+
+def test_nullable_character_wrapper_overloads_collapse_to_value_dispatch() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CharUtils {
+            public static String toString(char ch) {
+                return String.valueOf(ch);
+            }
+
+            public static String toString(Character ch) {
+                return ch != null ? toString(ch.charValue()) : null;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def to_string(*args: object)" in result.source
+    assert "requires manual dispatch" not in result.source
+    assert "NotImplementedError" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<char>", "exec"), namespace)
+    char_utils = namespace["CharUtils"]
+    assert char_utils.to_string("A") == "A"  # type: ignore[attr-defined]
+    assert char_utils.to_string(None) is None  # type: ignore[attr-defined]
 
 
 def test_static_instance_collision_zero_arg_static_call_skips_renamed_static() -> None:
