@@ -101,6 +101,55 @@ def test_bean_validation_entity_is_not_promoted_to_pydantic_model() -> None:
     assert_valid_python(result.source)
 
 
+def test_jpa_entity_default_nullable_column_uses_optional_annotation() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Owner {
+            @Column
+            private String nickname;
+        }
+        """,
+    )
+
+    assert "nickname: Mapped[str | None] = mapped_column(String)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_jpa_relationship_join_column_infers_external_target() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Pet {
+            @ManyToOne
+            @JoinColumn(name = "owner_id")
+            private Owner owner;
+        }
+        """,
+    )
+
+    assert 'owner_id: Mapped[int] = mapped_column(ForeignKey("owner.id"))' in result.source
+    assert "owner: Mapped[Owner] = relationship()" in result.source
+    assert "Mapped[list[Owner]]" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_jpa_relationship_cascade_constants_map_to_sqlalchemy_names() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Owner {
+            @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE}, mappedBy = "owner")
+            private List<Pet> pets;
+        }
+        """,
+    )
+
+    assert 'relationship(back_populates="owner", cascade="save-update, delete")' in result.source
+    assert "pets: Mapped[list[Pet]]" in result.source
+    assert_valid_python(result.source)
+
+
 def test_bean_validation_subclass_is_not_promoted_to_pydantic_model() -> None:
     result = translate_source_with_diagnostics(
         """

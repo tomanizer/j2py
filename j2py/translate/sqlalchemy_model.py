@@ -28,6 +28,14 @@ _JOIN_COLUMN_ANNOTATIONS = frozenset({"JoinColumn"})
 _RELATIONSHIP_ANNOTATIONS = frozenset({"ManyToMany", "ManyToOne", "OneToMany", "OneToOne"})
 _TO_MANY_ANNOTATIONS = frozenset({"ManyToMany", "OneToMany"})
 _TYPE_NAME_TOKEN_RE = re.compile(r"\b\w+\b")
+_CASCADE_MAP = {
+    "all": "all",
+    "persist": "save-update",
+    "merge": "merge",
+    "remove": "delete",
+    "refresh": "refresh-expire",
+    "detach": "expunge",
+}
 
 
 def collect_sqlalchemy_entity_table_names(
@@ -104,7 +112,10 @@ def _column_field_lines(field: FieldInfo, diagnostics: TranslationDiagnostics) -
     if nullable is not None:
         kwargs.append(f"nullable={nullable}")
 
-    annotation = _mapped_annotation(field, nullable=nullable is True)
+    is_nullable = nullable is True or (
+        nullable is None and not _has_annotation(field.node, _ID_ANNOTATIONS)
+    )
+    annotation = _mapped_annotation(field, nullable=is_nullable)
     call_args = [*args, *kwargs]
     expression = f"mapped_column({', '.join(call_args)})" if call_args else "mapped_column()"
     return [f"    {_sqlalchemy_field_name(field)}: Mapped[{annotation}] = {expression}"]
@@ -124,6 +135,8 @@ def _relationship_field_lines(
 
     lines: list[str] = []
     target = _relationship_target(field, entity_table_names)
+    if target is None:
+        target = _relationship_type_name(field)
     join_column = _annotation_values(field.node, _JOIN_COLUMN_ANNOTATIONS)
     if target is not None and join_column:
         diagnostics.imports.need_line("from sqlalchemy import ForeignKey")
@@ -146,10 +159,10 @@ def _relationship_field_lines(
 
 
 def _relationship_annotation_text(field: FieldInfo, target: str | None) -> str:
-    target_text = target if target else field.py_type
     if _is_to_many_relationship(field):
+        target_text = target or element_type_from_container(field.py_type) or field.py_type
         return f"list[{target_text}]"
-    return target_text
+    return target if target else field.py_type
 
 
 def _relationship_args(field: FieldInfo) -> list[str]:
@@ -171,6 +184,14 @@ def _relationship_target(field: FieldInfo, entity_table_names: dict[str, str]) -
         return sorted(names)[0]
     simple = java_type_simple_name(field.java_type)
     return simple if simple in entity_table_names else None
+
+
+def _relationship_type_name(field: FieldInfo) -> str | None:
+    element = element_type_from_container(field.py_type)
+    if element:
+        return element
+    simple = java_type_simple_name(field.java_type)
+    return simple if simple else None
 
 
 def _is_to_many_relationship(field: FieldInfo) -> bool:
@@ -259,10 +280,15 @@ def _bool_value(value: str | None) -> bool | None:
 def _cascade_value(value: str | None) -> str | None:
     if value is None:
         return None
-    values = [part.rsplit(".", 1)[-1].strip().lower() for part in value.split(",")]
+    values = [_CASCADE_MAP[part] for part in _cascade_parts(value) if part in _CASCADE_MAP]
     if "all" in values:
         return "all"
-    return ", ".join(value for value in values if value) or None
+    unique_values = list(dict.fromkeys(values))
+    return ", ".join(unique_values) or None
+
+
+def _cascade_parts(value: str) -> list[str]:
+    return [part.rsplit(".", 1)[-1].strip().lower() for part in value.split(",")]
 
 
 def _quote(value: str) -> str:

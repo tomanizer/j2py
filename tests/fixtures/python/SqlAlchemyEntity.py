@@ -12,7 +12,7 @@ class Person:
     pass
 
 
-class Owner(Base):
+class Owner(Person, Base):
     __tablename__ = "owners"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

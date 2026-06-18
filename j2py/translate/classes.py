@@ -279,15 +279,14 @@ def translate_class(
     if promote_to_pydantic:
         extra_bases.append("BaseModel")
     if promote_to_sqlalchemy:
-        class_bases = "(Base)"
-    else:
-        class_bases = base_suffix(
-            node,
-            diagnostics,
-            resolver=resolver,
-            scope=base_scope,
-            extra_bases=extra_bases,
-        )
+        extra_bases.append("Base")
+    class_bases = base_suffix(
+        node,
+        diagnostics,
+        resolver=resolver,
+        scope=base_scope,
+        extra_bases=extra_bases,
+    )
     lines.append(f"class {class_name}{class_bases}:")
     if env.docstring_lines:
         lines.extend(env.docstring_lines)
