@@ -80,20 +80,26 @@ Consult ADRs for full context. Do not reverse these without a new ADR:
 
 ## Development workflow
 
-Before creating a branch or worktree, update the main checkout from the repo root:
+Before creating a branch or worktree, use the repo command from the main checkout:
 
 ```bash
-git fetch --prune origin
-git switch main
-git pull --ff-only origin main
+make agent-worktree AGENT=codex SLUG=short-task-name ISSUE=123
 ```
 
-If `main` has local modifications, stop and resolve them before pulling. New worktrees
-should be based on `origin/main`, not stale local history:
+This command verifies `main` is clean, fetches/prunes `origin`, fast-forwards `main`,
+creates a worktree from `origin/main`, and locks it with a reason. Persistent agent
+worktrees live under `../j2py.worktrees/<agent>/<slug>`; temporary PR publishing
+worktrees may use `/private/tmp/...`.
+
+If `main` has local modifications, stop and evacuate them before continuing:
 
 ```bash
-git worktree add ../j2py-task -b branch/name origin/main
+make agent-evacuate AGENT=claude SLUG=short-task-name
 ```
+
+Use `make agent-clean` to report clean/dirty worktrees, locked active worktrees,
+gone-upstream branches, and remote branches with no open PR. It only deletes local
+worktrees/branches when they are clean, unlocked, and already merged to `origin/main`.
 
 ```bash
 uv run pytest               # run tests
