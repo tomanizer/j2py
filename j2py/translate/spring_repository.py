@@ -58,7 +58,8 @@ def translate_spring_data_repository_interface(
 
     diagnostics.imports.need_line("from sqlalchemy import func")
     diagnostics.imports.need_line("from sqlalchemy import select")
-    diagnostics.imports.need_line("from sqlalchemy.orm import Session")
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_line("from sqlalchemy.orm import Session")
 
     name_node = node.child_by_field("name")
     class_name = translate_class_name(name_node.text if name_node is not None else "Unknown")
@@ -72,7 +73,6 @@ def translate_spring_data_repository_interface(
     lines = [f"class {class_name}:"]
     if env.docstring_lines:
         lines.extend(env.docstring_lines)
-    if env.docstring_lines:
         lines.append("")
     lines.extend(_constructor_lines(cfg))
 
@@ -108,7 +108,7 @@ def spring_data_repository_info(
             continue
         type_args = _generic_type_arguments(generic_type)
         if not type_args:
-            return None
+            continue
         entity_type = translate_type(type_args[0].text, cfg)
         id_type = translate_type(type_args[1].text, cfg) if len(type_args) > 1 else "object"
         return SpringDataRepositoryInfo(
@@ -142,9 +142,10 @@ def _query_stub_lines(
     )
     params = parameter_infos(method, cfg, diagnostics)
     method_return_type = return_type(method, cfg)
-    diagnostics.imports.need_type_annotation(method_return_type)
-    for param in params:
-        diagnostics.imports.need_type_annotation(param.py_type)
+    if cfg.emit_type_hints:
+        diagnostics.imports.need_type_annotation(method_return_type)
+        for param in params:
+            diagnostics.imports.need_type_annotation(param.py_type)
 
     raw_name = _method_name(method)
     py_name = translate_method_name(raw_name, snake_case=cfg.snake_case_methods)

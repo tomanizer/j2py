@@ -101,6 +101,40 @@ def test_spring_data_repository_lowers_to_session_backed_class() -> None:
     assert_valid_python(result.source)
 
 
+def test_spring_data_repository_respects_disabled_type_hints() -> None:
+    cfg = CFG.model_copy(update={"emit_type_hints": False})
+    parsed = parse_file(FIXTURES / "java" / "SpringDataRepository.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), cfg)
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from sqlalchemy import func, select" in result.source
+    assert "from sqlalchemy.orm import Session" not in result.source
+    assert "def __init__(self, session):" in result.source
+    assert "def find_by_last_name(self, last_name):" in result.source
+    assert "def find_by_id(self, id):" in result.source
+    assert " -> " not in result.source
+    assert_valid_python(result.source)
+
+
+def test_spring_data_repository_skips_malformed_generic_base() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class Owner {}
+
+        interface OwnerRepository extends Repository<>, JpaRepository<Owner, Integer> {
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "class OwnerRepository:" in result.source
+    assert "class OwnerRepository(Protocol):" not in result.source
+    assert "def find_by_id(self, id: int) -> Owner | None:" in result.source
+    assert_valid_python(result.source)
+
+
 def test_bean_validation_entity_is_not_promoted_to_pydantic_model() -> None:
     result = translate_source_with_diagnostics(
         """
