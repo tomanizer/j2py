@@ -412,6 +412,9 @@ Spring applications, JDBC access is configured through beans:
 ```java
 @Configuration
 public class JdbcConfig {
+    @Autowired
+    private Environment env;
+
     @Bean
     DataSource dataSource() {
         return DataSourceBuilder.create()
