@@ -88,6 +88,29 @@ def test_java_type_shape_keeps_numeric_widths_visible_despite_python_erasure() -
     assert signature == ("numeric:int->int", "numeric:long->int")
 
 
+def test_java_type_shape_classifies_configured_dict_collection_as_map() -> None:
+    cfg = CFG.model_copy(update={"collection_map": {**CFG.collection_map, "Attributes": "dict"}})
+
+    shape = java_type_shape("Attributes<String, String>", cfg)
+
+    assert shape.category == "map"
+
+
+def test_java_type_shape_classifies_configured_non_dict_collection() -> None:
+    cfg = CFG.model_copy(update={"collection_map": {**CFG.collection_map, "VectorList": "list"}})
+
+    shape = java_type_shape("VectorList<String>", cfg)
+
+    assert shape.category == "collection"
+    assert shape.python_erasure == "list"
+
+
+def test_java_type_shape_classifies_map_suffix_as_map() -> None:
+    shape = java_type_shape("ImmutableMultimap<String, Integer>", CFG)
+
+    assert shape.category == "map"
+
+
 def test_configured_member_binding_uses_project_member_map() -> None:
     cfg = CFG.model_copy(
         update={

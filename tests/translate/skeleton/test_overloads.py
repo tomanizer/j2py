@@ -304,6 +304,44 @@ def test_declared_numeric_width_call_sites_use_body_backed_overload_helpers() ->
     assert_valid_python(result.source)
 
 
+def test_declared_instance_numeric_width_call_site_uses_self_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runLong() {
+                long value = 1L;
+                return pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return self._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_declared_instance_numeric_width_receiver_call_uses_receiver_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public int pick(int value) { return value; }
+            public int pick(long value) { return 1; }
+
+            public int runLong() {
+                long value = 1L;
+                return this.pick(value);
+            }
+        }
+        """,
+    )
+
+    assert "return self._j2py_overload_pick_2(value)" in result.source
+    assert_valid_python(result.source)
+
+
 def test_casted_numeric_width_call_site_uses_cast_shape_only_for_expression() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -319,6 +357,30 @@ def test_casted_numeric_width_call_site_uses_cast_shape_only_for_expression() ->
     )
 
     assert "return Widths._j2py_overload_pick_2(int(value))  # cast: (long)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_numeric_width_call_site_with_no_matching_shape_stays_manual() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Widths {
+            public static int pick(int value) { return value; }
+            public static int pick(long value) { return 1; }
+
+            public static int runString() {
+                return pick("x");
+            }
+        }
+        """,
+    )
+
+    assert 'return Widths.pick("x")' in result.source
+    assert any(
+        warning.category == "overload_erasure_collision"
+        and warning.facts["method"] == "pick"
+        and "string:String->str" in warning.facts["java_shapes"]
+        for warning in result.diagnostics.warnings
+    )
     assert_valid_python(result.source)
 
 
