@@ -405,6 +405,36 @@ def _translate_trim_call(
     return None
 
 
+def _translate_to_char_array_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if not args:
+        return f"list({receiver})"
+    return None
+
+
+def _translate_index_of_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if args and not raw_receiver.split(".")[-1][:1].isupper():
+        return f"{receiver}.find({args})"
+    return None
+
+
 def _translate_to_lower_case_call(
     node: JavaNode,
     receiver: str,
@@ -606,12 +636,14 @@ _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "equals": _translate_equals_call,
     "equalsIgnoreCase": _translate_equals_ignore_case_call,
     "hashCode": _translate_hash_code_call,
+    "indexOf": _translate_index_of_call,
     "isEmpty": _translate_is_empty_call,
     "length": _translate_len_call,
     "size": _translate_len_call,
     "startsWith": _translate_starts_with_call,
     "substring": _translate_substring_call,
     "toArray": _translate_to_array_call,
+    "toCharArray": _translate_to_char_array_call,
     "toLowerCase": _translate_to_lower_case_call,
     "toString": _translate_to_string_call,
     "toUpperCase": _translate_to_upper_case_call,

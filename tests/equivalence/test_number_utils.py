@@ -315,3 +315,52 @@ def test_is_parsable_equivalence(number_utils_source: str) -> None:
     assert NumberUtils.is_parsable("-018") is True
     assert NumberUtils.is_parsable("-018.2") is True
     assert NumberUtils.is_parsable("-.236") is True
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.isDigits(String)")
+def test_is_digits_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_isDigits")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+    # from NumberUtilsTest.java lines 888-893
+    assert NumberUtils.is_digits(None) is False
+    assert NumberUtils.is_digits("") is False
+    assert NumberUtils.is_digits("12345") is True
+    assert NumberUtils.is_digits("1234.5") is False
+    assert NumberUtils.is_digits("1ab") is False
+    assert NumberUtils.is_digits("abc") is False
+
+
+@pytest.mark.equivalence
+@surface(JAVA_CLASS, "NumberUtils.isCreatable(String)")
+def test_is_creatable_equivalence(number_utils_source: str) -> None:
+    mod = load_translated_module(number_utils_source, "_NumberUtils_isCreatable")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+    # from NumberUtilsTest.java lines 822-884 (literal-only subset)
+    assert NumberUtils.is_creatable("12345") is True
+    assert NumberUtils.is_creatable("1234.5") is True
+    assert NumberUtils.is_creatable(".12345") is True
+    assert NumberUtils.is_creatable("1234E5") is True
+    assert NumberUtils.is_creatable("1234E+5") is True
+    assert NumberUtils.is_creatable("1234E-5") is True
+    assert NumberUtils.is_creatable("-1234") is True
+    assert NumberUtils.is_creatable("0") is True
+    assert NumberUtils.is_creatable("-0xABC123") is True
+    assert NumberUtils.is_creatable("22338L") is True
+    assert NumberUtils.is_creatable("2.") is True
+    assert NumberUtils.is_creatable("+0xF") is True
+    assert NumberUtils.is_creatable(".0") is True
+    assert NumberUtils.is_creatable("0.") is True
+    assert NumberUtils.is_creatable("0e1") is True
+    assert NumberUtils.is_creatable(None) is False
+    assert NumberUtils.is_creatable("") is False
+    assert NumberUtils.is_creatable(" ") is False
+    assert NumberUtils.is_creatable("--2.3") is False
+    assert NumberUtils.is_creatable(".12.3") is False
+    assert NumberUtils.is_creatable("-123E") is False
+    assert NumberUtils.is_creatable("0xGF") is False
+    assert NumberUtils.is_creatable(".") is False
+    assert NumberUtils.is_creatable("11a") is False
+    assert NumberUtils.is_creatable("1.1L") is False
+    assert NumberUtils.is_creatable(".D") is False
+    assert NumberUtils.is_creatable(".e10") is False
