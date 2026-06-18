@@ -334,6 +334,12 @@ def test_create_number_equivalence(
     else:
         assert_equivalent(expected, actual)
 
+
+@pytest.mark.equivalence
+def test_create_number_invalid_equivalence(number_utils_source: str) -> None:
+    mod = _load_number_utils_with_big_decimal(number_utils_source, "_NumberUtils_createNumber")
+    NumberUtils = mod.NumberUtils  # type: ignore[attr-defined]
+
     for invalid in ["", " "]:
         with assert_raises_mapped("NumberFormatException"):
             NumberUtils.create_number(invalid)
