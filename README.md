@@ -97,7 +97,9 @@ The PyPI distribution is **`j2py-converter`**; the import package and CLI comman
 
 For a full user walkthrough, start with [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 For install variants and troubleshooting, see [docs/INSTALL.md](docs/INSTALL.md). For
-command details, see [docs/CLI.md](docs/CLI.md).
+the 0.7.0 release story and current known limits, see
+[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md). For command details, see
+[docs/CLI.md](docs/CLI.md).
 
 Local development:
 
@@ -290,9 +292,10 @@ Material translation policy changes should get an ADR under `docs/decisions/`.
 
 `j2py-converter` is published as a beta package. Expect incomplete construct
 coverage, diagnostics for unsupported regions, known multi-file import limitations,
-and manual review on production-scale codebases. See [docs/RELEASING.md](docs/RELEASING.md)
-for the release checklist and [CHANGELOG.md](CHANGELOG.md) for known limitations in
-the latest release plus current Unreleased notes.
+and manual review on production-scale codebases. See
+[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md) for the current release-note
+draft, [docs/RELEASING.md](docs/RELEASING.md) for the release checklist, and
+[CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
