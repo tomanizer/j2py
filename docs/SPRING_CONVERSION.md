@@ -253,6 +253,201 @@ The generated router modules include:
 The generated `get_session()` placeholder is deliberately not a production session
 factory. Replace or override it in your application.
 
+## Spring JDBC Conversion
+
+Spring JDBC conversion has two separate outputs:
+
+1. `SpringWiringPlugin` records `@Configuration` / `@Bean` JDBC topology in
+   `*.wiring.json` sidecars.
+2. The rule layer lowers supported `JdbcTemplate` and `NamedParameterJdbcTemplate`
+   repository calls to SQLAlchemy Core scaffolding.
+
+Neither output creates a database runtime. j2py does not build an engine, open a
+connection, manage sessions, choose transaction boundaries, run migrations, or load
+credentials. Your project supplies that policy after reviewing the translated code and
+sidecars.
+
+### JDBC bean sidecars
+
+Given a compact configuration like:
+
+```java
+@Configuration
+public class SpringJdbcConfiguration {
+    private Environment env;
+
+    @Bean
+    public DataSource dataSource() {
+        return DataSourceBuilder.create()
+            .url(env.getProperty("app.datasource.url"))
+            .username(env.getProperty("app.datasource.username"))
+            .driverClassName(env.getProperty("app.datasource.driver-class-name"))
+            .build();
+    }
+
+    @Bean("jdbcTemplate")
+    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
+    @Bean
+    public NamedParameterJdbcTemplate namedParameterJdbcTemplate(
+            JdbcTemplate jdbcTemplate) {
+        return new NamedParameterJdbcTemplate(jdbcTemplate);
+    }
+}
+```
+
+The sidecar stores method elements with `metadata.spring.jdbc_bean` facts such as:
+
+```json
+{
+  "name": "jdbcTemplate",
+  "java_name": "jdbcTemplate",
+  "python_name": "jdbc_template",
+  "java_type": "JdbcTemplate",
+  "python_type": "JdbcTemplate",
+  "source_location": {"line": 51, "column": 4, "end_line": 54, "end_column": 5},
+  "dependencies": [
+    {
+      "name": "data_source",
+      "java_name": "dataSource",
+      "type": "DataSource",
+      "java_type": "DataSource",
+      "source": "parameter"
+    }
+  ],
+  "constructor_args": [
+    {
+      "type": "JdbcTemplate",
+      "arguments": [{"kind": "identifier", "value": "data_source"}]
+    }
+  ],
+  "method_calls": [],
+  "properties": []
+}
+```
+
+For `DataSourceBuilder` beans, `properties` records visible datasource property keys:
+
+```json
+[
+  {"target": "url", "key": "app.datasource.url"},
+  {"target": "username", "key": "app.datasource.username"},
+  {"target": "driver", "key": "app.datasource.driver-class-name"}
+]
+```
+
+Use those facts as reviewable evidence for a downstream generator or manual port. They do
+not by themselves decide whether the Python app uses `Engine`, `Connection`, `Session`,
+`async_sessionmaker`, `mssql+pyodbc`, SQLite, or another project-owned database facade.
+
+### SQLAlchemy scaffolding
+
+For supported repository calls, translated methods reference explicit connection
+placeholders:
+
+```java
+return jdbcTemplate.update(
+    "update owners set first_name = ? where id = ?",
+    firstName,
+    id);
+```
+
+```python
+return self.jdbc_template_connection.execute(
+    text('update owners set first_name = :p1 where id = :p2'),
+    {'p1': first_name, 'p2': id_},
+).rowcount
+```
+
+Named-parameter templates keep the Java parameter map:
+
+```java
+return namedJdbcTemplate.queryForObject(
+    "select name from owners where id = :id",
+    params,
+    String.class);
+```
+
+```python
+return self.named_jdbc_template_connection.execute(
+    text('select name from owners where id = :id'),
+    params,
+).scalar_one()
+```
+
+Supported RowMapper shapes lower to SQLAlchemy row mappings:
+
+```java
+return jdbcTemplate.query(
+    "select id, first_name, last_name from owners",
+    (rs, rowNum) -> new Owner(
+        rs.getLong("id"),
+        rs.getString("first_name"),
+        rs.getString("last_name")));
+```
+
+```python
+return [
+    Owner(row['id'], row['first_name'], row['last_name'])
+    for row in self.jdbc_template_connection.execute(
+        text('select id, first_name, last_name from owners')
+    ).mappings()
+]
+```
+
+`queryForObject(...)` with a supported mapper uses `.mappings().one()` and applies the
+mapper expression to that row. `BeanPropertyRowMapper.newInstance(Owner.class)` and
+`new BeanPropertyRowMapper<>(Owner.class)` lower to `Owner(**dict(row))`.
+
+Unsupported mapper and callback shapes stay explicit:
+
+```java
+return jdbcTemplate.queryForObject(
+    "select id, first_name, last_name from owners where id = ?",
+    this::mapOwner,
+    id);
+```
+
+```python
+return __j2py_todo__(
+    'TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping'
+)
+```
+
+Manual work remains for method-reference mappers, multi-statement `mapRow` bodies,
+dynamic column lookup, `ResultSetExtractor`, generated keys, batch updates, stored
+procedures, dialect-specific result behavior, null policy, transaction policy, and
+application startup.
+
+### Verify a JDBC slice
+
+Use the same Spring config as the broader conversion path, then inspect both the generated
+Python and sidecar:
+
+```bash
+j2py translate src/main/java \
+  --config j2py_config.py \
+  --output translated_py \
+  --no-llm
+
+j2py-wire list translated_py
+```
+
+For local fixture checks, these commands exercise the documented JDBC surfaces:
+
+```bash
+uv run --extra test pytest \
+  tests/translate/test_jdbc_sqlalchemy_calls.py \
+  tests/translate/test_jdbc_row_mapper.py \
+  tests/translate/skeleton/test_spring_wiring_plugin.py -q
+```
+
+`j2py-wire validate` can still validate generated FastAPI wiring, route handlers,
+providers, imports, and session-factory placeholders. It does not prove that JDBC bean
+metadata has been converted into a production database runtime.
+
 ## Validate Generated Wiring
 
 Run validation after generation:

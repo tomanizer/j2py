@@ -482,6 +482,37 @@ receiver names are placeholders that make the expected dependency explicit:
 | `jdbcTemplate.query(sql, rowMapper)` | `[... for row in self.jdbc_template_connection.execute(text(sql)).mappings()]` |
 | `namedJdbcTemplate.queryForObject(sql, params, rowMapper)` | `(lambda row: ...)(self.named_jdbc_template_connection.execute(text(sql), params).mappings().one())` |
 
+These examples are backed by the fixture
+[`JdbcTemplateSqlAlchemyScaffold.java`](../../tests/fixtures/java/JdbcTemplateSqlAlchemyScaffold.java):
+
+```java
+return jdbcTemplate.update(
+        "update owners set first_name = ? where id = ?",
+        firstName,
+        id);
+```
+
+```python
+return self.jdbc_template_connection.execute(
+    text('update owners set first_name = :p1 where id = :p2'),
+    {'p1': first_name, 'p2': id_},
+).rowcount
+```
+
+```java
+return namedJdbcTemplate.queryForObject(
+        "select name from owners where id = :id",
+        params,
+        String.class);
+```
+
+```python
+return self.named_jdbc_template_connection.execute(
+    text('select name from owners where id = :id'),
+    params,
+).scalar_one()
+```
+
 Supported row-mapping forms are intentionally simple:
 
 - Lambda mappers whose body is a single expression, for example
@@ -493,6 +524,40 @@ Supported row-mapping forms are intentionally simple:
 - Common `ResultSet` getters with string-literal column names:
   `getString`, `getInt`, `getLong`, `getBoolean`, `getBigDecimal`, `getDate`, and
   `getTimestamp`, rendered as `row["column"]`.
+
+The fixture [`JdbcRowMapperScaffold.java`](../../tests/fixtures/java/JdbcRowMapperScaffold.java)
+shows the current RowMapper boundary:
+
+```java
+return jdbcTemplate.query(
+        "select id, first_name, last_name from owners",
+        (rs, rowNum) -> new Owner(
+                rs.getLong("id"),
+                rs.getString("first_name"),
+                rs.getString("last_name")));
+```
+
+```python
+return [
+    Owner(row['id'], row['first_name'], row['last_name'])
+    for row in self.jdbc_template_connection.execute(
+        text('select id, first_name, last_name from owners')
+    ).mappings()
+]
+```
+
+```java
+return jdbcTemplate.queryForObject(
+        "select id, first_name, last_name from owners where id = ?",
+        this::mapOwner,
+        id);
+```
+
+```python
+return __j2py_todo__(
+    'TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping'
+)
+```
 
 Unsupported mapper and callback shapes stay explicit. Method references, dynamic column
 lookups, multi-statement `mapRow` bodies, `ResultSetExtractor`, generated keys, batch
@@ -532,6 +597,15 @@ Run translation with that trusted project config, then inspect both outputs:
 The generated repository placeholders deliberately stay reviewable instead of runnable:
 `self.jdbc_template_connection` or `self.named_jdbc_template_connection` is a signal to
 wire an equivalent SQLAlchemy dependency from the bean metadata.
+
+For a focused local verification pass, run:
+
+```bash
+uv run --extra test pytest \
+  tests/translate/test_jdbc_sqlalchemy_calls.py \
+  tests/translate/test_jdbc_row_mapper.py \
+  tests/translate/skeleton/test_spring_wiring_plugin.py -q
+```
 
 ### Manual port required
 

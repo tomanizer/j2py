@@ -226,6 +226,11 @@ Validation exits `0` for no findings, `1` for warnings only, and `2` for errors.
 `missing-session-factory` warning is expected until the generated `get_session()` stub is
 replaced or overridden by project application code.
 
+For Spring JDBC migrations, validation still checks generated FastAPI wiring, imports,
+providers, route handlers, and session placeholders. It does not convert
+`jdbc_bean` sidecar metadata into a production SQLAlchemy engine/session lifecycle; that
+runtime policy remains project-owned.
+
 For the Spring-specific workflow, see [Spring conversion](SPRING_CONVERSION.md).
 
 ## Config Discovery
