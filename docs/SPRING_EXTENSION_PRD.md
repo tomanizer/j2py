@@ -78,6 +78,7 @@ rather than duplicate them:
   framework plugin architecture.
 - #409 - framework sidecar cleanup behavior.
 - [Framework plugin guide](FRAMEWORK_PLUGINS.md), [configuration docs](configuration.md),
+  [Spring roadmap guardrails](SPRING_ROADMAP_GUARDRAILS.md),
   [Spring wiring metadata profile](SPRING_WIRING_METADATA.md), and
   [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md).
 
@@ -158,4 +159,6 @@ Unacceptable locations are:
 - mandatory runtime dependencies for the core translator.
 
 See [ADR 0024](decisions/0024-spring-extension-boundary.md) for the architecture decision
-that formalizes this boundary.
+that formalizes this boundary. See
+[SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) for the implementation
+checklist that future Spring roadmap PRs must use.

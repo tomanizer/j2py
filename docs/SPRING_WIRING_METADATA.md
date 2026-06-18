@@ -3,7 +3,8 @@
 This document defines the v1 Spring wiring metadata profile for optional Spring
 conversion. The profile is a contract for Spring-aware framework plugins and downstream
 tools such as `j2py-wire`; it is not a new sidecar format and it is not FastAPI
-generation.
+generation. Implementers should apply the
+[Spring roadmap guardrails](SPRING_ROADMAP_GUARDRAILS.md) before changing this profile.
 
 ## Boundary
 

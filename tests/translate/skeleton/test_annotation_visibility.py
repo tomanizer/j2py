@@ -83,6 +83,40 @@ def test_framework_class_and_field_annotations_emit_comments_and_warnings() -> N
     assert_valid_python(result.source)
 
 
+def test_default_translation_does_not_enable_spring_profile_or_wiring() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @interface RestController {}
+        @interface GetMapping {
+            String value();
+        }
+
+        @RestController
+        public class Orders {
+            @GetMapping("/orders")
+            public String listOrders() {
+                return "ok";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "# @RestController" in result.source
+    assert "# @GetMapping" in result.source
+    assert "from j2py_runtime import" not in result.source
+    assert "@rest_controller" not in result.source
+    assert "@get_mapping" not in result.source
+    assert "APIRouter" not in result.source
+    assert "Depends" not in result.source
+    assert result.diagnostics.framework_metadata == []
+    assert [warning.reason for warning in result.diagnostics.warnings] == [
+        "stripped framework annotation @RestController on class Orders",
+        "stripped framework annotation @GetMapping on method list_orders",
+    ]
+    assert_valid_python(result.source)
+
+
 def test_emit_line_comments_false_suppresses_annotation_comments() -> None:
     cfg = CFG.model_copy(update={"emit_line_comments": False})
     result = translate_source_with_diagnostics(
