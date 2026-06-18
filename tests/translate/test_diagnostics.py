@@ -1,6 +1,7 @@
 """Tests for translation diagnostics metrics."""
 
 from j2py.translate.diagnostics import TranslationDiagnostic, TranslationDiagnostics
+from tests.translate.skeleton.helpers import translate_source_with_diagnostics
 
 
 def test_semantic_warnings_do_not_reduce_coverage() -> None:
@@ -16,3 +17,34 @@ def test_semantic_warnings_do_not_reduce_coverage() -> None:
     assert diagnostics.coverage == 1.0
     assert diagnostics.rule_coverage == 1.0
     assert diagnostics.semantic_warning_count == 1
+
+
+def test_translation_diagnostic_exposes_structured_category_and_facts() -> None:
+    diagnostic = TranslationDiagnostic(
+        "method_invocation",
+        3,
+        "values.get(key)",
+        "ambiguous get invocation requires receiver collection type",
+        category="missing_receiver_type",
+        facts={"receiver": "values"},
+    )
+
+    assert diagnostic.structured["category"] == "missing_receiver_type"
+    assert diagnostic.structured["facts"] == {"receiver": "values"}
+
+
+def test_missing_receiver_type_diagnostic_has_structured_category() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class Ambiguous {
+            String run(Object values, String key) {
+                return values.get(key);
+            }
+        }
+        """,
+    )
+
+    diagnostic = result.diagnostics.unhandled[-1]
+    assert diagnostic.reason == "ambiguous get invocation requires receiver collection type"
+    assert diagnostic.category in {"missing_receiver_type", "opaque_receiver_shape"}
+    assert diagnostic.facts["receiver"] == "values"

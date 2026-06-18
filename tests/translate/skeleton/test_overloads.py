@@ -268,6 +268,10 @@ def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
         and "Java numeric widths erase to one Python runtime int" in reason
         for reason in reasons
     )
+    assert {item.category for item in result.diagnostics.unhandled} == {
+        "unsafe_numeric_width_boundary"
+    }
+    assert all(item.facts["method"] == "width" for item in result.diagnostics.unhandled)
     assert_valid_python(python_source)
 
 

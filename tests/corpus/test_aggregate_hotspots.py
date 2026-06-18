@@ -229,3 +229,40 @@ def test_parse_failure_cluster_is_separate_track(tmp_path: Path) -> None:
     assert parse_cluster.file_hits == 1
     assert parse_cluster.severity == 4
     assert hotspots.SYNTAX_OUTPUT_CLUSTER not in {item.cluster for item in report.clusters}
+
+
+def test_structured_binding_diagnostics_cluster_by_category(tmp_path: Path) -> None:
+    _write_baseline(
+        tmp_path,
+        "demo",
+        _baseline(
+            "demo-dense",
+            [
+                {
+                    "path": "AmbiguousGet.java",
+                    "parse_ok": True,
+                    "syntax_ok": True,
+                    "coverage": 0.9,
+                    "handled_count": 8,
+                    "unhandled_count": 1,
+                    "unhandled_reasons": (
+                        "ambiguous get invocation requires receiver collection type:1"
+                    ),
+                    "binding_diagnostics": [
+                        {
+                            "category": "missing_receiver_type",
+                            "reason": "ambiguous get invocation requires receiver collection type",
+                            "facts": {"receiver": "values"},
+                        },
+                    ],
+                },
+            ],
+        ),
+    )
+
+    report = hotspots.build_report(tmp_path)
+    structured = next(item for item in report.clusters if item.cluster == "missing_receiver_type")
+
+    assert structured.total_count == 1
+    assert structured.file_hits == 1
+    assert structured.raw_reasons["ambiguous get invocation requires receiver collection type"] == 1

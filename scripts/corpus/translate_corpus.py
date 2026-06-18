@@ -17,7 +17,7 @@ import re
 import subprocess
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -105,6 +105,7 @@ class FileMetric:
     warning_count: int
     unhandled_node_types: str
     unhandled_reasons: str
+    binding_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     method_body_count: int = 0
     annotation_use_count: int = 0
     annotation_warning_count: int = 0
@@ -703,6 +704,7 @@ def measure_file(
         syntax_ok = _syntax_ok(result.source)
         unhandled_types = Counter(d.node_type for d in result.diagnostics.unhandled)
         unhandled_reasons = Counter(d.reason for d in result.diagnostics.unhandled)
+        binding_diagnostics = _structured_binding_diagnostics(result.diagnostics)
         enterprise = file_enterprise_signals(
             parsed=parsed,
             source_text=source_text,
@@ -723,6 +725,7 @@ def measure_file(
             annotation_warning_count=enterprise.annotation_warning_count,
             unhandled_node_types=_counter_summary(unhandled_types),
             unhandled_reasons=_counter_summary(unhandled_reasons),
+            binding_diagnostics=binding_diagnostics,
         )
     except Exception as exc:  # noqa: BLE001 - corpus runs should continue past bad files.
         return FileMetric(
@@ -736,8 +739,19 @@ def measure_file(
             warning_count=0,
             unhandled_node_types="",
             unhandled_reasons="",
+            binding_diagnostics=[],
             error=f"{type(exc).__name__}: {exc}",
         )
+
+
+def _structured_binding_diagnostics(diagnostics: Any) -> list[dict[str, Any]]:
+    structured: list[dict[str, Any]] = []
+    for bucket in (diagnostics.unhandled, diagnostics.warnings):
+        for diagnostic in bucket:
+            if diagnostic.category is None:
+                continue
+            structured.append(diagnostic.structured)
+    return structured
 
 
 def summarize(metrics: list[FileMetric]) -> dict[str, Any]:

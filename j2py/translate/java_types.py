@@ -59,6 +59,10 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
         return java_expression_type(node.named_children[0], ctx)
     if node.type == "cast_expression" and node.named_children:
         return node.named_children[0].text
+    if node.type == "object_creation_expression":
+        type_node = node.child_by_field("type")
+        if type_node is not None:
+            return type_node.text
     if node.type == "method_invocation":
         return method_invocation_java_type(node)
     return None

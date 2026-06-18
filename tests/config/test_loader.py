@@ -124,6 +124,48 @@ annotation_map:
     assert cfg.annotation_map["Autowired"].emit_init_param is True
 
 
+def test_config_loader_loads_member_map(tmp_path: Path) -> None:
+    config_file = tmp_path / "j2py.toml"
+    config_file.write_text(
+        """
+[member_map."com.example.Util.max"]
+kind = "method"
+python_owner = "Util"
+python_member = "max_value"
+return_type = "int"
+
+[member_map."com.example.Factory.of"]
+kind = "method"
+python_owner = "Factory"
+python_member = "of"
+return_shape = "object:Thing->Thing"
+""",
+    )
+
+    cfg = ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert cfg.member_map["com.example.Util.max"].kind == "method"
+    assert cfg.member_map["com.example.Util.max"].python_member == "max_value"
+    assert cfg.member_map["com.example.Util.max"].return_type == "int"
+    assert cfg.member_map["com.example.Factory.of"].return_shape == "object:Thing->Thing"
+
+
+def test_config_loader_rejects_unknown_member_map_entry_key(tmp_path: Path) -> None:
+    config_file = tmp_path / "j2py.toml"
+    config_file.write_text(
+        """
+[member_map."com.example.Util.max"]
+kind = "method"
+unknown_behavior = true
+""",
+    )
+
+    with pytest.raises(ConfigError) as exc_info:
+        ConfigLoader().add_defaults().add_file(config_file).build()
+
+    assert "member_map.com.example.Util.max.unknown_behavior" in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     ("filename", "content", "requires_yaml"),
     [

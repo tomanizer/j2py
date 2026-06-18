@@ -157,6 +157,13 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         )
         if declared_return_type is not None:
             return declared_return_type
+        configured_return = _configured_member_return_type(
+            receiver_nodes[0].text,
+            method_name,
+            ctx,
+        )
+        if configured_return is not None:
+            return configured_return
         factory_return = static_factory_return_type(receiver_nodes[0].text, method_name)
         if factory_return is not None:
             return factory_return
@@ -201,6 +208,25 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
+    return None
+
+
+def _configured_member_return_type(
+    receiver: str,
+    method_name: str,
+    ctx: TranslationContext,
+) -> str | None:
+    from j2py.translate.member_resolution import configured_member_binding
+
+    binding = configured_member_binding(f"{receiver}.{method_name}", ctx.cfg, source="config")
+    if binding is None:
+        return None
+    if binding.return_type:
+        return translate_type(binding.return_type, ctx.cfg)
+    if binding.return_shape:
+        _, _, shape = binding.return_shape.partition(":")
+        simple = shape.split("->", 1)[0].split("[", 1)[0]
+        return translate_type(simple or shape, ctx.cfg)
     return None
 
 

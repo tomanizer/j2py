@@ -5,6 +5,7 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.java_types import java_type_of_value
+from j2py.translate.member_resolution import java_type_shape_of_value
 from j2py.translate.rules.types import (
     is_api_get_receiver_type,
     is_indexed_predicate_get_receiver_java_type,
@@ -73,10 +74,16 @@ def _translate_get_invocation(
 
     if raw_receiver.split(".")[-1][:1].isupper():
         return f"{receiver}.get({args})"
+    receiver_shape = java_type_shape_of_value(receiver_nodes[0], ctx) if receiver_nodes else None
     ctx.diagnostics.record(
         node,
         supported=False,
         reason="ambiguous get invocation requires receiver collection type",
+        category="missing_receiver_type" if receiver_shape is None else "opaque_receiver_shape",
+        facts={
+            "receiver": raw_receiver,
+            **({"shape": receiver_shape.raw} if receiver_shape is not None else {}),
+        },
     )
     return f"{receiver}.get({args})"
 

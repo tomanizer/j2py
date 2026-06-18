@@ -14,6 +14,9 @@ from j2py.translate.expr_static_calls import (
     translate_static_method_invocation,
 )
 from j2py.translate.expressions import translate_expression
+from j2py.translate.member_resolution import (
+    wildcard_static_import_binding,
+)
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_attribute_method_name,
@@ -123,6 +126,34 @@ def _translate_static_or_platform_method_invocation(
         )
         if static_call is not None:
             return static_call
+
+    if not parts.receiver_nodes and ctx.wildcard_static_imports:
+        for owner in ctx.wildcard_static_imports.values():
+            binding = wildcard_static_import_binding(owner, parts.method_name, ctx, kind="method")
+            if binding is None:
+                continue
+            static_call = translate_static_imported_method(
+                node,
+                imported_name=f"{binding.owner}.{binding.member}",
+                binding=binding,
+                arg_nodes=parts.arg_nodes,
+                args=parts.arg_expressions,
+                ctx=ctx,
+            )
+            if static_call is not None:
+                return static_call
+        ctx.diagnostics.warn(
+            node,
+            reason=(
+                f"wildcard static import could not resolve member {parts.method_name}; "
+                "verify unqualified call"
+            ),
+            category="wildcard_static_import_unresolved",
+            facts={
+                "member": parts.method_name,
+                "owners": ",".join(sorted(ctx.wildcard_static_imports.values())),
+            },
+        )
 
     static_call = translate_static_method_invocation(
         node,

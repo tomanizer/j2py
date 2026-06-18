@@ -475,11 +475,23 @@ def translate_overloaded_members(
         return dispatched
 
     manual_reason = _manual_dispatch_reason(name, classification)
+    manual_category = (
+        "unsafe_numeric_width_boundary"
+        if _numeric_width_boundary_note(classification.java_type_shape_signatures)
+        else "overload_erasure_collision"
+    )
+    manual_facts = {
+        "method": name,
+        "erased": _format_signature_set(classification.erased_signatures),
+        "java_shapes": _format_signature_set(classification.java_type_shape_signatures),
+    }
     for member in members:
         diagnostics.record(
             member,
             supported=False,
             reason=manual_reason,
+            category=manual_category,
+            facts=manual_facts,
         )
     lines = _overload_stubs(members, cfg, diagnostics)
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"

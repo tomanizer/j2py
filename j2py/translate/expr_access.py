@@ -7,6 +7,10 @@ from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expressions import translate_expression
 from j2py.translate.java_types import java_type_of_value
+from j2py.translate.member_resolution import (
+    static_import_field_fallback,
+    wildcard_static_import_binding,
+)
 from j2py.translate.name_resolution import NameScope, scope_from_context
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
@@ -29,6 +33,11 @@ def _translate_identifier(raw_name: str, ctx: TranslationContext) -> str:
     resolved = ctx.name_resolver.resolve_identifier(raw_name, scope_from_context(ctx))
     if resolved.import_line:
         request_type_import(resolved.import_line, resolved.kind, ctx)
+    if resolved.kind == "unknown" and ctx.wildcard_static_imports:
+        for owner in ctx.wildcard_static_imports.values():
+            binding = wildcard_static_import_binding(owner, raw_name, ctx, kind="field")
+            if binding is not None:
+                return static_import_field_fallback(binding, ctx.cfg)
     return resolved.python_name
 
 

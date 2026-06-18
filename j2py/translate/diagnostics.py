@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkMetadataRecord
@@ -29,6 +29,23 @@ class TranslationDiagnostic:
     line: int
     text: str
     reason: str
+    category: str | None = None
+    facts: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def structured(self) -> dict[str, Any]:
+        """Machine-readable diagnostic fields for corpus harvesters."""
+        payload: dict[str, Any] = {
+            "node_type": self.node_type,
+            "line": self.line,
+            "text": self.text,
+            "reason": self.reason,
+        }
+        if self.category is not None:
+            payload["category"] = self.category
+        if self.facts:
+            payload["facts"] = dict(self.facts)
+        return payload
 
 
 @dataclass(frozen=True)
@@ -118,25 +135,38 @@ class TranslationDiagnostics:
         *,
         supported: bool,
         reason: str,
+        category: str | None = None,
+        facts: dict[str, str] | None = None,
     ) -> None:
         diagnostic = TranslationDiagnostic(
             node_type=node.type,
             line=node.location.line,
             text=_compact_text(node.text),
             reason=reason,
+            category=category,
+            facts=dict(facts or {}),
         )
         if supported:
             self.handled.append(diagnostic)
         else:
             self.unhandled.append(diagnostic)
 
-    def warn(self, node: JavaNode, *, reason: str) -> None:
+    def warn(
+        self,
+        node: JavaNode,
+        *,
+        reason: str,
+        category: str | None = None,
+        facts: dict[str, str] | None = None,
+    ) -> None:
         self.warnings.append(
             TranslationDiagnostic(
                 node_type=node.type,
                 line=node.location.line,
                 text=_compact_text(node.text),
                 reason=reason,
+                category=category,
+                facts=dict(facts or {}),
             ),
         )
 
@@ -191,6 +221,7 @@ class TranslationContext:
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
     static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)
+    wildcard_static_imports: dict[str, str] = field(default_factory=dict)
     name_resolver: NameResolver = field(default_factory=NameResolver.empty)
     pattern_bindings: list[PatternBinding] = field(default_factory=list)
     in_instance_method: bool = False

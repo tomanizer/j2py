@@ -401,6 +401,7 @@ def translate_class(
             static_field_aliases=env.static_field_aliases,
             static_method_imports=env.static_method_imports,
             static_member_bindings=env.static_member_bindings,
+            wildcard_static_imports=env.wildcard_static_imports,
             name_resolver=resolver,
             allow_local_helpers=True,
             class_state=class_state,
