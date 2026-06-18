@@ -68,6 +68,19 @@ def test_bean_validation_annotations_lower_to_pydantic_fields() -> None:
     assert_validated_python(result.source)
 
 
+def test_jpa_entity_lowers_to_sqlalchemy_declarative_model() -> None:
+    parsed = parse_file(FIXTURES / "java" / "SqlAlchemyEntity.java")
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    assert result.source == (FIXTURES / "python" / "SqlAlchemyEntity.py").read_text()
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def get_address" not in result.source
+    assert "def set_address" not in result.source
+    assert "def get_owner" not in result.source
+    assert_valid_python(result.source)
+
+
 def test_bean_validation_entity_is_not_promoted_to_pydantic_model() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -81,11 +94,59 @@ def test_bean_validation_entity_is_not_promoted_to_pydantic_model() -> None:
 
     assert "from pydantic" not in result.source
     assert "class Owner(BaseModel):" not in result.source
-    assert "self.name: str | None = None" in result.source
-    assert any(
-        "stripped framework annotation @NotNull on field name" in warning.reason
-        for warning in result.diagnostics.warnings
+    assert "from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column" in result.source
+    assert "class Owner(Base):" in result.source
+    assert '__tablename__ = "owner"' in result.source
+    assert "name: Mapped[str] = mapped_column(String, nullable=False)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_jpa_entity_default_nullable_column_uses_optional_annotation() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Owner {
+            @Column
+            private String nickname;
+        }
+        """,
     )
+
+    assert "nickname: Mapped[str | None] = mapped_column(String)" in result.source
+    assert_valid_python(result.source)
+
+
+def test_jpa_relationship_join_column_infers_external_target() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Pet {
+            @ManyToOne
+            @JoinColumn(name = "owner_id")
+            private Owner owner;
+        }
+        """,
+    )
+
+    assert 'owner_id: Mapped[int] = mapped_column(ForeignKey("owner.id"))' in result.source
+    assert "owner: Mapped[Owner] = relationship()" in result.source
+    assert "Mapped[list[Owner]]" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_jpa_relationship_cascade_constants_map_to_sqlalchemy_names() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        @Entity
+        class Owner {
+            @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE}, mappedBy = "owner")
+            private List<Pet> pets;
+        }
+        """,
+    )
+
+    assert 'relationship(back_populates="owner", cascade="save-update, delete")' in result.source
+    assert "pets: Mapped[list[Pet]]" in result.source
     assert_valid_python(result.source)
 
 

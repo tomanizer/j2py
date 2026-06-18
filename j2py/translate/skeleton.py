@@ -40,6 +40,7 @@ from j2py.translate.rules.static_imports import (
     known_static_field_alias,
 )
 from j2py.translate.spring_model import collect_pydantic_model_class_names
+from j2py.translate.sqlalchemy_model import collect_sqlalchemy_entity_table_names
 
 
 @dataclass
@@ -106,6 +107,7 @@ def translate_skeleton_with_diagnostics(
     file_class_declarations = collect_file_class_declarations(parsed.root)
     type_var_plan = interface_type_var_plan(parsed.root, cfg, diagnostics)
     pydantic_model_class_names = collect_pydantic_model_class_names(parsed.root, cfg)
+    sqlalchemy_entity_table_names = collect_sqlalchemy_entity_table_names(parsed.root, cfg)
     class_env = ClassTranslationEnvironment(
         inherited_declared_type_fields=module_declared_type_fields,
         inherited_declared_type_java_fields=module_declared_type_java_fields,
@@ -122,6 +124,7 @@ def translate_skeleton_with_diagnostics(
         module_class_static_instance_aliases=module_class_static_instance_aliases or {},
         module_class_declarations=module_class_declarations or {},
         pydantic_model_class_names=pydantic_model_class_names,
+        sqlalchemy_entity_table_names=sqlalchemy_entity_table_names,
         interface_type_var_maps=type_var_plan.interface_type_var_maps,
     )
     class_blocks: list[list[str]] = []
@@ -144,6 +147,9 @@ def translate_skeleton_with_diagnostics(
         )
         pending_docstring = None
 
+    if sqlalchemy_entity_table_names:
+        diagnostics.imports.need_line("from sqlalchemy.orm import DeclarativeBase")
+
     lines = ["from __future__ import annotations"]
     import_lines = _import_lines(parsed, cfg, diagnostics, static_import_todos)
     if import_lines:
@@ -154,6 +160,9 @@ def translate_skeleton_with_diagnostics(
     if type_var_plan.declaration_lines:
         lines.extend(type_var_plan.declaration_lines)
         lines.extend(["", ""])
+
+    if sqlalchemy_entity_table_names:
+        lines.extend(["class Base(DeclarativeBase):", "    pass", "", ""])
 
     for index, block in enumerate(class_blocks):
         if index:

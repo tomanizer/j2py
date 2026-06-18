@@ -47,6 +47,7 @@ class ClassTranslationEnvironment:
     )
     module_class_declarations: dict[str, JavaNode] = field(default_factory=dict)
     pydantic_model_class_names: set[str] = field(default_factory=set)
+    sqlalchemy_entity_table_names: dict[str, str] = field(default_factory=dict)
     enclosing_static_dispatch: dict[str, str] = field(default_factory=dict)
     interface_type_var_maps: dict[_NodeKey, dict[str, str]] = field(default_factory=dict)
 
