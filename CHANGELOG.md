@@ -15,8 +15,8 @@ the first time. The rule layer gains support for static initializer blocks, anno
 constants, anonymous class initializers, local-class outer-self capture, labeled statements,
 and shape-aware constructor overload merging. All remaining complexity hotspots from the prior
 audit are resolved: `expr_ops`, `cli/main`, and `doctor` are each split into focused modules.
-Known limitations from 0.5.0b1 (BigDecimal/null-return methods, erased-signature collisions)
-remain open; see **Known limitations** under 0.5.0b1.
+Known limitations from prior releases (BigDecimal/null-return methods, erased-signature collisions)
+remain open; see **Known limitations** under 0.5.0b1 for other tracked issues.
 
 ### Added
 - `j2py doctor` adds a rule-only project assessment command with JSON and static HTML
