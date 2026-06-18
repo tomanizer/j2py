@@ -7,6 +7,18 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- Equivalence harvester now recognizes JUnit 5 trailing failure-message arguments
+  (`assertEquals(expected, actual, "msg")`), keeps trailing numeric `delta` args so
+  approximate float comparisons are skipped rather than mis-harvested as exact equality,
+  and refuses to guess when a message position is ambiguous. Lifts NumberUtils harvest
+  yield from 19 to 32 literal-oracle assertions.
+
+### Fixed
+- `String.charAt(i)` now lowers to Python indexing `s[i]` instead of an undefined
+  `s.char_at(i)` method call, and is typed as returning `str`. Lands
+  `StringUtils.isBlank` on the equivalence-verified surface (32/97 → 33/97).
+
 ## 0.5.0b3 - 2026-06-17
 
 Third beta pre-release. Extends rule-layer overload translation (generalized erased value

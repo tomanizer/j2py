@@ -57,10 +57,7 @@ def test_is_empty_equivalence(string_utils) -> None:
 
 
 @pytest.mark.equivalence
-@pytest.mark.xfail(
-    strict=True,
-    reason=("rule layer emits CharSequence.charAt as str.char_at; plain Python strings diverge"),
-)
+@surface(JAVA_CLASS, "StringUtils.isBlank(CharSequence)")
 def test_is_blank_equivalence(string_utils) -> None:
     # StringUtilsEmptyBlankTest.java:118-123, plus StringUtils.java Javadoc.
     assert string_utils.is_blank(None) is True

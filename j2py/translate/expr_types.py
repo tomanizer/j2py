@@ -189,6 +189,7 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         "toString",
         "substring",
         "formatted",
+        "charAt",
     }
     if method_name in int_return_methods:
         return "int"

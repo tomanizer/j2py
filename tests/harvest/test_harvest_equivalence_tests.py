@@ -72,6 +72,107 @@ def test_harvests_supported_literal_oracle_assertions(tmp_path: Path) -> None:
     assert "finally:" in draft
 
 
+def test_harvests_junit5_trailing_message_assertions(tmp_path: Path) -> None:
+    source = _write_java(
+        tmp_path,
+        """
+        class GuavaPrecedenceMathTest {
+            public void testTrailingMessage() {
+                assertEquals(22, GuavaPrecedenceMath.expandedCapacity(10), "msg");
+                assertTrue(GuavaPrecedenceMath.isPositive(1), "should be positive");
+            }
+        }
+        """,
+    )
+    fixture = tmp_path / "GuavaPrecedenceMath.java"
+    fixture.write_text(
+        """
+        public final class GuavaPrecedenceMath {
+            public static int expandedCapacity(int value) { return value; }
+            public static boolean isPositive(int value) { return value > 0; }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = harvester.harvest_file(
+        source,
+        target_class="GuavaPrecedenceMath",
+        java_fixture=str(fixture),
+    )
+    draft = harvester.render_pytest_draft(result)
+
+    assert result.harvested_count == 2
+    assert "assert guava_precedence_math.expanded_capacity(10) == 22" in draft
+    assert "assert guava_precedence_math.is_positive(1) is True" in draft
+
+
+def test_skips_ambiguous_message_when_both_ends_are_string_literals(tmp_path: Path) -> None:
+    # assertEquals(expected, actual, message) where expected is itself a string literal
+    # is positionally ambiguous against JUnit 4 (message, expected, actual): refuse to guess.
+    source = _write_java(
+        tmp_path,
+        """
+        class GuavaPrecedenceMathTest {
+            public void testAmbiguous() {
+                assertEquals("x", GuavaPrecedenceMath.label(1), "message");
+            }
+        }
+        """,
+    )
+    fixture = tmp_path / "GuavaPrecedenceMath.java"
+    fixture.write_text(
+        """
+        public final class GuavaPrecedenceMath {
+            public static String label(int value) { return "x"; }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = harvester.harvest_file(
+        source,
+        target_class="GuavaPrecedenceMath",
+        java_fixture=str(fixture),
+    )
+
+    assert result.harvested_count == 0
+    assert result.skipped[0].reason == "unsupported assertion arity"
+
+
+def test_keeps_trailing_numeric_delta_so_float_oracle_is_skipped(tmp_path: Path) -> None:
+    # A trailing numeric delta is not a message; it must not be dropped, so the
+    # approximate comparison is skipped rather than harvested as exact equality.
+    source = _write_java(
+        tmp_path,
+        """
+        class GuavaPrecedenceMathTest {
+            public void testDelta() {
+                assertEquals(1.0, GuavaPrecedenceMath.ratio(2), 0.0001);
+            }
+        }
+        """,
+    )
+    fixture = tmp_path / "GuavaPrecedenceMath.java"
+    fixture.write_text(
+        """
+        public final class GuavaPrecedenceMath {
+            public static double ratio(int value) { return 1.0; }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = harvester.harvest_file(
+        source,
+        target_class="GuavaPrecedenceMath",
+        java_fixture=str(fixture),
+    )
+
+    assert result.harvested_count == 0
+    assert result.skipped[0].reason == "unsupported assertion arity"
+
+
 def test_drops_expression_oracle_expected_values(tmp_path: Path) -> None:
     source = _write_java(
         tmp_path,

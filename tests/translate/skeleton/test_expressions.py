@@ -1142,6 +1142,29 @@ def test_static_utility_contains_not_lowered_to_in() -> None:
     assert_valid_python(python_source)
 
 
+def test_char_at_lowers_to_subscript() -> None:
+    """String.charAt(i) lowers to Python indexing, not a `.char_at(i)` method call."""
+    python_source, coverage = translate_source(
+        """
+        public class Chars {
+            public char first(String text) {
+                return text.charAt(0);
+            }
+
+            public char at(String text, int index) {
+                return text.charAt(index);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return text[0]" in python_source
+    assert "return text[index]" in python_source
+    assert "char_at" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_map_get_preserves_missing_key_semantics() -> None:
     python_source, coverage = translate_source(
         """
