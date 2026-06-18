@@ -36,6 +36,28 @@ Do not add Spring-specific top-level keys such as `wiring`, `python_module`,
 `spring_profile`, or a second `plugin` field outside `elements[]`. Other framework
 plugins must be able to share the same sidecar without key collisions.
 
+## Enabling Emission
+
+The built-in Spring metadata producer is opt-in. Register it from a trusted Python config
+and enable the existing sidecar writer:
+
+```python
+from j2py.framework_plugins.spring import SpringWiringPlugin as _SpringWiringPlugin
+
+annotation_map_preset = "spring"
+framework_plugins = [_SpringWiringPlugin()]
+emit_wiring_metadata = True
+```
+
+Then run translation with that config:
+
+```bash
+j2py translate src/main/java --config j2py_config.py --output translated_py
+```
+
+The plugin emits metadata through `FrameworkTransformResult.metadata`; it does not write
+sidecars directly and it does not generate FastAPI or SQLAlchemy application files.
+
 ## Module Identity
 
 The v1 profile does not store `python_module` in the sidecar. `j2py-wire` should be given
