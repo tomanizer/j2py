@@ -212,10 +212,12 @@ Each `annotation_map` entry is strict. Supported entry fields:
 `annotation_map` is opt-in project policy. j2py does not enable Spring, FastAPI, JPA, or
 DI mappings by default. The named `spring` preset is a convenience map of Spring
 annotations to no-op marker decorators and `typing.Annotated` parameter markers from
-`j2py_runtime`; enable it explicitly with `annotation_map_preset: spring`. Project
-`annotation_map` entries are merged after the preset, so they can override or extend the
-preset. Unmapped annotations keep the normal Tier 1 behavior: diagnostics plus optional
-line comments.
+`j2py_runtime`; enable it explicitly with `annotation_map_preset: spring`. The Spring
+extension scope and boundary are documented in
+[SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+[ADR 0024](decisions/0024-spring-extension-boundary.md). Project `annotation_map` entries
+are merged after the preset, so they can override or extend the preset. Unmapped
+annotations keep the normal Tier 1 behavior: diagnostics plus optional line comments.
 
 Each `member_map` key is a fully qualified Java member, such as
 `com.example.Util.max` or `com.example.Factory.of`. Supported entry fields:
@@ -284,7 +286,9 @@ The sidecar is versioned and records source/output paths, plugin name, element k
 Java/Python names, annotations, and plugin metadata. If a later translation no longer has
 metadata for the file, j2py removes the stale sidecar. j2py core does not consume this file
 or generate framework bootstrap code; it is intended for downstream tooling such as the
-planned `j2py-wire` follow-up.
+planned `j2py-wire` follow-up. For Spring, structured wiring facts must use this existing
+sidecar path rather than a Spring-only sidecar writer; see
+[ADR 0024](decisions/0024-spring-extension-boundary.md).
 
 Set/list options:
 

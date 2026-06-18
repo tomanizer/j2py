@@ -110,7 +110,9 @@ set default LLM provider/model values there; explicit CLI flags override these d
 Python config can register trusted framework plugins for programmatic annotation lowering,
 and `emit_wiring_metadata` can write versioned `*.wiring.json` sidecars for downstream
 project-owned wiring tools. See [docs/configuration.md](configuration.md) and
-[docs/FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md).
+[docs/FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md). The optional Spring extension profile
+is documented separately in [docs/SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+[ADR 0024](decisions/0024-spring-extension-boundary.md).
 
 ### F9 — Post-LLM structural verification
 After LLM completion, compare Java symbols with the returned Python AST: class and method
@@ -154,7 +156,11 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
   decorators, bases, comments, and wiring metadata, but framework semantics (DI, ORM
   mappings, transactions, lifecycle) must be ported manually or by project-owned tools.
   JDBC and other platform I/O boundaries follow the same stub-plus-project-config policy
-  ([ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)).
+  ([ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)). The Spring
+  extension narrows this to an opt-in profile and PetClinic smoke target; it does not make
+  Spring behavior part of default translation
+  ([Spring extension PRD](SPRING_EXTENSION_PRD.md),
+  [ADR 0024](decisions/0024-spring-extension-boundary.md)).
 - **Round-trip Java generation** — j2py is one-way.
 
 ## Success criteria
@@ -184,3 +190,5 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
 - [Equivalence testing design](EQUIVALENCE_TESTING.md)
 - [JDK lowering vs platform boundaries](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)
+- [Spring extension PRD](SPRING_EXTENSION_PRD.md)
+- [Spring extension boundary](decisions/0024-spring-extension-boundary.md)
