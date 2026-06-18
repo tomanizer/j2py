@@ -70,11 +70,14 @@ Known gaps include:
 For a concise statement of where j2py helps and where enterprise framework semantics
 remain manual, see [docs/POSITIONING.md](docs/POSITIONING.md).
 
-For Spring migrators, the [Spring -> FastAPI/SQLAlchemy mapping cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md)
-documents opt-in `annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`)
-with verified before/after pairs and explicit manual-port callouts. For programmatic
-framework lowering beyond one-to-one mappings, see the
-[framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
+For Spring migrators, start with the [Spring conversion guide](docs/SPRING_CONVERSION.md).
+It covers the opt-in Spring config, `SpringWiringPlugin` sidecars, `j2py-wire generate`,
+`j2py-wire validate`, the PetClinic smoke gate, and the corpus checks that show whether
+Spring translation improved or regressed. The [Spring -> FastAPI/SQLAlchemy mapping
+cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md) documents lower-level
+`annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`) with verified
+before/after pairs and explicit manual-port callouts. For programmatic framework lowering
+beyond one-to-one mappings, see the [framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
 Install `j2py-converter[spring]` only when you need the optional Spring/FastAPI/SQLAlchemy
 runtime packages; installing that extra does not enable Spring behavior without explicit
 configuration.
@@ -237,6 +240,8 @@ make corpus-jackson-dense-check       # Jackson databind vs baseline
 make corpus-caffeine-dense-check      # Caffeine cache code vs baseline
 make corpus-spring-dense-check        # Spring dense preset + construct fixtures
 make corpus-spring-app-dense-check    # Spring app-layer samples (REST, JPA, @Transactional)
+make corpus-petclinic-dense-check     # Spring PetClinic reference application
+make test-spring-smoke                # optional translate -> sidecar -> wire -> FastAPI smoke
 make corpus-hotspots                  # rank gaps across all committed baselines
 ```
 

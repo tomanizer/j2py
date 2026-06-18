@@ -185,6 +185,49 @@ j2py sarif j2py-assessment.json --output j2py.sarif
 
 See [SARIF export](SARIF.md).
 
+## `j2py-wire`
+
+`j2py-wire` is the sibling CLI for post-translation framework wiring. It reads
+`*.wiring.json` sidecars emitted by `j2py translate` and generates or validates target
+framework glue. The current target is FastAPI.
+
+List sidecars:
+
+```bash
+j2py-wire list translated_py
+```
+
+Generate FastAPI wiring:
+
+```bash
+j2py-wire generate translated_py \
+  --target fastapi \
+  --output translated_py/wiring
+```
+
+Validate generated wiring:
+
+```bash
+j2py-wire validate translated_py \
+  --target fastapi \
+  --wiring-dir translated_py/wiring
+```
+
+Validation can emit JSON for CI:
+
+```bash
+j2py-wire validate translated_py \
+  --target fastapi \
+  --wiring-dir translated_py/wiring \
+  --format json
+```
+
+Validation exits `0` for no findings, `1` for warnings only, and `2` for errors. A
+`missing-session-factory` warning is expected until the generated `get_session()` stub is
+replaced or overridden by project application code.
+
+For the Spring-specific workflow, see [Spring conversion](SPRING_CONVERSION.md).
+
 ## Config Discovery
 
 Commands that translate or assess source load defaults, then auto-discover the first

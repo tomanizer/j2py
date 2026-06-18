@@ -243,6 +243,9 @@ cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and its reference map, shipped as
 [`spring-to-fastapi.yaml`](examples/spring-to-fastapi.yaml) (needs the `[yaml]` extra).
 Install `j2py-converter[spring]` or run `uv sync --extra spring` only when the generated
 Spring path needs FastAPI, HTTPX, SQLAlchemy, or pydantic-settings available at runtime.
+For the full Spring conversion flow, including `SpringWiringPlugin`, sidecars,
+`j2py-wire`, and the PetClinic smoke gate, see
+[Spring conversion](SPRING_CONVERSION.md).
 
 ## Framework Plugins
 
