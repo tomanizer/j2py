@@ -42,6 +42,9 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
 
 ## Evidence Map
 
+The full claim-to-evidence inventory is tracked in
+[0.7.0 release test coverage inventory](RELEASE_TEST_COVERAGE_0.7.0.md).
+
 | Claim | Evidence |
 |---|---|
 | Core CLI workflow | `j2py --help`, [Getting Started](GETTING_STARTED.md), [CLI](CLI.md) |
