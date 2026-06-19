@@ -21,6 +21,7 @@
 | [DOCTOR.md](DOCTOR.md) | `j2py doctor` assessment command, report schema, workflows, and limits |
 | [DOCTOR_PRD.md](DOCTOR_PRD.md) | Product requirements and roadmap for project assessment tooling |
 | [SARIF.md](SARIF.md) | `j2py sarif` export for doctor assessment diagnostics and code-scanning workflows |
+| [RELEASE_DOCS_AUDIT_0.7.0.md](RELEASE_DOCS_AUDIT_0.7.0.md) | 0.7.0 docs audit against live CLI help, config schema, fixtures, and generated output |
 
 ## Quality, measurement, and roadmap
 
