@@ -32,6 +32,7 @@
 | [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) | Multi-library corpus presets, baselines, hotspots |
 | [EQUIVALENCE_TESTING.md](EQUIVALENCE_TESTING.md) | Differential testing design and current equivalence-verified public-surface floor |
 | [BEHAVIOR_CORPUS.md](BEHAVIOR_CORPUS.md) | JDK-backed stdout/exit-code behavior suite |
+| [RELEASE_TEST_COVERAGE_0.7.0.md](RELEASE_TEST_COVERAGE_0.7.0.md) | 0.7.0 release-facing claim-to-evidence inventory |
 | [CASE_STUDY.md](CASE_STUDY.md) | End-to-end multi-file case study (commons-lang `tuple`): what translated, gaps surfaced |
 | [CASE_STUDY_NUMBER_UTILS.md](CASE_STUDY_NUMBER_UTILS.md) | End-to-end NumberUtils equivalence case study: verified surface, stubs, and exclusions |
 | [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits |
