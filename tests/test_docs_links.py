@@ -49,16 +49,12 @@ def test_docs_markdown_local_links_exist() -> None:
 
             resolved = (source.parent / path_part).resolve()
             if not resolved.exists():
-                missing.append(
-                    f"{source.relative_to(REPO_ROOT)}: missing {target} -> {resolved}"
-                )
+                missing.append(f"{source.relative_to(REPO_ROOT)}: missing {target} -> {resolved}")
                 continue
 
             if anchor and resolved.suffix == ".md":
                 anchor_cache.setdefault(resolved, _anchors(resolved))
                 if anchor not in anchor_cache[resolved]:
-                    missing.append(
-                        f"{source.relative_to(REPO_ROOT)}: missing anchor {target}"
-                    )
+                    missing.append(f"{source.relative_to(REPO_ROOT)}: missing anchor {target}")
 
     assert not missing, "broken local Markdown links:\n" + "\n".join(missing)
