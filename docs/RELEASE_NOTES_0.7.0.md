@@ -88,7 +88,8 @@ Before tagging 0.7.0, record the current results for:
 - `make test-spring-smoke`
 - relevant corpus checks or scorecard summaries
 - [0.7.0 performance baseline](PERFORMANCE_BASELINE_0.7.0.md)
-- package build and clean-environment install smoke
+- package build and clean-environment install smoke; see
+  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_0.7.0.md)
 
 Do not claim broader runtime support than these gates prove.
 
