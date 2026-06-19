@@ -246,7 +246,7 @@ LLM completion with Gemini Flash requires the optional Gemini extra plus
 ```bash
 pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
-  --llm-provider gemini --model gemini-model-id
+  --llm-provider gemini --model gemini-3.5-flash
 ```
 
 Selecting `--llm-provider gemini` without the extra installed fails with an install hint

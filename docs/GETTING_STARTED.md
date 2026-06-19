@@ -228,7 +228,7 @@ Gemini requires the optional extra and API key:
 pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... j2py translate SomeClass.java \
   --llm-provider gemini \
-  --model gemini-model-id
+  --model gemini-3.5-flash
 ```
 
 OpenAI-compatible endpoints require the optional OpenAI extra, an API key, and an
