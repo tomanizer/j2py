@@ -40,3 +40,7 @@ Tooling and public surfaces:
 For user-facing command behavior, prefer [CLI](../CLI.md), [API guide](../API.md), and
 [API reference](../API_REFERENCE.md). For historical evidence, release notes, and audits,
 use the repo hygiene section in the main docs index instead of these change guides.
+
+Coding agents should also read [Coding Agent Guides](../agents/README.md). Those guides
+compress this developer section into task routing, validation gates, docs-update targets,
+and common failure checks for automated repo work.

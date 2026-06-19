@@ -153,6 +153,7 @@ Choose the path that matches the change:
 
 | If you are doing this | Read | Validation |
 |-----------------------|------|------------|
+| Route a coding-agent change | [Coding agent guides](agents/README.md), [Change routing](agents/CHANGE_ROUTING.md), [Validation matrix](agents/VALIDATION_MATRIX.md) | Use the gate selected by the validation matrix; for docs changes also run a Markdown link check. |
 | Change parser, analyzer, or symbol graph behavior | [Parser/analyzer guide](developer/PARSER_ANALYZER.md), [Architecture](ARCHITECTURE.md), relevant parser/analyzer ADRs | `pytest tests/parse tests/analyze -q`; add corpus checks when dependency ordering or symbol extraction changes. |
 | Add a Java construct rule | [Rule authoring](developer/RULE_AUTHORING.md), [Translation internals](developer/TRANSLATION_INTERNALS.md), [Translation targets](TRANSLATION_TARGETS.md), [Architecture](ARCHITECTURE.md) | Java/Python fixture tests, `make check`, relevant corpus dense check. |
 | Change runtime helpers, validation, imports, or platform/JDK boundaries | [Translation internals](developer/TRANSLATION_INTERNALS.md), [Diagnostics guide](developer/DIAGNOSTICS.md), [Output review](OUTPUT_REVIEW.md), [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) | `pytest tests/validate tests/translate/test_platform_imports.py tests/translate/test_runtime_dispatch.py -q`; behavior/equivalence tests when runtime semantics change. |
@@ -174,6 +175,17 @@ Choose the path that matches the change:
 Developer change guides:
 
 Start with [developer/README.md](developer/README.md) for the guide index.
+
+Coding-agent guides:
+
+| Guide | What it helps with |
+|-------|--------------------|
+| [agents/README.md](agents/README.md) | Agent-oriented entry point for change routing, validation, docs map, and common failures. |
+| [agents/CHANGE_ROUTING.md](agents/CHANGE_ROUTING.md) | Map task types to owner modules, human docs, and validation gates. |
+| [agents/DRIFT_CONTROL.md](agents/DRIFT_CONTROL.md) | Search-before-create rules to avoid duplicate helpers, docs, commands, and processes. |
+| [agents/VALIDATION_MATRIX.md](agents/VALIDATION_MATRIX.md) | Compact validation matrix for focused, semantic, corpus, live, and docs gates. |
+| [agents/DOCS_MAP.md](agents/DOCS_MAP.md) | Map public behavior changes to the docs that must be checked or updated. |
+| [agents/COMMON_FAILURES.md](agents/COMMON_FAILURES.md) | Common coding-agent mistakes to check before finalizing. |
 
 Core translation:
 

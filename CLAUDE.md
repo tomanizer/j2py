@@ -17,6 +17,7 @@ against the original Java class-by-class, method-by-method.
 | [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md) | Product goals, user stories, non-goals, success criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
 | [docs/developer/README.md](docs/developer/README.md) | Developer change guides by subsystem |
+| [docs/agents/README.md](docs/agents/README.md) | Coding-agent routing, validation, docs map, and common failure checklist |
 | [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion pipeline, GitHub issues |
 | [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch workflow, PR rules, commit style, changelog |
@@ -129,6 +130,11 @@ local presets; a red CI means the corresponding local target was not run, or the
 introduced corpus baseline drift that needs an intentional baseline refresh. Use
 [Validation gates](docs/developer/VALIDATION_GATES.md) to choose the focused gate for a
 subsystem change.
+
+Before adding a new helper, module, command, doc, workflow, fixture family, or test
+harness, run the [agent drift-control check](docs/agents/DRIFT_CONTROL.md). Prefer
+extending the existing owner module, helper, fixture pattern, command, or doc section over
+creating a parallel path.
 
 ## Benchmark corpus checkouts
 
