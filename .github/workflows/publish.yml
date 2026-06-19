@@ -24,7 +24,7 @@ jobs:
       - uses: ./.github/actions/setup-python-uv
         with:
           python-version: ${{ matrix.python-version }}
-          extras: test
+          extras: test spring
       - run: make release-test
 
   release-dist:

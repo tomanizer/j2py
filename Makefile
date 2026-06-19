@@ -317,6 +317,6 @@ import-smoke:  ## Verify core imports and CLI entry point
 	uv run python -c "import j2py; import j2py.parse.java_ast; import j2py.translate.rules.types"
 	uv run j2py --help > /dev/null
 
-release-test: lock-check check test-targets test-behavior version-check import-smoke  ## Release tests without building dist
+release-test: lock-check check test-targets test-behavior test-spring-smoke version-check import-smoke  ## Release tests without building dist
 
 release-check: release-test dist-check  ## Run beta/pre-release readiness checks
