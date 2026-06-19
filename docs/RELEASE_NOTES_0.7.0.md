@@ -29,7 +29,7 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
   [Doctor](DOCTOR.md) and [SARIF](SARIF.md).
 - **Optional LLM completion and review** using configured Anthropic, Gemini, or
   OpenAI-compatible providers, with normal tests and release gates avoiding live LLM
-  calls. See [CLI](CLI.md#translate) and [Output Review](OUTPUT_REVIEW.md).
+  calls. See [CLI](CLI.md#j2py-translate) and [Output Review](OUTPUT_REVIEW.md).
 - **Spring conversion scaffolding** behind explicit opt-in configuration:
   `annotation_map_preset: spring`, `SpringWiringPlugin`, wiring sidecars,
   `j2py-wire generate`, `j2py-wire validate`, and a PetClinic owner-slice smoke gate. See
@@ -43,7 +43,7 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
 ## Evidence Map
 
 The full claim-to-evidence inventory is tracked in
-[0.7.0 release test coverage inventory](RELEASE_TEST_COVERAGE_0.7.0.md).
+[0.7.0 release test coverage inventory](RELEASE_TEST_EVIDENCE_0.7.0.md).
 
 | Claim | Evidence |
 |---|---|
@@ -87,9 +87,9 @@ Before tagging 0.7.0, record the current results for:
 - `make release-check`
 - `make test-spring-smoke`
 - relevant corpus checks or scorecard summaries
-- [0.7.0 performance baseline](PERFORMANCE_BASELINE_0.7.0.md)
+- [0.7.0 performance baseline](RELEASE_PERFORMANCE_BASELINE_0.7.0.md)
 - package build and clean-environment install smoke; see
-  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_0.7.0.md)
+  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md)
 
 Do not claim broader runtime support than these gates prove.
 

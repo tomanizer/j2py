@@ -3,6 +3,33 @@
 This walkthrough uses the CLI path a migration reviewer is most likely to take:
 install, assess, configure, translate, and review.
 
+## Choose the right path
+
+For simple Java, start with the core translator and review output:
+
+```bash
+j2py translate Foo.java
+j2py compare Foo.java Foo.py
+```
+
+For enterprise or framework-heavy code, use the full pipeline:
+
+```text
+doctor -> config -> translate -> sidecars -> wire -> validate/review
+```
+
+```bash
+j2py doctor project/
+# create and review config
+j2py translate project/ --config j2py_config.py --output translated_py
+j2py-wire list translated_py
+j2py-wire generate translated_py --target fastapi
+j2py-wire validate translated_py
+```
+
+The layers are explained in [Positioning and enterprise scope](POSITIONING.md). You do not
+need framework plugins or `j2py-wire` for framework-light Java.
+
 ## 1. Install
 
 ```bash
@@ -71,7 +98,8 @@ Use the report to identify parse failures, unresolved imports, annotations, TODO
 markers, semantic warnings, and low-coverage files. The generated config suggestions are
 advisory; review them before using them as real config.
 
-For details, see [j2py doctor](DOCTOR.md) and [SARIF export](SARIF.md).
+For details, see [Assessment](ASSESSMENT.md), [j2py doctor](DOCTOR.md), and
+[SARIF export](SARIF.md).
 
 ## 4. Add Project Config
 
@@ -82,24 +110,28 @@ j2py auto-discovers the first supported config file under the project root:
 - `j2py.toml`
 - `[tool.j2py]` in `pyproject.toml`
 
-Use config for project-specific type, import, exception, literal, and annotation
-mappings:
+Use config for project-specific type, import, exception, literal, and annotation mappings:
 
 ```yaml
+type_map:
+  Money: Money
+  Logger: logging.Logger
+
 import_map:
-  com.acme.money.Money: acme.money.Money
-  org.slf4j.Logger: logging.Logger
+  com.acme.money.Money: "from acme.money import Money"
+  org.slf4j.Logger: "import logging"
 
 drop_annotations:
   - Override
 
 annotation_map:
   org.springframework.web.bind.annotation.RestController:
-    python_decorator: fastapi_router
-    import: acme.web.fastapi_router
+    python_decorator: rest_controller
+    import: "from acme.web import rest_controller"
 ```
 
-See [Configuration](configuration.md) and [Framework plugins](FRAMEWORK_PLUGINS.md).
+See [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md),
+[Framework plugins](FRAMEWORK_PLUGINS.md), and [Wiring](WIRING.md).
 
 ## 5. Translate Without LLM First
 
@@ -226,9 +258,9 @@ When running from a worktree, set `J2PY_CORPUS_ROOT` to the main checkout. See
 
 ## 10. Try The Spring Conversion Path
 
-Spring conversion is opt-in and split across two tools: `j2py translate` emits translated
-Python plus framework sidecars, then `j2py-wire` consumes those sidecars and generates
-FastAPI wiring.
+Skip this section unless your source project uses Spring. Spring conversion is opt-in and
+split across two tools: `j2py translate` emits translated Python plus framework sidecars,
+then `j2py-wire` consumes those sidecars and generates FastAPI wiring.
 
 For an installed environment, verify that the Spring extra is present:
 
@@ -252,7 +284,9 @@ limits, see [Spring conversion](SPRING_CONVERSION.md).
 ## Where to Go Next
 
 - [CLI reference](CLI.md)
-- [Python API](API.md)
+- [Python API Guide](API.md)
+- [Python API Reference](API_REFERENCE.md)
 - [Output review](OUTPUT_REVIEW.md)
 - [Positioning](POSITIONING.md)
-- [Spring conversion](SPRING_CONVERSION.md)
+- [Configuration](CONFIGURATION.md)
+- [Spring conversion](SPRING_CONVERSION.md), only for Spring source projects

@@ -55,9 +55,9 @@ Treat these as manual review blockers until resolved or intentionally accepted.
 ## Semantic Warnings
 
 Semantic warnings mark handled constructs that still need attention. Examples include
-ambiguous Java behavior, opt-in framework lowering, platform boundaries, and conservative
-rewrites where the Python remains syntactically valid but may not preserve runtime
-behavior without policy.
+ambiguous Java behavior, opt-in framework translation policy, platform boundaries, and
+conservative rewrites where the Python remains syntactically valid but may not preserve
+runtime behavior without policy.
 
 Warnings are visible in:
 
@@ -163,15 +163,16 @@ boundaries.
 
 ## Framework and Platform Boundaries
 
-j2py lowers common Java/JDK constructs, but it does not emulate application frameworks.
+j2py translates common Java/JDK constructs, but it does not emulate application frameworks.
 Spring, JPA, servlets, JDBC, reflection, container lifecycle, transaction behavior, and
 dependency injection require project policy, config, plugins, or manual porting.
 
 Use:
 
 - [Positioning](POSITIONING.md) for scope boundaries;
-- [Framework plugins](FRAMEWORK_PLUGINS.md) for opt-in lowering;
-- [Configuration](configuration.md) for `annotation_map`, `import_map`, and related
+- [Framework plugins](FRAMEWORK_PLUGINS.md) for opt-in framework metadata extraction and
+  source transforms;
+- [Configuration](CONFIGURATION.md) for `annotation_map`, `import_map`, and related
   project policy.
 
 ## Manual Review Checklist

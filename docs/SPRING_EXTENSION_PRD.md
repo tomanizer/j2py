@@ -77,7 +77,7 @@ rather than duplicate them:
 - #337 and [ADR 0022](decisions/0022-framework-plugin-architecture.md) - general
   framework plugin architecture.
 - #409 - framework sidecar cleanup behavior.
-- [Framework plugin guide](FRAMEWORK_PLUGINS.md), [configuration docs](configuration.md),
+- [Framework plugin guide](FRAMEWORK_PLUGINS.md), [configuration docs](CONFIGURATION.md),
   [Spring roadmap guardrails](SPRING_ROADMAP_GUARDRAILS.md),
   [Spring wiring metadata profile](SPRING_WIRING_METADATA.md), and
   [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md).
@@ -154,8 +154,8 @@ runtime policy.
 Spring-specific behavior belongs behind explicit extension seams unless it is a general
 Java translation improvement. Acceptable locations are:
 
-- `annotation_map` entries and `annotation_map_preset: spring` for marker lowering;
-- `FrameworkPlugin` implementations for programmatic framework lowering;
+- `annotation_map` entries and `annotation_map_preset: spring` for marker mapping;
+- `FrameworkPlugin` implementations for framework handling that needs code;
 - `FrameworkTransformResult.metadata` under a Spring profile namespace;
 - existing `*.wiring.json` sidecars;
 - `j2py-wire`;

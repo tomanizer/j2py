@@ -114,5 +114,5 @@ class's dependency closure before it can import, which reshaped Phase 1. See
 - [docs/BEHAVIOR_CORPUS.md](../BEHAVIOR_CORPUS.md) — the existing runtime gate this extends
 - [docs/CORPUS_SCOREBOARD.md](../CORPUS_SCOREBOARD.md) — the node-coverage scoreboard this
   complements
-- [PRD.md](../PRD.md) — semantic-equivalence goal; execution-equivalence listed as a
+- [PRODUCT_REQUIREMENTS.md](../PRODUCT_REQUIREMENTS.md) — semantic-equivalence goal; execution-equivalence listed as a
   prior non-goal this ADR consciously revisits

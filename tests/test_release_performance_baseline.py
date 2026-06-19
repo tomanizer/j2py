@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "docs" / "PERFORMANCE_BASELINE_0.7.0.md"
+BASELINE = ROOT / "docs" / "RELEASE_PERFORMANCE_BASELINE_0.7.0.md"
 
 
 def test_performance_baseline_is_linked_from_release_docs() -> None:
@@ -14,8 +14,8 @@ def test_performance_baseline_is_linked_from_release_docs() -> None:
         encoding="utf-8",
     )
 
-    assert "PERFORMANCE_BASELINE_0.7.0.md" in readme
-    assert "PERFORMANCE_BASELINE_0.7.0.md" in release_notes
+    assert "RELEASE_PERFORMANCE_BASELINE_0.7.0.md" in readme
+    assert "RELEASE_PERFORMANCE_BASELINE_0.7.0.md" in release_notes
 
 
 def test_performance_baseline_records_required_issue_585_paths() -> None:

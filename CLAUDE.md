@@ -13,8 +13,11 @@ against the original Java class-by-class, method-by-method.
 
 | Document | What it contains |
 |---|---|
-| [docs/PRD.md](docs/PRD.md) | Product goals, user stories, non-goals, success criteria |
+| [docs/README.md](docs/README.md) | User, Java framework, developer, and repo-record docs index |
+| [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md) | Product goals, user stories, non-goals, success criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
+| [docs/developer/README.md](docs/developer/README.md) | Developer change guides by subsystem |
+| [docs/agents/README.md](docs/agents/README.md) | Coding-agent routing, validation, docs map, and common failure checklist |
 | [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion pipeline, GitHub issues |
 | [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch workflow, PR rules, commit style, changelog |
@@ -64,7 +67,9 @@ and unary/update expressions live in `expr_assignments.py`, `expr_binary.py`,
 lowering.
 Deterministic name-binding work belongs in `translate/name_resolution.py`. The earlier
 selector/transform prototype has been removed. See
-[ADR 0003](docs/decisions/0003-layered-translation-pipeline.md).
+[ADR 0003](docs/decisions/0003-layered-translation-pipeline.md),
+[Rule authoring](docs/developer/RULE_AUTHORING.md), and
+[Translation internals](docs/developer/TRANSLATION_INTERNALS.md).
 
 ## Settled design decisions
 
@@ -122,7 +127,14 @@ make ci-local-pr            # full local PR check — must pass before pushing
 
 All relevant `make` targets must pass locally before pushing. CI gates are identical to
 local presets; a red CI means the corresponding local target was not run, or the PR
-introduced corpus baseline drift that needs an intentional baseline refresh.
+introduced corpus baseline drift that needs an intentional baseline refresh. Use
+[Validation gates](docs/developer/VALIDATION_GATES.md) to choose the focused gate for a
+subsystem change.
+
+Before adding a new helper, module, command, doc, workflow, fixture family, or test
+harness, run the [agent drift-control check](docs/agents/DRIFT_CONTROL.md). Prefer
+extending the existing owner module, helper, fixture pattern, command, or doc section over
+creating a parallel path.
 
 ## Benchmark corpus checkouts
 

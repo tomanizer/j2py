@@ -313,7 +313,7 @@ below. Closes the beta-readiness checklist ([#268](https://github.com/tomanizer/
 ### Added
 - End-to-end **case study** translating the multi-file Apache Commons Lang
   `org.apache.commons.lang3.tuple` package (6 files) with rule-layer-only output, linked
-  and exercised by ported unit tests ([docs/CASE_STUDY.md](docs/CASE_STUDY.md),
+  and exercised by ported unit tests ([docs/CASE_STUDY_COMMONS_LANG_TUPLE.md](docs/CASE_STUDY_COMMONS_LANG_TUPLE.md),
   `tests/case_study/`, #311). 100% node coverage / 0 `__j2py_todo__`; 19 passing ported
   assertions and 3 strict xfails pinning surfaced translation gaps.
 - LLM harvest **promotion pipeline**: `make harvest-promote`, `harvest-promote-issues`,
@@ -355,7 +355,7 @@ below. Closes the beta-readiness checklist ([#268](https://github.com/tomanizer/
 
 ### Known limitations
 
-The multi-file Commons Lang `tuple` case study ([docs/CASE_STUDY.md](docs/CASE_STUDY.md))
+The multi-file Commons Lang `tuple` case study ([docs/CASE_STUDY_COMMONS_LANG_TUPLE.md](docs/CASE_STUDY_COMMONS_LANG_TUPLE.md))
 translates at 100% node coverage with zero `__j2py_todo__` markers, yet end-to-end
 execution surfaced correctness gaps that coverage alone cannot see. The following remain
 open at this release:
@@ -380,7 +380,7 @@ import fix.
 ## 0.4.0a1 - 2026-06-15
 
 ### Changed
-- Refresh [docs/PRD.md](docs/PRD.md) — confidence semantics, expanded CLI, `verify/` stage,
+- Refresh [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md) — confidence semantics, expanded CLI, `verify/` stage,
   regression suites (F9–F10), updated success criteria.
 - Add [docs/decisions/AUDIT-2026-06-15.md](docs/decisions/AUDIT-2026-06-15.md) maturity
   audit and [docs/README.md](docs/README.md) documentation index.

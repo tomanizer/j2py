@@ -29,8 +29,8 @@ capability already exists:
 - `j2py/translate/spring_repository.py` - Spring Data repository lowering.
 - `j2py/translate/spring_settings.py` - Spring `@ConfigurationProperties` lowering.
 - `j2py/translate/framework_annotations.py` - annotation visibility and configured
-  marker lowering.
-- `docs/FRAMEWORK_PLUGINS.md`, `docs/configuration.md`,
+  marker mapping.
+- `docs/FRAMEWORK_PLUGINS.md`, `docs/CONFIGURATION.md`,
   `docs/SPRING_WIRING_METADATA.md`, and `docs/examples/SPRING_MAPPING_COOKBOOK.md`.
 - `tests/fixtures/framework/reference_plugin.py`, `tests/test_pipeline.py`,
   `tests/test_spring_wiring_metadata_profile.py`,
@@ -73,7 +73,7 @@ Spring roadmap PRs must follow these rules:
    Spring wiring sidecars, FastAPI code, SQLAlchemy setup, or framework plugin metadata.
 9. Spring tests in `make check` should stay small and fixture-focused. PetClinic and
    full translate -> wire -> smoke flows belong in optional corpus/integration gates.
-10. User-facing docs must distinguish general Java transpilation, Spring marker lowering,
+10. User-facing docs must distinguish general Java transpilation, Spring marker mapping,
     rule-layer Spring translations, Spring wiring metadata, generated FastAPI wiring, and
     smoke-test scope.
 

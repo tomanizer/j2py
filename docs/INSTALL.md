@@ -55,8 +55,8 @@ pip install --pre "j2py-converter[spring]"    # opt-in Spring/FastAPI/SQLAlchemy
 ```
 
 The `spring` extra installs FastAPI, HTTPX, SQLAlchemy, and pydantic-settings for
-Spring-to-Python migration flows. It does not enable Spring lowering by itself. Spring
-marker lowering, framework plugins, wiring metadata, and downstream `j2py-wire` commands
+Spring-to-Python migration flows. It does not enable Spring handling by itself. Spring
+marker mapping, framework plugins, wiring metadata, and downstream `j2py-wire` commands
 remain explicit runtime choices.
 
 After installing the Spring extra, verify the optional runtime imports:
@@ -234,6 +234,6 @@ The `watch` optional dependency remains reserved for future watcher implementati
 
 - [Getting started](GETTING_STARTED.md)
 - [CLI reference](CLI.md)
-- [Configuration](configuration.md)
+- [Configuration](CONFIGURATION.md)
 - [Spring conversion](SPRING_CONVERSION.md)
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)

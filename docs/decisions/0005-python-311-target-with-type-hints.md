@@ -49,4 +49,4 @@ The j2py source code itself also targets Python 3.11 and passes `mypy --strict`.
 
 - PEP 585: https://peps.python.org/pep-0585/
 - PEP 604: https://peps.python.org/pep-0604/
-- [PRD.md](../PRD.md) F2 (rule-based skeleton must emit type annotations)
+- [PRODUCT_REQUIREMENTS.md](../PRODUCT_REQUIREMENTS.md) F2 (rule-based skeleton must emit type annotations)

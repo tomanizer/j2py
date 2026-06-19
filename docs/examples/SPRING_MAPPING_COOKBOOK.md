@@ -51,7 +51,7 @@ identical forms:
     -c docs/examples/spring-to-fastapi.yaml --no-llm --no-validate --dry-run
   ```
 
-Both produce byte-identical Python. See [configuration.md](../configuration.md) for the
+Both produce byte-identical Python. See [CONFIGURATION.md](../CONFIGURATION.md) for the
 config-format details.
 
 ## What Tier 2 `annotation_map` can and cannot do

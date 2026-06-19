@@ -1,13 +1,23 @@
-# Framework plugin architecture
+# Framework plugins
 
-Framework plugins are j2py's trusted extension point for project-specific framework
-lowering. They let a migration team translate Java source structure with the normal rule
-layer while adding explicit, reviewable policy for framework annotations such as Spring
-MVC routes, dependency injection, transactions, and persistence markers.
+Framework plugins are trusted Python adapters that teach j2py about framework patterns in
+your project. They run during translation. A plugin can inspect Java annotations and source
+structure, then add reviewable Python output or write metadata for `j2py-wire`.
+
+Use a plugin when a simple config entry is not enough. For example, an `annotation_map`
+entry can say "`@Autowired` should become a comment", but a plugin can inspect the field
+type, add a constructor parameter, record dependency metadata, and leave a sidecar for
+later wiring.
+
+Framework plugins are optional. Core j2py still translates Java source structure. Plugins
+only add explicit project policy for framework behavior that your migration team has chosen
+to model.
 
 Design decision: [ADR 0022](decisions/0022-framework-plugin-architecture.md).
-Configuration reference: [configuration.md](configuration.md#framework-plugins).
-Related Tier 2 mapping: [ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
+Configuration reference:
+[CONFIGURATION.md](CONFIGURATION.md#configuration-plugins-and-wiring).
+Related annotation mapping decision:
+[ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
 Spring extension boundary: [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).
 Spring roadmap guardrails: [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md).
@@ -19,20 +29,22 @@ j2py core is a Java-to-Python source translator. It is not a Spring, Hibernate, 
 JDBC, or FastAPI runtime emulator. That boundary is intentional: enterprise framework
 behavior is usually application policy, not Java language semantics.
 
-Framework plugins exist for the middle ground:
+Framework plugins cover the middle ground between plain source translation and a manual
+port:
 
 - The Java construct is already visible to j2py as syntax, usually an annotation.
-- A flat `annotation_map` entry is too small because the rule needs programmatic logic.
-- The migration team wants the generated Python to carry target-stack scaffolding,
-  review comments, or wiring metadata without forking j2py core.
+- A flat `annotation_map` entry is too small because the rule needs code.
+- The migration team wants generated Python to carry review comments, constructor
+  parameters, shim decorators, or sidecar metadata without forking j2py core.
 
-Typical plugin-owned decisions include:
+Typical plugin decisions include:
 
-- mapping a controller annotation to a project-owned FastAPI router decorator;
+- recognizing a Spring controller and recording its route prefix;
 - promoting selected injected fields into constructor parameters;
-- recording route, dependency-injection, or ORM hints in `*.wiring.json`;
+- recording route, dependency-injection, repository, entity, or JDBC bean facts in
+  `*.wiring.json`;
 - adding project shim imports and base classes;
-- suppressing duplicate Tier 2 annotation output when a plugin has handled an element.
+- suppressing duplicate simple annotation output when a plugin has handled an element.
 
 Plugins do not change the core mission. The translated Python should still be auditable
 against the Java class-by-class and method-by-method. A plugin should make framework
@@ -40,8 +52,8 @@ policy more explicit, not hide it.
 
 ## Why plugins are needed
 
-Tier 2 `annotation_map` is intentionally declarative and one-to-one. It works well for
-simple rules such as:
+`annotation_map` is intentionally declarative and one-to-one. It works well for simple
+rules such as:
 
 ```yaml
 annotation_map:
@@ -67,15 +79,30 @@ Hard-coding those rules into `j2py/translate/` would make j2py opinionated about
 target stack. Plugins keep that policy in a Python config file or an organization-owned
 package where it can be reviewed, versioned, and tested with the migrated codebase.
 
+## Config or plugin?
+
+Use this rule of thumb:
+
+| If you need... | Use... |
+|---|---|
+| A fixed decorator, import, base class, comment, or dropped annotation | `annotation_map` in `CONFIGURATION.md` |
+| Project type or import substitutions | `type_map`, `import_map` |
+| Logic that combines multiple annotations or fields | a framework plugin |
+| Metadata for `j2py-wire` to generate target-stack wiring | a framework plugin plus `emit_wiring_metadata = True` |
+| Production runtime behavior such as DB sessions, auth, transactions, or secrets | project application code, not j2py config or plugins |
+
+Framework plugins extract framework metadata. j2py writes that metadata to sidecars.
+`j2py-wire` uses sidecars to generate target-stack wiring.
+
 ## How this improves enterprise migration
 
 In a framework-heavy Java codebase, the most useful split is:
 
 1. j2py translates the Java language structure and preserves review correspondence.
 2. `type_map`, `import_map`, and `annotation_map` handle simple project policy.
-3. Framework plugins handle annotation lowering that needs code.
-4. Optional wiring metadata feeds project-owned tools that assemble routers, dependency
-   containers, ORM declarations, or migration reports.
+3. Framework plugins handle framework patterns that need code.
+4. Optional sidecar metadata feeds `j2py-wire` or project-owned tools that assemble
+   routers, dependency providers, persistence scaffolding, or migration reports.
 5. Engineers review and finish framework behavior in the target stack.
 
 This makes the migration more controlled than either a blind code rewrite or a pile of
@@ -185,16 +212,17 @@ Resolution is per class, field, method, or constructor:
 
 1. Framework plugins run in registration order.
 2. The first plugin returning `handled=True` wins for that element.
-3. A handled plugin suppresses later plugins and Tier 2 `annotation_map` for that element.
-4. If no plugin handles the element, Tier 2 `annotation_map` runs.
-5. If neither handles it, Tier 1 annotation visibility emits diagnostics and optional
-   `# @Annotation(...)` comments.
+3. A handled plugin suppresses later plugins and the simple `annotation_map` rule for that
+   element.
+4. If no plugin handles the element, `annotation_map` runs.
+5. If neither handles it, normal annotation visibility emits diagnostics and optional
+   `# @Annotation(...)` comments for review.
 
 Plugin hooks are guarded. If a hook raises, returns the wrong result type, or returns raw
 strings where tuple fields are required, j2py records a diagnostic warning and falls back
-to the next tier. A broken plugin should not crash a translation run, but plugins are
-still trusted in-process Python code and can run arbitrary side effects when imported or
-called.
+to the next available annotation handling path. A broken plugin should not crash a
+translation run, but plugins are still trusted in-process Python code and can run arbitrary
+side effects when imported or called.
 
 ## Wiring metadata
 
@@ -239,8 +267,8 @@ generator.
 Spring-specific route, dependency-injection, repository, and entity facts must be nested
 under `elements[].metadata.spring` using the v1
 [Spring wiring metadata profile](SPRING_WIRING_METADATA.md). `annotation_map_preset:
-spring` remains Tier 2 marker lowering; the Spring wiring profile is structured Tier 4
-plugin metadata for `j2py-wire`.
+spring` remains simple marker output; the Spring wiring profile is structured plugin
+metadata for `j2py-wire`.
 
 Use the built-in producer when you want Spring v1 sidecars:
 
@@ -426,14 +454,13 @@ to build the target framework layer:
   Keep pyodbc as a possible SQLAlchemy dialect/driver, not as a core j2py codegen target.
 
 For simple Spring annotations that are truly one-to-one, prefer
-[`annotation_map`](configuration.md#schema). Use a plugin when the rule
+[`annotation_map`](CONFIGURATION.md#schema). Use a plugin when the rule
 needs code, correlation, metadata, or project-specific precedence.
 
 ## Suggested migration workflow
 
 1. Start with no framework plugin and translate a small, representative Java package.
-2. Review Tier 1 annotation comments and diagnostics to identify repeated framework
-   patterns.
+2. Review annotation comments and diagnostics to identify repeated framework patterns.
 3. Add `annotation_map` entries for simple one-to-one mappings.
 4. Add a plugin for patterns that need code or metadata.
 5. Turn on `emit_wiring_metadata` and inspect sidecars for routes, dependencies, and ORM
@@ -442,10 +469,44 @@ needs code, correlation, metadata, or project-specific precedence.
 7. Add fixture tests around the plugin package so framework policy changes are reviewed
    like application code.
 
+## How to test a plugin
+
+Treat a framework plugin like migration code, not configuration trivia. It should have
+small fixtures and expected outputs.
+
+At minimum, test that:
+
+- translation still succeeds without the plugin, so the plugin is truly opt-in;
+- the plugin handles only the annotations or source shapes it understands;
+- generated Python contains the expected comments, decorators, imports, constructor
+  parameters, or bases;
+- sidecars are written only when `emit_wiring_metadata = True`;
+- sidecar metadata is stable, JSON-serializable, and traceable back to Java names;
+- stale sidecars disappear when metadata is no longer emitted;
+- `j2py-wire list` can read the sidecars if the plugin is intended for wiring.
+
+For a local plugin package, a useful test loop is:
+
+```bash
+PYTHONPATH=. j2py translate tests/fixtures/java/MyController.java \
+  --config tests/fixtures/j2py_config.py \
+  --output /tmp/j2py-plugin-smoke/MyController.py \
+  --no-llm \
+  --no-validate
+
+j2py-wire list /tmp/j2py-plugin-smoke
+python -m py_compile /tmp/j2py-plugin-smoke/MyController.py
+```
+
+If the plugin is checked into the same repository as the migration, add normal unit tests
+around its helper functions and fixture tests around translated output. The built-in Spring
+plugin tests in `tests/translate/skeleton/test_spring_wiring_plugin.py` are the pattern to
+copy.
+
 ## Guardrails
 
 - Keep plugins narrow. A plugin should claim only elements it understands.
-- Return `handled=False` when in doubt so Tier 2 or Tier 1 remains visible.
+- Return `handled=False` when in doubt so simple annotation handling remains visible.
 - Prefer project-owned shim functions and decorators over pretending core j2py owns the
   target framework.
 - Keep metadata JSON-serializable and version your downstream schema if another tool
@@ -458,10 +519,10 @@ needs code, correlation, metadata, or project-specific precedence.
 
 - [POSITIONING.md](POSITIONING.md) explains why framework runtime behavior remains outside
   core j2py.
-- [configuration.md](configuration.md) documents config loading, `annotation_map`, and
+- [CONFIGURATION.md](CONFIGURATION.md) documents config loading, `annotation_map`, and
   `framework_plugins`.
-- [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md) shows Tier 2
-  `annotation_map` recipes and manual-port callouts.
+- [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md) shows `annotation_map`
+  recipes and manual-port callouts.
 - [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
   [ADR 0024](decisions/0024-spring-extension-boundary.md) define the optional Spring
   extension scope and the rule that Spring is one consumer of these generic hooks.

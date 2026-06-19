@@ -57,5 +57,5 @@ No LLM prompt should infer framework behavior for annotations that are not mappe
 - Issue #334 — Tier 1 annotation visibility
 - Issue #333 — enterprise/Spring audit
 - Issue #339 — Spring → FastAPI/SQLAlchemy mapping cookbook
-- [docs/configuration.md](../configuration.md)
+- [docs/CONFIGURATION.md](../CONFIGURATION.md)
 - [docs/examples/SPRING_MAPPING_COOKBOOK.md](../examples/SPRING_MAPPING_COOKBOOK.md)

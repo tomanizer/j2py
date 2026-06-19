@@ -132,7 +132,7 @@ framework_plugins = [_FastApiSpringPlugin()]
 (`arbitrary_types_allowed=True`). Because YAML/TOML cannot express Python objects, the
 "trusted code only" property is enforced by construction — no extra guard logic. This
 mirrors the existing policy that `.py` configs are trusted code (see
-[docs/configuration.md](../configuration.md)).
+[docs/CONFIGURATION.md](../CONFIGURATION.md)).
 
 ### Resolution order (per element, short-circuit)
 
@@ -244,7 +244,7 @@ the contract. A maintained Spring→FastAPI plugin belongs in a separate package
   stable; that is the cost of the narrow-surface decision and is preferable to exposing
   `TranslationContext`.
 − Precedence is plugin-over-Tier-2 per element; a project mixing both must understand the
-  short-circuit rule to avoid surprise (documented in `configuration.md`).
+  short-circuit rule to avoid surprise (documented in `CONFIGURATION.md`).
 
 ## Non-goals
 
@@ -273,5 +273,5 @@ Spring -> FastAPI/Pydantic/SQLAlchemy migration example.
 - Issue #336 — Tier 3 `spring-app-dense` corpus
 - Issue #338 — Tier 5 `j2py-wire` wiring generator
 - Issue #339 — Spring → FastAPI/SQLAlchemy mapping cookbook
-- [docs/configuration.md](../configuration.md)
+- [docs/CONFIGURATION.md](../CONFIGURATION.md)
 - [docs/examples/SPRING_MAPPING_COOKBOOK.md](../examples/SPRING_MAPPING_COOKBOOK.md)

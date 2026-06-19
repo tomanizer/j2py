@@ -3,7 +3,8 @@
 `j2py doctor` assesses Java sources before or during a migration. It is an evidence
 report, not a full Java compiler or classpath-aware migration planner.
 
-Product requirements and roadmap: [DOCTOR_PRD.md](DOCTOR_PRD.md).
+Assessment layer guide: [ASSESSMENT.md](ASSESSMENT.md). Product requirements and roadmap:
+[DOCTOR_PRODUCT_REQUIREMENTS.md](DOCTOR_PRODUCT_REQUIREMENTS.md).
 
 ## When to use it
 
@@ -256,4 +257,4 @@ Current `doctor` does not:
 - generate stubs;
 - rank files by a formal risk score.
 
-Those are planned follow-on capabilities in [DOCTOR_PRD.md](DOCTOR_PRD.md).
+Those are planned follow-on capabilities in [DOCTOR_PRODUCT_REQUIREMENTS.md](DOCTOR_PRODUCT_REQUIREMENTS.md).
