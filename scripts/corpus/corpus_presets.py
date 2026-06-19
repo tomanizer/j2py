@@ -214,7 +214,7 @@ PRESETS: dict[str, CorpusPreset] = {
         ),
         _preset(
             "commons-lang-dense",
-            "Apache Commons Lang classic utility Java without framework magic",
+            "Apache Commons Lang classic utility Java without framework-runtime semantics",
             remote="https://github.com/apache/commons-lang.git",
             ref="rel/commons-lang-3.17.0",
             checkout_dir="commons-lang",
