@@ -54,6 +54,7 @@ harvest workflows.
 - normal pytest suite
 - future target xfail suite
 - Java/Python behavior-equivalence tests
+- Spring PetClinic translate -> sidecar -> wire -> FastAPI smoke test
 - version consistency (`pyproject.toml` vs `j2py.__version__`)
 - import and CLI smoke test
 - fresh `dist/` cleanup before building release artifacts
@@ -62,5 +63,12 @@ harvest workflows.
   VS Code build output, VSIX files, and `node_modules`
 - `twine check dist/*.whl dist/*.tar.gz`
 
-The publish workflow runs `make release-test` on Python 3.11 and 3.12, then builds
-and validates distributions once on Python 3.11.
+The publish workflow runs `make release-test` on Python 3.11 and 3.12 with the `test` and
+`spring` extras, then builds and validates distributions once on Python 3.11. Local
+`make release-check` also builds the wheel/sdist and runs `twine check`; the publish
+workflow keeps that distribution step in a separate `release-dist` job so PyPI upload only
+depends on one checked artifact set.
+
+`make release-check` intentionally avoids live LLM calls. It requires the normal local
+release prerequisites instead: a synced uv environment, a JDK for `make test-behavior`,
+and the optional Spring dependencies used by `make test-spring-smoke`.
