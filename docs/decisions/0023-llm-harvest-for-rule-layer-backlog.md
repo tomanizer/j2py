@@ -87,7 +87,7 @@ Full operator guide: [LLM_HARVEST.md](../LLM_HARVEST.md).
 **Pruning:** the log is append-only and gitignored. Re-translating the same file creates
 duplicate rows. Triage dedupes on read; ``make harvest-prune`` rewrites the file to the
 latest row per ``source_path`` and drops ``status=resolved`` rows. Identical back-to-back
-appends are skipped at write time. See [LLM_HARVEST.md](../LLM_HARVEST.md#maintenance).
+appends are skipped at write time. See [LLM_HARVEST.md](../LLM_HARVEST.md#llm-harvest-maintenance).
 
 Disable recording: ``J2PY_LLM_HARVEST=0``.
 

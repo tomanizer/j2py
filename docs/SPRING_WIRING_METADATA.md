@@ -380,7 +380,7 @@ methods intentionally reference placeholders such as `self.jdbc_template_connect
 `self.named_jdbc_template_connection`; the wiring metadata above is the evidence a
 downstream generator or manual port uses to replace those placeholders with a real
 SQLAlchemy `Connection` or `Session` policy. See the
-[Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md#6-spring-jdbc-datasource--jdbctemplate)
+[Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md#6-spring-jdbc-datasource-jdbctemplate)
 for the supported `update`, `queryForObject`, `query`, RowMapper, and manual-port cases.
 
 The profile intentionally does not include engine URLs, pool settings, credentials,

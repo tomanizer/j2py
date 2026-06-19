@@ -29,7 +29,7 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
   [Doctor](DOCTOR.md) and [SARIF](SARIF.md).
 - **Optional LLM completion and review** using configured Anthropic, Gemini, or
   OpenAI-compatible providers, with normal tests and release gates avoiding live LLM
-  calls. See [CLI](CLI.md#translate) and [Output Review](OUTPUT_REVIEW.md).
+  calls. See [CLI](CLI.md#j2py-translate) and [Output Review](OUTPUT_REVIEW.md).
 - **Spring conversion scaffolding** behind explicit opt-in configuration:
   `annotation_map_preset: spring`, `SpringWiringPlugin`, wiring sidecars,
   `j2py-wire generate`, `j2py-wire validate`, and a PetClinic owner-slice smoke gate. See
