@@ -16,13 +16,14 @@ are recorded in [SPRING_EXTENSION_PRD.md](../SPRING_EXTENSION_PRD.md) and
 |---|---|---|---|
 | Tier 1 | Default lowering + audit comments | shipped | — |
 | Tier 2 | `annotation_map` config | shipped | [#335](https://github.com/tomanizer/j2py/issues/335) |
-| Tier 4 | Framework plugins (richer transforms) | shipped | [#337](https://github.com/tomanizer/j2py/issues/337), [ADR 0022](../decisions/0022-framework-plugin-architecture.md) |
-| Tier 5 | `j2py-wire` (DI/route bootstrap) | planned | [#338](https://github.com/tomanizer/j2py/issues/338) |
+| Tier 4 | Framework plugins (richer transforms and sidecar metadata) | shipped | [ADR 0022](../decisions/0022-framework-plugin-architecture.md) |
+| Tier 5 | `j2py-wire` (DI/route bootstrap from sidecars) | shipped | [Spring conversion guide](../SPRING_CONVERSION.md) |
 
 Related: [#333](https://github.com/tomanizer/j2py/issues/333) (enterprise audit),
 [#334](https://github.com/tomanizer/j2py/issues/334) (annotation visibility),
-[#339](https://github.com/tomanizer/j2py/issues/339) (this cookbook),
-[#554](https://github.com/tomanizer/j2py/issues/554) (Spring JDBC roadmap).
+[#339](https://github.com/tomanizer/j2py/issues/339) (this cookbook). Historical
+implementation issues for framework plugins, `j2py-wire`, and Spring JDBC are now
+represented by the shipped guides linked from this page.
 
 ## How to reproduce the output below
 
@@ -69,8 +70,9 @@ config-format details.
 | `preserve_comment` | Keep/suppress the `# @Annotation(...)` audit comment (defaults to `emit_line_comments`). |
 
 There is **no** key to emit an arbitrary class attribute (e.g. `__tablename__ = ...`), a
-column flag (`primary_key=True`), or a router-init line. Those require a Tier 4 plugin
-([#337](https://github.com/tomanizer/j2py/issues/337)) or a manual port. Sketches in the
+column flag (`primary_key=True`), or a router-init line. Those require a Tier 4 plugin,
+`j2py-wire`, or a manual port depending on whether the fact belongs in translated source
+or generated wiring. Sketches in the
 original design notes that used keys like `template:`, `class_attr:`, `column_flag:`, or
 `metadata:` are **not valid** and would be rejected by the config loader.
 
@@ -156,8 +158,8 @@ class OrderController:
   *literally*: `@router.post("{value}")`. Fix the handler to `@router.post("")` (or `"/"`)
   by hand, or give the annotation an explicit path in Java. j2py does not invent a default.
 - **`self` on handlers.** j2py emits `self` for every instance method; FastAPI handlers
-  are plain functions. Route registration / `self` removal is
-  [#338 `j2py-wire`](https://github.com/tomanizer/j2py/issues/338) territory, not Tier 2.
+  are plain functions. Route registration and handler adaptation belong in generated
+  wiring from `j2py-wire`, not Tier 2 annotation output.
 - **No `APIRouter()` init line.** `annotation_map` cannot emit `router = APIRouter(...)`.
   Provide it from `myapp.web` (the `import` target) or generate it with `j2py-wire`.
 
@@ -203,11 +205,11 @@ class OrderService:
 - **Translates cleanly today.** An explicit constructor with resolved types becomes
   `__init__` with typed parameters — no `annotation_map` needed for the mechanics.
 - `@Service` lowers to a marker `@service` decorator purely so
-  [`j2py-wire`](https://github.com/tomanizer/j2py/issues/338) can discover providers. There
-  is **no** container registration in core.
+  `j2py-wire` can discover providers from sidecars. There is **no** container registration
+  in core.
 - **Manual port:** j2py does **not** emit FastAPI `Depends()` glue. The target
-  `get_order_service(repo = Depends(get_order_repo))` provider is
-  [#338](https://github.com/tomanizer/j2py/issues/338).
+  application or generated `j2py-wire` output must bind a provider such as
+  `get_order_service(repo = Depends(get_order_repo))`.
 
 ---
 
@@ -262,8 +264,8 @@ class LegacyFieldInjection:
 - **Mixed constructor + field injection:** if a class has both an explicit constructor and
   `@Autowired` fields, prefer the constructor params; document the conflict policy before
   relying on it (candidate for a future ADR).
-- Downstream `Depends()` wiring is the same [#338](https://github.com/tomanizer/j2py/issues/338)
-  provider as constructor injection.
+- Downstream `Depends()` wiring is the same `j2py-wire`/application boundary as
+  constructor injection.
 
 ---
 
@@ -323,7 +325,7 @@ class OrderEntity(Base):
 - **Columns are not mapped.** `@Id`, `@GeneratedValue`, and `@Column` survive only as
   audit comments. Fields stay plain attributes (`self.id_: int | None = None`), **not**
   `id_: Mapped[int] = mapped_column(primary_key=True)`. SQLAlchemy declarative column
-  mapping needs a Tier 4 plugin ([#337](https://github.com/tomanizer/j2py/issues/337)).
+  mapping needs a Tier 4 plugin or project-owned ORM generation policy.
 - **`__tablename__`.** Tier 2 cannot emit a class attribute, so the table name rides a
   `@table("orders")` shim decorator (your shim sets `__tablename__` at class-creation time)
   rather than the idiomatic `__tablename__ = "orders"`. Treat the idiomatic form as a
@@ -455,13 +457,12 @@ Keep the Spring JDBC route opt-in:
 
 - Core translation preserves raw `java.sql.*` / `javax.sql.*` boundaries as local
   placeholders, `Any`, or explicit `# TODO(j2py): JDBC boundary` comments.
-- A Spring framework plugin should record `@Configuration` / `@Bean` JDBC metadata in
-  `*.wiring.json` sidecars ([#558](https://github.com/tomanizer/j2py/issues/558)).
+- A Spring framework plugin records `@Configuration` / `@Bean` JDBC metadata in
+  `*.wiring.json` sidecars.
 - Deterministic call lowering can handle common `JdbcTemplate.update(...)`,
   `query(...)`, `queryForObject(...)`, simple `RowMapper` forms, and named-parameter
   forms only when the generated SQLAlchemy Core scaffold remains visibly equivalent to the
-  Java source ([#557](https://github.com/tomanizer/j2py/issues/557),
-  [#573](https://github.com/tomanizer/j2py/issues/573)).
+  Java source.
 - Project config owns real imports, engine/session construction, dialect URLs, and
   database-specific behavior. For SQL Server, that may still mean `pyodbc`, but through
   SQLAlchemy or an internal `myapp.db` facade.
@@ -613,11 +614,11 @@ uv run --extra test pytest \
   generated keys, batch updates, stored procedures, and vendor SQL behavior.
 - Transaction propagation, isolation, read-only hints, and rollback rules beyond a
   project-owned `@transactional` shim.
-- Production engine/session lifecycle. `j2py-wire` may generate scaffolding later, but
-  the application remains responsible for its database runtime policy.
+- Production engine/session lifecycle. `j2py-wire` can generate application wiring
+  scaffolding, but the application remains responsible for its database runtime policy.
 
-See [#554](https://github.com/tomanizer/j2py/issues/554) for the umbrella roadmap and
-[#556](https://github.com/tomanizer/j2py/issues/556) for the follow-up smoke fixture.
+See the [Spring conversion guide](../SPRING_CONVERSION.md) for the end-to-end
+translate -> sidecar -> wire -> smoke-test flow.
 
 ---
 
@@ -633,10 +634,12 @@ project and adapt the `import` targets to your own shim modules.
 
 When migrating a Spring app with this cookbook, plan to hand-finish:
 
-- [ ] `APIRouter()` initialization and route registration ([#338](https://github.com/tomanizer/j2py/issues/338))
-- [ ] Removing `self` from FastAPI handlers; `Depends()` wiring ([#338](https://github.com/tomanizer/j2py/issues/338))
+- [ ] `APIRouter()` initialization and route registration, if not generated with
+      `j2py-wire`
+- [ ] Removing `self` from FastAPI handlers; `Depends()` wiring, if not generated with
+      `j2py-wire`
 - [ ] `@PostMapping`/`@PutMapping` with no path → fix the literal `{value}` placeholder
-- [ ] SQLAlchemy `Mapped`/`mapped_column` column declarations ([#337](https://github.com/tomanizer/j2py/issues/337))
+- [ ] SQLAlchemy `Mapped`/`mapped_column` column declarations
 - [ ] `__tablename__` if you want the idiomatic form instead of the shim decorator
 - [ ] JPA relationships (`@OneToMany`, `@ManyToOne`, …) — cookbook v2
 - [ ] Production SQLAlchemy engine/session lifecycle for Spring JDBC bean metadata

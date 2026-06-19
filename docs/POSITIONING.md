@@ -81,7 +81,8 @@ Spring, FastAPI, SQLAlchemy, or JPA runtime semantics.
 
 That boundary is intentional. An `annotation_map` entry is project policy, not a claim
 that core j2py understands the source framework. More complex framework lowering belongs
-in future explicit plugin or wiring layers, not in silent guesses by the translator.
+in explicit plugin or wiring layers such as `framework_plugins` and `j2py-wire`, not in
+silent guesses by the translator.
 
 ## Practical migration workflow
 

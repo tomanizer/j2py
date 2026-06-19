@@ -294,9 +294,9 @@ orders.wiring.json
 The sidecar is versioned and records source/output paths, plugin name, element kind,
 Java/Python names, annotations, and plugin metadata. If a later translation no longer has
 metadata for the file, j2py removes the stale sidecar. j2py core does not consume this file
-or generate framework bootstrap code; it is intended for downstream tooling such as the
-planned `j2py-wire` follow-up. For Spring, structured wiring facts must use this existing
-sidecar path rather than a Spring-only sidecar writer; see
+or generate framework bootstrap code; it is intended for downstream tooling such as
+`j2py-wire` or project-owned generators. For Spring, structured wiring facts must use this
+existing sidecar path rather than a Spring-only sidecar writer; see
 [ADR 0024](decisions/0024-spring-extension-boundary.md) and the
 [Spring wiring metadata profile](SPRING_WIRING_METADATA.md).
 
