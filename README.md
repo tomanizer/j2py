@@ -129,9 +129,10 @@ The PyPI distribution is **`j2py-converter`**; the import package and CLI comman
 
 For a full user walkthrough, start with [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 For install variants and troubleshooting, see [docs/INSTALL.md](docs/INSTALL.md). For
-the 0.7.0 release story and current known limits, see
-[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md). For command details, see
-[docs/CLI.md](docs/CLI.md).
+command details, see [docs/CLI.md](docs/CLI.md). For the full docs map by audience, use
+[docs/README.md](docs/README.md), which separates User Docs, Java enterprise framework
+guides, Developer Docs, and Repo Hygiene records. For the 0.7.0 release story and current
+known limits, see [docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md).
 
 First installed-package smoke:
 
@@ -346,6 +347,12 @@ Worktrees: set `J2PY_CORPUS_ROOT` to the main checkout so `.env`, queue, cache, 
 queue tiers, content cache, state files, and the harvest-promote agent skill.
 
 ## Adding translation rules
+
+For the detailed contributor workflow, start with
+[docs/developer/RULE_AUTHORING.md](docs/developer/RULE_AUTHORING.md),
+[docs/developer/TRANSLATION_INTERNALS.md](docs/developer/TRANSLATION_INTERNALS.md), and
+[docs/developer/VALIDATION_GATES.md](docs/developer/VALIDATION_GATES.md). The short
+version is:
 
 1. Add or update a Java/Python fixture pair under `tests/fixtures/`.
 2. Implement the smallest deterministic rule in `j2py/translate/`.

@@ -12,14 +12,26 @@ Each guide should answer three questions:
 
 ## Guides
 
+Core translation:
+
 | Guide | Use it when |
 |-------|-------------|
 | [Rule authoring](RULE_AUTHORING.md) | Adding or changing deterministic Java-to-Python translation rules. |
 | [Parser and analyzer internals](PARSER_ANALYZER.md) | Changing tree-sitter parsing, `JavaNode`, symbol extraction, or dependency graph behavior. |
 | [Translation internals](TRANSLATION_INTERNALS.md) | Deciding where translation code belongs across class, statement, expression, helper, and runtime modules. |
-| [Wiring targets](WIRING_TARGETS.md) | Adding or changing a `j2py-wire generate --target ...` backend. |
 | [Diagnostics](DIAGNOSTICS.md) | Adding diagnostics, TODO markers, confidence behavior, validation output, doctor findings, or SARIF mappings. |
+
+Frameworks and app assembly:
+
+| Guide | Use it when |
+|-------|-------------|
 | [Framework plugin authoring](FRAMEWORK_PLUGIN_AUTHORING.md) | Writing trusted framework plugins and sidecar metadata tests. |
+| [Wiring targets](WIRING_TARGETS.md) | Adding or changing a `j2py-wire generate --target ...` backend. |
+
+Tooling and public surfaces:
+
+| Guide | Use it when |
+|-------|-------------|
 | [LLM providers](LLM_PROVIDERS.md) | Changing LLM provider calls, prompts, caches, retries, or live-test boundaries. |
 | [Validation gates](VALIDATION_GATES.md) | Choosing the right local test or Makefile gate for a change. |
 | [VS Code extension](VS_CODE_EXTENSION.md) | Working on `packages/j2py-vscode`. |

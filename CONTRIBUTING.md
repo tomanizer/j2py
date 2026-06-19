@@ -42,6 +42,10 @@ commands.
 3. **Run `make ci-local-pr`** before pushing — this is what CI runs
 4. **Open a PR** using the template — fill every section
 
+Use the [documentation index](docs/README.md) to find the right guide for a change.
+Contributor-specific docs live under [Developer Docs](docs/README.md#developer-docs), and
+subsystem guides live in [docs/developer/](docs/developer/README.md).
+
 ### Commit style
 
 ```
@@ -66,11 +70,14 @@ Every new Java construct translation needs:
 1. **Java fixture** — `tests/fixtures/java/<Feature>.java`
 2. **Expected Python fixture** — `tests/fixtures/python/<Feature>.py`
 3. **Test** — parametrised entry in `tests/translate/` (see
-   [`.cursor/skills/add-translation-rule/SKILL.md`](.cursor/skills/add-translation-rule/SKILL.md))
+   [Rule authoring](docs/developer/RULE_AUTHORING.md))
 4. **Implementation** — split modules under `j2py/translate/` (`statements.py`, `expr_*`,
    `class_*`, `overloads.py`, `rules/`) — not monolithic `skeleton.py` edits
 
 The fixture pair is the contract. CI runs exact fixture equality tests in `make check`.
+Use [Translation internals](docs/developer/TRANSLATION_INTERNALS.md) to choose the owning
+module, and [Validation gates](docs/developer/VALIDATION_GATES.md) to choose focused
+checks before the broader PR gate.
 
 For unsupported but planned Java constructs, add or update a roadmap target test first.
 Graduated target tests live under `tests/targets/` and run in `make check`. Future
@@ -132,6 +139,9 @@ Material changes require:
 4. A `CHANGELOG.md` entry when the change affects user-visible behavior or project
    workflow
 
+Public CLI or Python API changes should also follow
+[API stability](docs/developer/API_STABILITY.md).
+
 ## PR rules
 
 - One concern per PR — translation rules, refactor, or docs; not all three
@@ -166,3 +176,6 @@ The release workflow builds the wheel/sdist and publishes through PyPI trusted
 publishing when a GitHub release is published. PyPI trusted publishing is configured for
 repository `tomanizer/j2py`, workflow `.github/workflows/publish.yml`, environment
 `pypi`, and project `j2py-converter`.
+See [docs/RELEASING.md](docs/RELEASING.md) for the release checklist and
+[Repo Hygiene And Project Record](docs/README.md#repo-hygiene-and-project-record) for
+versioned release evidence snapshots.

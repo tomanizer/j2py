@@ -6,13 +6,24 @@ readers start in the right place.
 
 ## User Docs
 
-Use these when you are installing j2py, assessing a Java project, configuring translation,
-reviewing output, or using the framework/wiring layers. The important message is that
-these are not separate products. They are one pipeline:
+Use these when you are installing j2py, assessing a Java project, configuring
+translation, reviewing output, or using framework/wiring layers. The important message is
+that these are not separate products. They are one pipeline:
 
 ```text
 doctor -> config -> translate -> sidecars -> wire -> validate/review
 ```
+
+Choose the path that matches your project:
+
+| Path | Use it when | Read first |
+|------|-------------|------------|
+| First run | You want to install j2py and translate one small file. | [Getting Started](GETTING_STARTED.md), [Install](INSTALL.md) |
+| Simple Java | You have plain Java classes and want reviewable Python. | [Getting Started](GETTING_STARTED.md), [CLI](CLI.md), [Output review](OUTPUT_REVIEW.md) |
+| Project migration | You need to assess a source tree, tune mappings, and review risk. | [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md), [Output review](OUTPUT_REVIEW.md) |
+| Framework migration | You need framework metadata, sidecars, and generated app wiring. | [Framework plugins](FRAMEWORK_PLUGINS.md), [Wiring](WIRING.md), [Java Enterprise Framework Guides](#java-enterprise-framework-guides) |
+| Automation | You want to call j2py from scripts or tooling. | [API guide](API.md), [API reference](API_REFERENCE.md), [CLI](CLI.md) |
+| Editor review | You want side-by-side review or editor diagnostics. | [Output review](OUTPUT_REVIEW.md), [VS Code support](VS_CODE.md) |
 
 | Layer | Purpose | User-facing surface | Docs |
 |----------|---------|---------------------|------|
@@ -40,14 +51,27 @@ j2py-wire generate translated_py --target fastapi
 j2py-wire validate translated_py
 ```
 
-Start with [Getting Started](GETTING_STARTED.md) and [Positioning](POSITIONING.md). Install
-and reference docs:
+Core user references:
 
 | Document | What it helps with |
 |----------|--------------------|
 | [INSTALL.md](INSTALL.md) | Install j2py, optional extras, API keys, JDK/corpus prerequisites, and common install issues. |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First usable workflow from install through assessment, config, translation, review, LLM use, and optional Spring wiring. |
 | [POSITIONING.md](POSITIONING.md) | What j2py is good for, enterprise framework boundaries, and how the pipeline fits together. |
 | [CLI.md](CLI.md) | Command reference for `translate`, `analyze`, `compare`, `watch`, `dashboard`, `doctor`, `sarif`, and `j2py-wire`. |
+| [OUTPUT_REVIEW.md](OUTPUT_REVIEW.md) | How to review confidence, warnings, TODOs, validation, structural verification, reports, and benchmark deltas. |
+
+Advanced user references:
+
+| Document | What it helps with |
+|----------|--------------------|
+| [CONFIGURATION.md](CONFIGURATION.md) | Project policy for names, imports, types, annotations, LLM defaults, and trusted plugin registration. |
+| [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) | Trusted opt-in framework metadata extraction and source transforms. |
+| [WIRING.md](WIRING.md) | `j2py-wire` sidecar inspection, target-stack generation, validation, and review. |
+| [ASSESSMENT.md](ASSESSMENT.md) | How to use `j2py doctor` to assess migration readiness and guide config/rule work. |
+| [DOCTOR.md](DOCTOR.md) | Detailed `j2py doctor` command reference, schema, report, diff, and config-suggestion behavior. |
+| [SARIF.md](SARIF.md) | Export doctor findings to SARIF for code-scanning workflows. |
+| [VS_CODE.md](VS_CODE.md) | Experimental VS Code support, extension behavior, Copilot/Sonar integration ideas, and validation checklist. |
 | [API.md](API.md) | Practical Python API guide for file/directory translation, config loading, diagnostics, and reports. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Reference for supported Python imports, function signatures, result models, and stability levels. |
 
@@ -63,6 +87,8 @@ Common user-facing tasks:
 | Re-translate while editing | `j2py watch` | [CLI](CLI.md#j2py-watch) |
 | Review in VS Code | `j2py compare`, experimental `packages/j2py-vscode` extension | [VS Code support](VS_CODE.md), [Output review](OUTPUT_REVIEW.md) |
 | Run rule-only assessment | `j2py doctor --json --html` | [Assessment](ASSESSMENT.md), [Doctor](DOCTOR.md) |
+| Compare assessment snapshots | `j2py doctor diff before.json after.json` | [Assessment](ASSESSMENT.md#outputs), [Doctor](DOCTOR.md) |
+| Generate conservative config suggestions | `j2py doctor --config-suggestions j2py.suggested.yaml` | [Assessment](ASSESSMENT.md#config-suggestions), [Configuration](CONFIGURATION.md) |
 | Export diagnostics to code scanning | `j2py sarif` | [SARIF](SARIF.md) |
 | Configure project mappings and LLM defaults | `j2py.toml`, `j2py_config.py` | [Configuration](CONFIGURATION.md) |
 | Use LLM completion or LLM review | `--llm-provider`, `--model`, `--llm-review` | [Getting Started](GETTING_STARTED.md#8-add-llm-completion-deliberately), [Output review](OUTPUT_REVIEW.md#llm-review-findings) |
@@ -113,6 +139,18 @@ Read order:
 4. Release evidence, audits, and historical scorecards: use
    [Repo Hygiene And Project Record](#repo-hygiene-and-project-record), not the task map.
 
+Choose the path that matches the change:
+
+| Path | Use it when | Read first |
+|------|-------------|------------|
+| New contributor | You need repo workflow, fixture expectations, and architecture context. | [Contributing](../CONTRIBUTING.md), [Architecture](ARCHITECTURE.md) |
+| Rule-layer contributor | You are adding Java construct coverage or changing generated Python semantics. | [Rule authoring](developer/RULE_AUTHORING.md), [Translation internals](developer/TRANSLATION_INTERNALS.md), [Validation gates](developer/VALIDATION_GATES.md) |
+| Assessment/tooling contributor | You are changing doctor, validation, SARIF, reports, or confidence behavior. | [Diagnostics guide](developer/DIAGNOSTICS.md), [Assessment](ASSESSMENT.md), [Output review](OUTPUT_REVIEW.md) |
+| Framework/wiring contributor | You are changing plugins, sidecars, or generated target-stack wiring. | [Framework plugin authoring](developer/FRAMEWORK_PLUGIN_AUTHORING.md), [Wiring target guide](developer/WIRING_TARGETS.md) |
+| API/CLI contributor | You are changing public imports, result models, or command behavior. | [API stability](developer/API_STABILITY.md), [CLI](CLI.md), [API reference](API_REFERENCE.md) |
+| LLM contributor | You are changing providers, prompts, caches, retries, or harvest behavior. | [LLM providers](developer/LLM_PROVIDERS.md), [LLM harvest](LLM_HARVEST.md) |
+| Editor contributor | You are changing the experimental VS Code extension. | [VS Code extension guide](developer/VS_CODE_EXTENSION.md), [VS Code support](VS_CODE.md) |
+
 | If you are doing this | Read | Validation |
 |-----------------------|------|------------|
 | Change parser, analyzer, or symbol graph behavior | [Parser/analyzer guide](developer/PARSER_ANALYZER.md), [Architecture](ARCHITECTURE.md), relevant parser/analyzer ADRs | `pytest tests/parse tests/analyze -q`; add corpus checks when dependency ordering or symbol extraction changes. |
@@ -135,15 +173,28 @@ Read order:
 
 Developer change guides:
 
+Start with [developer/README.md](developer/README.md) for the guide index.
+
+Core translation:
+
 | Guide | What it helps with |
 |-------|--------------------|
-| [developer/README.md](developer/README.md) | Entry point for subsystem-level contributor guides. |
 | [developer/RULE_AUTHORING.md](developer/RULE_AUTHORING.md) | Adding deterministic Java construct rules with fixtures, diagnostics, and gates. |
 | [developer/PARSER_ANALYZER.md](developer/PARSER_ANALYZER.md) | Changing `JavaNode`, tree-sitter parser behavior, symbol extraction, and dependency analysis. |
 | [developer/TRANSLATION_INTERNALS.md](developer/TRANSLATION_INTERNALS.md) | Translation module ownership and when to add a rule, helper, runtime shim, or diagnostic. |
-| [developer/WIRING_TARGETS.md](developer/WIRING_TARGETS.md) | Adding or changing `j2py-wire --target` generators and validation checks. |
 | [developer/DIAGNOSTICS.md](developer/DIAGNOSTICS.md) | Diagnostic IDs, semantic warnings, TODO markers, confidence, doctor output, and SARIF. |
+
+Frameworks and app assembly:
+
+| Guide | What it helps with |
+|-------|--------------------|
 | [developer/FRAMEWORK_PLUGIN_AUTHORING.md](developer/FRAMEWORK_PLUGIN_AUTHORING.md) | Writing trusted framework plugins with translated-output and sidecar tests. |
+| [developer/WIRING_TARGETS.md](developer/WIRING_TARGETS.md) | Adding or changing `j2py-wire --target` generators and validation checks. |
+
+Tooling and public surfaces:
+
+| Guide | What it helps with |
+|-------|--------------------|
 | [developer/LLM_PROVIDERS.md](developer/LLM_PROVIDERS.md) | Provider calls, prompts, cache keys, retries, optional extras, and live-test boundaries. |
 | [developer/VALIDATION_GATES.md](developer/VALIDATION_GATES.md) | Choosing the right local Makefile or pytest gate for a change. |
 | [developer/VS_CODE_EXTENSION.md](developer/VS_CODE_EXTENSION.md) | Extension commands, settings, diagnostics, compile/package flow, and smoke testing. |
@@ -173,12 +224,36 @@ Reference docs:
 
 ## Repo Hygiene And Project Record
 
-Use these when you need the project record rather than the current user or developer
-workflow. These documents explain why the project behaves the way it does, what evidence
-backed a release, and what decisions or audits shaped the repo.
+Use this section when you need the project record rather than the current user or
+developer workflow. These documents explain why the project behaves the way it does, what
+evidence backed a release, and what decisions or audits shaped the repo.
 
 Do not treat old release notes, case studies, or audits as the current command reference.
 Use the User Docs and Developer Docs sections above for current workflows.
+
+Quick lookup:
+
+| Question | Start here |
+|----------|------------|
+| What is j2py supposed to be? | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) |
+| What is `j2py doctor` supposed to become? | [DOCTOR_PRODUCT_REQUIREMENTS.md](DOCTOR_PRODUCT_REQUIREMENTS.md) |
+| What did a release claim and prove? | [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md), [RELEASE_TEST_EVIDENCE_0.7.0.md](RELEASE_TEST_EVIDENCE_0.7.0.md) |
+| What package/install evidence backed a release? | [RELEASE_CANDIDATE_EVIDENCE_0.7.0.md](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |
+| What docs were audited for a release? | [RELEASE_DOCUMENTATION_AUDIT_0.7.0.md](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) |
+| What performance or diagnostics evidence backed a release? | [RELEASE_PERFORMANCE_BASELINE_0.7.0.md](RELEASE_PERFORMANCE_BASELINE_0.7.0.md), [RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md](RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md) |
+| How did j2py behave on representative code? | [CASE_STUDY_COMMONS_LANG_TUPLE.md](CASE_STUDY_COMMONS_LANG_TUPLE.md), [CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md](CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) |
+| Why was an architecture choice made? | [Architecture decisions](#architecture-decisions) |
+| What did earlier maturity audits say? | [Audit Snapshots](#audit-snapshots) |
+
+Naming convention:
+
+| Prefix or pattern | Use for |
+|-------------------|---------|
+| `PRODUCT_*` | Product scope, roadmap, and requirements records. |
+| `RELEASE_*_<version>.md` | Versioned release evidence snapshots. |
+| `CASE_STUDY_<subject>.md` | Narrative evidence from representative source code. |
+| `decisions/NNNN-*.md` | Accepted architecture decision records. |
+| `decisions/AUDIT-YYYY-MM-DD.md` | Dated maturity or gap audits. |
 
 ### Product And Roadmap Record
 
@@ -222,15 +297,24 @@ rules.
 | [../SECURITY.md](../SECURITY.md) | Vulnerability reporting. |
 | [../AGENTS.md](../AGENTS.md) | Agent guidance, mirrored in `CLAUDE.md`. |
 
-### Architecture Decisions And Audits
+### Architecture Decisions
 
-Use these when changing settled design policy or comparing current maturity with prior
-audits. ADRs record decisions; audits record dated snapshots.
+Use these when changing settled design policy. ADRs record decisions; they are not
+implementation tickets and should not be reversed without a new ADR.
 
 | Document | What it records |
 |----------|-----------------|
 | [decisions/0001-record-architecture-decisions.md](decisions/0001-record-architecture-decisions.md) | ADR process template. |
 | [ARCHITECTURE.md#key-design-decisions](ARCHITECTURE.md#key-design-decisions) | ADRs 0002-0025: parser, pipeline, LLM providers, overloads, equivalence, framework boundaries, PetClinic smoke gate, and related decisions. |
+
+### Audit Snapshots
+
+Use these when comparing current maturity with prior audits. Audit files are dated
+snapshots; verify current commands, metrics, and test results before using them as
+evidence for a new change.
+
+| Document | What it records |
+|----------|-----------------|
 | [decisions/AUDIT-2026-06-17.md](decisions/AUDIT-2026-06-17.md) | Latest dated maturity and gap audit snapshot. |
 | [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Prior maturity and gap audit snapshot. |
 | [decisions/AUDIT-2026-06-13.md](decisions/AUDIT-2026-06-13.md) | Earliest rule-layer breadth snapshot. |
