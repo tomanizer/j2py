@@ -29,7 +29,7 @@ Density presets (except `spring-lexical`) use `--strategy density --max-loc 1000
 | Preset | What it stress-tests |
 |--------|----------------------|
 | `guava-dense` | Generics-heavy collections and utilities |
-| `commons-lang-dense` | Classic utility Java without framework magic |
+| `commons-lang-dense` | Classic utility Java without framework-runtime semantics |
 | `jackson-dense` | Annotation and bean-introspection patterns |
 | `caffeine-dense` | Concurrent cache code and lambdas |
 | `spring-dense` | Framework core/beans Java, Spring DI annotations/stereotypes, construct fixtures |

@@ -23,22 +23,25 @@ harvest workflows.
 2. Move changelog entries from `## Unreleased` to the release heading.
 3. Update the release notes draft for the version being published and make sure it does
    not claim more than the release gates prove.
-4. Run:
+4. Audit release-facing docs, comments, examples, and generated-output snippets for
+   obvious LLM artifacts, inflated marketing language, unexplained generated boilerplate,
+   and other wording that does not match maintainer-owned evidence.
+5. Run:
 
    ```bash
    make release-check
    ```
 
-5. Open and merge the release PR.
-6. Create a GitHub release tag, for example `v0.7.0`.
-7. Confirm PyPI trusted publishing remains configured for:
+6. Open and merge the release PR.
+7. Create a GitHub release tag, for example `v0.7.0`.
+8. Confirm PyPI trusted publishing remains configured for:
 
    - Owner/repository: `tomanizer/j2py`
    - Workflow: `.github/workflows/publish.yml`
    - Environment: `pypi`
    - PyPI project: `j2py-converter`
 
-8. Publish the GitHub release. The `Publish` workflow builds, checks, and uploads the
+9. Publish the GitHub release. The `Publish` workflow builds, checks, and uploads the
    wheel/sdist to PyPI.
 
 ## Local package checks

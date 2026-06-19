@@ -182,7 +182,7 @@ as selecting a file subset or applying a reviewed generated config.
 - Full-library semantic equivalence proof.
 - Live LLM repair or prompt execution.
 - Automatic framework migration.
-- Automatic generation of production-ready stubs for arbitrary third-party APIs.
+- Automatic generation of complete stubs for arbitrary third-party APIs.
 - Silently changing translation semantics based on raw assessment findings.
 - A promise that risk scoring is a complete migration plan.
 - Replacing corpus scoreboards, behavior tests, equivalence tests, or `make check`.

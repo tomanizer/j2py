@@ -251,7 +251,7 @@ Current `doctor` does not:
 - inspect Maven or Gradle dependency graphs;
 - prove runtime equivalence;
 - call LLM repair;
-- generate a reviewed production-ready config file;
+- generate a final project config file without review;
 - export SARIF directly from `translate` results;
 - generate stubs;
 - rank files by a formal risk score.
