@@ -7,9 +7,10 @@ the real translated classes can be exercised by ported unit tests.
 Why a link step rather than plain ``import``: the package is a cross-referential class
 hierarchy — ``Pair`` delegates to ``ImmutablePair`` (a factory call) while
 ``ImmutablePair`` ``extends Pair``. With eager Python ``from X import Y`` imports this is
-a circular import (tracked as a translator limitation; see docs/CASE_STUDY_COMMONS_LANG_TUPLE.md). Linking
-the package into a single namespace, in dependency order, exercises the translated class
-bodies and methods without that cross-module cycle — analogous to how
+a circular import (tracked as a translator limitation; see
+docs/CASE_STUDY_COMMONS_LANG_TUPLE.md). Linking the package into a single namespace, in
+dependency order, exercises the translated class bodies and methods without that
+cross-module cycle — analogous to how
 ``tests/equivalence/harness.py`` injects dependency stubs that are "not under test".
 
 External, non-translated dependencies (``java.util.Objects``, ``Map.Entry``,

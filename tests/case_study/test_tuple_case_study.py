@@ -5,10 +5,10 @@ files (an abstract ``Pair``/``Triple`` base plus immutable and mutable subclasse
 translated by the rule layer (no LLM), linked, and exercised by unit tests whose
 assertions are ported from the upstream Commons-Lang test suite.
 
-The narrative and the gaps this surfaced are documented in ``docs/CASE_STUDY_COMMONS_LANG_TUPLE.md``.
-``strict=True`` xfails below pin the known translation gaps; each will flip and force its
-own removal when the corresponding bug is fixed (mirroring the equivalence-gate
-discipline).
+The narrative and the gaps this surfaced are documented in
+``docs/CASE_STUDY_COMMONS_LANG_TUPLE.md``. ``strict=True`` xfails below pin the known
+translation gaps; each will flip and force its own removal when the corresponding bug is
+fixed (mirroring the equivalence-gate discipline).
 """
 
 from __future__ import annotations
