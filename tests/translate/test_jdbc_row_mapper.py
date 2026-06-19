@@ -86,10 +86,11 @@ def test_unsupported_row_mapper_method_reference_remains_explicit_todo() -> None
     ast.parse(result.source)
     assert "from j2py_runtime import __j2py_todo__" in result.source
     assert (
-        "__j2py_todo__('TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping')"
+        "__j2py_todo__('TODO(j2py): JdbcTemplate RowMapper/callback requires manual "
+        "mapper port; lower to SQLAlchemy row mapping or a project DB facade')"
     ) in result.source
     assert any(
         diagnostic.category == "spring-jdbc-sqlalchemy-todo"
-        and "RowMapper/callback" in diagnostic.reason
+        and "manual mapper port" in diagnostic.reason
         for diagnostic in result.diagnostics.unhandled
     )

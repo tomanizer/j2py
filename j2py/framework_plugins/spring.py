@@ -168,8 +168,8 @@ class SpringWiringPlugin(FrameworkPlugin):
             ctx.diagnostics.warn(
                 ctx.node,
                 reason=(
-                    "Spring JDBC bean metadata captured; database runtime wiring remains "
-                    "project-owned"
+                    "Spring JDBC bean metadata captured; wire an equivalent SQLAlchemy "
+                    "Engine, Connection, or Session dependency in project code"
                 ),
                 category="spring-jdbc-boundary",
             )

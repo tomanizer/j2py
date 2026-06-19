@@ -13,12 +13,13 @@ class OwnerRepository:
         self._session = session
 
     def find_by_last_name(self, last_name: str) -> list[Owner]:
-        # TODO(j2py): translate JPQL query
+        # TODO(j2py): manually port JPQL query to SQLAlchemy or a project repository method
         # JPQL: SELECT o FROM Owner o WHERE o.lastName = :lastName
         raise NotImplementedError
 
     def find_by_city(self, city: str) -> list[Owner]:
-        # TODO(j2py): translate Spring Data derived query method findByCity
+        # TODO(j2py): manually port Spring Data derived query method findByCity
+        # to SQLAlchemy or a project repository method
         raise NotImplementedError
 
     def find_by_id(self, id: int) -> Owner | None:
