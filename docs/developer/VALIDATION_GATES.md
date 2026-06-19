@@ -26,7 +26,7 @@ some changes need narrower or stronger evidence.
 | LLM providers | `pytest tests/llm tests/cli/test_main.py -q` |
 | Packaging metadata | `pytest tests/packaging -q` |
 | Docs links and anchors | `pytest tests/test_docs_links.py -q` |
-| Docs release inventory | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py -q` |
+| Docs release inventory | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q` |
 
 ## Semantic Gates
 

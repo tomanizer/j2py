@@ -175,7 +175,7 @@ Choose the path that matches the change:
 | Change reports, dashboards, or review output | [Output review](OUTPUT_REVIEW.md), [CLI](CLI.md), [Assessment](ASSESSMENT.md) | `pytest tests/test_report.py tests/test_state_dashboard.py tests/cli/test_main.py -q`. |
 | Change corpus/reporting | [Corpus scoreboard](CORPUS_SCOREBOARD.md), [Translation targets](TRANSLATION_TARGETS.md) | Relevant `make corpus-<name>-dense-check`, `make corpus-hotspots`; update baselines only after no-regression review. |
 | Change packaging, install extras, or dependency metadata | [Install](INSTALL.md), [Releasing](RELEASING.md), [Contributing](../CONTRIBUTING.md) | `pytest tests/packaging -q`, `make release-check` when release packaging is affected. |
-| Change docs or release evidence | [Documentation index](README.md), relevant user/developer doc, [Release docs audit](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py -q`. |
+| Change docs or release evidence | [Documentation index](README.md), relevant user/developer doc, [Release docs audit](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q`. |
 | Release | [Releasing](RELEASING.md), [Changelog](../CHANGELOG.md) | `make release-check` plus publish verification. |
 | Work on VS Code | [VS Code extension guide](developer/VS_CODE_EXTENSION.md), [VS Code support](VS_CODE.md), [extension README](../packages/j2py-vscode/README.md) | `npm ci`, `npm run compile`, VSIX smoke test. |
 

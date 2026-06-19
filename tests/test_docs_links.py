@@ -21,14 +21,18 @@ def _markdown_files() -> list[Path]:
 
 def _slug(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)
-    text = re.sub(r"[`*_]", "", text).strip().lower()
-    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    text = re.sub(r"[`*]", "", text).strip().lower()
+    text = re.sub(r"[^a-z0-9\s_-]", "", text)
     return re.sub(r"[\s-]+", "-", text).strip("-")
 
 
 def _anchors(path: Path) -> set[str]:
     text = path.read_text(encoding="utf-8")
     return {_slug(match.group(2)) for match in HEADING.finditer(text)}
+
+
+def test_heading_slug_preserves_underscores() -> None:
+    assert _slug("translate_file") == "translate_file"
 
 
 def test_docs_markdown_local_links_exist() -> None:
