@@ -101,6 +101,34 @@ the 0.7.0 release story and current known limits, see
 [docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md). For command details, see
 [docs/CLI.md](docs/CLI.md).
 
+First installed-package smoke:
+
+```bash
+mkdir -p /tmp/j2py-smoke/src/main/java/demo
+cat > /tmp/j2py-smoke/src/main/java/demo/HelloWorld.java <<'JAVA'
+package demo;
+
+public class HelloWorld {
+    private final String name;
+
+    public HelloWorld(String name) {
+        this.name = name;
+    }
+
+    public String greeting() {
+        return "Hello, " + name;
+    }
+}
+JAVA
+
+j2py translate /tmp/j2py-smoke/src/main/java \
+  --output /tmp/j2py-smoke/translated_py \
+  --no-llm \
+  --no-validate
+
+python -m py_compile /tmp/j2py-smoke/translated_py/demo/HelloWorld.py
+```
+
 Local development:
 
 ```bash

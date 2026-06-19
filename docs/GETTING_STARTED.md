@@ -20,7 +20,43 @@ uv run j2py --help
 See [Installation](INSTALL.md) for optional extras, API keys, JDK requirements, and
 corpus setup.
 
-## 2. Assess the Java Source
+## 2. Smoke-Test One Tiny File
+
+Before pointing j2py at a real project, verify the installed CLI with a small Java file:
+
+```bash
+mkdir -p /tmp/j2py-smoke/src/main/java/demo
+cat > /tmp/j2py-smoke/src/main/java/demo/HelloWorld.java <<'JAVA'
+package demo;
+
+public class HelloWorld {
+    private final String name;
+
+    public HelloWorld(String name) {
+        this.name = name;
+    }
+
+    public String greeting() {
+        return "Hello, " + name;
+    }
+}
+JAVA
+
+j2py translate /tmp/j2py-smoke/src/main/java \
+  --output /tmp/j2py-smoke/translated_py \
+  --no-llm \
+  --no-validate
+
+python -m py_compile /tmp/j2py-smoke/translated_py/demo/HelloWorld.py
+```
+
+The output path preserves the Java package structure. In this example the generated file
+is `/tmp/j2py-smoke/translated_py/demo/HelloWorld.py`.
+
+Use `--no-validate` for the first smoke test unless you installed the `validate` extra.
+Use `--no-llm` until the deterministic output and diagnostics are clear.
+
+## 3. Assess the Java Source
 
 Run `doctor` before translating a project. It is rule-only and does not call an LLM:
 
@@ -37,7 +73,7 @@ advisory; review them before using them as real config.
 
 For details, see [j2py doctor](DOCTOR.md) and [SARIF export](SARIF.md).
 
-## 3. Add Project Config
+## 4. Add Project Config
 
 j2py auto-discovers the first supported config file under the project root:
 
@@ -65,7 +101,7 @@ annotation_map:
 
 See [Configuration](configuration.md) and [Framework plugins](FRAMEWORK_PLUGINS.md).
 
-## 4. Translate Without LLM First
+## 5. Translate Without LLM First
 
 Start with deterministic translation:
 
@@ -86,7 +122,7 @@ order, writes `.j2py-state.json`, and can skip unchanged files on later runs:
 j2py translate src/main/java --output translated_py --no-llm --incremental
 ```
 
-## 5. Generate Review Artifacts
+## 6. Generate Review Artifacts
 
 For one file, write a side-by-side HTML report:
 
@@ -127,7 +163,7 @@ j2py translate src/main/java \
 LLM review findings do not repair output or change confidence; treat them as prompts for
 human review.
 
-## 6. Review Side by Side
+## 7. Review Side by Side
 
 Open a Java/Python diff in VS Code or Cursor:
 
@@ -145,7 +181,7 @@ j2py compare src/main/java/com/acme/OrderService.java --no-open --no-llm
 See [Output review](OUTPUT_REVIEW.md) for how to interpret confidence, warnings,
 TODO markers, validation, and structural verification.
 
-## 7. Add LLM Completion Deliberately
+## 8. Add LLM Completion Deliberately
 
 LLM completion is optional. Use it after rule-only output has made the deterministic
 boundary clear:
@@ -174,7 +210,7 @@ OPENAI_API_KEY=... j2py translate SomeClass.java \
   --model provider-model-id
 ```
 
-## 8. Measure Rule-Layer Breadth
+## 9. Measure Rule-Layer Breadth
 
 Corpus scoreboards are regression signals over pinned external samples, not proof of
 enterprise readiness:
@@ -188,13 +224,21 @@ make corpus-hotspots
 When running from a worktree, set `J2PY_CORPUS_ROOT` to the main checkout. See
 [Corpus scoreboard](CORPUS_SCOREBOARD.md).
 
-## 9. Try The Spring Conversion Path
+## 10. Try The Spring Conversion Path
 
 Spring conversion is opt-in and split across two tools: `j2py translate` emits translated
 Python plus framework sidecars, then `j2py-wire` consumes those sidecars and generates
 FastAPI wiring.
 
-Start with the guide:
+For an installed environment, verify that the Spring extra is present:
+
+```bash
+pip install --pre "j2py-converter[spring]"
+j2py-wire --help
+python -c "import fastapi, sqlalchemy, httpx, pydantic_settings"
+```
+
+For local repository work, start with the executable smoke gate:
 
 ```bash
 make test-spring-smoke
