@@ -5,14 +5,14 @@ All notable changes to j2py will be documented in this file.
 The format follows the repository commit types: `feat`, `fix`, `refactor`, `test`,
 `docs`, `chore`, and `adr`.
 
-## Unreleased
+## 0.7.0 - 2026-06-19
 
-0.7.0 is being prepared as the first release intended for real migration trials outside
-the project. The release focus is reviewable Java-to-Python translation, explicit
+0.7.0 is the first release intended for real migration trials outside the project. The
+release focus is reviewable Java-to-Python translation, explicit
 diagnostics, reproducible quality gates, and opt-in Spring/FastAPI/SQLAlchemy scaffolding
 without implying a hidden Java or Spring runtime. See
-[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md) for the release-note draft and
-known limitations to verify before tagging.
+[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md) for release notes and known
+limitations.
 
 ### Added
 - Spring conversion now has a practical entry-point guide, sidecar-driven FastAPI wiring

@@ -23,15 +23,15 @@ def test_release_candidate_checklist_records_clean_install_evidence() -> None:
 
     required = [
         "make release-check",
-        "j2py_converter-0.6.0b1-py3-none-any.whl",
-        "j2py_converter-0.6.0b1.tar.gz",
+        "j2py_converter-0.7.0-py3-none-any.whl",
+        "j2py_converter-0.7.0.tar.gz",
         "Clean core install smoke",
         "Clean Spring extra install smoke",
         "j2py --help",
         "j2py-wire --help",
         "missing-session-factory",
         "tests/packaging/test_pyproject_dependencies.py",
-        "Bump `pyproject.toml` and `j2py/__init__.py`",
+        "Create the GitHub release tag only after the final release PR is green and merged.",
     ]
     for item in required:
         assert item in text

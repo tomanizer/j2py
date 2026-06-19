@@ -1,9 +1,9 @@
-# j2py 0.7.0 Release Notes Draft
+# j2py 0.7.0 Release Notes
 
-0.7.0 is planned as the first j2py release aimed at real migration trials outside the
-project. The release story is deliberately narrow: j2py translates Java source into
-reviewable Python, provides evidence about what was translated deterministically, and
-offers opt-in Spring/FastAPI/SQLAlchemy scaffolding for bounded application slices.
+0.7.0 is the first j2py release aimed at real migration trials outside the project. The
+release story is deliberately narrow: j2py translates Java source into reviewable Python,
+provides evidence about what was translated deterministically, and offers opt-in
+Spring/FastAPI/SQLAlchemy scaffolding for bounded application slices.
 
 It is not a JVM, JDBC bridge, Spring container, Hibernate runtime, or automatic full
 application migration tool.
@@ -79,13 +79,11 @@ First workflow:
 5. Add project config only where the target Python runtime policy is explicit.
 6. For Spring slices, follow [Spring Conversion Guide](SPRING_CONVERSION.md).
 
-## Quality Evidence To Publish With The Release
+## Quality Evidence
 
-Before tagging 0.7.0, record the current results for:
+Release validation is recorded through:
 
-- `make check`
 - `make release-check`
-- `make test-spring-smoke`
 - relevant corpus checks or scorecard summaries
 - [0.7.0 performance baseline](RELEASE_PERFORMANCE_BASELINE_0.7.0.md)
 - package build and clean-environment install smoke; see
