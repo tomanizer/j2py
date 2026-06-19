@@ -1,7 +1,7 @@
 """Cross-file class-hierarchy translation.
 
 Covers rule-layer fixes surfaced by the commons-lang ``tuple`` case study
-(docs/CASE_STUDY.md):
+(docs/CASE_STUDY_COMMONS_LANG_TUPLE.md):
 
 * A generic superclass declared in another file (``extends Pair<L, R>``) must be kept
   as the Python base class and its import requested (previously the generic wrapper hid

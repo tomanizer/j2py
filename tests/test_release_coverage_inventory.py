@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INVENTORY = ROOT / "docs" / "RELEASE_TEST_COVERAGE_0.7.0.md"
+INVENTORY = ROOT / "docs" / "RELEASE_TEST_EVIDENCE_0.7.0.md"
 
 
 def _read(path: str) -> str:
@@ -24,8 +24,8 @@ def test_release_coverage_inventory_is_linked_from_release_docs() -> None:
     readme = _read("docs/README.md")
     release_notes = _read("docs/RELEASE_NOTES_0.7.0.md")
 
-    assert "RELEASE_TEST_COVERAGE_0.7.0.md" in readme
-    assert "RELEASE_TEST_COVERAGE_0.7.0.md" in release_notes
+    assert "RELEASE_TEST_EVIDENCE_0.7.0.md" in readme
+    assert "RELEASE_TEST_EVIDENCE_0.7.0.md" in release_notes
 
 
 def test_release_coverage_inventory_covers_headline_claims() -> None:

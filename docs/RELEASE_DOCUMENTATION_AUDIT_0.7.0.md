@@ -12,13 +12,13 @@ The audit covered:
 - `docs/INSTALL.md`
 - `docs/GETTING_STARTED.md`
 - `docs/CLI.md`
-- `docs/configuration.md`
+- `docs/CONFIGURATION.md`
 - `docs/SPRING_CONVERSION.md`
 - `docs/examples/SPRING_MAPPING_COOKBOOK.md`
 - `docs/FRAMEWORK_PLUGINS.md`
 - `docs/SPRING_WIRING_METADATA.md`
 - `docs/POSITIONING.md`
-- `docs/PRD.md`
+- `docs/PRODUCT_REQUIREMENTS.md`
 
 ## Verified command surface
 

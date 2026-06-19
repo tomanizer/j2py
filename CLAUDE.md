@@ -13,7 +13,7 @@ against the original Java class-by-class, method-by-method.
 
 | Document | What it contains |
 |---|---|
-| [docs/PRD.md](docs/PRD.md) | Product goals, user stories, non-goals, success criteria |
+| [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md) | Product goals, user stories, non-goals, success criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline stages, component responsibilities, data-flow |
 | [docs/LLM_HARVEST.md](docs/LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion pipeline, GitHub issues |
 | [docs/decisions/](docs/decisions/) | All ADRs — consult before changing a settled design decision |

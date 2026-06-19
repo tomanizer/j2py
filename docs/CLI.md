@@ -173,7 +173,8 @@ j2py doctor diff before.json after.json
 j2py doctor diff before.json after.json --json diff.json
 ```
 
-See [j2py doctor](DOCTOR.md) for the assessment schema and workflows.
+See [Assessment](ASSESSMENT.md) for the layer guide and [j2py doctor](DOCTOR.md) for the
+assessment schema and workflows.
 
 ## `j2py sarif`
 
@@ -231,7 +232,8 @@ providers, route handlers, and session placeholders. It does not convert
 `jdbc_bean` sidecar metadata into a production SQLAlchemy engine/session lifecycle; that
 runtime policy remains project-owned.
 
-For the Spring-specific workflow, see [Spring conversion](SPRING_CONVERSION.md).
+For the wiring layer guide, see [Wiring](WIRING.md). For the Spring-specific workflow, see
+[Spring conversion](SPRING_CONVERSION.md).
 
 ## Config Discovery
 
@@ -239,4 +241,4 @@ Commands that translate or assess source load defaults, then auto-discover the f
 project config under the source root, then apply repeated `--config` files in command-line
 order. Later layers override earlier scalar values and merge mapping fields.
 
-See [Configuration](configuration.md).
+See [Configuration](CONFIGURATION.md).

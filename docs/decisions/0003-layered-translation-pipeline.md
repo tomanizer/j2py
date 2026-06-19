@@ -72,4 +72,4 @@ Use a **layered pipeline**:
 
 - java2python (2008-2015): the precedent for a rule-based approach; archived but useful
   for studying rule set design
-- [PRD.md](../PRD.md) F2, F3, F4
+- [PRODUCT_REQUIREMENTS.md](../PRODUCT_REQUIREMENTS.md) F2, F3, F4

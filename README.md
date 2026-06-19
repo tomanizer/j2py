@@ -70,14 +70,46 @@ Known gaps include:
 For a concise statement of where j2py helps and where enterprise framework semantics
 remain manual, see [docs/POSITIONING.md](docs/POSITIONING.md).
 
+## Which surface should I use?
+
+j2py has several user-facing surfaces, but they are one pipeline rather than separate
+products:
+
+```text
+doctor -> config -> translate -> sidecars -> wire -> validate/review
+```
+
+For simple Java, start with the core translator and review output:
+
+```bash
+j2py translate Foo.java
+j2py compare Foo.java Foo.py
+```
+
+For enterprise or framework-heavy migrations, use the advanced path:
+
+```bash
+j2py doctor project/
+# create and review config
+j2py translate project/ --config j2py_config.py --output translated_py
+j2py-wire list translated_py
+j2py-wire generate translated_py --target fastapi
+j2py-wire validate translated_py
+```
+
+The layers are: core translator, configuration, framework plugins, wiring, and
+assessment. See [Positioning and enterprise scope](docs/POSITIONING.md),
+[Getting Started](docs/GETTING_STARTED.md), [Assessment](docs/ASSESSMENT.md), and
+[Wiring](docs/WIRING.md) for the full guide.
+
 For Spring migrators, start with the [Spring conversion guide](docs/SPRING_CONVERSION.md).
 It covers the opt-in Spring config, `SpringWiringPlugin` sidecars, `j2py-wire generate`,
 `j2py-wire validate`, the PetClinic smoke gate, and the corpus checks that show whether
 Spring translation improved or regressed. The [Spring -> FastAPI/SQLAlchemy mapping
-cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md) documents lower-level
+cookbook](docs/examples/SPRING_MAPPING_COOKBOOK.md) documents detailed
 `annotation_map` recipes (controllers, DI, JPA entities, `@Transactional`),
 Spring JDBC/RowMapper SQLAlchemy scaffolding, and explicit manual-port callouts. For
-programmatic framework lowering beyond one-to-one mappings, see the
+framework metadata extraction or source transforms beyond one-to-one mappings, see the
 [framework plugin guide](docs/FRAMEWORK_PLUGINS.md).
 Install `j2py-converter[spring]` only when you need the optional Spring/FastAPI/SQLAlchemy
 runtime packages; installing that extra does not enable Spring behavior without explicit
@@ -151,8 +183,9 @@ uv run j2py doctor diff before.json after.json
 uv run j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 
-See [docs/DOCTOR.md](docs/DOCTOR.md) for the current assessment report format and
-limitations, and [docs/SARIF.md](docs/SARIF.md) for code-scanning export.
+See [docs/ASSESSMENT.md](docs/ASSESSMENT.md) for the assessment layer guide,
+[docs/DOCTOR.md](docs/DOCTOR.md) for the current report format and limitations, and
+[docs/SARIF.md](docs/SARIF.md) for code-scanning export.
 
 Translate a directory in dependency order:
 
@@ -195,6 +228,11 @@ uv run j2py compare tests/fixtures/java/HelloWorld.java --no-open --no-llm
 See [docs/OUTPUT_REVIEW.md](docs/OUTPUT_REVIEW.md) for how to interpret confidence,
 warnings, validation, TODO markers, and generated review artifacts.
 
+VS Code support is experimental beyond `j2py compare`. The repository includes a small
+extension package under `packages/j2py-vscode` for editor-triggered translation,
+side-by-side review, TODO diagnostics, and status-bar confidence. See
+[docs/VS_CODE.md](docs/VS_CODE.md) before relying on it in a migration workflow.
+
 LLM completion with the default Anthropic provider (requires `ANTHROPIC_API_KEY`):
 
 ```bash
@@ -207,7 +245,7 @@ LLM completion with Gemini Flash requires the optional Gemini extra plus
 ```bash
 pip install --pre "j2py-converter[gemini]"
 GEMINI_API_KEY=... uv run j2py translate SomeClass.java \
-  --llm-provider gemini --model gemini-3.5-flash
+  --llm-provider gemini --model gemini-model-id
 ```
 
 Selecting `--llm-provider gemini` without the extra installed fails with an install hint
@@ -233,9 +271,11 @@ Configuration can live in `j2py.yaml`, `j2py.toml`, `[tool.j2py]` in
 `pyproject.toml`, or `j2py_config.py`. Projects may set default `llm_provider`,
 `llm_base_url`, and `model` values there, while CLI flags override them for one command.
 See
-[docs/configuration.md](docs/configuration.md) for the schema.
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the schema.
 
-Programmatic callers can use the Python API described in [docs/API.md](docs/API.md).
+Programmatic callers can use the Python API described in [docs/API.md](docs/API.md);
+supported imports and result models are listed in
+[docs/API_REFERENCE.md](docs/API_REFERENCE.md).
 
 ## Quality gates
 
@@ -283,7 +323,8 @@ so scripts reuse `$J2PY_CORPUS_ROOT/.corpus/`. Regenerate a baseline with
 
 See [docs/CORPUS_SCOREBOARD.md](docs/CORPUS_SCOREBOARD.md),
 [docs/TRANSLATION_TARGETS.md](docs/TRANSLATION_TARGETS.md), and the full
-[documentation index](docs/README.md).
+[documentation index](docs/README.md), which is split into User, Developer, and Repo
+Hygiene docs plus source-framework-specific guides.
 
 On-demand live LLM evaluation and harvest (excluded from `make check`):
 

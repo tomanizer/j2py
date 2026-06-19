@@ -43,7 +43,7 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
 ## Evidence Map
 
 The full claim-to-evidence inventory is tracked in
-[0.7.0 release test coverage inventory](RELEASE_TEST_COVERAGE_0.7.0.md).
+[0.7.0 release test coverage inventory](RELEASE_TEST_EVIDENCE_0.7.0.md).
 
 | Claim | Evidence |
 |---|---|
@@ -87,9 +87,9 @@ Before tagging 0.7.0, record the current results for:
 - `make release-check`
 - `make test-spring-smoke`
 - relevant corpus checks or scorecard summaries
-- [0.7.0 performance baseline](PERFORMANCE_BASELINE_0.7.0.md)
+- [0.7.0 performance baseline](RELEASE_PERFORMANCE_BASELINE_0.7.0.md)
 - package build and clean-environment install smoke; see
-  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_0.7.0.md)
+  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md)
 
 Do not claim broader runtime support than these gates prove.
 

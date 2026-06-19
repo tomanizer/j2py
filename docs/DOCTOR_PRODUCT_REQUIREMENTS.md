@@ -239,7 +239,7 @@ as selecting a file subset or applying a reviewed generated config.
 ## References
 
 - [j2py doctor command reference](DOCTOR.md)
-- [j2py PRD](PRD.md)
+- [j2py PRD](PRODUCT_REQUIREMENTS.md)
 - [Architecture](ARCHITECTURE.md)
 - [Framework plugin architecture](FRAMEWORK_PLUGINS.md)
 - [JDK lowering vs platform boundaries](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)

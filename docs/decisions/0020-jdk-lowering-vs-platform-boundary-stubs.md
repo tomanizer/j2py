@@ -143,8 +143,8 @@ j2py core.
 
 ## References
 
-- [PRD — non-goals (framework semantics, idiomatic rewrite)](../PRD.md)
-- [Configuration — `type_map`, `import_map`, `exception_map`](../configuration.md)
+- [PRD — non-goals (framework semantics, idiomatic rewrite)](../PRODUCT_REQUIREMENTS.md)
+- [Configuration — `type_map`, `import_map`, `exception_map`](../CONFIGURATION.md)
 - [Behavior corpus — rule-layer runtime envelope](../BEHAVIOR_CORPUS.md)
 - [ADR 0003 — Layered translation pipeline](0003-layered-translation-pipeline.md)
 - [ADR 0014 — Equivalence differential testing](0014-equivalence-differential-testing.md)

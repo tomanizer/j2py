@@ -107,9 +107,9 @@ j2py watch    <dir> [--output <path>]  # incremental re-translate on file change
 Project-specific type mappings, import remappings, and rule overrides via `j2py.yaml`,
 `j2py.toml`, `[tool.j2py]` in `pyproject.toml`, or `j2py_config.py`. Projects may also
 set default LLM provider/model values there; explicit CLI flags override these defaults.
-Python config can register trusted framework plugins for programmatic annotation lowering,
-and `emit_wiring_metadata` can write versioned `*.wiring.json` sidecars for downstream
-project-owned wiring tools. See [docs/configuration.md](configuration.md) and
+Python config can register trusted framework plugins for annotation handling that needs
+code, and `emit_wiring_metadata` can write versioned `*.wiring.json` sidecars for downstream
+project-owned wiring tools. See [docs/CONFIGURATION.md](CONFIGURATION.md) and
 [docs/FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md). The optional Spring extension profile
 is documented separately in [docs/SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).

@@ -9,6 +9,44 @@ control-flow shape, names, comments, diagnostics, and review clues well enough t
 human can verify and continue the port. Runtime correctness still needs project tests,
 equivalence checks, and manual review.
 
+## One pipeline, five layers
+
+j2py now has several user-facing surfaces. They are not five separate products; they are
+layers in one migration pipeline.
+
+| Layer | Purpose | User-facing surface |
+|---|---|---|
+| Core translator | Java source -> reviewable Python | `j2py translate`, `j2py compare`, rule layer |
+| Configuration | Project policy for names, imports, types, annotations, and LLM behavior | `j2py.toml`, `j2py_config.py`, `annotation_map`, `type_map`, `import_map` |
+| Framework plugins | Trusted opt-in extraction of framework metadata | `framework_plugins`, `SpringWiringPlugin`, sidecar metadata |
+| Wiring | Post-translation app assembly from sidecars | `j2py-wire list`, `j2py-wire generate`, `j2py-wire validate` |
+| Assessment | Diagnose project readiness and migration risk | `j2py doctor`, corpus reports, diagnostics |
+
+The full enterprise pipeline is:
+
+```text
+doctor -> config -> translate -> sidecars -> wire -> validate/review
+```
+
+Most users do not need every layer for every task. For simple Java, start with only the
+core translator and review tools:
+
+```bash
+j2py translate Foo.java
+j2py compare Foo.java Foo.py
+```
+
+For enterprise or framework-heavy migrations, use the advanced path:
+
+```bash
+j2py doctor project/
+# create and review config
+j2py translate project/ --config j2py_config.py --output translated_py
+j2py-wire list translated_py
+j2py-wire generate translated_py --target fastapi
+j2py-wire validate translated_py
+```
+
 ## What j2py is for
 
 j2py is useful when the Java being translated is mostly language-level code:
@@ -66,23 +104,38 @@ Use corpus metrics as a backlog and regression signal:
 
 ## Framework annotations
 
-j2py preserves and can lower annotations in two distinct ways.
+j2py preserves annotations and can translate them in two distinct ways.
 
 Unmapped framework annotations are visible for review through diagnostics and optional
 line comments. They do not carry framework behavior.
 
 Mapped annotations use the opt-in `annotation_map` configuration described in
 [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) and
-[configuration.md](configuration.md). This lets a project explicitly map known
+[CONFIGURATION.md](CONFIGURATION.md). This lets a project explicitly map known
 annotations to its own Python decorators, imports, bases, comments, or constructor
 parameters. j2py also ships an explicit `annotation_map_preset: spring` convenience map
 for no-op marker decorators, but it is not enabled by default and does not implement
 Spring, FastAPI, SQLAlchemy, or JPA runtime semantics.
 
 That boundary is intentional. An `annotation_map` entry is project policy, not a claim
-that core j2py understands the source framework. More complex framework lowering belongs
-in explicit plugin or wiring layers such as `framework_plugins` and `j2py-wire`, not in
-silent guesses by the translator.
+that core j2py understands the source framework. More complex framework metadata
+extraction or source transforms belong in explicit plugin or wiring layers such as
+`framework_plugins` and `j2py-wire`, not in silent guesses by the translator.
+
+## Sidecars and wiring
+
+For framework-heavy code, trusted framework plugins can emit structured `*.wiring.json`
+sidecars. j2py writes that metadata to sidecars. `j2py-wire` uses sidecars to generate
+target-stack wiring. These sidecars are review artifacts, not a second translated module
+and not executable runtime behavior by themselves.
+
+`j2py-wire` is the sibling CLI for generating or validating target-stack scaffolding. The
+current implemented target is FastAPI wiring from Spring metadata.
+
+This still does not make core j2py a Spring, FastAPI, SQLAlchemy, or dependency-injection
+runtime. Generated wiring is migration scaffolding. Production runtime policy such as
+database URLs, session factories, transaction boundaries, authentication, deployment
+configuration, and secrets remains project-owned application code.
 
 ## Practical migration workflow
 
@@ -94,7 +147,8 @@ For a framework-heavy enterprise codebase:
 4. Add project `type_map`, `import_map`, and `annotation_map` entries only when the target
    Python stack and shims are explicit. Use `annotation_map_preset: spring` only when
    no-op Spring marker output is useful to the review workflow.
-5. Rebuild framework wiring in the target stack manually or through project-owned tools.
+5. When configured framework plugins emit sidecars, inspect them and use `j2py-wire` or
+   project-owned tools to generate reviewable target-stack wiring.
 6. Back critical translated methods with behavior or equivalence tests before trusting
    them in production.
 
@@ -104,13 +158,23 @@ not the migration tool by itself.
 
 ## Related docs
 
-- [PRD](PRD.md) - product goals and non-goals
+- [PRD](PRODUCT_REQUIREMENTS.md) - product goals and non-goals
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md) - benchmark presets and metric semantics
 - [Equivalence testing](EQUIVALENCE_TESTING.md) - runtime correctness strategy
-- [Configuration](configuration.md) - project-owned mapping policy
-- [Case study](CASE_STUDY.md) - end-to-end multi-file translation case study and gap
+- [CLI](CLI.md) - `j2py` and `j2py-wire` command reference
+- [Assessment](ASSESSMENT.md) - readiness and risk diagnosis with `j2py doctor`
+- [Configuration](CONFIGURATION.md) - project-owned mapping policy
+- [Framework plugins](FRAMEWORK_PLUGINS.md) - trusted plugin and sidecar extension point
+- [Wiring](WIRING.md) - post-translation sidecar-to-target-stack app assembly
+- [Spring conversion](SPRING_CONVERSION.md) - bounded Spring sidecar and `j2py-wire`
+  workflow
+- [Spring wiring metadata](SPRING_WIRING_METADATA.md) - Spring profile stored in generic
+  sidecars
+- [Case study](CASE_STUDY_COMMONS_LANG_TUPLE.md) - end-to-end multi-file translation case study and gap
   analysis
 - [ADR 0019](decisions/0019-annotation-map-framework-lowering.md) - annotation map
-  framework lowering
+  framework translation policy
 - [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) - JDK and
   platform boundary policy
+- [ADR 0024](decisions/0024-spring-extension-boundary.md) - Spring extension and
+  `j2py-wire` boundary

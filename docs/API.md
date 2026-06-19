@@ -1,7 +1,10 @@
-# Python API
+# Python API Guide
 
 The public Python API is intentionally small. Use it when you want to embed j2py in a
 script, test harness, or migration workflow rather than shelling out to the CLI.
+
+This guide is example-oriented. For signatures, result models, and public facade details,
+see [API Reference](API_REFERENCE.md).
 
 ## Basic File Translation
 
@@ -104,7 +107,7 @@ cfg = (
 ```
 
 Config files may be YAML, TOML, `pyproject.toml` with `[tool.j2py]`, or Python
-`j2py_config.py`. See [Configuration](configuration.md).
+`j2py_config.py`. See [Configuration](CONFIGURATION.md).
 
 ## Diagnostics
 
@@ -216,3 +219,6 @@ Review failures are captured in `llm_review_error` and do not corrupt
 The dataclasses in `j2py.pipeline` are the current public result shape. Lower-level
 translator modules under `j2py.translate` are implementation details; prefer the pipeline
 API or CLI unless you are contributing new rule-layer behavior.
+
+For the full list of supported imports and stability notes, see
+[API Reference](API_REFERENCE.md).

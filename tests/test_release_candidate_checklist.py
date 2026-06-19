@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHECKLIST = ROOT / "docs" / "RELEASE_CANDIDATE_0.7.0.md"
+CHECKLIST = ROOT / "docs" / "RELEASE_CANDIDATE_EVIDENCE_0.7.0.md"
 
 
 def test_release_candidate_checklist_is_linked_from_release_docs() -> None:
@@ -14,8 +14,8 @@ def test_release_candidate_checklist_is_linked_from_release_docs() -> None:
         encoding="utf-8",
     )
 
-    assert "RELEASE_CANDIDATE_0.7.0.md" in readme
-    assert "RELEASE_CANDIDATE_0.7.0.md" in release_notes
+    assert "RELEASE_CANDIDATE_EVIDENCE_0.7.0.md" in readme
+    assert "RELEASE_CANDIDATE_EVIDENCE_0.7.0.md" in release_notes
 
 
 def test_release_candidate_checklist_records_clean_install_evidence() -> None:

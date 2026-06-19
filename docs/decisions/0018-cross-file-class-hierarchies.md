@@ -5,7 +5,7 @@
 
 ## Context
 
-The commons-lang `tuple` case study (issue #311, [docs/CASE_STUDY.md](../CASE_STUDY.md))
+The commons-lang `tuple` case study (issue #311, [docs/CASE_STUDY_COMMONS_LANG_TUPLE.md](../CASE_STUDY_COMMONS_LANG_TUPLE.md))
 translated a real multi-file inheritance hierarchy and exposed two rule-layer defects that
 node-coverage scoreboards could not see, because they only manifest when the output is
 actually imported and executed.
@@ -53,6 +53,6 @@ None)` — matching Java's "statics initialize after the class is loaded" semant
 
 ## References
 
-- [Issue #311](https://github.com/tomanizer/j2py/issues/311) and [docs/CASE_STUDY.md](../CASE_STUDY.md)
+- [Issue #311](https://github.com/tomanizer/j2py/issues/311) and [docs/CASE_STUDY_COMMONS_LANG_TUPLE.md](../CASE_STUDY_COMMONS_LANG_TUPLE.md)
 - [ADR 0016](0016-class-reference-expression-imports.md) — name resolver / type bindings
 - [ADR 0003](0003-layered-translation-pipeline.md)
