@@ -77,3 +77,32 @@ def test_jdbc_template_imports_sqlalchemy_only_when_call_is_lowered() -> None:
     assert "from typing import Any as JdbcTemplate" in result.source
     assert "from sqlalchemy import text" not in result.source
     assert "def template(self) -> JdbcTemplate:" in result.source
+
+
+def test_unsupported_jdbc_template_call_todo_matches_diagnostic_reason() -> None:
+    parsed = parse_source(
+        """
+        import org.springframework.jdbc.core.JdbcTemplate;
+
+        public class BrokenJdbcCall {
+            private final JdbcTemplate jdbcTemplate;
+
+            public BrokenJdbcCall(JdbcTemplate jdbcTemplate) {
+                this.jdbcTemplate = jdbcTemplate;
+            }
+
+            public int broken() {
+                return jdbcTemplate.update();
+            }
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert "__j2py_todo__('TODO(j2py): JdbcTemplate.update without SQL argument')" in result.source
+    assert any(
+        diagnostic.category == "spring-jdbc-sqlalchemy-todo"
+        and diagnostic.reason == "JdbcTemplate.update without SQL argument"
+        for diagnostic in result.diagnostics.unhandled
+    )

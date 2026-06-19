@@ -28,7 +28,8 @@ Unsupported release-facing boundaries are covered by explicit TODO or diagnostic
   placeholders plus a JDBC-boundary TODO unless project `import_map` config supplies a
   concrete Python target.
 - Unsupported RowMapper callback and method-reference shapes emit
-  `TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping`.
+  `TODO(j2py): JdbcTemplate RowMapper/callback requires manual mapper port; lower to
+  SQLAlchemy row mapping or a project DB facade`.
 - Spring JDBC bean topology is metadata, not a generated engine/session lifecycle.
 - `j2py-wire validate` reports missing project runtime providers, such as session
   factories, as wiring findings rather than pretending to own that runtime policy.

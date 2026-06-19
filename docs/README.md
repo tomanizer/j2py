@@ -10,6 +10,7 @@
 | [OUTPUT_REVIEW.md](OUTPUT_REVIEW.md) | How to review confidence, warnings, TODO markers, validation, and generated reports |
 | [API.md](API.md) | Python API usage for file/directory translation, config loading, diagnostics, and reports |
 | [PRD.md](PRD.md) | Product goals, functional requirements, non-goals, success criteria |
+| [DIAGNOSTICS_TODO_AUDIT_0.7.0.md](DIAGNOSTICS_TODO_AUDIT_0.7.0.md) | 0.7.0 diagnostics and TODO wording audit for framework and platform boundaries |
 | [SPRING_CONVERSION.md](SPRING_CONVERSION.md) | Practical Spring conversion workflow: config, sidecars, `j2py-wire`, smoke tests, and corpus checks |
 | [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) | Optional Spring conversion extension scope, v1 target, and boundary rules |
 | [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) | Guardrails and review checklist for Spring roadmap implementation work |

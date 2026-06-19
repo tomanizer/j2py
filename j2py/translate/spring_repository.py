@@ -161,10 +161,16 @@ def _query_stub_lines(
     ]
     jpql = _query_annotation_value(method)
     if jpql is not None:
-        lines.append("        # TODO(j2py): translate JPQL query")
+        lines.append(
+            "        # TODO(j2py): manually port JPQL query to SQLAlchemy or a project "
+            "repository method"
+        )
         lines.append(f"        # JPQL: {jpql}")
     else:
-        lines.append(f"        # TODO(j2py): translate Spring Data derived query method {raw_name}")
+        lines.append(
+            f"        # TODO(j2py): manually port Spring Data derived query method {raw_name}"
+        )
+        lines.append("        # to SQLAlchemy or a project repository method")
     lines.append("        raise NotImplementedError")
     return lines
 

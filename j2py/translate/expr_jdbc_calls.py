@@ -11,7 +11,10 @@ from j2py.translate.jdbc_row_mapper import is_row_mapper_shape, lower_row_mapper
 from j2py.translate.rules.naming import translate_field_name
 
 _JDBC_TEMPLATE_TYPES = frozenset({"JdbcTemplate", "NamedParameterJdbcTemplate"})
-_ROW_MAPPER_TODO = "TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping"
+_ROW_MAPPER_TODO = (
+    "TODO(j2py): JdbcTemplate RowMapper/callback requires manual mapper port; "
+    "lower to SQLAlchemy row mapping or a project DB facade"
+)
 
 
 def translate_jdbc_template_method_invocation(
@@ -363,7 +366,10 @@ def _unsupported_row_mapper(node: JavaNode, ctx: TranslationContext) -> str:
     return _unsupported(
         node,
         ctx,
-        reason="JdbcTemplate RowMapper/callback requires project row mapping",
+        reason=(
+            "JdbcTemplate RowMapper/callback requires manual mapper port; "
+            "lower to SQLAlchemy row mapping or a project DB facade"
+        ),
     )
 
 
@@ -374,4 +380,5 @@ def _unsupported(node: JavaNode, ctx: TranslationContext, *, reason: str) -> str
         reason=reason,
         category="spring-jdbc-sqlalchemy-todo",
     )
-    return f"__j2py_todo__({_ROW_MAPPER_TODO!r})"
+    todo = _ROW_MAPPER_TODO if "RowMapper/callback" in reason else f"TODO(j2py): {reason}"
+    return f"__j2py_todo__({todo!r})"

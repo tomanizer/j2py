@@ -94,7 +94,8 @@ Observed contract:
   `.rowcount`, `.scalar_one()`, or `.mappings().one()`.
 - Supported RowMapper shapes lower to row-mapping expressions or `Owner(**dict(row))`.
 - Method-reference and callback-style RowMapper cases remain explicit
-  `TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping` work.
+  `TODO(j2py): JdbcTemplate RowMapper/callback requires manual mapper port; lower to
+  SQLAlchemy row mapping or a project DB facade` work.
 - `SpringWiringPlugin` emits generic `*.wiring.json` sidecars with Spring facts nested
   under `elements[].metadata.spring`.
 - JDBC bean metadata records `DataSource`, `JdbcTemplate`, and

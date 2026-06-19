@@ -411,7 +411,8 @@ return jdbcTemplate.queryForObject(
 
 ```python
 return __j2py_todo__(
-    'TODO(j2py): JdbcTemplate RowMapper/callback requires project row mapping'
+    'TODO(j2py): JdbcTemplate RowMapper/callback requires manual mapper port; '
+    'lower to SQLAlchemy row mapping or a project DB facade'
 )
 ```
 

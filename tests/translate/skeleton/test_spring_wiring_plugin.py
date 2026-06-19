@@ -333,7 +333,7 @@ def test_jdbc_bean_methods_emit_topology_metadata_and_boundary_warning() -> None
     ]
     assert any(
         warning.category == "spring-jdbc-boundary"
-        and "database runtime wiring remains project-owned" in warning.reason
+        and "wire an equivalent SQLAlchemy Engine, Connection, or Session" in warning.reason
         for warning in result.diagnostics.warnings
     )
     assert "# @Bean" in result.source
