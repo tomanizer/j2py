@@ -225,7 +225,11 @@ Validate:
 pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q
 ```
 
-Also run a local Markdown file/anchor check.
+Also run:
+
+```bash
+pytest tests/test_docs_links.py -q
+```
 
 ## Root Entrypoint Change
 
@@ -249,7 +253,11 @@ Validate:
 cmp -s AGENTS.md CLAUDE.md
 ```
 
-Also run a local Markdown file/anchor check.
+Also run:
+
+```bash
+pytest tests/test_docs_links.py -q
+```
 
 ## Packaging Or Release Workflow Change
 

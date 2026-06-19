@@ -4,6 +4,13 @@ The docs are split by audience, with a separate section for source-framework-spe
 guides. File paths are kept flat so existing links stay stable, but the index should help
 readers start in the right place.
 
+Start here:
+
+- New users: [Getting Started](GETTING_STARTED.md)
+- Enterprise migrations: [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md), [Wiring](WIRING.md)
+- Contributors: [Developer Docs](#developer-docs)
+- Coding agents: [Coding Agent Guides](agents/README.md)
+
 ## User Docs
 
 Use these when you are installing j2py, assessing a Java project, configuring
@@ -153,7 +160,7 @@ Choose the path that matches the change:
 
 | If you are doing this | Read | Validation |
 |-----------------------|------|------------|
-| Route a coding-agent change | [Coding agent guides](agents/README.md), [Change routing](agents/CHANGE_ROUTING.md), [Validation matrix](agents/VALIDATION_MATRIX.md) | Use the gate selected by the validation matrix; for docs changes also run a Markdown link check. |
+| Route a coding-agent change | [Coding agent guides](agents/README.md), [Change routing](agents/CHANGE_ROUTING.md), [Validation matrix](agents/VALIDATION_MATRIX.md) | Use the gate selected by the validation matrix; for docs changes also run `pytest tests/test_docs_links.py -q`. |
 | Change parser, analyzer, or symbol graph behavior | [Parser/analyzer guide](developer/PARSER_ANALYZER.md), [Architecture](ARCHITECTURE.md), relevant parser/analyzer ADRs | `pytest tests/parse tests/analyze -q`; add corpus checks when dependency ordering or symbol extraction changes. |
 | Add a Java construct rule | [Rule authoring](developer/RULE_AUTHORING.md), [Translation internals](developer/TRANSLATION_INTERNALS.md), [Translation targets](TRANSLATION_TARGETS.md), [Architecture](ARCHITECTURE.md) | Java/Python fixture tests, `make check`, relevant corpus dense check. |
 | Change runtime helpers, validation, imports, or platform/JDK boundaries | [Translation internals](developer/TRANSLATION_INTERNALS.md), [Diagnostics guide](developer/DIAGNOSTICS.md), [Output review](OUTPUT_REVIEW.md), [ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md) | `pytest tests/validate tests/translate/test_platform_imports.py tests/translate/test_runtime_dispatch.py -q`; behavior/equivalence tests when runtime semantics change. |

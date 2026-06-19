@@ -29,6 +29,7 @@ blast radius.
 | Wiring | `pytest tests/wire -q` |
 | LLM provider code | `pytest tests/llm tests/cli/test_main.py -q` |
 | Packaging | `pytest tests/packaging -q` |
+| Docs links and anchors | `pytest tests/test_docs_links.py -q` |
 | Release-doc inventory | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q` |
 
 ## Semantic Gates

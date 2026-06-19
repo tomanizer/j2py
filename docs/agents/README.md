@@ -40,8 +40,8 @@ Human docs remain authoritative for detail:
 | Doctor/SARIF/diagnostics | [Diagnostics doctor or SARIF change](CHANGE_ROUTING.md#diagnostics-doctor-or-sarif-change) | `pytest tests/test_doctor.py tests/test_sarif.py -q` |
 | LLM provider/prompt | [LLM provider or prompt change](CHANGE_ROUTING.md#llm-provider-or-prompt-change) | `pytest tests/llm tests/cli/test_main.py -q` |
 | CLI/API | [CLI or public API change](CHANGE_ROUTING.md#cli-or-public-api-change) | `pytest tests/cli/test_main.py tests/test_pipeline.py -q` |
-| Docs | [Documentation change](CHANGE_ROUTING.md#documentation-change) | Markdown link check + release-doc tests |
-| Root docs | [Root entrypoint change](CHANGE_ROUTING.md#root-entrypoint-change) | Markdown link check + `cmp -s AGENTS.md CLAUDE.md` |
+| Docs | [Documentation change](CHANGE_ROUTING.md#documentation-change) | `pytest tests/test_docs_links.py -q` + release-doc tests |
+| Root docs | [Root entrypoint change](CHANGE_ROUTING.md#root-entrypoint-change) | `pytest tests/test_docs_links.py -q` + `cmp -s AGENTS.md CLAUDE.md` |
 | Packaging/release | [Packaging or release workflow change](CHANGE_ROUTING.md#packaging-or-release-workflow-change) | `pytest tests/packaging -q`; `make release-check` for release readiness |
 
 ## Before Final
@@ -50,7 +50,7 @@ Human docs remain authoritative for detail:
 - Only relevant files staged or reported.
 - Validation commands and results recorded.
 - Skipped live/network/JDK gates called out.
-- Markdown links checked after docs/heading/filename changes.
+- `pytest tests/test_docs_links.py -q` run after docs/heading/filename changes.
 - `AGENTS.md` and `CLAUDE.md` compared if either changed.
 - Drift check completed before adding new helpers, docs, commands, files, tests, or process rules.
 - Issue/PR/commit/push requests actually completed before claiming completion.
