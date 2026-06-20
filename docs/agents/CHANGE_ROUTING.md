@@ -130,7 +130,7 @@ Runtime policy remains project-owned: sessions, credentials, auth, transactions,
 Read:
 
 - [Diagnostics](../developer/DIAGNOSTICS.md)
-- [Assessment](../ASSESSMENT.md)
+- [Assessment](../DOCTOR.md)
 - [Doctor](../DOCTOR.md)
 - [SARIF](../SARIF.md)
 

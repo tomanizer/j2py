@@ -147,13 +147,13 @@ not the migration tool by itself.
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md) - benchmark presets and metric semantics
 - [Equivalence testing](EQUIVALENCE_TESTING.md) - runtime correctness strategy
 - [CLI](CLI.md) - `j2py` and `j2py-wire` command reference
-- [Assessment](ASSESSMENT.md) - readiness and risk diagnosis with `j2py doctor`
+- [Assessment](DOCTOR.md) - readiness and risk diagnosis with `j2py doctor`
 - [Configuration](CONFIGURATION.md) - project-owned mapping policy
 - [Framework plugins](FRAMEWORK_PLUGINS.md) - trusted plugin and sidecar extension point
 - [Wiring](WIRING.md) - post-translation sidecar-to-target-stack app assembly
 - [Spring conversion](SPRING_CONVERSION.md) - bounded Spring sidecar and `j2py-wire`
   workflow
-- [Spring wiring metadata](SPRING_WIRING_METADATA.md) - Spring profile stored in generic
+- [Spring wiring metadata](SPRING_CONVERSION.md#wiring-metadata-profile) - Spring profile stored in generic
   sidecars
 - [Case study](CASE_STUDY_COMMONS_LANG_TUPLE.md) - end-to-end multi-file translation case study and gap
   analysis

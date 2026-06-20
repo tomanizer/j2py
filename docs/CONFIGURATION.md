@@ -468,11 +468,10 @@ Each `annotation_map` entry is strict. Supported entry fields:
 DI mappings by default. The named `spring` preset is a convenience map of Spring
 annotations to no-op marker decorators and `typing.Annotated` parameter markers from
 `j2py_runtime`; enable it explicitly with `annotation_map_preset: spring`. The Spring
-extension scope and boundary are documented in
-[SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
-[ADR 0024](decisions/0024-spring-extension-boundary.md); implementation guardrails live in
-[SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md). Project `annotation_map`
-entries are merged after the preset, so they can override or extend the preset. Unmapped
+extension scope, boundary, and implementation guardrails are documented in
+[SPRING_DESIGN.md](SPRING_DESIGN.md) and
+[ADR 0024](decisions/0024-spring-extension-boundary.md). Project `annotation_map` entries
+are merged after the preset, so they can override or extend the preset. Unmapped
 annotations keep normal behavior: diagnostics plus optional line comments.
 
 Each `member_map` key is a fully qualified Java member, such as

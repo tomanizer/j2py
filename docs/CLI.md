@@ -173,8 +173,7 @@ j2py doctor diff before.json after.json
 j2py doctor diff before.json after.json --json diff.json
 ```
 
-See [Assessment](ASSESSMENT.md) for the layer guide and [j2py doctor](DOCTOR.md) for the
-assessment schema and workflows.
+See [Doctor](DOCTOR.md) for the assessment layer guide, schema, and workflows.
 
 ## `j2py sarif`
 

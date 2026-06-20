@@ -98,8 +98,7 @@ Use the report to identify parse failures, unresolved imports, annotations, TODO
 markers, semantic warnings, and low-coverage files. The generated config suggestions are
 advisory; review them before using them as real config.
 
-For details, see [Assessment](ASSESSMENT.md), [j2py doctor](DOCTOR.md), and
-[SARIF export](SARIF.md).
+For details, see [Doctor](DOCTOR.md) and [SARIF export](SARIF.md).
 
 ## 4. Add Project Config
 
@@ -130,7 +129,7 @@ annotation_map:
     import: "from acme.web import rest_controller"
 ```
 
-See [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md),
+See [Assessment](DOCTOR.md), [Configuration](CONFIGURATION.md),
 [Framework plugins](FRAMEWORK_PLUGINS.md), and [Wiring](WIRING.md).
 
 ## 5. Translate Without LLM First
