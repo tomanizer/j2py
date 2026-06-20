@@ -251,7 +251,7 @@ Naming convention:
 | Document | What it records |
 |----------|-----------------|
 | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) | Product goals, functional requirements, non-goals, and success criteria. |
-| [DOCTOR.md#roadmap-requirements](DOCTOR.md#roadmap-requirements) | Product requirements and roadmap for project assessment tooling. |
+| [DOCTOR.md#roadmap-and-requirements](DOCTOR.md#roadmap-and-requirements) | Product requirements and roadmap for project assessment tooling. |
 
 ### Release Evidence
 

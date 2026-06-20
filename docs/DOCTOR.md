@@ -349,7 +349,7 @@ Current `doctor` does not:
 Use assessment to choose where to spend engineering effort. Use translation, wiring,
 validation, and tests to prove the migrated code.
 
-## Roadmap & requirements
+## Roadmap and requirements
 
 `j2py doctor` exists to answer three practical migration questions:
 
