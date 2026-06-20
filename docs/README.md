@@ -172,7 +172,7 @@ Choose the path that matches the change:
 | Change reports, dashboards, or review output | [Output review](OUTPUT_REVIEW.md), [CLI](CLI.md), [Assessment](DOCTOR.md) | `pytest tests/test_report.py tests/test_state_dashboard.py tests/cli/test_main.py -q`. |
 | Change corpus/reporting | [Corpus scoreboard](CORPUS_SCOREBOARD.md), [Translation targets](TRANSLATION_TARGETS.md) | Relevant `make corpus-<name>-dense-check`, `make corpus-hotspots`; update baselines only after no-regression review. |
 | Change packaging, install extras, or dependency metadata | [Install](INSTALL.md), [Releasing](RELEASING.md), [Contributing](../CONTRIBUTING.md) | `pytest tests/packaging -q`, `make release-check` when release packaging is affected. |
-| Change docs or release evidence | [Documentation index](README.md), relevant user/developer doc, [Release docs audit](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q`. |
+| Change docs or release evidence | [Documentation index](README.md), relevant user/developer doc, [Release docs audit](releases/0.7.0/DOCUMENTATION_AUDIT.md) | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q`. |
 | Release | [Releasing](RELEASING.md), [Changelog](../CHANGELOG.md) | `make release-check` plus publish verification. |
 | Work on VS Code | [VS Code extension guide](developer/VS_CODE_EXTENSION.md), [VS Code support](VS_CODE.md), [extension README](../packages/j2py-vscode/README.md) | `npm ci`, `npm run compile`, VSIX smoke test. |
 
@@ -253,10 +253,10 @@ Quick lookup:
 |----------|------------|
 | What is j2py supposed to be? | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) |
 | What is `j2py doctor` supposed to become? | [Doctor roadmap](DOCTOR.md#roadmap-requirements) |
-| What did a release claim and prove? | [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md), [RELEASE_TEST_EVIDENCE_0.7.0.md](RELEASE_TEST_EVIDENCE_0.7.0.md) |
-| What package/install evidence backed a release? | [RELEASE_CANDIDATE_EVIDENCE_0.7.0.md](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |
-| What docs were audited for a release? | [RELEASE_DOCUMENTATION_AUDIT_0.7.0.md](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) |
-| What performance or diagnostics evidence backed a release? | [RELEASE_PERFORMANCE_BASELINE_0.7.0.md](RELEASE_PERFORMANCE_BASELINE_0.7.0.md), [RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md](RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md) |
+| What did a release claim and prove? | [releases/0.7.0/RELEASE_NOTES.md](releases/0.7.0/RELEASE_NOTES.md), [releases/0.7.0/TEST_EVIDENCE.md](releases/0.7.0/TEST_EVIDENCE.md) |
+| What package/install evidence backed a release? | [releases/0.7.0/CANDIDATE_EVIDENCE.md](releases/0.7.0/CANDIDATE_EVIDENCE.md) |
+| What docs were audited for a release? | [releases/0.7.0/DOCUMENTATION_AUDIT.md](releases/0.7.0/DOCUMENTATION_AUDIT.md) |
+| What performance or diagnostics evidence backed a release? | [releases/0.7.0/PERFORMANCE_BASELINE.md](releases/0.7.0/PERFORMANCE_BASELINE.md), [releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md](releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md) |
 | How did j2py behave on representative code? | [CASE_STUDY_COMMONS_LANG_TUPLE.md](CASE_STUDY_COMMONS_LANG_TUPLE.md), [CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md](CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) |
 | Why was an architecture choice made? | [Architecture decisions](#architecture-decisions) |
 | What did earlier maturity audits say? | [Audit Snapshots](#audit-snapshots) |
@@ -266,7 +266,7 @@ Naming convention:
 | Prefix or pattern | Use for |
 |-------------------|---------|
 | `PRODUCT_*` | Product scope, roadmap, and requirements records. |
-| `RELEASE_*_<version>.md` | Versioned release evidence snapshots. |
+| `releases/<version>/*.md` | Versioned release evidence snapshots. |
 | `CASE_STUDY_<subject>.md` | Narrative evidence from representative source code. |
 | `decisions/NNNN-*.md` | Accepted architecture decision records. |
 | `decisions/AUDIT-YYYY-MM-DD.md` | Dated maturity or gap audits. |
@@ -285,12 +285,12 @@ specific release. They are evidence snapshots, not the live command reference.
 
 | Document | What it records |
 |----------|-----------------|
-| [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits. |
-| [RELEASE_CANDIDATE_EVIDENCE_0.7.0.md](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) | 0.7.0 package build, clean install smoke, and pre-tag checklist evidence. |
-| [RELEASE_DOCUMENTATION_AUDIT_0.7.0.md](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) | 0.7.0 docs audit against live CLI help, config schema, fixtures, and generated output. |
-| [RELEASE_TEST_EVIDENCE_0.7.0.md](RELEASE_TEST_EVIDENCE_0.7.0.md) | Release-facing claim-to-evidence inventory for 0.7.0. |
-| [RELEASE_PERFORMANCE_BASELINE_0.7.0.md](RELEASE_PERFORMANCE_BASELINE_0.7.0.md) | Local translation, Spring smoke, and corpus reporting performance baseline for 0.7.0. |
-| [RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md](RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md) | Diagnostics and TODO wording audit for framework and platform boundaries. |
+| [releases/0.7.0/RELEASE_NOTES.md](releases/0.7.0/RELEASE_NOTES.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits. |
+| [releases/0.7.0/CANDIDATE_EVIDENCE.md](releases/0.7.0/CANDIDATE_EVIDENCE.md) | 0.7.0 package build, clean install smoke, and pre-tag checklist evidence. |
+| [releases/0.7.0/DOCUMENTATION_AUDIT.md](releases/0.7.0/DOCUMENTATION_AUDIT.md) | 0.7.0 docs audit against live CLI help, config schema, fixtures, and generated output. |
+| [releases/0.7.0/TEST_EVIDENCE.md](releases/0.7.0/TEST_EVIDENCE.md) | Release-facing claim-to-evidence inventory for 0.7.0. |
+| [releases/0.7.0/PERFORMANCE_BASELINE.md](releases/0.7.0/PERFORMANCE_BASELINE.md) | Local translation, Spring smoke, and corpus reporting performance baseline for 0.7.0. |
+| [releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md](releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md) | Diagnostics and TODO wording audit for framework and platform boundaries. |
 
 ### Case Studies
 

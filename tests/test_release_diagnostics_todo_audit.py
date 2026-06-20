@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-AUDIT = ROOT / "docs" / "RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md"
+
+
+def _release_version() -> str:
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return str(pyproject["project"]["version"])
+
+
+def _release_dir() -> Path:
+    return ROOT / "docs" / "releases" / _release_version()
+
+
+AUDIT = _release_dir() / "DIAGNOSTICS_TODO_AUDIT.md"
 
 
 def test_diagnostics_todo_audit_is_linked_from_docs_index() -> None:
     readme = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
 
-    assert "RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md" in readme
+    assert f"releases/{_release_version()}/DIAGNOSTICS_TODO_AUDIT.md" in readme
 
 
 def test_diagnostics_todo_audit_records_release_boundary_messages() -> None:

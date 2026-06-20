@@ -19,40 +19,42 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
 - **Rule-layer Java translation** for common classes, methods, fields, constructors,
   records, enums, interfaces, anonymous/local helpers, streams, overloads, control flow,
   collection calls, JDK call lowering, and package-ordered directory translation. See
-  [Getting Started](GETTING_STARTED.md), [CLI](CLI.md), and
-  [Architecture](ARCHITECTURE.md).
+  [Getting Started](../../GETTING_STARTED.md), [CLI](../../CLI.md), and
+  [Architecture](../../ARCHITECTURE.md).
 - **Review artifacts** through confidence scoring, structured diagnostics, TODO markers,
   HTML reports, dashboards, and `j2py compare`. See
-  [Output Review](OUTPUT_REVIEW.md).
+  [Output Review](../../OUTPUT_REVIEW.md).
 - **Project assessment** with `j2py doctor`, including JSON/HTML reports, SARIF export,
   and conservative config suggestions without live LLM calls. See
-  [Doctor](DOCTOR.md) and [SARIF](SARIF.md).
+  [Doctor](../../DOCTOR.md) and [SARIF](../../SARIF.md).
 - **Optional LLM completion and review** using configured Anthropic, Gemini, or
   OpenAI-compatible providers, with normal tests and release gates avoiding live LLM
-  calls. See [CLI](CLI.md#j2py-translate) and [Output Review](OUTPUT_REVIEW.md).
+  calls. See [CLI](../../CLI.md#j2py-translate) and
+  [Output Review](../../OUTPUT_REVIEW.md).
 - **Spring conversion scaffolding** behind explicit opt-in configuration:
   `annotation_map_preset: spring`, `SpringWiringPlugin`, wiring sidecars,
   `j2py-wire generate`, `j2py-wire validate`, and a PetClinic owner-slice smoke gate. See
-  [Spring Conversion Guide](SPRING_CONVERSION.md).
+  [Spring Conversion Guide](../../SPRING_CONVERSION.md).
 - **JPA and JDBC scaffolding** for supported Spring application patterns, including
   SQLAlchemy model output, Spring repository metadata, `JdbcTemplate` SQLAlchemy Core
   scaffolds, simple RowMapper lowering, and JDBC bean topology metadata. See the
-  [Spring Mapping Cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and
-  [Spring Wiring Metadata](SPRING_CONVERSION.md#wiring-metadata-profile).
+  [Spring Mapping Cookbook](../../examples/SPRING_MAPPING_COOKBOOK.md) and
+  [Spring Wiring Metadata](../../SPRING_CONVERSION.md#wiring-metadata-profile).
 
 ## Evidence Map
 
 The full claim-to-evidence inventory is tracked in
-[0.7.0 release test coverage inventory](RELEASE_TEST_EVIDENCE_0.7.0.md).
+`docs/releases/0.7.0/TEST_EVIDENCE.md`
+([0.7.0 release test coverage inventory](TEST_EVIDENCE.md)).
 
 | Claim | Evidence |
 |---|---|
-| Core CLI workflow | `j2py --help`, [Getting Started](GETTING_STARTED.md), [CLI](CLI.md) |
-| Rule-layer review artifacts | [Output Review](OUTPUT_REVIEW.md), `j2py translate --report`, `j2py dashboard`, `j2py compare` |
-| Project assessment | `j2py doctor --json --html`, [Doctor](DOCTOR.md), [SARIF](SARIF.md) |
-| Spring sidecars and FastAPI wiring | [Spring Conversion Guide](SPRING_CONVERSION.md), `make test-spring-smoke` |
-| Spring/JPA/JDBC mapping scope | [Spring Mapping Cookbook](examples/SPRING_MAPPING_COOKBOOK.md), [Spring Wiring Metadata](SPRING_CONVERSION.md#wiring-metadata-profile) |
-| Release gate | `make release-check`, [Releasing](RELEASING.md) |
+| Core CLI workflow | `j2py --help`, [Getting Started](../../GETTING_STARTED.md), [CLI](../../CLI.md) |
+| Rule-layer review artifacts | [Output Review](../../OUTPUT_REVIEW.md), `j2py translate --report`, `j2py dashboard`, `j2py compare` |
+| Project assessment | `j2py doctor --json --html`, [Doctor](../../DOCTOR.md), [SARIF](../../SARIF.md) |
+| Spring sidecars and FastAPI wiring | [Spring Conversion Guide](../../SPRING_CONVERSION.md), `make test-spring-smoke` |
+| Spring/JPA/JDBC mapping scope | [Spring Mapping Cookbook](../../examples/SPRING_MAPPING_COOKBOOK.md), [Spring Wiring Metadata](../../SPRING_CONVERSION.md#wiring-metadata-profile) |
+| Release gate | `make release-check`, [Releasing](../../RELEASING.md) |
 
 ## Start Here
 
@@ -72,12 +74,12 @@ j2py-wire --help
 
 First workflow:
 
-1. Read [Getting Started](GETTING_STARTED.md).
+1. Read [Getting Started](../../GETTING_STARTED.md).
 2. Run `j2py doctor` on the source tree.
 3. Translate with `--no-llm` first.
 4. Review generated Python, diagnostics, and reports.
 5. Add project config only where the target Python runtime policy is explicit.
-6. For Spring slices, follow [Spring Conversion Guide](SPRING_CONVERSION.md).
+6. For Spring slices, follow [Spring Conversion Guide](../../SPRING_CONVERSION.md).
 
 ## Quality Evidence
 
@@ -85,9 +87,11 @@ Release validation is recorded through:
 
 - `make release-check`
 - relevant corpus checks or scorecard summaries
-- [0.7.0 performance baseline](RELEASE_PERFORMANCE_BASELINE_0.7.0.md)
+- `docs/releases/0.7.0/PERFORMANCE_BASELINE.md`
+  ([0.7.0 performance baseline](PERFORMANCE_BASELINE.md))
 - package build and clean-environment install smoke; see
-  [0.7.0 release candidate checklist](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md)
+  `docs/releases/0.7.0/CANDIDATE_EVIDENCE.md`
+  ([0.7.0 release candidate checklist](CANDIDATE_EVIDENCE.md))
 
 Do not claim broader runtime support than these gates prove.
 

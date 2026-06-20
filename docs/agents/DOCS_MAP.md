@@ -50,12 +50,12 @@ Use this to update the owning doc. Do not duplicate content across many entry po
 |------|-------|
 | Product scope | [Product requirements](../PRODUCT_REQUIREMENTS.md) |
 | Doctor product roadmap | [Doctor roadmap](../DOCTOR.md#roadmap-requirements) |
-| Release claims | [Release notes](../RELEASE_NOTES_0.7.0.md) |
-| Release test evidence | [Release test evidence](../RELEASE_TEST_EVIDENCE_0.7.0.md) |
-| Package evidence | [Release candidate evidence](../RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |
-| Release docs audit | [Release documentation audit](../RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) |
-| Performance baseline | [Release performance baseline](../RELEASE_PERFORMANCE_BASELINE_0.7.0.md) |
-| Diagnostics wording audit | [Release diagnostics TODO audit](../RELEASE_DIAGNOSTICS_TODO_AUDIT_0.7.0.md) |
+| Release claims | [Release notes](../releases/0.7.0/RELEASE_NOTES.md) |
+| Release test evidence | [Release test evidence](../releases/0.7.0/TEST_EVIDENCE.md) |
+| Package evidence | [Release candidate evidence](../releases/0.7.0/CANDIDATE_EVIDENCE.md) |
+| Release docs audit | [Release documentation audit](../releases/0.7.0/DOCUMENTATION_AUDIT.md) |
+| Performance baseline | [Release performance baseline](../releases/0.7.0/PERFORMANCE_BASELINE.md) |
+| Diagnostics wording audit | [Release diagnostics TODO audit](../releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md) |
 | Case studies | [Tuple case study](../CASE_STUDY_COMMONS_LANG_TUPLE.md), [NumberUtils case study](../CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) |
 
 Repo records are snapshots. Verify current commands and metrics before citing them as
