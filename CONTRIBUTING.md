@@ -177,5 +177,5 @@ publishing when a GitHub release is published. PyPI trusted publishing is config
 repository `tomanizer/j2py`, workflow `.github/workflows/publish.yml`, environment
 `pypi`, and project `j2py-converter`.
 See [docs/RELEASING.md](docs/RELEASING.md) for the release checklist and
-[Repo Hygiene And Project Record](docs/README.md#repo-hygiene-and-project-record) for
+[Repo Hygiene And Project Record](docs/README.md#repo-hygiene-project-record) for
 versioned release evidence snapshots.

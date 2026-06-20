@@ -7,7 +7,7 @@ Agent-native routing for repo changes. Use this before editing.
 1. Classify the task in [CHANGE_ROUTING.md](CHANGE_ROUTING.md).
 2. Run the drift check in [DRIFT_CONTROL.md](DRIFT_CONTROL.md).
 3. Pick the gate in [VALIDATION_MATRIX.md](VALIDATION_MATRIX.md).
-4. Check doc ownership in [DOCS_MAP.md](DOCS_MAP.md).
+4. Check doc ownership in the [documentation index](../README.md).
 5. Check failure patterns in [COMMON_FAILURES.md](COMMON_FAILURES.md).
 
 Human docs remain authoritative for detail:
