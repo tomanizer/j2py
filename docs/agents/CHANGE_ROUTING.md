@@ -264,7 +264,7 @@ Read:
 
 - [Releasing](../RELEASING.md)
 - [Validation matrix](VALIDATION_MATRIX.md)
-- [Repo Hygiene And Project Record](../README.md#repo-hygiene-project-record)
+- [Repo Hygiene And Project Record](../README.md#repo-hygiene-and-project-record)
 
 Edit:
 

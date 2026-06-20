@@ -67,7 +67,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [agents/VALIDATION_MATRIX.md](agents/VALIDATION_MATRIX.md) | Compact validation matrix for focused, semantic, corpus, live, and docs gates. |
 | [agents/COMMON_FAILURES.md](agents/COMMON_FAILURES.md) | Common coding-agent mistakes to check before finalizing. |
 
-## Repo Hygiene & Project Record
+## Repo Hygiene and Project Record
 
 | Document | What it records |
 |----------|-----------------|
