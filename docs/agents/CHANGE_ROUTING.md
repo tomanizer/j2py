@@ -210,7 +210,6 @@ Public result models and JSON shape changes require docs updates.
 Read:
 
 - [Documentation index](../README.md)
-- [Docs map](DOCS_MAP.md)
 - owning user/developer/repo section
 
 Edit:
@@ -237,7 +236,7 @@ Read:
 
 - [Documentation index](../README.md)
 - [Contributing](../../CONTRIBUTING.md)
-- [Docs map](DOCS_MAP.md#root-entrypoints)
+- [Coding agent guides](README.md)
 
 Edit:
 
