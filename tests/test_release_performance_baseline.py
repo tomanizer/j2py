@@ -6,24 +6,16 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _release_version() -> str:
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    return str(pyproject["project"]["version"])
-
-
-def _release_dir() -> Path:
-    return ROOT / "docs" / "releases" / _release_version()
-
-
-BASELINE = _release_dir() / "PERFORMANCE_BASELINE.md"
+_PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+RELEASE_VERSION = str(_PYPROJECT["project"]["version"])
+RELEASE_DIR = ROOT / "docs" / "releases" / RELEASE_VERSION
+BASELINE = RELEASE_DIR / "PERFORMANCE_BASELINE.md"
 
 
 def test_performance_baseline_is_linked_from_release_docs() -> None:
     readme = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
-    release_notes = (_release_dir() / "RELEASE_NOTES.md").read_text(encoding="utf-8")
-    baseline_path = f"releases/{_release_version()}/PERFORMANCE_BASELINE.md"
+    release_notes = (RELEASE_DIR / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+    baseline_path = f"releases/{RELEASE_VERSION}/PERFORMANCE_BASELINE.md"
 
     assert baseline_path in readme
     assert f"docs/{baseline_path}" in release_notes
