@@ -21,8 +21,9 @@ harvest workflows.
 
 1. Verify the release version in `pyproject.toml` and `j2py/__init__.py`.
 2. Move changelog entries from `## Unreleased` to the release heading.
-3. Update the release notes draft for the version being published and make sure it does
-   not claim more than the release gates prove.
+3. Create or update `docs/releases/<version>/` for the version being published. Use the
+   fixed release-evidence filenames documented in [Release records](releases/README.md),
+   then make sure the release notes do not claim more than the release gates prove.
 4. Audit release-facing docs, comments, examples, and generated-output snippets for
    obvious LLM artifacts, inflated marketing language, unexplained generated boilerplate,
    and other wording that does not match maintainer-owned evidence.
