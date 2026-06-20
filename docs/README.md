@@ -50,6 +50,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | Document | What it helps with |
 |----------|--------------------|
 | [developer/README.md](developer/README.md) | Developer guide index by subsystem. |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Branch workflow, fixture expectations, material-change rules, and PR conventions. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline stages, module responsibilities, data flow, and ADR index. |
 | [developer/RULE_AUTHORING.md](developer/RULE_AUTHORING.md) | Adding deterministic Java construct rules with fixtures, diagnostics, and gates. |
 | [developer/PARSER_ANALYZER.md](developer/PARSER_ANALYZER.md) | Changing `JavaNode`, tree-sitter parser behavior, symbol extraction, and dependency analysis. |
@@ -80,6 +81,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [CASE_STUDY_COMMONS_LANG_TUPLE.md](CASE_STUDY_COMMONS_LANG_TUPLE.md) | End-to-end multi-file case study for commons-lang `tuple`. |
 | [CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md](CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) | NumberUtils equivalence case study: verified surface, stubs, and exclusions. |
 | [RELEASING.md](RELEASING.md) | Beta/pre-release checklist and publish verification workflow. |
+| [../CHANGELOG.md](../CHANGELOG.md) | Version history and user-visible changes. |
 | [releases/README.md](releases/README.md) | Release-record convention and canonical release evidence filenames. |
 | [releases/0.7.0/RELEASE_NOTES.md](releases/0.7.0/RELEASE_NOTES.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits. |
 | [releases/0.7.0/CANDIDATE_EVIDENCE.md](releases/0.7.0/CANDIDATE_EVIDENCE.md) | 0.7.0 package build, clean install smoke, and pre-tag checklist evidence. |
