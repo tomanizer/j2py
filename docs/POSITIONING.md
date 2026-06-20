@@ -28,24 +28,9 @@ The full enterprise pipeline is:
 doctor -> config -> translate -> sidecars -> wire -> validate/review
 ```
 
-Most users do not need every layer for every task. For simple Java, start with only the
-core translator and review tools:
-
-```bash
-j2py translate Foo.java
-j2py compare Foo.java Foo.py
-```
-
-For enterprise or framework-heavy migrations, use the advanced path:
-
-```bash
-j2py doctor project/
-# create and review config
-j2py translate project/ --config j2py_config.py --output translated_py
-j2py-wire list translated_py
-j2py-wire generate translated_py --target fastapi
-j2py-wire validate translated_py
-```
+Most users do not need every layer for every task. See
+[Getting Started](GETTING_STARTED.md#simple-path) for the simple translator path and
+[Getting Started](GETTING_STARTED.md#enterprise-path) for the framework-heavy path.
 
 ## What j2py is for
 

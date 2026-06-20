@@ -3,9 +3,9 @@
 ## Product framing
 
 Spring conversion is an optional j2py extension profile. It builds on j2py's core
-Java-to-Python translation pipeline, but it does not change the core mission: j2py remains
-a reviewable Java source transpiler, not a Spring runtime, dependency-injection container,
-or automatic FastAPI application generator.
+Java-to-Python translation pipeline, but it does not change the core mission or the
+framework boundary described in
+[What j2py is not](POSITIONING.md#what-j2py-is-not).
 
 The Spring profile is useful when a migration team wants to translate a bounded Spring
 MVC/JPA/DI application slice into Python while keeping framework behavior explicit and

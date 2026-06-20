@@ -3,12 +3,9 @@
 j2py has experimental VS Code support. Treat it as a review convenience, not as the
 primary migration interface or a proven IDE product.
 
-The stable workflow today is still the CLI:
-
-```bash
-j2py translate Foo.java --output Foo.py
-j2py compare Foo.java Foo.py
-```
+The stable workflow today is still the CLI; start with the
+[simple path](GETTING_STARTED.md#simple-path) before adding editor-specific review
+commands.
 
 `j2py compare` opens a side-by-side Java/Python diff in VS Code when the `code` command
 is available. Use `--editor cursor` or `--editor code-insiders` for other compatible

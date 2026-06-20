@@ -5,6 +5,8 @@ install, assess, configure, translate, and review.
 
 ## Choose the right path
 
+### Simple path
+
 For simple Java, start with the core translator and review output:
 
 ```bash
@@ -12,11 +14,10 @@ j2py translate Foo.java
 j2py compare Foo.java Foo.py
 ```
 
-For enterprise or framework-heavy code, use the full pipeline:
+### Enterprise path
 
-```text
-doctor -> config -> translate -> sidecars -> wire -> validate/review
-```
+For enterprise or framework-heavy code, use the full pipeline described in
+[Positioning and enterprise scope](POSITIONING.md#one-pipeline-five-layers):
 
 ```bash
 j2py doctor project/
@@ -27,8 +28,7 @@ j2py-wire generate translated_py --target fastapi
 j2py-wire validate translated_py
 ```
 
-The layers are explained in [Positioning and enterprise scope](POSITIONING.md). You do not
-need framework plugins or `j2py-wire` for framework-light Java.
+You do not need framework plugins or `j2py-wire` for framework-light Java.
 
 ## 1. Install
 
