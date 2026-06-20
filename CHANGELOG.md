@@ -11,7 +11,7 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 release focus is reviewable Java-to-Python translation, explicit
 diagnostics, reproducible quality gates, and opt-in Spring/FastAPI/SQLAlchemy scaffolding
 without implying a hidden Java or Spring runtime. See
-[docs/RELEASE_NOTES_0.7.0.md](docs/RELEASE_NOTES_0.7.0.md) for release notes and known
+[docs/releases/0.7.0/RELEASE_NOTES.md](docs/releases/0.7.0/RELEASE_NOTES.md) for release notes and known
 limitations.
 
 ### Added
