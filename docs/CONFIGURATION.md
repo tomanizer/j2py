@@ -14,11 +14,8 @@ If you remember one rule, make it this: configuration should make migration choi
 explicit and reviewable. It should not hide framework behavior or production runtime
 policy inside generated code.
 
-For the full pipeline, see [Positioning and enterprise scope](POSITIONING.md). In short:
-
-```text
-doctor -> config -> translate -> sidecars -> wire -> validate/review
-```
+For the full pipeline, see
+[Positioning and enterprise scope](POSITIONING.md#one-pipeline-five-layers).
 
 ## What configuration owns
 

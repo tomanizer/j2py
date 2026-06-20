@@ -1,10 +1,8 @@
 # j2py assessment
 
-Assessment is the readiness and risk-diagnosis layer in the j2py pipeline.
-
-```text
-doctor -> config -> translate -> sidecars -> wire -> validate/review
-```
+Assessment is the readiness and risk-diagnosis layer in the j2py pipeline. See
+[the pipeline overview](POSITIONING.md#one-pipeline-five-layers) for how assessment fits
+with configuration, translation, sidecars, wiring, and review.
 
 The main command is `j2py doctor`. It scans Java source before or during migration and
 produces evidence about what j2py can see, what it can translate deterministically, and
