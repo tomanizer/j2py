@@ -37,7 +37,7 @@ Wiring is not a framework runtime. Production behavior remains project-owned:
 ## Current support
 
 The current implemented target is FastAPI wiring generated from translated output. For
-the short command path, see [Getting Started](GETTING_STARTED.md#enterprise-path).
+the enterprise command path, see [Getting Started](GETTING_STARTED.md#enterprise-path).
 
 The implemented producer is the Spring wiring metadata path:
 
