@@ -18,10 +18,9 @@ Configuration reference:
 [CONFIGURATION.md](CONFIGURATION.md#configuration-plugins-and-wiring).
 Related annotation mapping decision:
 [ADR 0019](decisions/0019-annotation-map-framework-lowering.md).
-Spring extension boundary: [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+Spring design and guardrails: [SPRING_DESIGN.md](SPRING_DESIGN.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).
-Spring roadmap guardrails: [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md).
-Spring wiring profile: [SPRING_WIRING_METADATA.md](SPRING_WIRING_METADATA.md).
+Spring wiring profile: [SPRING_CONVERSION.md#wiring-metadata-profile](SPRING_CONVERSION.md#wiring-metadata-profile).
 
 ## What plugins are for
 
@@ -266,7 +265,7 @@ generator.
 
 Spring-specific route, dependency-injection, repository, and entity facts must be nested
 under `elements[].metadata.spring` using the v1
-[Spring wiring metadata profile](SPRING_WIRING_METADATA.md). `annotation_map_preset:
+[Spring wiring metadata profile](SPRING_CONVERSION.md#wiring-metadata-profile). `annotation_map_preset:
 spring` remains simple marker output; the Spring wiring profile is structured plugin
 metadata for `j2py-wire`.
 
@@ -523,10 +522,9 @@ copy.
   `framework_plugins`.
 - [Spring mapping cookbook](examples/SPRING_MAPPING_COOKBOOK.md) shows `annotation_map`
   recipes and manual-port callouts.
-- [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+- [SPRING_DESIGN.md](SPRING_DESIGN.md) and
   [ADR 0024](decisions/0024-spring-extension-boundary.md) define the optional Spring
-  extension scope and the rule that Spring is one consumer of these generic hooks.
-- [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) lists the implementation
-  checklist for future Spring roadmap PRs.
+  extension scope, guardrails, and the rule that Spring is one consumer of these generic
+  hooks.
 - [ADR 0022](decisions/0022-framework-plugin-architecture.md) records the architecture
   tradeoffs behind the plugin contract.

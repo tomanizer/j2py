@@ -13,7 +13,7 @@ regress.
 
 This is about Java-to-Python source translation. It is separate from:
 
-- [Assessment](ASSESSMENT.md), which diagnoses a project with `j2py doctor`;
+- [Assessment](DOCTOR.md), which diagnoses a project with `j2py doctor`;
 - [Configuration](CONFIGURATION.md), which records project policy;
 - [Framework plugins](FRAMEWORK_PLUGINS.md), which extract framework metadata;
 - [Wiring](WIRING.md), which generates target-stack app assembly from sidecars.
@@ -255,7 +255,7 @@ Avoid:
 
 ## Related docs
 
-- [Assessment](ASSESSMENT.md) explains project readiness scans with `j2py doctor`.
+- [Assessment](DOCTOR.md) explains project readiness scans with `j2py doctor`.
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md) explains dense preset metrics and baselines.
 - [LLM harvest](LLM_HARVEST.md) explains harvest triage and target suggestion drafts.
 - [Equivalence testing](EQUIVALENCE_TESTING.md) explains behavior-oriented verification.

@@ -38,7 +38,7 @@ path that can emit FastAPI/SQLAlchemy scaffolding from explicit project configur
   SQLAlchemy model output, Spring repository metadata, `JdbcTemplate` SQLAlchemy Core
   scaffolds, simple RowMapper lowering, and JDBC bean topology metadata. See the
   [Spring Mapping Cookbook](examples/SPRING_MAPPING_COOKBOOK.md) and
-  [Spring Wiring Metadata](SPRING_WIRING_METADATA.md).
+  [Spring Wiring Metadata](SPRING_CONVERSION.md#wiring-metadata-profile).
 
 ## Evidence Map
 
@@ -51,7 +51,7 @@ The full claim-to-evidence inventory is tracked in
 | Rule-layer review artifacts | [Output Review](OUTPUT_REVIEW.md), `j2py translate --report`, `j2py dashboard`, `j2py compare` |
 | Project assessment | `j2py doctor --json --html`, [Doctor](DOCTOR.md), [SARIF](SARIF.md) |
 | Spring sidecars and FastAPI wiring | [Spring Conversion Guide](SPRING_CONVERSION.md), `make test-spring-smoke` |
-| Spring/JPA/JDBC mapping scope | [Spring Mapping Cookbook](examples/SPRING_MAPPING_COOKBOOK.md), [Spring Wiring Metadata](SPRING_WIRING_METADATA.md) |
+| Spring/JPA/JDBC mapping scope | [Spring Mapping Cookbook](examples/SPRING_MAPPING_COOKBOOK.md), [Spring Wiring Metadata](SPRING_CONVERSION.md#wiring-metadata-profile) |
 | Release gate | `make release-check`, [Releasing](RELEASING.md) |
 
 ## Start Here

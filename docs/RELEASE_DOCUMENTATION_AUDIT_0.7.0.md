@@ -16,7 +16,7 @@ The audit covered:
 - `docs/SPRING_CONVERSION.md`
 - `docs/examples/SPRING_MAPPING_COOKBOOK.md`
 - `docs/FRAMEWORK_PLUGINS.md`
-- `docs/SPRING_WIRING_METADATA.md`
+- `docs/SPRING_CONVERSION.md#wiring-metadata-profile`
 - `docs/POSITIONING.md`
 - `docs/PRODUCT_REQUIREMENTS.md`
 

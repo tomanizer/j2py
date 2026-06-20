@@ -38,18 +38,18 @@ Use this to update the owning doc. Do not duplicate content across many entry po
 | Python API/result model | [API guide](../API.md), [API reference](../API_REFERENCE.md) |
 | Config schema/discovery | [Configuration](../CONFIGURATION.md), [CLI](../CLI.md) |
 | Generated-output review | [Output review](../OUTPUT_REVIEW.md) |
-| Doctor assessment/report | [Assessment](../ASSESSMENT.md), [Doctor](../DOCTOR.md) |
+| Doctor assessment/report | [Doctor](../DOCTOR.md) |
 | SARIF export | [SARIF](../SARIF.md) |
 | `j2py-wire` | [Wiring](../WIRING.md), [CLI](../CLI.md#j2py-wire) |
 | VS Code extension | [VS Code support](../VS_CODE.md), `packages/j2py-vscode/README.md` |
-| Spring behavior | [Spring conversion](../SPRING_CONVERSION.md), [Spring wiring metadata](../SPRING_WIRING_METADATA.md), [Spring cookbook](../examples/SPRING_MAPPING_COOKBOOK.md) |
+| Spring behavior | [Spring conversion](../SPRING_CONVERSION.md), [Spring design](../SPRING_DESIGN.md), [Spring cookbook](../examples/SPRING_MAPPING_COOKBOOK.md) |
 
 ## Repo Records
 
 | Need | Owner |
 |------|-------|
 | Product scope | [Product requirements](../PRODUCT_REQUIREMENTS.md) |
-| Doctor product roadmap | [Doctor product requirements](../DOCTOR_PRODUCT_REQUIREMENTS.md) |
+| Doctor product roadmap | [Doctor roadmap](../DOCTOR.md#roadmap-requirements) |
 | Release claims | [Release notes](../RELEASE_NOTES_0.7.0.md) |
 | Release test evidence | [Release test evidence](../RELEASE_TEST_EVIDENCE_0.7.0.md) |
 | Package evidence | [Release candidate evidence](../RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |

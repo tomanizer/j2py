@@ -26,7 +26,7 @@ When changing API behavior, check:
 - [API guide](../API.md);
 - [API reference](../API_REFERENCE.md);
 - [Configuration](../CONFIGURATION.md);
-- [Assessment](../ASSESSMENT.md), [Doctor](../DOCTOR.md), and [SARIF](../SARIF.md);
+- [Doctor](../DOCTOR.md) and [SARIF](../SARIF.md);
 - [Wiring](../WIRING.md) for `j2py-wire`;
 - top-level [README](../../README.md) when the behavior is headline-visible.
 

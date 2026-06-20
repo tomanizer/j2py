@@ -298,7 +298,7 @@ def render_config_suggestions(assessment: DoctorAssessment) -> str
 def render_doctor_diff_text(diff: DoctorDiff) -> str
 ```
 
-Use [Assessment](ASSESSMENT.md), [Doctor](DOCTOR.md), and [SARIF](SARIF.md) for output
+Use [Doctor](DOCTOR.md) and [SARIF](SARIF.md) for output
 schema interpretation and workflows.
 
 ## SARIF

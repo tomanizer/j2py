@@ -9,7 +9,7 @@ j2py enables **no** Spring, FastAPI, JPA, or DI semantics by default
 does include `annotation_map_preset: spring` for no-op Spring marker decorators; the
 FastAPI/SQLAlchemy profile in this cookbook remains project policy realized through the
 tiers below. Product scope and architectural boundaries for the optional Spring extension
-are recorded in [SPRING_EXTENSION_PRD.md](../SPRING_EXTENSION_PRD.md) and
+are recorded in [SPRING_DESIGN.md](../SPRING_DESIGN.md) and
 [ADR 0024](../decisions/0024-spring-extension-boundary.md).
 
 | Tier | Mechanism | Status | Issue |

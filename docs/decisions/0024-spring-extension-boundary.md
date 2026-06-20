@@ -78,9 +78,9 @@ preserving the generic sidecar envelope:
 
 The Spring profile can version its nested metadata schema, but it must not create a
 parallel sidecar writer or replace the top-level sidecar contract. The v1 nested schema is
-documented in [SPRING_WIRING_METADATA.md](../SPRING_WIRING_METADATA.md).
+documented in [SPRING_CONVERSION.md#wiring-metadata-profile](../SPRING_CONVERSION.md#wiring-metadata-profile).
 Implementation guardrails for later Spring roadmap PRs are tracked in
-[SPRING_ROADMAP_GUARDRAILS.md](../SPRING_ROADMAP_GUARDRAILS.md).
+[SPRING_DESIGN.md](../SPRING_DESIGN.md).
 
 ### `j2py-wire` owns application wiring
 
@@ -124,6 +124,6 @@ downstream tooling.
 
 ## Relationship to product scope
 
-[SPRING_EXTENSION_PRD.md](../SPRING_EXTENSION_PRD.md) defines the product scope and v1
+[SPRING_DESIGN.md](../SPRING_DESIGN.md) defines the product scope and v1
 success criteria. This ADR records the architectural boundary that keeps that product
 scope optional and plugin/wire scoped.
