@@ -15,11 +15,9 @@ Start here:
 
 Use these when you are installing j2py, assessing a Java project, configuring
 translation, reviewing output, or using framework/wiring layers. The important message is
-that these are not separate products. They are one pipeline:
-
-```text
-doctor -> config -> translate -> sidecars -> wire -> validate/review
-```
+that these are not separate products. See
+[the pipeline overview](POSITIONING.md#one-pipeline-five-layers) for how the layers fit
+together.
 
 Choose the path that matches your project:
 
@@ -32,31 +30,8 @@ Choose the path that matches your project:
 | Automation | You want to call j2py from scripts or tooling. | [API guide](API.md), [API reference](API_REFERENCE.md), [CLI](CLI.md) |
 | Editor review | You want side-by-side review or editor diagnostics. | [Output review](OUTPUT_REVIEW.md), [VS Code support](VS_CODE.md) |
 
-| Layer | Purpose | User-facing surface | Docs |
-|----------|---------|---------------------|------|
-| Core translator | Java source -> reviewable Python | `j2py translate`, `j2py compare`, rule layer | [Getting Started](GETTING_STARTED.md), [CLI](CLI.md), [API guide](API.md), [API reference](API_REFERENCE.md), [Output review](OUTPUT_REVIEW.md) |
-| Configuration | Project policy for names, imports, types, annotations, and LLM behavior | `j2py.toml`, `j2py_config.py`, `annotation_map`, `type_map`, `import_map` | [Configuration](CONFIGURATION.md) |
-| Framework plugins | Trusted opt-in extraction of framework metadata and source transforms | `framework_plugins`, `SpringWiringPlugin`, sidecar metadata | [Framework plugins](FRAMEWORK_PLUGINS.md) |
-| Wiring | Post-translation app assembly from sidecars | `j2py-wire list`, `j2py-wire generate`, `j2py-wire validate` | [Wiring](WIRING.md) |
-| Assessment | Diagnose project readiness and migration risk | `j2py doctor`, corpus reports, diagnostics | [Doctor](DOCTOR.md), [SARIF](SARIF.md) |
-
-For simple Java, most users only need:
-
-```bash
-j2py translate Foo.java
-j2py compare Foo.java Foo.py
-```
-
-For enterprise or framework-heavy migration, use the full path:
-
-```bash
-j2py doctor project/
-# create and review config
-j2py translate project/ --config j2py_config.py --output translated_py
-j2py-wire list translated_py
-j2py-wire generate translated_py --target fastapi
-j2py-wire validate translated_py
-```
+For commands, use the [simple path](GETTING_STARTED.md#simple-path) or
+[enterprise path](GETTING_STARTED.md#enterprise-path) in Getting Started.
 
 Core user references:
 

@@ -1,10 +1,8 @@
 # j2py wiring
 
-Wiring is the post-translation app assembly layer in the j2py pipeline.
-
-```text
-doctor -> config -> translate -> sidecars -> wire -> validate/review
-```
+Wiring is the post-translation app assembly layer in the j2py pipeline. See
+[the pipeline overview](POSITIONING.md#one-pipeline-five-layers) for how wiring fits
+with assessment, configuration, translation, sidecars, validation, and review.
 
 The translator writes reviewable Python source. Framework plugins can also extract
 framework metadata from the Java source. j2py writes that metadata to sidecars.
@@ -38,11 +36,8 @@ Wiring is not a framework runtime. Production behavior remains project-owned:
 
 ## Current support
 
-The current implemented target is:
-
-```bash
-j2py-wire generate translated_py --target fastapi
-```
+The current implemented target is FastAPI wiring generated from translated output. For
+the short command path, see [Getting Started](GETTING_STARTED.md#enterprise-path).
 
 The implemented producer is the Spring wiring metadata path:
 
@@ -194,8 +189,12 @@ For a local migration, use this smoke loop:
 
 ```bash
 j2py-wire list translated_py
-j2py-wire generate translated_py --target fastapi --output translated_py/wiring
-j2py-wire validate translated_py --target fastapi --wiring-dir translated_py/wiring
+j2py-wire generate translated_py \
+  --target fastapi \
+  --output translated_py/wiring
+j2py-wire validate translated_py \
+  --target fastapi \
+  --wiring-dir translated_py/wiring
 python -m py_compile translated_py/wiring/*.py
 ```
 
