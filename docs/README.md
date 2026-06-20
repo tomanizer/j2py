@@ -7,7 +7,7 @@ readers start in the right place.
 Start here:
 
 - New users: [Getting Started](GETTING_STARTED.md)
-- Enterprise migrations: [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md), [Wiring](WIRING.md)
+- Enterprise migrations: [Assessment](DOCTOR.md), [Configuration](CONFIGURATION.md), [Wiring](WIRING.md)
 - Contributors: [Developer Docs](#developer-docs)
 - Coding agents: [Coding Agent Guides](agents/README.md)
 
@@ -25,7 +25,7 @@ Choose the path that matches your project:
 |------|-------------|------------|
 | First run | You want to install j2py and translate one small file. | [Getting Started](GETTING_STARTED.md), [Install](INSTALL.md) |
 | Simple Java | You have plain Java classes and want reviewable Python. | [Getting Started](GETTING_STARTED.md), [CLI](CLI.md), [Output review](OUTPUT_REVIEW.md) |
-| Project migration | You need to assess a source tree, tune mappings, and review risk. | [Assessment](ASSESSMENT.md), [Configuration](CONFIGURATION.md), [Output review](OUTPUT_REVIEW.md) |
+| Project migration | You need to assess a source tree, tune mappings, and review risk. | [Assessment](DOCTOR.md), [Configuration](CONFIGURATION.md), [Output review](OUTPUT_REVIEW.md) |
 | Framework migration | You need framework metadata, sidecars, and generated app wiring. | [Framework plugins](FRAMEWORK_PLUGINS.md), [Wiring](WIRING.md), [Java Enterprise Framework Guides](#java-enterprise-framework-guides) |
 | Automation | You want to call j2py from scripts or tooling. | [API guide](API.md), [API reference](API_REFERENCE.md), [CLI](CLI.md) |
 | Editor review | You want side-by-side review or editor diagnostics. | [Output review](OUTPUT_REVIEW.md), [VS Code support](VS_CODE.md) |
@@ -50,8 +50,7 @@ Advanced user references:
 | [CONFIGURATION.md](CONFIGURATION.md) | Project policy for names, imports, types, annotations, LLM defaults, and trusted plugin registration. |
 | [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) | Trusted opt-in framework metadata extraction and source transforms. |
 | [WIRING.md](WIRING.md) | `j2py-wire` sidecar inspection, target-stack generation, validation, and review. |
-| [ASSESSMENT.md](ASSESSMENT.md) | How to use `j2py doctor` to assess migration readiness and guide config/rule work. |
-| [DOCTOR.md](DOCTOR.md) | Detailed `j2py doctor` command reference, schema, report, diff, and config-suggestion behavior. |
+| [DOCTOR.md](DOCTOR.md) | Assessment overview, `j2py doctor` command reference, schema, reports, diffs, config suggestions, and roadmap. |
 | [SARIF.md](SARIF.md) | Export doctor findings to SARIF for code-scanning workflows. |
 | [VS_CODE.md](VS_CODE.md) | Experimental VS Code support, extension behavior, Copilot/Sonar integration ideas, and validation checklist. |
 | [API.md](API.md) | Practical Python API guide for file/directory translation, config loading, diagnostics, and reports. |
@@ -68,9 +67,9 @@ Common user-facing tasks:
 | Create or refresh dashboard reports | `j2py translate --dashboard`, `j2py dashboard` | [Output review](OUTPUT_REVIEW.md), [CLI](CLI.md#j2py-dashboard) |
 | Re-translate while editing | `j2py watch` | [CLI](CLI.md#j2py-watch) |
 | Review in VS Code | `j2py compare`, experimental `packages/j2py-vscode` extension | [VS Code support](VS_CODE.md), [Output review](OUTPUT_REVIEW.md) |
-| Run rule-only assessment | `j2py doctor --json --html` | [Assessment](ASSESSMENT.md), [Doctor](DOCTOR.md) |
-| Compare assessment snapshots | `j2py doctor diff before.json after.json` | [Assessment](ASSESSMENT.md#outputs), [Doctor](DOCTOR.md) |
-| Generate conservative config suggestions | `j2py doctor --config-suggestions j2py.suggested.yaml` | [Assessment](ASSESSMENT.md#config-suggestions), [Configuration](CONFIGURATION.md) |
+| Run rule-only assessment | `j2py doctor --json --html` | [Doctor](DOCTOR.md) |
+| Compare assessment snapshots | `j2py doctor diff before.json after.json` | [Doctor outputs](DOCTOR.md#outputs) |
+| Generate conservative config suggestions | `j2py doctor --config-suggestions j2py.suggested.yaml` | [Config suggestions](DOCTOR.md#config-suggestions), [Configuration](CONFIGURATION.md) |
 | Export diagnostics to code scanning | `j2py sarif` | [SARIF](SARIF.md) |
 | Configure project mappings and LLM defaults | `j2py.toml`, `j2py_config.py` | [Configuration](CONFIGURATION.md) |
 | Use LLM completion or LLM review | `--llm-provider`, `--model`, `--llm-review` | [Getting Started](GETTING_STARTED.md#8-add-llm-completion-deliberately), [Output review](OUTPUT_REVIEW.md#llm-review-findings) |
@@ -90,8 +89,7 @@ Spring users should start here:
 
 | Document | What it helps with |
 |----------|--------------------|
-| [SPRING_CONVERSION.md](SPRING_CONVERSION.md) | Practical Spring conversion workflow: config, sidecars, `j2py-wire`, smoke tests, and corpus checks. |
-| [SPRING_WIRING_METADATA.md](SPRING_WIRING_METADATA.md) | Spring metadata profile stored under generic framework sidecars for `j2py-wire`. |
+| [SPRING_CONVERSION.md](SPRING_CONVERSION.md) | Practical Spring conversion workflow, sidecars, `j2py-wire`, metadata profile, smoke tests, and corpus checks. |
 | [examples/SPRING_MAPPING_COOKBOOK.md](examples/SPRING_MAPPING_COOKBOOK.md) | Spring -> FastAPI/SQLAlchemy mapping examples, manual-port boundaries, and reference config notes. |
 | [examples/spring-to-fastapi.toml](examples/spring-to-fastapi.toml) | TOML reference profile for Spring-style annotation mapping. |
 | [examples/spring-to-fastapi.yaml](examples/spring-to-fastapi.yaml) | YAML reference profile for Spring-style annotation mapping. |
@@ -100,8 +98,7 @@ Spring maintainers and contributors should also read:
 
 | Document | What it records |
 |----------|-----------------|
-| [SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) | Optional Spring conversion extension scope, v1 target, and boundary rules. |
-| [SPRING_ROADMAP_GUARDRAILS.md](SPRING_ROADMAP_GUARDRAILS.md) | Guardrails and review checklist for Spring roadmap implementation work. |
+| [SPRING_DESIGN.md](SPRING_DESIGN.md) | Optional Spring conversion scope, v1 target, boundary rules, implementation guardrails, and review checklist. |
 
 Future framework guides, such as Jakarta EE, JAX-RS, Micronaut, or Quarkus, should be added
 as sibling subsections here rather than mixed into the general User Docs table.
@@ -127,7 +124,7 @@ Choose the path that matches the change:
 |------|-------------|------------|
 | New contributor | You need repo workflow, fixture expectations, and architecture context. | [Contributing](../CONTRIBUTING.md), [Architecture](ARCHITECTURE.md) |
 | Rule-layer contributor | You are adding Java construct coverage or changing generated Python semantics. | [Rule authoring](developer/RULE_AUTHORING.md), [Translation internals](developer/TRANSLATION_INTERNALS.md), [Validation gates](developer/VALIDATION_GATES.md) |
-| Assessment/tooling contributor | You are changing doctor, validation, SARIF, reports, or confidence behavior. | [Diagnostics guide](developer/DIAGNOSTICS.md), [Assessment](ASSESSMENT.md), [Output review](OUTPUT_REVIEW.md) |
+| Assessment/tooling contributor | You are changing doctor, validation, SARIF, reports, or confidence behavior. | [Diagnostics guide](developer/DIAGNOSTICS.md), [Assessment](DOCTOR.md), [Output review](OUTPUT_REVIEW.md) |
 | Framework/wiring contributor | You are changing plugins, sidecars, or generated target-stack wiring. | [Framework plugin authoring](developer/FRAMEWORK_PLUGIN_AUTHORING.md), [Wiring target guide](developer/WIRING_TARGETS.md) |
 | API/CLI contributor | You are changing public imports, result models, or command behavior. | [API stability](developer/API_STABILITY.md), [CLI](CLI.md), [API reference](API_REFERENCE.md) |
 | LLM contributor | You are changing providers, prompts, caches, retries, or harvest behavior. | [LLM providers](developer/LLM_PROVIDERS.md), [LLM harvest](LLM_HARVEST.md) |
@@ -146,8 +143,8 @@ Choose the path that matches the change:
 | Change LLM provider behavior | [LLM providers](developer/LLM_PROVIDERS.md), [Install](INSTALL.md), [Configuration](CONFIGURATION.md), [API guide](API.md), [API reference](API_REFERENCE.md), [LLM harvest](LLM_HARVEST.md) | `pytest tests/llm tests/cli/test_main.py -q`; live provider tests only when explicitly requested. |
 | Change framework/plugin behavior | [Framework plugin authoring](developer/FRAMEWORK_PLUGIN_AUTHORING.md), [Framework plugins](FRAMEWORK_PLUGINS.md), relevant [Java Enterprise Framework Guides](#java-enterprise-framework-guides), relevant ADRs | Plugin tests, sidecar fixture tests, relevant framework corpus or smoke gate. |
 | Change wiring targets | [Wiring target guide](developer/WIRING_TARGETS.md), [Wiring](WIRING.md), [CLI](CLI.md#j2py-wire) | `pytest tests/wire -q`. |
-| Change doctor/SARIF | [Diagnostics guide](developer/DIAGNOSTICS.md), [Assessment](ASSESSMENT.md), [Doctor](DOCTOR.md), [SARIF](SARIF.md) | `pytest tests/test_doctor.py tests/test_sarif.py -q`. |
-| Change reports, dashboards, or review output | [Output review](OUTPUT_REVIEW.md), [CLI](CLI.md), [Assessment](ASSESSMENT.md) | `pytest tests/test_report.py tests/test_state_dashboard.py tests/cli/test_main.py -q`. |
+| Change doctor/SARIF | [Diagnostics guide](developer/DIAGNOSTICS.md), [Doctor](DOCTOR.md), [SARIF](SARIF.md) | `pytest tests/test_doctor.py tests/test_sarif.py -q`. |
+| Change reports, dashboards, or review output | [Output review](OUTPUT_REVIEW.md), [CLI](CLI.md), [Assessment](DOCTOR.md) | `pytest tests/test_report.py tests/test_state_dashboard.py tests/cli/test_main.py -q`. |
 | Change corpus/reporting | [Corpus scoreboard](CORPUS_SCOREBOARD.md), [Translation targets](TRANSLATION_TARGETS.md) | Relevant `make corpus-<name>-dense-check`, `make corpus-hotspots`; update baselines only after no-regression review. |
 | Change packaging, install extras, or dependency metadata | [Install](INSTALL.md), [Releasing](RELEASING.md), [Contributing](../CONTRIBUTING.md) | `pytest tests/packaging -q`, `make release-check` when release packaging is affected. |
 | Change docs or release evidence | [Documentation index](README.md), relevant user/developer doc, [Release docs audit](releases/0.7.0/DOCUMENTATION_AUDIT.md) | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q`. |
@@ -207,7 +204,7 @@ Reference docs:
 | [CONFIGURATION.md](CONFIGURATION.md) | Project policy schema, config loading, mappings, LLM defaults, and plugin registration. |
 | [FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md) | Trusted plugin authoring for framework metadata and source transforms. |
 | [WIRING.md](WIRING.md) | `j2py-wire` target generation, sidecar loading, and validation. |
-| [ASSESSMENT.md](ASSESSMENT.md), [DOCTOR.md](DOCTOR.md), [SARIF.md](SARIF.md) | Assessment, doctor reports, diffs, config suggestions, and code-scanning export. |
+| [DOCTOR.md](DOCTOR.md), [SARIF.md](SARIF.md) | Assessment, doctor reports, diffs, config suggestions, roadmap, and code-scanning export. |
 | [LLM_HARVEST.md](LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion to targets and GitHub issues. |
 | [CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md) | Multi-library corpus presets, baselines, hotspot reports, and dense-check workflow. |
 | [CLI.md](CLI.md), [API.md](API.md), [API_REFERENCE.md](API_REFERENCE.md), [OUTPUT_REVIEW.md](OUTPUT_REVIEW.md) | Command/API surfaces and generated-output review artifacts. |
@@ -230,7 +227,7 @@ Quick lookup:
 | Question | Start here |
 |----------|------------|
 | What is j2py supposed to be? | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) |
-| What is `j2py doctor` supposed to become? | [DOCTOR_PRODUCT_REQUIREMENTS.md](DOCTOR_PRODUCT_REQUIREMENTS.md) |
+| What is `j2py doctor` supposed to become? | [Doctor roadmap](DOCTOR.md#roadmap-and-requirements) |
 | What did a release claim and prove? | [releases/0.7.0/RELEASE_NOTES.md](releases/0.7.0/RELEASE_NOTES.md), [releases/0.7.0/TEST_EVIDENCE.md](releases/0.7.0/TEST_EVIDENCE.md) |
 | What package/install evidence backed a release? | [releases/0.7.0/CANDIDATE_EVIDENCE.md](releases/0.7.0/CANDIDATE_EVIDENCE.md) |
 | What docs were audited for a release? | [releases/0.7.0/DOCUMENTATION_AUDIT.md](releases/0.7.0/DOCUMENTATION_AUDIT.md) |
@@ -254,7 +251,7 @@ Naming convention:
 | Document | What it records |
 |----------|-----------------|
 | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) | Product goals, functional requirements, non-goals, and success criteria. |
-| [DOCTOR_PRODUCT_REQUIREMENTS.md](DOCTOR_PRODUCT_REQUIREMENTS.md) | Product requirements and roadmap for project assessment tooling. |
+| [DOCTOR.md#roadmap-requirements](DOCTOR.md#roadmap-requirements) | Product requirements and roadmap for project assessment tooling. |
 
 ### Release Evidence
 

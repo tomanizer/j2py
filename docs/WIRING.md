@@ -219,7 +219,7 @@ The smoke gate exercises the real path: translate -> sidecars -> `j2py-wire gene
   plugin registration.
 - [Framework plugins](FRAMEWORK_PLUGINS.md) explains how plugins extract framework metadata
   for sidecars.
-- [Spring wiring metadata](SPRING_WIRING_METADATA.md) documents the Spring sidecar profile.
+- [Spring wiring metadata](SPRING_CONVERSION.md#wiring-metadata-profile) documents the Spring sidecar profile.
 - [Spring conversion](SPRING_CONVERSION.md) walks through the current Spring -> FastAPI
   workflow.
 - [CLI](CLI.md) is the command reference for `j2py-wire`.

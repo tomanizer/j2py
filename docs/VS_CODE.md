@@ -151,5 +151,5 @@ Before calling the extension production-ready, verify:
 
 - [CLI](CLI.md#j2py-compare) covers the stable `j2py compare` workflow.
 - [Output review](OUTPUT_REVIEW.md) explains confidence, warnings, validation, and TODOs.
-- [Assessment](ASSESSMENT.md) covers `j2py doctor`.
+- [Assessment](DOCTOR.md) covers `j2py doctor`.
 - [SARIF](SARIF.md) covers code-scanning export.

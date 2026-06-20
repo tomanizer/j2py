@@ -99,7 +99,7 @@ j2py-wire validate translated_py
 
 The layers are: core translator, configuration, framework plugins, wiring, and
 assessment. See [Positioning and enterprise scope](docs/POSITIONING.md),
-[Getting Started](docs/GETTING_STARTED.md), [Assessment](docs/ASSESSMENT.md), and
+[Getting Started](docs/GETTING_STARTED.md), [Doctor](docs/DOCTOR.md), and
 [Wiring](docs/WIRING.md) for the full guide.
 
 For Spring migrators, start with the [Spring conversion guide](docs/SPRING_CONVERSION.md).
@@ -184,9 +184,8 @@ uv run j2py doctor diff before.json after.json
 uv run j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 
-See [docs/ASSESSMENT.md](docs/ASSESSMENT.md) for the assessment layer guide,
-[docs/DOCTOR.md](docs/DOCTOR.md) for the current report format and limitations, and
-[docs/SARIF.md](docs/SARIF.md) for code-scanning export.
+See [docs/DOCTOR.md](docs/DOCTOR.md) for the assessment layer guide, report format,
+roadmap, and limitations, and [docs/SARIF.md](docs/SARIF.md) for code-scanning export.
 
 Translate a directory in dependency order:
 

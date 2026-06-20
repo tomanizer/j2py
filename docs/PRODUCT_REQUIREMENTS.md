@@ -111,7 +111,7 @@ Python config can register trusted framework plugins for annotation handling tha
 code, and `emit_wiring_metadata` can write versioned `*.wiring.json` sidecars for downstream
 project-owned wiring tools. See [docs/CONFIGURATION.md](CONFIGURATION.md) and
 [docs/FRAMEWORK_PLUGINS.md](FRAMEWORK_PLUGINS.md). The optional Spring extension profile
-is documented separately in [docs/SPRING_EXTENSION_PRD.md](SPRING_EXTENSION_PRD.md) and
+is documented separately in [docs/SPRING_DESIGN.md](SPRING_DESIGN.md) and
 [ADR 0024](decisions/0024-spring-extension-boundary.md).
 
 ### F9 — Post-LLM structural verification
@@ -159,7 +159,7 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
   ([ADR 0020](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)). The Spring
   extension narrows this to an opt-in profile and PetClinic smoke target; it does not make
   Spring behavior part of default translation
-  ([Spring extension PRD](SPRING_EXTENSION_PRD.md),
+  ([Spring design](SPRING_DESIGN.md),
   [ADR 0024](decisions/0024-spring-extension-boundary.md)).
 - **Round-trip Java generation** — j2py is one-way.
 
@@ -190,5 +190,5 @@ SARIF 2.1.0 for code-scanning or CI artifacts. See [docs/DOCTOR.md](DOCTOR.md) a
 - [Corpus scoreboard](CORPUS_SCOREBOARD.md)
 - [Equivalence testing design](EQUIVALENCE_TESTING.md)
 - [JDK lowering vs platform boundaries](decisions/0020-jdk-lowering-vs-platform-boundary-stubs.md)
-- [Spring extension PRD](SPRING_EXTENSION_PRD.md)
+- [Spring design](SPRING_DESIGN.md)
 - [Spring extension boundary](decisions/0024-spring-extension-boundary.md)
