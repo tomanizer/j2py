@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "docs" / "RELEASE_PERFORMANCE_BASELINE_0.7.0.md"
+_PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+RELEASE_VERSION = str(_PYPROJECT["project"]["version"])
+RELEASE_DIR = ROOT / "docs" / "releases" / RELEASE_VERSION
+BASELINE = RELEASE_DIR / "PERFORMANCE_BASELINE.md"
 
 
 def test_performance_baseline_is_linked_from_release_docs() -> None:
     readme = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
-    release_notes = (ROOT / "docs" / "RELEASE_NOTES_0.7.0.md").read_text(
-        encoding="utf-8",
-    )
+    release_notes = (RELEASE_DIR / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+    baseline_path = f"releases/{RELEASE_VERSION}/PERFORMANCE_BASELINE.md"
 
-    assert "RELEASE_PERFORMANCE_BASELINE_0.7.0.md" in readme
-    assert "RELEASE_PERFORMANCE_BASELINE_0.7.0.md" in release_notes
+    assert baseline_path in readme
+    assert f"docs/{baseline_path}" in release_notes
 
 
 def test_performance_baseline_records_required_issue_585_paths() -> None:

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INVENTORY = ROOT / "docs" / "RELEASE_TEST_EVIDENCE_0.7.0.md"
+_PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+RELEASE_VERSION = str(_PYPROJECT["project"]["version"])
+RELEASE_DIR = ROOT / "docs" / "releases" / RELEASE_VERSION
+INVENTORY = RELEASE_DIR / "TEST_EVIDENCE.md"
 
 
 def _read(path: str) -> str:
@@ -22,10 +26,12 @@ def _make_target_dependencies(target: str) -> set[str]:
 
 def test_release_coverage_inventory_is_linked_from_release_docs() -> None:
     readme = _read("docs/README.md")
-    release_notes = _read("docs/RELEASE_NOTES_0.7.0.md")
+    release_notes = (RELEASE_DIR / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+    inventory_path = f"releases/{RELEASE_VERSION}/TEST_EVIDENCE.md"
+    inventory_doc_path = f"docs/{inventory_path}"
 
-    assert "RELEASE_TEST_EVIDENCE_0.7.0.md" in readme
-    assert "RELEASE_TEST_EVIDENCE_0.7.0.md" in release_notes
+    assert inventory_path in readme
+    assert inventory_doc_path in release_notes
 
 
 def test_release_coverage_inventory_covers_headline_claims() -> None:
