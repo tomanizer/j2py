@@ -252,7 +252,7 @@ Quick lookup:
 | Question | Start here |
 |----------|------------|
 | What is j2py supposed to be? | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) |
-| What is `j2py doctor` supposed to become? | [Doctor roadmap](DOCTOR.md#roadmap-requirements) |
+| What is `j2py doctor` supposed to become? | [Doctor roadmap](DOCTOR.md#roadmap-and-requirements) |
 | What did a release claim and prove? | [RELEASE_NOTES_0.7.0.md](RELEASE_NOTES_0.7.0.md), [RELEASE_TEST_EVIDENCE_0.7.0.md](RELEASE_TEST_EVIDENCE_0.7.0.md) |
 | What package/install evidence backed a release? | [RELEASE_CANDIDATE_EVIDENCE_0.7.0.md](RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |
 | What docs were audited for a release? | [RELEASE_DOCUMENTATION_AUDIT_0.7.0.md](RELEASE_DOCUMENTATION_AUDIT_0.7.0.md) |
@@ -276,7 +276,7 @@ Naming convention:
 | Document | What it records |
 |----------|-----------------|
 | [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md) | Product goals, functional requirements, non-goals, and success criteria. |
-| [DOCTOR.md#roadmap-requirements](DOCTOR.md#roadmap-requirements) | Product requirements and roadmap for project assessment tooling. |
+| [DOCTOR.md#roadmap-and-requirements](DOCTOR.md#roadmap-and-requirements) | Product requirements and roadmap for project assessment tooling. |
 
 ### Release Evidence
 

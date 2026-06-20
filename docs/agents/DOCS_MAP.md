@@ -49,7 +49,7 @@ Use this to update the owning doc. Do not duplicate content across many entry po
 | Need | Owner |
 |------|-------|
 | Product scope | [Product requirements](../PRODUCT_REQUIREMENTS.md) |
-| Doctor product roadmap | [Doctor roadmap](../DOCTOR.md#roadmap-requirements) |
+| Doctor product roadmap | [Doctor roadmap](../DOCTOR.md#roadmap-and-requirements) |
 | Release claims | [Release notes](../RELEASE_NOTES_0.7.0.md) |
 | Release test evidence | [Release test evidence](../RELEASE_TEST_EVIDENCE_0.7.0.md) |
 | Package evidence | [Release candidate evidence](../RELEASE_CANDIDATE_EVIDENCE_0.7.0.md) |
