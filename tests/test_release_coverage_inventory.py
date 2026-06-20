@@ -28,9 +28,10 @@ def test_release_coverage_inventory_is_linked_from_release_docs() -> None:
     readme = _read("docs/README.md")
     release_notes = (RELEASE_DIR / "RELEASE_NOTES.md").read_text(encoding="utf-8")
     inventory_path = f"releases/{RELEASE_VERSION}/TEST_EVIDENCE.md"
+    inventory_doc_path = f"docs/{inventory_path}"
 
     assert inventory_path in readme
-    assert f"docs/{inventory_path}" in release_notes
+    assert inventory_doc_path in release_notes
 
 
 def test_release_coverage_inventory_covers_headline_claims() -> None:
