@@ -189,7 +189,7 @@ See [SARIF export](SARIF.md).
 
 `j2py-wire` is the sibling CLI for post-translation framework wiring. It reads
 `*.wiring.json` sidecars emitted by `j2py translate` and generates or validates target
-wiring. Supported targets are `fastapi` and `providers`.
+wiring. Supported targets are `fastapi`, `providers`, and `sqlalchemy`.
 
 List sidecars:
 
@@ -213,6 +213,14 @@ j2py-wire generate translated_py \
   --output translated_py/wiring
 ```
 
+Generate SQLAlchemy persistence scaffolding:
+
+```bash
+j2py-wire generate translated_py \
+  --target sqlalchemy \
+  --output translated_py/wiring
+```
+
 Validate generated wiring:
 
 ```bash
@@ -221,7 +229,9 @@ j2py-wire validate translated_py \
   --wiring-dir translated_py/wiring
 ```
 
-Use `--target providers` to validate `translated_py/wiring/providers.py` instead.
+Use `--target providers` to validate `translated_py/wiring/providers.py` instead. Use
+`--target sqlalchemy` to validate `translated_py/wiring/db.py` and
+`translated_py/wiring/persistence.py`.
 
 Validation can emit JSON for CI:
 
@@ -236,10 +246,12 @@ Validation exits `0` for no findings, `1` for warnings only, and `2` for errors.
 `missing-session-factory` warning is expected until the generated `get_session()` stub is
 replaced or overridden by project application code.
 
-For Spring JDBC migrations, validation still checks generated FastAPI wiring, imports,
-providers, route handlers, and session placeholders. It does not convert
-`jdbc_bean` sidecar metadata into a production SQLAlchemy engine/session lifecycle; that
-runtime policy remains project-owned.
+For Spring JDBC migrations, `--target sqlalchemy` converts `jdbc_bean` sidecar metadata
+into reviewable SQLAlchemy scaffolding. It records datasource property keys, creates
+engine/session hooks, and binds translated JDBC placeholders such as
+`self.jdbc_template_connection` to caller-supplied SQLAlchemy connections. It still does
+not own production database lifecycle, credentials, pool settings, migrations, or
+transaction semantics.
 
 For the wiring layer guide, see [Wiring](WIRING.md). For the Spring-specific workflow, see
 [Spring conversion](SPRING_CONVERSION.md).

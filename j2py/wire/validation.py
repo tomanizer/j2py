@@ -15,8 +15,26 @@ from j2py.wire.targets.providers import (
     provider_cycles,
     provider_name_collisions,
 )
+from j2py.wire.targets.sqlalchemy import (
+    DB_FILENAME,
+    PERSISTENCE_FILENAME,
+    has_sqlalchemy_persistence_facts,
+    missing_placeholder_bindings,
+    transaction_facts,
+)
 
 Severity = Literal["error", "warning"]
+_DEFAULT_ALLOWED_IMPORT_MODULES = {
+    "__future__",
+    "fastapi",
+    "sqlalchemy.orm",
+}
+_SQLALCHEMY_ALLOWED_IMPORT_MODULES = _DEFAULT_ALLOWED_IMPORT_MODULES | {
+    "collections.abc",
+    "contextlib",
+    "sqlalchemy",
+    "sqlalchemy.engine",
+}
 
 
 class ValidationCheck(Protocol):
@@ -176,6 +194,13 @@ class MissingProviderCheck:
 class UnresolvedImportCheck:
     code = "unresolved-import"
 
+    def __init__(self, allowed_import_modules: set[str] | None = None) -> None:
+        self.allowed_import_modules = (
+            allowed_import_modules
+            if allowed_import_modules is not None
+            else _DEFAULT_ALLOWED_IMPORT_MODULES
+        )
+
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         findings: list[ValidationFinding] = []
         for path in _wiring_files(context.wiring_dir):
@@ -186,7 +211,7 @@ class UnresolvedImportCheck:
                 if not isinstance(node, ast.ImportFrom) or node.module is None:
                     continue
                 module = node.module
-                if module in {"__future__", "fastapi", "sqlalchemy.orm"}:
+                if module in self.allowed_import_modules:
                     continue
                 if module.startswith(f"{context.wiring_dir.name}."):
                     if not _module_exists(context.wiring_dir.parent, module):
@@ -414,6 +439,107 @@ class ProviderCycleCheck:
         return findings
 
 
+class OrphanSQLAlchemyPersistenceCheck:
+    code = "orphan-sqlalchemy-persistence"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if not has_sqlalchemy_persistence_facts(context.sidecars, context.translated_root):
+            return []
+        findings: list[ValidationFinding] = []
+        for filename in [DB_FILENAME, PERSISTENCE_FILENAME]:
+            path = context.wiring_dir / filename
+            if path.exists():
+                continue
+            findings.append(
+                _finding(
+                    self.code,
+                    str(path),
+                    f"Generated SQLAlchemy wiring file '{filename}' is missing",
+                    "Run j2py-wire generate --target sqlalchemy",
+                    severity="error",
+                ),
+            )
+        return findings
+
+
+class SQLAlchemyDatabasePolicyCheck:
+    code = "sqlalchemy-database-policy"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if not has_sqlalchemy_persistence_facts(context.sidecars, context.translated_root):
+            return []
+        db_file = context.wiring_dir / DB_FILENAME
+        source = _read_text(db_file)
+        if (
+            "DATASOURCE_PROPERTIES" not in source
+            or "TODO(j2py): replace DATABASE_URL" not in source
+        ):
+            return []
+        return [
+            _finding(
+                self.code,
+                str(db_file),
+                "SQLAlchemy database URL is still the generated placeholder policy",
+                "Map datasource property keys to project settings and configure Engine creation",
+                severity="warning",
+            ),
+        ]
+
+
+class SQLAlchemyPlaceholderBindingCheck:
+    code = "sqlalchemy-placeholder-binding"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        persistence_file = context.wiring_dir / PERSISTENCE_FILENAME
+        source = _read_text(persistence_file)
+        if not source:
+            return []
+        findings: list[ValidationFinding] = []
+        for repository, placeholder in missing_placeholder_bindings(
+            context.sidecars,
+            context.translated_root,
+            source,
+        ):
+            findings.append(
+                _finding(
+                    self.code,
+                    str(persistence_file),
+                    (
+                        f"Repository {repository.class_name} expects JDBC placeholder "
+                        f"'{placeholder}' but generated persistence wiring does not bind it"
+                    ),
+                    "Re-run j2py-wire generate --target sqlalchemy from current sidecars",
+                    severity="error",
+                ),
+            )
+        return findings
+
+
+class SQLAlchemyTransactionPolicyCheck:
+    code = "sqlalchemy-transaction-policy"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        facts = transaction_facts(context.sidecars)
+        if not facts:
+            return []
+        db_file = context.wiring_dir / DB_FILENAME
+        source = _read_text(db_file)
+        if "TODO(j2py): Spring transaction facts were detected" not in source:
+            return []
+        return [
+            _finding(
+                self.code,
+                str(db_file),
+                "Spring transaction facts require project-owned SQLAlchemy transaction policy",
+                (
+                    "Map @Transactional, transaction-manager beans, rollback rules, "
+                    "propagation, isolation, and read-only behavior manually"
+                ),
+                severity="warning",
+            ),
+        ]
+
+
 FASTAPI_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
@@ -436,6 +562,16 @@ PROVIDERS_CHECKS: list[ValidationCheck] = [
     ProviderCycleCheck(),
 ]
 
+SQLALCHEMY_CHECKS: list[ValidationCheck] = [
+    SpringProfileCheck(),
+    SpringBeanDefinitionCheck(),
+    OrphanSQLAlchemyPersistenceCheck(),
+    UnresolvedImportCheck(_SQLALCHEMY_ALLOWED_IMPORT_MODULES),
+    SQLAlchemyPlaceholderBindingCheck(),
+    SQLAlchemyDatabasePolicyCheck(),
+    SQLAlchemyTransactionPolicyCheck(),
+]
+
 
 def validate_fastapi_wiring(context: ValidationContext) -> list[ValidationFinding]:
     findings: list[ValidationFinding] = []
@@ -447,6 +583,13 @@ def validate_fastapi_wiring(context: ValidationContext) -> list[ValidationFindin
 def validate_providers_wiring(context: ValidationContext) -> list[ValidationFinding]:
     findings: list[ValidationFinding] = []
     for check in PROVIDERS_CHECKS:
+        findings.extend(check.run(context))
+    return findings
+
+
+def validate_sqlalchemy_wiring(context: ValidationContext) -> list[ValidationFinding]:
+    findings: list[ValidationFinding] = []
+    for check in SQLALCHEMY_CHECKS:
         findings.extend(check.run(context))
     return findings
 
