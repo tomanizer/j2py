@@ -349,6 +349,31 @@ def test_alias_in_importer_attaches_to_imported_bean(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Unresolved <alias> source → warning
+# ---------------------------------------------------------------------------
+
+
+def test_alias_with_unknown_source_emits_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="realBean" class="com.example.Real"/>\n'
+        '    <alias name="nonExistentBean" alias="aliasTgt"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "unknown_alias.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert any(
+        "nonExistentBean" in d.message and d.level == "warning" for d in result.diagnostics
+    ), "unresolved alias source should produce a warning"
+    # The real bean is still ingested
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "realBean" in beans
+
+
+# ---------------------------------------------------------------------------
 # Duplicate alias detection
 # ---------------------------------------------------------------------------
 
@@ -458,6 +483,76 @@ def test_duplicate_alias_reported_by_validation(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Self-alias dedup: bean.name == bean.aliases[i] must not trigger false positive
+# ---------------------------------------------------------------------------
+
+
+def test_bean_whose_name_appears_in_its_own_aliases_no_false_positive(tmp_path: Path) -> None:
+    """A bean that lists its own name in aliases must not produce a duplicate finding."""
+    import json
+
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+
+    payload = {
+        "schema_version": 1,
+        "source": "config.xml",
+        "output": str(translated_root / "config.py"),
+        "elements": [
+            {
+                "plugin": "spring-xml",
+                "kind": "method",
+                "java_name": "svc",
+                "python_name": "svc",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "svc",
+                            "java_name": "svc",
+                            "python_name": "svc",
+                            "java_type": "Svc",
+                            "python_type": "Svc",
+                            "source_location": {
+                                "line": 1,
+                                "column": None,
+                                "end_line": None,
+                                "end_column": None,
+                            },
+                            "dependencies": [],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": False,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "aliases": ["svc"],  # same as name — should not be a duplicate
+                            "unsupported": [],
+                        },
+                    }
+                },
+            }
+        ],
+    }
+    (translated_root / "config.wiring.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    from j2py.wire.loader import load_wiring_sidecars
+    from j2py.wire.validation import SpringBeanDefinitionCheck, ValidationContext
+
+    load_result = load_wiring_sidecars(translated_root)
+    context = ValidationContext(
+        translated_root=translated_root,
+        wiring_dir=tmp_path / "wiring",
+        sidecars=load_result.sidecars,
+    )
+    findings = SpringBeanDefinitionCheck().run(context)
+    dup_findings = [f for f in findings if "svc" in f.message and "Duplicate" in f.message]
+    assert dup_findings == [], f"No duplicate finding expected; got: {findings}"
+
+
+# ---------------------------------------------------------------------------
 # Nested <ref> / <value> child elements
 # ---------------------------------------------------------------------------
 
@@ -523,6 +618,89 @@ def test_constructor_arg_nested_value_element(tmp_path: Path) -> None:
     svc = beans["svc"]
     assert svc["unsupported"] == []
     assert svc["constructor_args"][0]["arguments"][0] == {"kind": "value", "value": "hello"}
+
+
+def test_constructor_arg_ref_without_bean_attr_is_unsupported(tmp_path: Path) -> None:
+    # <constructor-arg><ref parent="parentBeanName"/></constructor-arg> has no
+    # bean or local attribute — should be flagged as unsupported, not silently ignored.
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <constructor-arg><ref parent="parentBean"/></constructor-arg>\n'
+        "    </bean>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "empty_ref_ctor.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert any("ref" in u and "no bean or local" in u for u in svc["unsupported"])
+
+
+def test_property_ref_without_bean_attr_is_unsupported(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <property name="dep"><ref parent="parentBean"/></property>\n'
+        "    </bean>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "empty_ref_prop.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert any("ref" in u and "no bean or local" in u for u in svc["unsupported"])
+
+
+# ---------------------------------------------------------------------------
+# default-* attribute warnings
+# ---------------------------------------------------------------------------
+
+
+def test_default_lazy_init_emits_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans"'
+        ' default-lazy-init="true">\n'
+        '    <bean id="svc" class="com.example.Svc"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "default_lazy.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert any(
+        "default-lazy-init" in d.message and d.level == "warning" for d in result.diagnostics
+    )
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "svc" in beans  # bean still ingested
+
+
+def test_multiple_default_attrs_combined_in_one_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans"'
+        ' default-init-method="init" default-destroy-method="cleanup">\n'
+        '    <bean id="svc" class="com.example.Svc"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "default_init_destroy.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    default_warnings = [
+        d for d in result.diagnostics if "default-" in d.message and d.level == "warning"
+    ]
+    # Both attributes should appear in the single combined warning
+    assert len(default_warnings) == 1
+    assert "default-destroy-method" in default_warnings[0].message
+    assert "default-init-method" in default_warnings[0].message
 
 
 # ---------------------------------------------------------------------------

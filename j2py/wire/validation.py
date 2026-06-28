@@ -82,16 +82,21 @@ class SpringBeanDefinitionCheck:
 
         # Index beans by every name they can be resolved by (canonical + aliases)
         # so that a duplicate alias produces a finding alongside a duplicate name.
+        # Deduplicate per-bean identity names first — if a bean lists its own
+        # canonical name as an alias, a single set prevents self-false-positives.
         beans_by_name: dict[str, list[tuple[WiringSidecar, WiringElement, dict[str, object]]]] = {}
         for sidecar, element, bean in bean_defs:
+            names_to_register: set[str] = set()
             name = bean.get("name")
             if isinstance(name, str) and name:
-                beans_by_name.setdefault(name, []).append((sidecar, element, bean))
+                names_to_register.add(name)
             aliases = bean.get("aliases", [])
             if isinstance(aliases, list):
                 for alias in aliases:
                     if isinstance(alias, str) and alias:
-                        beans_by_name.setdefault(alias, []).append((sidecar, element, bean))
+                        names_to_register.add(alias)
+            for n in names_to_register:
+                beans_by_name.setdefault(n, []).append((sidecar, element, bean))
 
         for name, records in beans_by_name.items():
             if len(records) < 2:

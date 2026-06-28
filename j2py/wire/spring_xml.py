@@ -126,6 +126,25 @@ def _ingest_one(
             )
         )
 
+    # Warn when root <beans> sets default-* attributes that affect all beans but
+    # are not respected during ingestion.
+    _UNSUPPORTED_DEFAULTS = {
+        "default-lazy-init",
+        "default-init-method",
+        "default-destroy-method",
+        "default-autowire",
+    }
+    active_defaults = sorted(a for a in _UNSUPPORTED_DEFAULTS if root.get(a) is not None)
+    if active_defaults:
+        result.diagnostics.append(
+            XmlIngestDiagnostic(
+                "warning",
+                str(path),
+                f"Root <beans> sets {', '.join(active_defaults)} but bean-level defaults "
+                f"are not applied — beans are ingested with explicit settings only.",
+            )
+        )
+
     elements: list[WiringElement] = []
     # Top-level <alias name="src" alias="tgt"/> elements, collected for post-processing.
     raw_aliases: list[tuple[str, str]] = []
@@ -188,7 +207,13 @@ def _ingest_one(
     # created sidecars (from <import> children) so that an alias declared in the
     # importing file can refer to a bean defined in an imported file.
     if raw_aliases:
-        _inject_aliases(elements, raw_aliases, already_created=result.sidecars)
+        _inject_aliases(
+            elements,
+            raw_aliases,
+            already_created=result.sidecars,
+            path=path,
+            diagnostics=result.diagnostics,
+        )
 
     result.sidecars.append(
         WiringSidecar(
@@ -207,13 +232,16 @@ def _inject_aliases(
     raw_aliases: list[tuple[str, str]],
     *,
     already_created: list[WiringSidecar],
+    path: Path,
+    diagnostics: list[XmlIngestDiagnostic],
 ) -> None:
     """Merge top-level <alias> declarations into the matching bean's aliases list.
 
     Searches both *elements* (current file) and *already_created* sidecars
     (previously imported files) so that an alias declared in an importing file
     can attach to a bean defined in one of its imports.  The current file's
-    elements take precedence when the same name appears in both.
+    elements take precedence when the same name appears in both.  Emits a
+    warning for any alias whose source bean cannot be found.
     """
     by_name: dict[str, dict[str, object]] = {}
     # Index imported sidecars first so the current file can override.
@@ -234,6 +262,14 @@ def _inject_aliases(
             aliases = bean.setdefault("aliases", [])
             if isinstance(aliases, list) and tgt not in aliases:
                 aliases.append(tgt)
+        else:
+            diagnostics.append(
+                XmlIngestDiagnostic(
+                    "warning",
+                    str(path),
+                    f"<alias name=\"{src}\"> refers to an unknown bean — alias '{tgt}' not added.",
+                )
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +341,10 @@ def _parse_bean(
                 value_elem = _find_child(child, "value")
                 if ref_elem is not None:
                     ref = ref_elem.get("bean") or ref_elem.get("local") or ""
+                    if not ref:
+                        unsupported.append(
+                            "constructor-arg with <ref> that has no bean or local attribute"
+                        )
                 elif value_elem is not None:
                     value = value_elem.text or ""
 
@@ -346,6 +386,10 @@ def _parse_bean(
                 value_elem = _find_child(child, "value")
                 if ref_elem is not None:
                     ref = ref_elem.get("bean") or ref_elem.get("local") or ""
+                    if not ref:
+                        unsupported.append(
+                            f"property '{name_attr}' with <ref> that has no bean or local attribute"
+                        )
                 elif value_elem is not None:
                     pass  # nested plain value — not a dependency, not unsupported
                 else:
@@ -554,4 +598,4 @@ def _resolve_resource(resource: str, base_xml: Path) -> Path | None:
         return None
 
     candidate = (base_xml.parent / resource).resolve()
-    return candidate if candidate.exists() else None
+    return candidate if candidate.is_file() else None
