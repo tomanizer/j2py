@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,7 +44,6 @@ class ProviderSpec:
     module: str
     role: str
     injections: list[ProviderInjectionSpec]
-    needs_session: bool
 
 
 class ProvidersTarget:
@@ -55,8 +55,9 @@ class ProvidersTarget:
     def generate(self, sidecars: list[WiringSidecar], output_dir: Path) -> list[Path]:
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / PROVIDERS_FILENAME
+        specs = provider_specs(sidecars, self.translated_root)
         path.write_text(
-            render_providers(provider_specs(sidecars, self.translated_root)),
+            render_providers(specs, _type_modules(sidecars, self.translated_root)),
             encoding="utf-8",
         )
         return [path]
@@ -67,14 +68,15 @@ def provider_specs(sidecars: list[WiringSidecar], translated_root: Path) -> list
     specs: list[ProviderSpec] = []
     for sidecar in sidecars:
         module = sidecar.python_module(translated_root)
-        injections = _injections(sidecar.elements)
-        for element in sidecar.elements:
+        for index, element in enumerate(sidecar.elements):
             if element.kind != "class":
                 continue
             role = _str(element.spring.get("role"), default="")
             if role not in _PROVIDER_ROLES:
                 continue
             identity = _provider_identity(element)
+            sidecar_injections = _injections_for_class(sidecar.elements, index)
+            constructor_params = _constructor_parameters(Path(sidecar.output), element.python_name)
             specs.append(
                 ProviderSpec(
                     identity=identity,
@@ -82,8 +84,7 @@ def provider_specs(sidecars: list[WiringSidecar], translated_root: Path) -> list
                     class_name=element.python_name,
                     module=module,
                     role=role,
-                    injections=injections,
-                    needs_session=role == "repository" and not injections,
+                    injections=_merge_injections(constructor_params, sidecar_injections),
                 ),
             )
     return _ordered_specs(specs)
@@ -92,6 +93,29 @@ def provider_specs(sidecars: list[WiringSidecar], translated_root: Path) -> list
 def expected_provider_names(sidecars: list[WiringSidecar], translated_root: Path) -> set[str]:
     """Return generated provider function names for validation checks."""
     return {spec.provider_name for spec in provider_specs(sidecars, translated_root)}
+
+
+def provider_name_collisions(
+    sidecars: list[WiringSidecar],
+    translated_root: Path,
+) -> dict[str, list[ProviderSpec]]:
+    """Return provider functions that would be emitted for multiple identities."""
+    return provider_name_collisions_from_specs(provider_specs(sidecars, translated_root))
+
+
+def provider_cycles(sidecars: list[WiringSidecar], translated_root: Path) -> list[list[str]]:
+    """Return provider dependency cycles by provider function name."""
+    specs = provider_specs(sidecars, translated_root)
+    dependencies = _provider_dependencies(specs)
+    pending = set(dependencies)
+    ordered: set[str] = set()
+    while pending:
+        ready = {name for name in pending if all(dep in ordered for dep in dependencies[name])}
+        if not ready:
+            return [sorted(pending)]
+        ordered.update(ready)
+        pending.difference_update(ready)
+    return []
 
 
 def missing_injection_provider_edges(
@@ -115,16 +139,17 @@ def missing_injection_provider_edges(
     return missing
 
 
-def render_providers(specs: list[ProviderSpec]) -> str:
+def render_providers(
+    specs: list[ProviderSpec],
+    type_modules: dict[str, str] | None = None,
+) -> str:
     """Render importable provider module source."""
-    imports = _imports_for_specs(specs)
+    imports = _imports_for_specs(specs, type_modules)
     lines = [
         GENERATED_HEADER,
         "from __future__ import annotations",
         "",
     ]
-    if any(spec.needs_session for spec in specs):
-        lines.extend(["from sqlalchemy.orm import Session", ""])
     for module in sorted(imports):
         names = ", ".join(sorted(imports[module]))
         lines.append(f"from {module} import {names}")
@@ -135,45 +160,53 @@ def render_providers(specs: list[ProviderSpec]) -> str:
             lines.extend(["", ""])
         lines.extend(_render_provider(spec))
     if not specs:
-        lines.extend(["", "__all__: list[str] = []"])
+        lines.append("__all__: list[str] = []")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def _render_provider(spec: ProviderSpec) -> list[str]:
-    parameters: list[str] = []
-    if spec.needs_session:
-        parameters.append("session: Session")
-    parameters.extend(f"{injection.name}: {injection.python_type}" for injection in spec.injections)
+    parameters = [f"{injection.name}: {injection.python_type}" for injection in spec.injections]
     signature = f"def {spec.provider_name}({', '.join(parameters)}) -> {spec.class_name}:"
-    call_args = ["session"] if spec.needs_session else []
-    call_args.extend(injection.name for injection in spec.injections)
+    call_args = [injection.name for injection in spec.injections]
     return [signature, f"    return {spec.class_name}({', '.join(call_args)})"]
 
 
-def _imports_for_specs(specs: list[ProviderSpec]) -> dict[str, set[str]]:
+def _imports_for_specs(
+    specs: list[ProviderSpec],
+    type_modules: dict[str, str] | None = None,
+) -> dict[str, set[str]]:
     imports: dict[str, set[str]] = {}
-    type_modules = {spec.class_name: spec.module for spec in specs}
+    resolved_type_modules = (
+        type_modules
+        if type_modules is not None
+        else {spec.class_name: spec.module for spec in specs}
+    )
     for spec in specs:
         imports.setdefault(spec.module, set()).add(spec.class_name)
         for injection in spec.injections:
             type_name = _base_type(injection.python_type)
-            module = type_modules.get(type_name)
+            module = resolved_type_modules.get(type_name)
             if module is not None and _should_import_type(type_name):
                 imports.setdefault(module, set()).add(type_name)
     return imports
 
 
+def _type_modules(sidecars: list[WiringSidecar], translated_root: Path) -> dict[str, str]:
+    modules: dict[str, str] = {}
+    for sidecar in sidecars:
+        module = sidecar.python_module(translated_root)
+        for element in sidecar.elements:
+            if element.kind == "class":
+                modules[element.python_name] = module
+    return modules
+
+
 def _ordered_specs(specs: list[ProviderSpec]) -> list[ProviderSpec]:
-    by_identity = {_normalize_identity(spec.identity): spec for spec in specs}
-    dependencies = {
-        spec.provider_name: [
-            by_identity[_normalize_identity(injection.name)].provider_name
-            for injection in spec.injections
-            if _normalize_identity(injection.name) in by_identity
-        ]
-        for spec in specs
-    }
-    pending = {spec.provider_name: spec for spec in specs}
+    if provider_name_collisions_from_specs(specs):
+        return sorted(specs, key=lambda spec: (spec.provider_name, spec.class_name, spec.identity))
+    dependencies = _provider_dependencies(specs)
+    by_provider_name = {spec.provider_name: spec for spec in specs}
+    pending = set(dependencies)
     ordered: list[ProviderSpec] = []
     while pending:
         ready = sorted(
@@ -184,11 +217,35 @@ def _ordered_specs(specs: list[ProviderSpec]) -> list[ProviderSpec]:
             ),
         )
         if not ready:
-            ordered.extend(pending[name] for name in sorted(pending))
+            ordered.extend(by_provider_name[name] for name in sorted(pending))
             break
         for provider_name in ready:
-            ordered.append(pending.pop(provider_name))
+            pending.remove(provider_name)
+            ordered.append(by_provider_name[provider_name])
     return ordered
+
+
+def provider_name_collisions_from_specs(specs: list[ProviderSpec]) -> dict[str, list[ProviderSpec]]:
+    specs_by_name: dict[str, list[ProviderSpec]] = {}
+    for spec in specs:
+        specs_by_name.setdefault(spec.provider_name, []).append(spec)
+    return {
+        provider_name: grouped_specs
+        for provider_name, grouped_specs in specs_by_name.items()
+        if len({spec.identity for spec in grouped_specs}) > 1
+    }
+
+
+def _provider_dependencies(specs: list[ProviderSpec]) -> dict[str, list[str]]:
+    by_identity = {_normalize_identity(spec.identity): spec for spec in specs}
+    dependencies: dict[str, list[str]] = {}
+    for spec in specs:
+        dependencies[spec.provider_name] = [
+            by_identity[_normalize_identity(injection.name)].provider_name
+            for injection in spec.injections
+            if _normalize_identity(injection.name) in by_identity
+        ]
+    return dependencies
 
 
 def _provider_identity(element: WiringElement) -> str:
@@ -196,6 +253,18 @@ def _provider_identity(element: WiringElement) -> str:
     if isinstance(component_name, str) and component_name:
         return component_name
     return translate_field_name(element.python_name)
+
+
+def _injections_for_class(
+    elements: list[WiringElement],
+    class_index: int,
+) -> list[ProviderInjectionSpec]:
+    owned_elements: list[WiringElement] = []
+    for element in elements[class_index + 1 :]:
+        if element.kind == "class":
+            break
+        owned_elements.append(element)
+    return _injections(owned_elements)
 
 
 def _injections(elements: list[WiringElement]) -> list[ProviderInjectionSpec]:
@@ -211,6 +280,52 @@ def _injections(elements: list[WiringElement]) -> list[ProviderInjectionSpec]:
             ),
         )
     return injections
+
+
+def _constructor_parameters(path: Path, class_name: str) -> list[ProviderInjectionSpec]:
+    tree = _parse_python(path)
+    if tree is None:
+        return []
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+                return [
+                    ProviderInjectionSpec(
+                        name=arg.arg,
+                        python_type=_annotation_name(arg.annotation),
+                    )
+                    for arg in item.args.args[1:]
+                ]
+    return []
+
+
+def _merge_injections(
+    constructor_params: list[ProviderInjectionSpec],
+    sidecar_injections: list[ProviderInjectionSpec],
+) -> list[ProviderInjectionSpec]:
+    by_name = {injection.name: injection for injection in sidecar_injections}
+    merged: list[ProviderInjectionSpec] = []
+    for constructor_param in constructor_params:
+        merged.append(by_name.pop(constructor_param.name, constructor_param))
+    merged.extend(by_name[name] for name in sorted(by_name))
+    return merged
+
+
+def _parse_python(path: Path) -> ast.Module | None:
+    if not path.exists():
+        return None
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return None
+
+
+def _annotation_name(annotation: ast.expr | None) -> str:
+    if annotation is not None:
+        return ast.unparse(annotation)
+    return "object"
 
 
 def _normalize_identity(name: str) -> str:

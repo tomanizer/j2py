@@ -12,6 +12,8 @@ from j2py.wire.targets.providers import (
     PROVIDERS_FILENAME,
     expected_provider_names,
     missing_injection_provider_edges,
+    provider_cycles,
+    provider_name_collisions,
 )
 
 Severity = Literal["error", "warning"]
@@ -351,6 +353,27 @@ class ProviderFunctionCheck:
         return findings
 
 
+class ProviderNameCollisionCheck:
+    code = "provider-name-collision"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for provider_name, specs in sorted(
+            provider_name_collisions(context.sidecars, context.translated_root).items(),
+        ):
+            identities = ", ".join(sorted(spec.identity for spec in specs))
+            findings.append(
+                _finding(
+                    self.code,
+                    str(context.wiring_dir / PROVIDERS_FILENAME),
+                    f"Provider function '{provider_name}' maps multiple identities: {identities}",
+                    "Rename one component or add explicit project wiring policy",
+                    severity="error",
+                ),
+            )
+        return findings
+
+
 class ProviderDependencyCheck:
     code = "provider-dependency"
 
@@ -373,6 +396,24 @@ class ProviderDependencyCheck:
         return findings
 
 
+class ProviderCycleCheck:
+    code = "provider-cycle"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for cycle in provider_cycles(context.sidecars, context.translated_root):
+            findings.append(
+                _finding(
+                    self.code,
+                    str(context.wiring_dir / PROVIDERS_FILENAME),
+                    "Provider dependency cycle detected: " + ", ".join(cycle),
+                    "Break the cycle manually or add project-owned provider construction",
+                    severity="warning",
+                ),
+            )
+        return findings
+
+
 FASTAPI_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
@@ -390,7 +431,9 @@ PROVIDERS_CHECKS: list[ValidationCheck] = [
     OrphanProvidersModuleCheck(),
     UnresolvedImportCheck(),
     ProviderFunctionCheck(),
+    ProviderNameCollisionCheck(),
     ProviderDependencyCheck(),
+    ProviderCycleCheck(),
 ]
 
 

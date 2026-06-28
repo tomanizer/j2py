@@ -16,6 +16,7 @@ from j2py.wire.targets.providers import ProvidersTarget
 from j2py.wire.validation import (
     ProviderDependencyCheck,
     ProviderFunctionCheck,
+    ProviderNameCollisionCheck,
     ValidationContext,
     validate_providers_wiring,
     validation_exit_code,
@@ -29,7 +30,6 @@ def test_providers_target_generates_plain_provider_graph(
     translated_root = tmp_path / "translated"
     _write_translated_graph(translated_root)
     _write_graph_sidecars(translated_root)
-    _write_sqlalchemy_stub(tmp_path)
     load_result = load_wiring_sidecars(translated_root)
     output_dir = tmp_path / "wiring"
 
@@ -42,13 +42,13 @@ def test_providers_target_generates_plain_provider_graph(
     assert generated == [providers]
     source = providers.read_text(encoding="utf-8")
     assert source.startswith(GENERATED_HEADER)
-    assert "from sqlalchemy.orm import Session" in source
+    assert "sqlalchemy" not in source
     assert "from owner_controller import OwnerController" in source
     assert "from owner_repository import OwnerRepository" in source
     assert "from owner_service import OwnerService" in source
     assert source.index("def get_owner_repository") < source.index("def get_owner_service")
     assert source.index("def get_owner_service") < source.index("def get_owner_controller")
-    assert "def get_owner_repository(session: Session) -> OwnerRepository:" in source
+    assert "def get_owner_repository(session: object) -> OwnerRepository:" in source
     assert "def get_owner_service(owner_repository: OwnerRepository) -> OwnerService:" in source
     assert "def get_owner_controller(owner_service: OwnerService) -> OwnerController:" in source
     assert "Depends" not in source
@@ -77,6 +77,237 @@ def test_providers_target_generates_plain_provider_graph(
     assert repository.session is session
     assert service.owner_repository is repository
     assert controller.owner_service is service
+
+
+def test_repository_without_constructor_does_not_guess_session(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+    (translated_root / "audit_repository.py").write_text(
+        "class AuditRepository:\n    pass\n",
+        encoding="utf-8",
+    )
+    _write_sidecar(
+        translated_root,
+        "audit_repository",
+        _sidecar_payload(
+            translated_root / "audit_repository.py",
+            class_name="AuditRepository",
+            role="repository",
+            component_name="auditRepository",
+        ),
+    )
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    ProvidersTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / "providers.py").read_text(encoding="utf-8")
+    assert "Session" not in source
+    assert "def get_audit_repository() -> AuditRepository:" in source
+    assert "return AuditRepository()" in source
+
+
+def test_sidecar_injections_are_scoped_to_their_owning_class(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+    module = translated_root / "services.py"
+    module.write_text(
+        "class FirstRepository:\n"
+        "    pass\n"
+        "class SecondRepository:\n"
+        "    pass\n"
+        "class FirstService:\n"
+        "    def __init__(self, first_repository):\n"
+        "        self.first_repository = first_repository\n"
+        "class SecondService:\n"
+        "    def __init__(self, second_repository):\n"
+        "        self.second_repository = second_repository\n",
+        encoding="utf-8",
+    )
+    payload = {
+        "schema_version": 1,
+        "source": "Services.java",
+        "output": str(module),
+        "elements": [
+            _class_element("FirstService", role="service", component_name="firstService"),
+            _inject_element("first_repository", "FirstRepository"),
+            _class_element("SecondService", role="service", component_name="secondService"),
+            _inject_element("second_repository", "SecondRepository"),
+            _class_element("FirstRepository", role="repository", component_name="firstRepository"),
+            _class_element(
+                "SecondRepository",
+                role="repository",
+                component_name="secondRepository",
+            ),
+        ],
+    }
+    _write_sidecar(translated_root, "services", payload)
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    ProvidersTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / "providers.py").read_text(encoding="utf-8")
+    assert "def get_first_service(first_repository: FirstRepository) -> FirstService:" in source
+    assert "return FirstService(first_repository)" in source
+    assert "def get_second_service(second_repository: SecondRepository) -> SecondService:" in source
+    assert "return SecondService(second_repository)" in source
+    assert "first_repository: FirstRepository, second_repository: SecondRepository" not in source
+
+
+def test_non_provider_injection_types_are_imported_from_sidecars(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+    service = translated_root / "owner_service.py"
+    service.write_text(
+        "class OwnerConfig:\n"
+        "    pass\n"
+        "class OwnerService:\n"
+        "    def __init__(self, owner_config):\n"
+        "        self.owner_config = owner_config\n",
+        encoding="utf-8",
+    )
+    payload = {
+        "schema_version": 1,
+        "source": "OwnerService.java",
+        "output": str(service),
+        "elements": [
+            _class_element("OwnerConfig"),
+            _class_element("OwnerService", role="service", component_name="ownerService"),
+            _inject_element("owner_config", "OwnerConfig"),
+        ],
+    }
+    _write_sidecar(translated_root, "owner_service", payload)
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    ProvidersTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / "providers.py").read_text(encoding="utf-8")
+    assert "from owner_service import OwnerConfig, OwnerService" in source
+    assert "def get_owner_service(owner_config: OwnerConfig) -> OwnerService:" in source
+
+
+def test_provider_name_collision_is_validation_error(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+    (translated_root / "first.py").write_text("class FirstService:\n    pass\n", encoding="utf-8")
+    (translated_root / "second.py").write_text(
+        "class SecondService:\n    pass\n",
+        encoding="utf-8",
+    )
+    _write_sidecar(
+        translated_root,
+        "first",
+        _sidecar_payload(
+            translated_root / "first.py",
+            class_name="FirstService",
+            role="service",
+            component_name="ownerService",
+        ),
+    )
+    _write_sidecar(
+        translated_root,
+        "second",
+        _sidecar_payload(
+            translated_root / "second.py",
+            class_name="SecondService",
+            role="service",
+            component_name="owner_service",
+        ),
+    )
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+    ProvidersTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+    context = ValidationContext(translated_root, output_dir, load_result.sidecars)
+
+    findings = ProviderNameCollisionCheck().run(context)
+
+    assert len(findings) == 1
+    assert findings[0].severity == "error"
+    assert findings[0].code == "provider-name-collision"
+    assert "get_owner_service" in findings[0].message
+
+
+def test_provider_cycle_is_validation_warning(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+    first = translated_root / "first_service.py"
+    first.write_text(
+        "class FirstService:\n"
+        "    def __init__(self, second_service):\n"
+        "        self.second_service = second_service\n",
+        encoding="utf-8",
+    )
+    second = translated_root / "second_service.py"
+    second.write_text(
+        "class SecondService:\n"
+        "    def __init__(self, first_service):\n"
+        "        self.first_service = first_service\n",
+        encoding="utf-8",
+    )
+    _write_sidecar(
+        translated_root,
+        "first_service",
+        _sidecar_payload(
+            first,
+            class_name="FirstService",
+            role="service",
+            component_name="firstService",
+            injections=[
+                {
+                    "name": "second_service",
+                    "java_name": "secondService",
+                    "type": "SecondService",
+                    "source": "field",
+                    "required": True,
+                    "qualifier": None,
+                },
+            ],
+        ),
+    )
+    _write_sidecar(
+        translated_root,
+        "second_service",
+        _sidecar_payload(
+            second,
+            class_name="SecondService",
+            role="service",
+            component_name="secondService",
+            injections=[
+                {
+                    "name": "first_service",
+                    "java_name": "firstService",
+                    "type": "FirstService",
+                    "source": "field",
+                    "required": True,
+                    "qualifier": None,
+                },
+            ],
+        ),
+    )
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+    ProvidersTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    findings = validate_providers_wiring(
+        ValidationContext(translated_root, output_dir, load_result.sidecars),
+    )
+
+    assert any(
+        finding.code == "provider-cycle" and finding.severity == "warning" for finding in findings
+    )
+
+
+def test_empty_providers_module_has_no_extra_blank_line() -> None:
+    from j2py.wire.targets.providers import render_providers
+
+    assert render_providers([]) == (
+        "# Generated by j2py-wire - do not edit. Re-run j2py-wire generate to update.\n"
+        "from __future__ import annotations\n"
+        "\n"
+        "__all__: list[str] = []\n"
+    )
 
 
 def test_providers_target_overwrites_generated_file(tmp_path: Path) -> None:
@@ -307,6 +538,50 @@ def _write_sidecar(translated_root: Path, stem: str, payload: dict[str, object])
     (translated_root / f"{stem}.wiring.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _class_element(
+    class_name: str,
+    *,
+    role: str | None = None,
+    component_name: str | None = None,
+) -> dict[str, object]:
+    spring: dict[str, object] = {"profile_version": 1}
+    if role is not None:
+        spring["role"] = role
+    if component_name is not None:
+        spring["component_name"] = component_name
+    return {
+        "plugin": "spring-wiring",
+        "kind": "class",
+        "java_name": class_name,
+        "python_name": class_name,
+        "annotations": [],
+        "metadata": {"spring": spring},
+    }
+
+
+def _inject_element(name: str, python_type: str) -> dict[str, object]:
+    return {
+        "plugin": "spring-wiring",
+        "kind": "field",
+        "java_name": name,
+        "python_name": name,
+        "annotations": [],
+        "metadata": {
+            "spring": {
+                "profile_version": 1,
+                "inject": {
+                    "name": name,
+                    "java_name": name,
+                    "type": python_type,
+                    "source": "field",
+                    "required": True,
+                    "qualifier": None,
+                },
+            },
+        },
+    }
+
+
 def _sidecar_payload(
     module: Path,
     *,
@@ -357,10 +632,3 @@ def _sidecar_payload(
         "output": str(module),
         "elements": elements,
     }
-
-
-def _write_sqlalchemy_stub(root: Path) -> None:
-    sqlalchemy = root / "sqlalchemy"
-    sqlalchemy.mkdir()
-    (sqlalchemy / "__init__.py").write_text("", encoding="utf-8")
-    (sqlalchemy / "orm.py").write_text("class Session:\n    pass\n", encoding="utf-8")
