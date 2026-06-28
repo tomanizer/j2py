@@ -183,6 +183,20 @@ def references_enclosing_instance_fields(
             if name_node is not None:
                 loop_names.add(name_node.text)
             return body_node is not None and has_simple_reference(body_node, loop_names)
+        if current.type == "for_statement":
+            init_node = current.child_by_field("init")
+            condition_node = current.child_by_field("condition")
+            update_node = current.child_by_field("update")
+            body_node = current.child_by_field("body")
+            loop_names = set(declared_names)
+            if init_node is not None:
+                if has_simple_reference(init_node, loop_names):
+                    return True
+                loop_names.update(_local_names_declared_by_statement(init_node))
+            for part in (condition_node, update_node):
+                if part is not None and has_simple_reference(part, loop_names):
+                    return True
+            return body_node is not None and has_simple_reference(body_node, loop_names)
         if current.type == "field_access":
             return any(
                 has_simple_reference(child, declared_names) for child in current.named_children[:-1]

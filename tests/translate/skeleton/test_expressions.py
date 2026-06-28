@@ -1687,6 +1687,37 @@ def test_nested_anonymous_class_reuses_grandparent_outer_field_capture() -> None
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_for_loop_var_does_not_mask_outer_field() -> None:
+    """C-style for loop initializer variables do not shadow outer class fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class ForLoop {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int n) {
+                        for (int axes = 0; axes < n; axes++) {
+                            // axes here is the loop var, not the field
+                        }
+                        return axes.get(n);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.axes[n]" in result.source
+    assert "return axes.get(n)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_anonymous_class_concrete_java_list_get_lowers_to_subscript() -> None:
     """Concrete Java List implementations are list-like `.get(index)` receivers."""
     result = translate_source_with_diagnostics(
