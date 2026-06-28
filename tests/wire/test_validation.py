@@ -145,6 +145,42 @@ def test_spring_bean_definition_check_reports_unresolved_dependencies(tmp_path: 
     assert "unresolved provider 'missing_client'" in findings[0].message
 
 
+def test_spring_bean_definition_check_resolves_camel_case_provider_against_snake_case_dep(
+    tmp_path: Path,
+) -> None:
+    # Provider name is camelCase (Spring default from Java class name);
+    # dependency name is snake_case (from _parameter_dependencies / param.py_name).
+    # Without normalisation this would always warn as unresolved.
+    context = _context(tmp_path)
+    payload = _payload(context.translated_root / "app_config.py")
+    payload["elements"] = [
+        _bean_element(
+            "ownerService",
+            "owner_service",
+            name="ownerService",
+            dependencies=[
+                {
+                    "name": "owner_repository",
+                    "java_name": "ownerRepository",
+                    "type": "OwnerRepository",
+                    "java_type": "OwnerRepository",
+                    "source": "parameter",
+                },
+            ],
+        ),
+        _component_element("OwnerRepository", "owner_repository", component_name="ownerRepository"),
+    ]
+    _write_sidecar(context.translated_root, payload)
+    context = _loaded_context(context)
+
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert findings == [], (
+        "camelCase provider 'ownerRepository' should resolve against snake_case "
+        "dependency 'owner_repository' after normalisation"
+    )
+
+
 def test_missing_provider_check_reports_injected_dependency_without_provider(
     tmp_path: Path,
 ) -> None:

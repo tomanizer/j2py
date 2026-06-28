@@ -73,7 +73,7 @@ class SpringBeanDefinitionCheck:
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         bean_defs = _bean_definitions(context.sidecars)
         provider_names = {
-            provider.lower().replace("_", "")
+            _normalize_bean_identity(provider)
             for sidecar in context.sidecars
             for element in sidecar.elements
             for provider in _spring_provider_names(element)
@@ -111,7 +111,7 @@ class SpringBeanDefinitionCheck:
                 dep_name = dependency.get("name")
                 if not isinstance(dep_name, str) or not dep_name:
                     continue
-                if dep_name.lower().replace("_", "") in provider_names:
+                if _normalize_bean_identity(dep_name) in provider_names:
                     continue
                 findings.append(
                     _finding(
@@ -409,7 +409,21 @@ def _bean_definitions(
     return beans
 
 
+def _normalize_bean_identity(name: str) -> str:
+    """Canonical form for bean-name comparison across camelCase and snake_case.
+
+    Provider names come from Spring (camelCase: ``ownerRepository``) while
+    dependency names come from translated Python parameters (snake_case:
+    ``owner_repository``). Stripping underscores and lowercasing both sides
+    makes them comparable without losing real identity collisions.
+    """
+    return name.lower().replace("_", "")
+
+
 def _spring_provider_names(element: WiringElement) -> list[str]:
+    # v1 resolves providers by name only (bean.name and component_name).
+    # Type-based, @Qualifier, and @Primary resolution are intentionally out of
+    # scope — this is a migration-readiness signal, not a Spring container.
     spring = element.spring
     names: list[str] = []
     bean = spring.get("bean")
