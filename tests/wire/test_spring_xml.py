@@ -236,6 +236,37 @@ def test_classpath_import_emits_warning_not_error() -> None:
         tmp.unlink()
 
 
+def test_classpath_import_not_followed_even_when_sibling_file_exists(tmp_path: Path) -> None:
+    # Regression: a classpath: import must never be silently resolved to a
+    # sibling file that happens to share the name. Only one sidecar (the root)
+    # should be produced, and a warning emitted.
+    sibling = tmp_path / "security-config.xml"
+    sibling.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="secretBean" class="com.example.SecretBean"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+    root = tmp_path / "app.xml"
+    root.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <import resource="classpath:security-config.xml"/>\n'
+        '    <bean id="myBean" class="com.example.MyBean"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+
+    result = ingest_spring_xml_files([root], resolve_imports=True)
+
+    assert len(result.sidecars) == 1, "classpath import must not be followed to a sibling file"
+    bean_names = {b["name"] for b in _beans(result)}
+    assert "secretBean" not in bean_names
+    assert "myBean" in bean_names
+    assert any(d.level == "warning" and "classpath" in d.message for d in result.diagnostics)
+
+
 # ---------------------------------------------------------------------------
 # Bare XML (no namespace)
 # ---------------------------------------------------------------------------

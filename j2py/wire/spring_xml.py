@@ -7,7 +7,8 @@ Java-defined beans through a single uniform interface.
 
 Supported constructs
 --------------------
-* ``<bean id="..." class="...">`` — name, class, aliases
+* ``<bean id="..." class="...">`` — name and class (``name`` is used as a
+  fallback identity when ``id`` is absent; multi-value alias lists are not split)
 * ``<constructor-arg ref="..."/>`` and value arguments
 * ``<property name="..." ref="..."/>`` and value properties
 * ``factory-bean``, ``factory-method``, ``init-method``, ``destroy-method``
@@ -39,16 +40,8 @@ from pathlib import Path
 from j2py.wire.schema import WiringElement, WiringSidecar
 from j2py.wiring_contract import WIRING_METADATA_SCHEMA_VERSION, translate_field_name
 
-# Spring XML namespace and tag constants.
-_NS = "http://www.springframework.org/schema/beans"
-_T_BEANS = f"{{{_NS}}}beans"
-_T_BEAN = f"{{{_NS}}}bean"
-_T_IMPORT = f"{{{_NS}}}import"
-_T_CONSTRUCTOR_ARG = f"{{{_NS}}}constructor-arg"
-_T_PROPERTY = f"{{{_NS}}}property"
-# Also accept tags without the namespace (minimal XML without xmlns declaration).
-_BARE = {"beans", "bean", "import", "constructor-arg", "property"}
-
+# Element local names are matched after namespace stripping (see ``_local``), so
+# both namespaced Spring XML and bare XML without an xmlns declaration are handled.
 _PROFILE_VERSION = 1
 
 # Attributes that are not yet supported and should be flagged.
@@ -208,8 +201,6 @@ def _parse_bean(
             ref = child.get("ref")
             value = child.get("value")
             type_attr = child.get("type", "")
-            index = child.get("index")
-            name_attr = child.get("name")
 
             if ref:
                 py_ref = translate_field_name(ref)
@@ -229,14 +220,12 @@ def _parse_bean(
                     }
                 )
             elif value is not None:
-                label = name_attr or (f"index={index}" if index else "arg")
                 constructor_args.append(
                     {
                         "type": type_attr,
                         "arguments": [{"kind": "value", "value": value}],
                     }
                 )
-                _ = label  # used for readability only
             else:
                 # Complex constructor-arg (nested list/map/etc.) — flag it.
                 unsupported.append("constructor-arg with nested value element")
@@ -309,8 +298,7 @@ def _parse_bean(
             XmlIngestDiagnostic(
                 "warning",
                 str(xml_path),
-                f"Bean '{bean_id}' contains unsupported constructs: "
-                + ", ".join(unsupported),
+                f"Bean '{bean_id}' contains unsupported constructs: " + ", ".join(unsupported),
             )
         )
 
@@ -348,14 +336,15 @@ class _PositionedTreeBuilder:
     def line_of(self, elem: ET.Element) -> int | None:
         return self._line_map.get(id(elem))
 
-
-
     def root(self) -> ET.Element:
         assert self._root is not None, "XML not yet parsed"
         return self._root
 
 
 class _SaxHandler(xml.sax.handler.ContentHandler):
+    """Namespace-aware handler. Parsing always enables ``feature_namespaces``,
+    so only the ``*NS`` callbacks are invoked (see ``_parse_xml``)."""
+
     def __init__(self, builder: _PositionedTreeBuilder) -> None:
         super().__init__()
         self._builder = builder
@@ -363,19 +352,6 @@ class _SaxHandler(xml.sax.handler.ContentHandler):
 
     def setDocumentLocator(self, locator: xml.sax.xmlreader.Locator) -> None:
         self._locator = locator
-
-    def startElement(self, name: str, attrs: xml.sax.xmlreader.AttributesImpl) -> None:
-        attrib = {k: v for k, v in attrs.items()}
-        elem = ET.Element(name, attrib)
-        if self._builder._stack:
-            self._builder._stack[-1].append(elem)
-        else:
-            self._builder._root = elem
-        self._builder._stack.append(elem)
-        if self._locator is not None:
-            line_num = self._locator.getLineNumber()
-            if line_num is not None:
-                self._builder._line_map[id(elem)] = line_num
 
     def startElementNS(
         self,
@@ -402,9 +378,6 @@ class _SaxHandler(xml.sax.handler.ContentHandler):
             if line_num is not None:
                 self._builder._line_map[id(elem)] = line_num
 
-    def endElement(self, name: str) -> None:
-        self._builder._stack.pop()
-
     def endElementNS(self, name: tuple[str | None, str], qname: str | None) -> None:
         self._builder._stack.pop()
 
@@ -416,6 +389,11 @@ def _parse_xml(path: Path) -> tuple[_PositionedTreeBuilder, ET.Element]:
     handler = _SaxHandler(builder)
     sax_parser = xml.sax.make_parser()
     sax_parser.setFeature(xml.sax.handler.feature_namespaces, True)
+    # Harden against XXE: do not resolve external general/parameter entities.
+    # Spring bean XML never legitimately needs them, and this parser may run on
+    # config pulled from a source tree we do not fully control.
+    sax_parser.setFeature(xml.sax.handler.feature_external_ges, False)
+    sax_parser.setFeature(xml.sax.handler.feature_external_pes, False)
     sax_parser.setContentHandler(handler)
     sax_parser.parse(str(path))
     return builder, builder.root()
@@ -437,15 +415,14 @@ def _simple_name(qualified: str) -> str:
 
 
 def _resolve_resource(resource: str, base_xml: Path) -> Path | None:
-    """Resolve a Spring resource string to a file-system path, or None if unsupported."""
-    # Strip classpath prefixes — we cannot resolve these without a classpath.
-    for prefix in ("classpath*:", "classpath:"):
-        if resource.startswith(prefix):
-            resource = resource[len(prefix):]
-            # After stripping, a leading "/" becomes a relative path.
-            resource = resource.lstrip("/")
-            # Without a classpath root we still try a sibling-file resolution.
-            break
+    """Resolve a Spring resource string to a file-system path, or None if unsupported.
+
+    Returns None for ``classpath:`` / ``classpath*:`` imports — we have no
+    classpath to resolve against, so the caller emits a warning rather than
+    guessing at a sibling file that may or may not be the intended resource.
+    """
+    if resource.startswith(("classpath:", "classpath*:")):
+        return None
 
     candidate = (base_xml.parent / resource).resolve()
     return candidate if candidate.exists() else None
