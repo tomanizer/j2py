@@ -73,7 +73,7 @@ class SpringBeanDefinitionCheck:
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         bean_defs = _bean_definitions(context.sidecars)
         provider_names = {
-            provider
+            provider.lower().replace("_", "")
             for sidecar in context.sidecars
             for element in sidecar.elements
             for provider in _spring_provider_names(element)
@@ -93,7 +93,7 @@ class SpringBeanDefinitionCheck:
                 findings.append(
                     _finding(
                         self.code,
-                        sidecar.output,
+                        sidecar.source,
                         f"Duplicate Spring bean name '{name}' on {element.java_name}",
                         "Rename one bean or add explicit project wiring policy",
                         severity="error",
@@ -111,12 +111,12 @@ class SpringBeanDefinitionCheck:
                 dep_name = dependency.get("name")
                 if not isinstance(dep_name, str) or not dep_name:
                     continue
-                if dep_name in provider_names:
+                if dep_name.lower().replace("_", "") in provider_names:
                     continue
                 findings.append(
                     _finding(
                         self.code,
-                        sidecar.output,
+                        sidecar.source,
                         (
                             f"Spring bean '{bean.get('name', element.java_name)}' depends on "
                             f"unresolved provider '{dep_name}'"
