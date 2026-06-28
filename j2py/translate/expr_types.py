@@ -5,13 +5,15 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.java_types import jdk_static_integral_field_type
+from j2py.translate.java_types import java_type_of_value, jdk_static_integral_field_type
 from j2py.translate.node_utils import first_child_by_type, ternary_expression_operands
 from j2py.translate.rules.types import (
     LIST_RETURNING_METHOD_NAMES,
     MAP_RETURNING_METHOD_NAMES,
     NULL_PASS_THROUGH_METHOD_NAMES,
     element_type_from_container,
+    element_type_from_java_container,
+    is_list_like_java_type,
     is_list_like_type,
     is_map_like_type,
     return_type_from_function,
@@ -42,6 +44,14 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
     if node.type == "null_literal":
         return "None"
     if node.type == "identifier":
+        if node.text in ctx.class_field_types:
+            return ctx.class_field_types[node.text]
+        if (
+            ctx.outer_self_alias
+            and node.text in ctx.enclosing_class_field_types
+            and node.text not in ctx.class_field_types
+        ):
+            return ctx.enclosing_class_field_types[node.text]
         return ctx.variable_types.get(node.text) or ctx.class_field_types.get(node.text)
     if node.type == "field_access":
         return _field_access_py_type(node, ctx)
@@ -208,6 +218,11 @@ def _infer_method_invocation_py_type(node: JavaNode, ctx: TranslationContext) ->
         receiver_type = infer_expression_py_type(receiver_nodes[0], ctx)
         if receiver_type is not None and is_map_like_type(receiver_type):
             return element_type_from_container(receiver_type) or "object"
+        if receiver_type is not None and is_list_like_type(receiver_type):
+            return element_type_from_container(receiver_type) or "object"
+        java_receiver_type = java_type_of_value(receiver_nodes[0], ctx)
+        if java_receiver_type is not None and is_list_like_java_type(java_receiver_type):
+            return element_type_from_java_container(java_receiver_type, ctx.cfg) or "object"
     return None
 
 

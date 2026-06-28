@@ -230,6 +230,9 @@ class TranslationContext:
     allow_local_helpers: bool = False
     class_state: ClassTranslationState | None = None
     outer_self_alias: str | None = None
+    enclosing_class_fields: set[str] = field(default_factory=set)
+    enclosing_class_field_types: dict[str, str] = field(default_factory=dict)
+    enclosing_class_field_java_types: dict[str, str] = field(default_factory=dict)
     inner_class_names_requiring_outer: set[str] = field(default_factory=set)
     local_class_names_requiring_outer: set[str] = field(default_factory=set)
     containing_class_name: str | None = None

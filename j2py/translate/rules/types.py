@@ -282,6 +282,25 @@ def static_factory_return_type(receiver_name: str, method_name: str) -> str | No
     return STATIC_FACTORY_METHOD_RETURN_TYPES.get((simple, method_name))
 
 
+def is_list_like_java_type(java_type: str) -> bool:
+    """True when a Java receiver type behaves like a List for `.get(index)` lowering."""
+    simple = java_type_simple_name(java_type)
+    return simple.endswith("List") and not simple.endswith("Multimap")
+
+
+def element_type_from_java_container(java_type: str, cfg: TranslationConfig) -> str | None:
+    """Return the first Java type argument lowered to a Python annotation."""
+    from j2py.translate.rules.types import _split_type_params
+
+    match = re.match(r"^[\w.]+\s*<(.+)>$", java_type.strip())
+    if match is None:
+        return None
+    params = _split_type_params(match.group(1))
+    if not params:
+        return None
+    return translate_type(params[0], cfg)
+
+
 def is_list_like_type(py_type: str) -> bool:
     """True when a translated type behaves like a Java List for `.get(index)` lowering."""
     if " | " in py_type:

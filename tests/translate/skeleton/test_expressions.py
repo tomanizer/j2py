@@ -1496,6 +1496,39 @@ def test_bitset_get_is_indexed_predicate_api_call() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_outer_field_list_get_chain() -> None:
+    """Guava CartesianList-style anonymous class captures outer list fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import com.google.common.collect.ImmutableList;
+        import java.util.List;
+
+        final class CartesianList<E> {
+            private final ImmutableList<List<E>> axes;
+
+            public ImmutableList<E> get(int index) {
+                return new ImmutableList<E>() {
+                    public E get(int axis) {
+                        int axisIndex = 0;
+                        return axes.get(axis).get(axisIndex);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.axes[axis][axis_index]" in result.source
+    assert "axes.get(axis)" not in result.source
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(

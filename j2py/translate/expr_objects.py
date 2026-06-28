@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.class_members import uses_qualified_this
+from j2py.translate.class_members import references_enclosing_instance_fields, uses_qualified_this
 from j2py.translate.class_model import FieldInfo
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
@@ -147,7 +147,10 @@ def _translate_anonymous_class(
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
     base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
-    needs_outer_self = uses_qualified_this(body_node)
+    needs_outer_self = uses_qualified_this(body_node) or references_enclosing_instance_fields(
+        body_node,
+        ctx.class_fields,
+    )
     outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
     if needs_outer_self and outer_self_alias is None:
         ctx.diagnostics.record(
@@ -213,6 +216,17 @@ def _translate_anonymous_class(
     instance_field_names = _instance_field_names(instance_fields)
     instance_field_types = _instance_field_types(instance_fields)
     instance_field_java_types = {field.name: field.java_type for field in instance_fields}
+    enclosing_field_names = ctx.class_fields - instance_field_names
+    enclosing_field_types = {
+        name: py_type
+        for name, py_type in ctx.class_field_types.items()
+        if name in enclosing_field_names
+    }
+    enclosing_field_java_types = {
+        name: java_type
+        for name, java_type in ctx.class_field_java_types.items()
+        if name in enclosing_field_names
+    }
     from j2py.translate.class_methods import class_method_return_types
 
     previous_return_types = dict(ctx.class_method_return_types)
@@ -248,6 +262,9 @@ def _translate_anonymous_class(
                 instance_field_names=instance_field_names,
                 instance_field_types=instance_field_types,
                 instance_field_java_types=instance_field_java_types,
+                enclosing_field_names=enclosing_field_names,
+                enclosing_field_types=enclosing_field_types,
+                enclosing_field_java_types=enclosing_field_java_types,
                 outer_self_alias=outer_self_alias,
             ),
         )
@@ -409,6 +426,9 @@ def _anonymous_method_lines(
     instance_field_names: set[str],
     instance_field_types: dict[str, str],
     instance_field_java_types: dict[str, str],
+    enclosing_field_names: set[str],
+    enclosing_field_types: dict[str, str],
+    enclosing_field_java_types: dict[str, str],
     outer_self_alias: str | None,
     member_indent: str = "            ",
     body_indent: str = "                ",
@@ -464,6 +484,9 @@ def _anonymous_method_lines(
     previous_class_fields = set(ctx.class_fields)
     previous_class_field_types = dict(ctx.class_field_types)
     previous_class_field_java_types = dict(ctx.class_field_java_types)
+    previous_enclosing_class_fields = set(ctx.enclosing_class_fields)
+    previous_enclosing_class_field_types = dict(ctx.enclosing_class_field_types)
+    previous_enclosing_class_field_java_types = dict(ctx.enclosing_class_field_java_types)
     previous_in_instance_method = ctx.in_instance_method
     previous_allow_helpers = ctx.allow_local_helpers
     previous_outer_self_alias = ctx.outer_self_alias
@@ -474,6 +497,9 @@ def _anonymous_method_lines(
     ctx.class_fields = instance_field_names
     ctx.class_field_types = instance_field_types
     ctx.class_field_java_types = instance_field_java_types
+    ctx.enclosing_class_fields = enclosing_field_names
+    ctx.enclosing_class_field_types = enclosing_field_types
+    ctx.enclosing_class_field_java_types = enclosing_field_java_types
     ctx.in_instance_method = not is_static
     ctx.allow_local_helpers = True
     ctx.outer_self_alias = outer_self_alias
@@ -496,6 +522,9 @@ def _anonymous_method_lines(
         ctx.class_fields = previous_class_fields
         ctx.class_field_types = previous_class_field_types
         ctx.class_field_java_types = previous_class_field_java_types
+        ctx.enclosing_class_fields = previous_enclosing_class_fields
+        ctx.enclosing_class_field_types = previous_enclosing_class_field_types
+        ctx.enclosing_class_field_java_types = previous_enclosing_class_field_java_types
         ctx.in_instance_method = previous_in_instance_method
         ctx.allow_local_helpers = previous_allow_helpers
         ctx.outer_self_alias = previous_outer_self_alias

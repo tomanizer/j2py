@@ -80,6 +80,9 @@ class NameScope:
     local_names: set[str] = field(default_factory=set)
     class_fields: set[str] = field(default_factory=set)
     class_field_types: dict[str, str] = field(default_factory=dict)
+    enclosing_class_fields: set[str] = field(default_factory=set)
+    enclosing_class_field_types: dict[str, str] = field(default_factory=dict)
+    outer_self_alias: str | None = None
     in_instance_method: bool = False
     in_method: bool = False
     containing_class_name: str | None = None
@@ -141,6 +144,19 @@ class NameResolver:
                 python_name=self._field_python_name(raw_name, py_name, scope),
                 kind="field",
                 reason="class field binding",
+            )
+
+        if (
+            scope.outer_self_alias
+            and scope.in_instance_method
+            and raw_name in scope.enclosing_class_fields
+            and raw_name not in scope.class_fields
+        ):
+            return ResolvedName(
+                raw_name=raw_name,
+                python_name=f"{scope.outer_self_alias}.{py_name}",
+                kind="field",
+                reason="enclosing instance field binding",
             )
 
         imported_type = self.bindings.imported_types.get(raw_name)
@@ -229,6 +245,9 @@ def scope_from_context(ctx: TranslationContext) -> NameScope:
         local_names=ctx.local_names,
         class_fields=ctx.class_fields,
         class_field_types=ctx.class_field_types,
+        enclosing_class_fields=ctx.enclosing_class_fields,
+        enclosing_class_field_types=ctx.enclosing_class_field_types,
+        outer_self_alias=ctx.outer_self_alias,
         in_instance_method=ctx.in_instance_method,
         in_method=ctx.in_method,
         containing_class_name=ctx.containing_class_name,

@@ -133,6 +133,41 @@ def uses_qualified_this(node: JavaNode) -> bool:
     return any(uses_qualified_this(child) for child in node.named_children)
 
 
+def references_enclosing_instance_fields(
+    node: JavaNode,
+    enclosing_fields: set[str],
+    *,
+    exclude_fields: set[str] | None = None,
+) -> bool:
+    """Return True when a class body references outer-instance fields by simple name."""
+    if not enclosing_fields:
+        return False
+    excluded = exclude_fields or set()
+    candidate_fields = enclosing_fields - excluded
+    if not candidate_fields:
+        return False
+
+    declared_names: set[str] = set()
+    field_access_field_names: set[str] = set()
+    for child in node.walk():
+        if child.type in {"method_declaration", "constructor_declaration"}:
+            name_node = child.child_by_field("name")
+            if name_node is not None:
+                declared_names.add(name_node.text)
+        if child.type == "field_access" and len(child.named_children) >= 2:
+            field_access_field_names.add(child.named_children[-1].text)
+
+    for child in node.walk():
+        if child.type != "identifier" or child.text not in candidate_fields:
+            continue
+        if child.text in declared_names:
+            continue
+        if child.text in field_access_field_names:
+            continue
+        return True
+    return False
+
+
 def _superclass_type_node(superclass: JavaNode) -> JavaNode | None:
     """Return the type-name node of an ``extends`` clause.
 
