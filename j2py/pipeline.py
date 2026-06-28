@@ -24,9 +24,9 @@ from j2py.state import StateEntry
 from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.validate.checks import ValidationResult, validate_directory, validate_source
 from j2py.verify.structure import StructuralVerificationResult, verify_structure
+from j2py.wiring_contract import WIRING_METADATA_SCHEMA_VERSION
 
 PARSE_ERROR_LLM_SKIP_MSG = "Java parse errors detected; skipping LLM completion"
-WIRING_METADATA_SCHEMA_VERSION = 1
 LLM_REPAIR_RETRY_LIMIT = 2
 LlmPrevalidationMode = Literal["full", "syntax"]
 LLMProvider = Literal["anthropic", "gemini", "openai"]
