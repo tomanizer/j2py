@@ -13,10 +13,12 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from j2py.parse.java_ast import JavaNode, parse_file
+from scripts.corpus.corpus_presets import get_preset
 
 FIXTURE_ROOT = Path("tests/fixtures/equivalence")
 SCHEMA_VERSION = 1
@@ -31,6 +33,17 @@ FIXTURE_LIBRARIES = {
     "StringUtils.java": "commons-lang",
     "GuavaPrecedenceMath.java": "guava",
     "Strings.java": "guava",
+}
+SYNTHETIC_FIXTURES = {
+    "GuavaPrecedenceMath.java",
+}
+LIBRARY_PRESETS = {
+    "commons-lang": "commons-lang-dense",
+    "guava": "guava-dense",
+}
+LIBRARY_SOURCE_MODULES = {
+    "commons-lang": ("src/main/java",),
+    "guava": ("guava/src",),
 }
 
 EXPLICIT_UNTESTABLE_REASONS: dict[str, dict[str, str]] = {
@@ -69,6 +82,18 @@ class PublicMethod:
     line: int
 
 
+@dataclass(frozen=True)
+class LibrarySurface:
+    library: str
+    source_available: bool
+    source_root: str | None
+    source_preset: str
+    total_public_methods: int | None
+    source_files: int
+    parse_error_files: int
+    method_signatures: frozenset[str]
+
+
 def build_report(passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
     """Return a JSON-serialisable equivalence surface report."""
     passed_by_fixture: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
@@ -79,6 +104,7 @@ def build_report(passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
     fixture_reports: list[dict[str, Any]] = []
     totals = _empty_totals()
     library_totals: dict[str, dict[str, int]] = defaultdict(_empty_totals)
+    verified_by_library: dict[str, set[str]] = defaultdict(set)
     for fixture in fixtures:
         public_methods = public_methods_for_fixture(FIXTURE_ROOT / fixture)
         public_signatures = {method.signature for method in public_methods}
@@ -114,6 +140,8 @@ def build_report(passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
             },
         }
         fixture_reports.append(fixture_report)
+        if fixture not in SYNTHETIC_FIXTURES:
+            verified_by_library[library].update(verified_set)
         _add_counts(
             totals,
             total_public_methods=len(public_methods),
@@ -129,48 +157,128 @@ def build_report(passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
             testable_public_methods=testable_count,
         )
 
+    library_surfaces = _library_surfaces()
+    rendered_libraries: list[dict[str, Any]] = []
+    library_wide_totals = _empty_library_totals()
+    for library, counts in sorted(library_totals.items()):
+        library_report: dict[str, Any] = {"library": library, **_with_percentages(counts)}
+        surface = library_surfaces.get(library)
+        if surface is None:
+            library_report.update(_unavailable_library_surface())
+        else:
+            verified_library_methods = len(verified_by_library[library] & surface.method_signatures)
+            library_report.update(
+                {
+                    "library_source_available": surface.source_available,
+                    "library_source_root": surface.source_root,
+                    "library_source_preset": surface.source_preset,
+                    "library_source_files": surface.source_files,
+                    "library_parse_error_files": surface.parse_error_files,
+                    "library_total_public_methods": surface.total_public_methods,
+                    "verified_library_methods": verified_library_methods
+                    if surface.total_public_methods is not None
+                    else None,
+                    "verified_library_surface_percent": _percent(
+                        verified_library_methods, surface.total_public_methods or 0
+                    )
+                    if surface.total_public_methods is not None
+                    else None,
+                }
+            )
+            if surface.total_public_methods is not None:
+                library_wide_totals["library_total_public_methods"] += surface.total_public_methods
+                library_wide_totals["verified_library_methods"] += verified_library_methods
+                library_wide_totals["library_source_files"] += surface.source_files
+                library_wide_totals["library_parse_error_files"] += surface.parse_error_files
+                library_wide_totals["library_sources_available"] += int(surface.source_available)
+        rendered_libraries.append(library_report)
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "metric_definition": {
             "verified_public_surface_percent": (
-                "public Java method signatures with at least one passing literal-oracle "
-                "pytest item divided by total public Java method signatures"
+                "fixture-scoped public Java method signatures with at least one passing "
+                "literal-oracle pytest item divided by total public Java method "
+                "signatures in the measured equivalence fixtures"
             ),
             "verified_testable_surface_percent": (
                 "same numerator divided by total public signatures minus explicitly "
                 "untestable signatures"
             ),
+            "verified_library_surface_percent": (
+                "verified non-synthetic fixture method signatures present in the pinned "
+                "library checkout divided by total public Java method signatures in the "
+                "actual pinned library source roots"
+            ),
         },
         "summary": _with_percentages(totals),
-        "libraries": [
-            {"library": library, **_with_percentages(counts)}
-            for library, counts in sorted(library_totals.items())
-        ],
+        "library_wide_summary": _with_library_percentages(library_wide_totals),
+        "libraries": rendered_libraries,
         "fixtures": fixture_reports,
     }
 
 
 def public_methods_for_fixture(path: Path) -> list[PublicMethod]:
     parsed = parse_file(path)
+    return _public_methods_for_node(parsed.root, fallback_class_name=path.stem)
+
+
+def _public_methods_for_node(
+    node: JavaNode,
+    *,
+    fallback_class_name: str,
+    class_name: str | None = None,
+    implicit_public_methods: bool = False,
+) -> list[PublicMethod]:
     methods: list[PublicMethod] = []
-    class_name = path.stem
-    for node in parsed.root.find_all("method_declaration"):
+    current_class = class_name
+    current_implicit_public = implicit_public_methods
+    if node.type in {
+        "class_declaration",
+        "enum_declaration",
+        "interface_declaration",
+        "annotation_type_declaration",
+    }:
+        name_node = node.child_by_field("name")
+        current_class = name_node.text if name_node is not None else fallback_class_name
+        current_implicit_public = node.type in {
+            "interface_declaration",
+            "annotation_type_declaration",
+        }
+
+    if node.type == "method_declaration":
         modifiers = next((child.text for child in node.children if child.type == "modifiers"), "")
-        if "public" not in modifiers.split():
-            continue
+        modifier_words = set(modifiers.split())
+        is_public = "public" in modifier_words or (
+            current_implicit_public and "private" not in modifier_words
+        )
+        if not is_public:
+            return methods
         name_node = node.child_by_field("name")
         if name_node is None:
-            continue
+            return methods
         name = name_node.text
-        signature = f"{class_name}.{name}({','.join(_parameter_types(node))})"
+        owner = current_class or fallback_class_name
+        signature = f"{owner}.{name}({','.join(_parameter_types(node))})"
         methods.append(
             PublicMethod(
-                fixture=path.name,
-                class_name=class_name,
+                fixture=fallback_class_name,
+                class_name=owner,
                 name=name,
                 signature=signature,
                 line=node.location.line,
+            )
+        )
+        return methods
+
+    for child in node.named_children:
+        methods.extend(
+            _public_methods_for_node(
+                child,
+                fallback_class_name=fallback_class_name,
+                class_name=current_class,
+                implicit_public_methods=current_implicit_public,
             )
         )
     return methods
@@ -178,12 +286,15 @@ def public_methods_for_fixture(path: Path) -> list[PublicMethod]:
 
 def render_report(report: dict[str, Any]) -> str:
     summary = report["summary"]
+    library_summary = report["library_wide_summary"]
+    fixture_count = len(report["fixtures"])
     lines = [
-        "Equivalence-verified surface",
+        f"Equivalence-verified fixture surface ({fixture_count} files)",
         "",
-        "By library",
+        "Fixture surface by library",
         "",
-        "| Library | Verified / public | Public surface | Verified / testable | Untestable |",
+        "| Library | Verified fixture / fixture public | Fixture public surface | "
+        "Verified / testable | Untestable |",
         "|---|---:|---:|---:|---:|",
     ]
     for library in report["libraries"]:
@@ -206,9 +317,30 @@ def render_report(report: dict[str, Any]) -> str:
                 testable=summary["verified_testable_surface_percent"],
             ),
             "",
+            "Library-wide denominator",
+            "",
+            "| Library | Verified library methods | Library public methods | "
+            "Library-wide surface | Source |",
+            "|---|---:|---:|---:|---|",
+        ]
+    )
+    for library in report["libraries"]:
+        lines.append(_render_library_wide_row(library))
+    lines.extend(
+        [
+            "| **Total** | {verified} | {total} | {percent} | {source} |".format(
+                verified=library_summary["verified_library_methods"],
+                total=library_summary["library_total_public_methods"],
+                percent=_format_optional_percent(
+                    library_summary["verified_library_surface_percent"]
+                ),
+                source=_format_library_summary_source(library_summary),
+            ),
+            "",
             "By fixture",
             "",
-            "| Fixture | Verified / public | Public surface | Verified / testable | Untestable |",
+            "| Fixture | Verified / fixture public | Fixture public surface | "
+            "Verified / testable | Untestable |",
             "|---|---:|---:|---:|---:|",
         ]
     )
@@ -232,11 +364,132 @@ def render_report(report: dict[str, Any]) -> str:
                 testable=summary["verified_testable_surface_percent"],
             ),
             "",
-            "Metric: public Java method signatures with at least one passing literal-oracle "
-            "pytest item.",
+            "Metric: fixture surface is public Java method signatures in the measured "
+            "equivalence fixtures with at least one passing literal-oracle pytest item. "
+            "Library-wide surface uses the same non-synthetic verified methods over the "
+            "public method denominator in the pinned source library roots.",
         ]
     )
     return "\n".join(lines)
+
+
+@lru_cache(maxsize=1)
+def _library_surfaces() -> dict[str, LibrarySurface]:
+    return {
+        library: _library_surface(library, preset_name)
+        for library, preset_name in LIBRARY_PRESETS.items()
+    }
+
+
+def _library_surface(library: str, preset_name: str) -> LibrarySurface:
+    preset = get_preset(preset_name)
+    repo_path = preset.repo_path
+    if not repo_path.exists():
+        return LibrarySurface(
+            library=library,
+            source_available=False,
+            source_root=None,
+            source_preset=preset.name,
+            total_public_methods=None,
+            source_files=0,
+            parse_error_files=0,
+            method_signatures=frozenset(),
+        )
+
+    files = list(
+        _library_java_files(
+            repo_path,
+            LIBRARY_SOURCE_MODULES.get(library, preset.modules),
+            preset.exclude_paths,
+        )
+    )
+    methods: list[PublicMethod] = []
+    parse_error_files = 0
+    for path in files:
+        parsed = parse_file(path)
+        if parsed.has_errors:
+            parse_error_files += 1
+        methods.extend(_public_methods_for_node(parsed.root, fallback_class_name=path.stem))
+
+    return LibrarySurface(
+        library=library,
+        source_available=True,
+        source_root=str(repo_path),
+        source_preset=preset.name,
+        total_public_methods=len(methods),
+        source_files=len(files),
+        parse_error_files=parse_error_files,
+        method_signatures=frozenset(method.signature for method in methods),
+    )
+
+
+def _library_java_files(
+    repo_path: Path,
+    modules: Iterable[str],
+    exclude_paths: Iterable[str],
+) -> Iterable[Path]:
+    excluded = set(exclude_paths)
+    for module in modules:
+        module_path = repo_path / module
+        if not module_path.exists():
+            continue
+        for path in sorted(module_path.rglob("*.java")):
+            relative = path.relative_to(repo_path).as_posix()
+            if relative in excluded:
+                continue
+            yield path
+
+
+def _render_library_wide_row(library: dict[str, Any]) -> str:
+    return "| {library} | {verified} | {total} | {percent} | {source} |".format(
+        library=library["library"],
+        verified=_format_optional_count(library["verified_library_methods"]),
+        total=_format_optional_count(library["library_total_public_methods"]),
+        percent=_format_optional_percent(library["verified_library_surface_percent"]),
+        source=_format_library_source(library),
+    )
+
+
+def _unavailable_library_surface() -> dict[str, Any]:
+    return {
+        "library_source_available": False,
+        "library_source_root": None,
+        "library_source_preset": "unknown",
+        "library_source_files": 0,
+        "library_parse_error_files": 0,
+        "library_total_public_methods": None,
+        "verified_library_methods": None,
+        "verified_library_surface_percent": None,
+    }
+
+
+def _format_library_source(library: dict[str, Any]) -> str:
+    if not library["library_source_available"]:
+        return f"{library['library_source_preset']} checkout unavailable"
+    details = (
+        f"{library['library_source_preset']} checkout, {library['library_source_files']} files"
+    )
+    if library["library_parse_error_files"]:
+        details += f", {library['library_parse_error_files']} parse-error files"
+    return details
+
+
+def _format_library_summary_source(summary: dict[str, Any]) -> str:
+    available = summary["library_sources_available"]
+    total = len(LIBRARY_PRESETS)
+    if available == total:
+        return "all pinned checkouts"
+    if available == 0:
+        return "library checkouts unavailable"
+    return f"{available}/{total} pinned checkouts"
+
+
+def _format_optional_count(value: Any) -> str:
+    return "n/a" if value is None else str(value)
+
+
+def _format_optional_percent(value: Any) -> str:
+    return "n/a" if value is None else f"{value:.1%}"
 
 
 def write_report(path: Path, passed_methods: Iterable[PassedMethod]) -> dict[str, Any]:
@@ -305,6 +558,16 @@ def _empty_totals() -> dict[str, int]:
     }
 
 
+def _empty_library_totals() -> dict[str, int]:
+    return {
+        "library_total_public_methods": 0,
+        "verified_library_methods": 0,
+        "library_source_files": 0,
+        "library_parse_error_files": 0,
+        "library_sources_available": 0,
+    }
+
+
 def _add_counts(
     totals: dict[str, int],
     *,
@@ -333,6 +596,16 @@ def _with_percentages(counts: dict[str, int]) -> dict[str, int | float]:
             - counts["verified_methods"]
             - counts["untestable_methods"]
         ),
+    }
+
+
+def _with_library_percentages(counts: dict[str, int]) -> dict[str, int | float | None]:
+    total = counts["library_total_public_methods"]
+    return {
+        **counts,
+        "verified_library_surface_percent": _percent(counts["verified_library_methods"], total)
+        if total
+        else None,
     }
 
 
