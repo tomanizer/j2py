@@ -1529,6 +1529,65 @@ def test_anonymous_class_outer_field_list_get_chain() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_local_parameter_shadows_outer_list_field() -> None:
+    """Anonymous method parameters keep Java shadowing over enclosing fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+
+        final class Shadowed {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(Map<String, String> axes, String key) {
+                        return axes.get(key);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" not in result.source
+    assert "return axes.get(key)" in result.source
+    assert "return axes[key]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() -> None:
+    """Qualified same-name fields do not hide separate simple outer-field reads."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class QualifiedAlso {
+            private final List<String> axes;
+
+            public Object make(Other other) {
+                return new Object() {
+                    public String read(int index) {
+                        Object ignored = other.axes;
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "ignored = other.axes" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(

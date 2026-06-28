@@ -147,25 +147,71 @@ def references_enclosing_instance_fields(
     if not candidate_fields:
         return False
 
-    declared_names: set[str] = set()
-    field_access_field_names: set[str] = set()
+    class_scope_names = _direct_field_declaration_names(node)
+
+    def has_simple_reference(current: JavaNode, declared_names: set[str]) -> bool:
+        if current.type in {"method_declaration", "constructor_declaration"}:
+            method_names = declared_names | _local_declaration_names(current)
+            name_node = current.child_by_field("name")
+            skipped = {node_key(name_node)} if name_node is not None else set()
+            return any(
+                has_simple_reference(child, method_names)
+                for child in current.named_children
+                if node_key(child) not in skipped
+            )
+        if current.type == "field_access":
+            return any(
+                has_simple_reference(child, declared_names) for child in current.named_children[:-1]
+            )
+        if current.type == "method_invocation":
+            name_node = current.child_by_field("name")
+            skipped = {node_key(name_node)} if name_node is not None else set()
+            return any(
+                has_simple_reference(child, declared_names)
+                for child in current.named_children
+                if node_key(child) not in skipped
+            )
+        if current.type in {
+            "field_declaration",
+            "variable_declarator",
+            "formal_parameter",
+            "catch_formal_parameter",
+        }:
+            name_node = current.child_by_field("name")
+            skipped = {node_key(name_node)} if name_node is not None else set()
+            return any(
+                has_simple_reference(child, declared_names)
+                for child in current.named_children
+                if node_key(child) not in skipped
+            )
+        if current.type == "identifier":
+            return current.text in candidate_fields and current.text not in declared_names
+        return any(has_simple_reference(child, declared_names) for child in current.named_children)
+
+    return has_simple_reference(node, class_scope_names)
+
+
+def _direct_field_declaration_names(node: JavaNode) -> set[str]:
+    names: set[str] = set()
+    for member in node.named_children:
+        if member.type != "field_declaration":
+            continue
+        for child in member.walk():
+            if child.type == "variable_declarator":
+                name_node = child.child_by_field("name")
+                if name_node is not None:
+                    names.add(name_node.text)
+    return names
+
+
+def _local_declaration_names(node: JavaNode) -> set[str]:
+    names: set[str] = set()
     for child in node.walk():
-        if child.type in {"method_declaration", "constructor_declaration"}:
+        if child.type in {"variable_declarator", "formal_parameter", "catch_formal_parameter"}:
             name_node = child.child_by_field("name")
             if name_node is not None:
-                declared_names.add(name_node.text)
-        if child.type == "field_access" and len(child.named_children) >= 2:
-            field_access_field_names.add(child.named_children[-1].text)
-
-    for child in node.walk():
-        if child.type != "identifier" or child.text not in candidate_fields:
-            continue
-        if child.text in declared_names:
-            continue
-        if child.text in field_access_field_names:
-            continue
-        return True
-    return False
+                names.add(name_node.text)
+    return names
 
 
 def _superclass_type_node(superclass: JavaNode) -> JavaNode | None:

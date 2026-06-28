@@ -44,6 +44,8 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
     if node.type == "null_literal":
         return "None"
     if node.type == "identifier":
+        if node.text in ctx.variable_types:
+            return ctx.variable_types[node.text]
         if node.text in ctx.class_field_types:
             return ctx.class_field_types[node.text]
         if (
@@ -52,7 +54,7 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
             and node.text not in ctx.class_field_types
         ):
             return ctx.enclosing_class_field_types[node.text]
-        return ctx.variable_types.get(node.text) or ctx.class_field_types.get(node.text)
+        return None
     if node.type == "field_access":
         return _field_access_py_type(node, ctx)
     if node.type == "parenthesized_expression" and len(node.named_children) == 1:

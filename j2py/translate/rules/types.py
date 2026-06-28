@@ -290,8 +290,6 @@ def is_list_like_java_type(java_type: str) -> bool:
 
 def element_type_from_java_container(java_type: str, cfg: TranslationConfig) -> str | None:
     """Return the first Java type argument lowered to a Python annotation."""
-    from j2py.translate.rules.types import _split_type_params
-
     match = re.match(r"^[\w.]+\s*<(.+)>$", java_type.strip())
     if match is None:
         return None
