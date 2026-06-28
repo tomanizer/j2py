@@ -967,6 +967,57 @@ provider is visible in the loaded sidecars. These are migration-readiness signal
 do not imply that j2py can choose a runtime container policy. Spring JDBC `@Bean`
 methods additionally emit `jdbc_bean` metadata (see next section).
 
+### XML bean definition ingestion
+
+Projects that configure beans in XML (`applicationContext.xml`, `beans.xml`, etc.) rather
+than Java `@Bean` methods can produce the same `metadata.spring.bean` sidecars using the
+`j2py-wire ingest` command.  Downstream tools (`j2py-wire validate`, `j2py-wire generate`)
+treat XML-derived and Java-derived bean entries uniformly once the sidecars are written.
+
+**Usage**
+
+```bash
+j2py-wire ingest path/to/applicationContext.xml --output translated/
+```
+
+This writes `applicationContext.wiring.json` alongside the translated Python files in
+`translated/`.  Multiple XML files may be listed and `<import resource="..."/>` elements
+with file-system-resolvable paths are followed automatically (use `--no-resolve-imports`
+to opt out).
+
+**Supported constructs**
+
+| XML element / attribute | Maps to `bean` field |
+|---|---|
+| `id` attribute | `name`, `java_name`, `python_name` (canonical identity) |
+| `name` attribute (single) | `name` when no `id`; otherwise an alias |
+| `name="a,b,c"` (comma-list) | first value → `name`; rest → `aliases` |
+| `<alias name="src" alias="tgt"/>` | appended to `aliases` of the `src` bean |
+| `class` attribute | `java_type`, `python_type` |
+| `init-method` attribute | `init_method` |
+| `destroy-method` attribute | `destroy_method` |
+| `primary` attribute | `primary` |
+| `lazy-init` attribute | `lazy` |
+| `factory-method` attribute | `factory_methods[0].name` |
+| `factory-bean` attribute | `factory_methods[0].factory_bean` |
+| `<constructor-arg ref="..."/>` | `dependencies` + `constructor_args` |
+| `<property name="..." ref="..."/>` | `dependencies` |
+| `<import resource="..."/>` | followed recursively (file-system paths only) |
+
+**Alias resolution** — `j2py-wire validate` resolves bean dependencies against both
+`bean.name` and `bean.aliases`, so a `<constructor-arg ref="repositoryAlias"/>` resolves
+correctly when the provider has `name="repo, repositoryAlias"` or a `<alias>` element.
+
+**Out of scope for v1** — Spring profiles, `${...}` placeholder resolution, parent bean
+inheritance, collection merging, custom namespace handlers, and `classpath:` import
+resolution.  Unsupported constructs found during parsing are recorded in `bean.unsupported`
+and as `warning`-level diagnostics, never silently ignored.  Beans inside a nested
+`<beans profile="...">` block emit a warning and are not ingested.
+
+**Element identity** — XML-ingested elements use `plugin: "spring-xml"` (not
+`"spring-wiring"`) so downstream tools can distinguish the source.  The `source_location`
+field contains best-effort line numbers from the SAX locator.
+
 ### Spring JDBC beans
 
 Spring JDBC configuration metadata uses method elements for `@Bean` methods that return

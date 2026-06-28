@@ -1,0 +1,1002 @@
+"""Tests for Spring XML bean definition ingestion."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from j2py.wire.spring_xml import XmlIngestResult, ingest_spring_xml_files
+from j2py.wire.validation import SpringBeanDefinitionCheck, ValidationContext
+
+FIXTURES = Path(__file__).parent.parent / "fixtures" / "xml"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _ingest(filename: str, *, resolve_imports: bool = True) -> XmlIngestResult:
+    return ingest_spring_xml_files([FIXTURES / filename], resolve_imports=resolve_imports)
+
+
+def _beans(result: XmlIngestResult) -> list[dict[str, Any]]:
+    """Collect all bean metadata dicts across all sidecars."""
+    beans = []
+    for sidecar in result.sidecars:
+        for element in sidecar.elements:
+            bean = element.spring.get("bean")
+            if isinstance(bean, dict):
+                beans.append(bean)
+    return beans
+
+
+# ---------------------------------------------------------------------------
+# Basic parsing
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_petclinic_beans_produces_sidecar() -> None:
+    result = _ingest("petclinic_beans.xml")
+    assert result.diagnostics == []
+    assert len(result.sidecars) == 1
+    sidecar = result.sidecars[0]
+    assert sidecar.schema_version == 1
+    assert sidecar.source.endswith("petclinic_beans.xml")
+    assert len(sidecar.elements) == 4
+
+
+def test_bean_plugin_is_spring_xml() -> None:
+    result = _ingest("petclinic_beans.xml")
+    for element in result.sidecars[0].elements:
+        assert element.plugin == "spring-xml"
+        assert element.kind == "method"
+
+
+def test_owner_service_bean_fields() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+
+    svc = beans["ownerService"]
+    assert svc["java_name"] == "ownerService"
+    assert svc["python_name"] == "owner_service"
+    assert svc["java_type"] == "com.example.clinic.service.OwnerService"
+    assert svc["python_type"] == "OwnerService"
+    assert svc["init_method"] == "start"
+    assert svc["destroy_method"] == "stop"
+    assert svc["primary"] is True
+    assert svc["lazy"] is None  # not set
+
+
+def test_owner_repository_bean_lazy() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    repo = beans["ownerRepository"]
+    assert repo["lazy"] is True
+    assert repo["primary"] is False
+
+
+def test_constructor_arg_ref_becomes_dependency() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+
+    svc = beans["ownerService"]
+    assert len(svc["dependencies"]) == 1
+    dep = svc["dependencies"][0]
+    assert dep["java_name"] == "ownerRepository"
+    assert dep["name"] == "owner_repository"
+    assert dep["source"] == "constructor-arg"
+
+    assert len(svc["constructor_args"]) == 1
+    arg = svc["constructor_args"][0]
+    assert arg["arguments"][0]["kind"] == "ref"
+    assert arg["arguments"][0]["value"] == "owner_repository"
+
+
+def test_property_value_is_not_a_dependency() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    ds = beans["dataSource"]
+    assert ds["dependencies"] == []
+    assert ds["constructor_args"] == []
+
+
+def test_property_ref_becomes_dependency() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    sf = beans["sessionFactory"]
+    assert len(sf["dependencies"]) == 1
+    dep = sf["dependencies"][0]
+    assert dep["java_name"] == "dataSource"
+    assert dep["name"] == "data_source"
+    assert dep["source"] == "property"
+
+
+# ---------------------------------------------------------------------------
+# Factory method
+# ---------------------------------------------------------------------------
+
+
+def test_factory_method_recorded() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    sf = beans["sessionFactory"]
+    assert sf["factory_methods"] == [{"name": "getObject", "arguments": []}]
+
+
+def test_factory_bean_and_method_recorded() -> None:
+    result = _ingest("infrastructure_beans.xml")
+    # Skip the skipped anonymous bean diagnostic
+    beans = {b["name"]: b for b in _beans(result)}
+    pool = beans["connectionPool"]
+    assert len(pool["factory_methods"]) == 1
+    fm = pool["factory_methods"][0]
+    assert fm["name"] == "createPool"
+    assert fm["factory_bean"] == "poolFactory"
+
+
+# ---------------------------------------------------------------------------
+# Unsupported constructs
+# ---------------------------------------------------------------------------
+
+
+def test_unsupported_scope_flagged() -> None:
+    result = _ingest("infrastructure_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    request_bean = beans["requestScopedBean"]
+    assert any("scope" in u for u in request_bean["unsupported"])
+    assert any(d.level == "warning" for d in result.diagnostics)
+
+
+def test_unsupported_parent_flagged() -> None:
+    result = _ingest("infrastructure_beans.xml")
+    beans = {b["name"]: b for b in _beans(result)}
+    child = beans["childService"]
+    assert any("parent" in u for u in child["unsupported"])
+
+
+def test_bean_without_id_skipped_with_warning() -> None:
+    result = _ingest("infrastructure_beans.xml")
+    bean_names = {b["name"] for b in _beans(result)}
+    # Three named beans; anonymous bean should be skipped
+    assert "connectionPool" in bean_names
+    assert "requestScopedBean" in bean_names
+    assert "childService" in bean_names
+    # No bean without an id
+    assert len(bean_names) == 3
+    assert any("no id or name" in d.message for d in result.diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Aliases (name attribute splitting + top-level <alias> elements)
+# ---------------------------------------------------------------------------
+
+
+def test_name_attribute_comma_list_splits_aliases(tmp_path: Path) -> None:
+    # <bean name="repo, repositoryAlias" ...> should yield canonical "repo" and
+    # alias "repositoryAlias", so a <constructor-arg ref="repositoryAlias"/> resolves.
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean name="repo, repositoryAlias" class="com.example.Repo"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "alias_name.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert result.diagnostics == []
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "repo" in beans
+    repo = beans["repo"]
+    assert repo["aliases"] == ["repositoryAlias"]
+
+
+def test_id_with_name_attribute_treats_name_as_aliases(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="ownerRepo" name="repo,repoAlias" class="com.example.Repo"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "id_name.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "ownerRepo" in beans
+    assert set(beans["ownerRepo"]["aliases"]) == {"repo", "repoAlias"}
+
+
+def test_toplevel_alias_element_injected_into_bean(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="ownerService" class="com.example.OwnerService"/>\n'
+        '    <alias name="ownerService" alias="svc"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "alias_elem.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert result.diagnostics == []
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "svc" in beans["ownerService"]["aliases"]
+
+
+def test_alias_resolves_dependency_in_validation(tmp_path: Path) -> None:
+    """A <constructor-arg ref="repositoryAlias"/> resolves when the provider has that alias."""
+    import json
+
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+
+    java_sidecar = {
+        "schema_version": 1,
+        "source": "AppConfig.java",
+        "output": str(translated_root / "app_config.py"),
+        "elements": [
+            {
+                "plugin": "spring-wiring",
+                "kind": "method",
+                "java_name": "ownerService",
+                "python_name": "owner_service",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "ownerService",
+                            "java_name": "ownerService",
+                            "python_name": "owner_service",
+                            "java_type": "OwnerService",
+                            "python_type": "OwnerService",
+                            "source_location": {
+                                "line": 5,
+                                "column": 4,
+                                "end_line": 7,
+                                "end_column": 5,
+                            },
+                            "dependencies": [
+                                {
+                                    "name": "repository_alias",
+                                    "java_name": "repositoryAlias",
+                                    "type": "Repo",
+                                    "java_type": "Repo",
+                                    "source": "parameter",
+                                }
+                            ],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": False,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "aliases": [],
+                            "unsupported": [],
+                        },
+                    }
+                },
+            }
+        ],
+    }
+    (translated_root / "app_config.wiring.json").write_text(
+        json.dumps(java_sidecar), encoding="utf-8"
+    )
+
+    xml_content = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean name="repo, repositoryAlias" class="com.example.Repo"/>\n'
+        "</beans>\n"
+    )
+    xml_path = tmp_path / "beans.xml"
+    xml_path.write_text(xml_content, encoding="utf-8")
+    xml_result = ingest_spring_xml_files([xml_path])
+    (translated_root / "beans.wiring.json").write_text(
+        xml_result.sidecars[0].model_dump_json(indent=2), encoding="utf-8"
+    )
+
+    from j2py.wire.loader import load_wiring_sidecars
+
+    load_result = load_wiring_sidecars(translated_root)
+    context = ValidationContext(
+        translated_root=translated_root,
+        wiring_dir=tmp_path / "wiring",
+        sidecars=load_result.sidecars,
+    )
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert findings == [], f"alias 'repositoryAlias' should satisfy dependency; got: {findings}"
+
+
+# ---------------------------------------------------------------------------
+# Cross-file alias injection (alias declared in importer, bean in import)
+# ---------------------------------------------------------------------------
+
+
+def test_alias_in_importer_attaches_to_imported_bean(tmp_path: Path) -> None:
+    # Regression: if root.xml imports imported.xml that defines "repo", and
+    # root.xml declares <alias name="repo" alias="repoAlias"/>, the alias must
+    # attach to the bean in the imported sidecar, not be silently dropped.
+    imported = tmp_path / "alias_repo.xml"
+    imported.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="repo" class="com.example.Repo"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+    root = tmp_path / "alias_root.xml"
+    root.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <import resource="alias_repo.xml"/>\n'
+        '    <alias name="repo" alias="repoAlias"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+
+    result = ingest_spring_xml_files([root], resolve_imports=True)
+    assert not any(d.level == "error" for d in result.diagnostics)
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "repo" in beans
+    assert "repoAlias" in beans["repo"]["aliases"], (
+        "alias declared in importer must attach to the bean in the imported sidecar"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Unresolved <alias> source → warning
+# ---------------------------------------------------------------------------
+
+
+def test_alias_with_unknown_source_emits_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="realBean" class="com.example.Real"/>\n'
+        '    <alias name="nonExistentBean" alias="aliasTgt"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "unknown_alias.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert any(
+        "nonExistentBean" in d.message and d.level == "warning" for d in result.diagnostics
+    ), "unresolved alias source should produce a warning"
+    # The real bean is still ingested
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "realBean" in beans
+
+
+# ---------------------------------------------------------------------------
+# Duplicate alias detection
+# ---------------------------------------------------------------------------
+
+
+def test_duplicate_alias_reported_by_validation(tmp_path: Path) -> None:
+    """If two beans claim the same alias identity, validation must report both."""
+    import json
+
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+
+    payload = {
+        "schema_version": 1,
+        "source": "config.xml",
+        "output": str(translated_root / "config.py"),
+        "elements": [
+            {
+                "plugin": "spring-xml",
+                "kind": "method",
+                "java_name": "repoA",
+                "python_name": "repo_a",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "repoA",
+                            "java_name": "repoA",
+                            "python_name": "repo_a",
+                            "java_type": "Repo",
+                            "python_type": "Repo",
+                            "source_location": {
+                                "line": 1,
+                                "column": None,
+                                "end_line": None,
+                                "end_column": None,
+                            },
+                            "dependencies": [],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": False,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "aliases": ["sharedAlias"],
+                            "unsupported": [],
+                        },
+                    }
+                },
+            },
+            {
+                "plugin": "spring-xml",
+                "kind": "method",
+                "java_name": "repoB",
+                "python_name": "repo_b",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "repoB",
+                            "java_name": "repoB",
+                            "python_name": "repo_b",
+                            "java_type": "Repo",
+                            "python_type": "Repo",
+                            "source_location": {
+                                "line": 2,
+                                "column": None,
+                                "end_line": None,
+                                "end_column": None,
+                            },
+                            "dependencies": [],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": False,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "aliases": ["sharedAlias"],
+                            "unsupported": [],
+                        },
+                    }
+                },
+            },
+        ],
+    }
+    (translated_root / "config.wiring.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    from j2py.wire.loader import load_wiring_sidecars
+    from j2py.wire.validation import SpringBeanDefinitionCheck, ValidationContext
+
+    load_result = load_wiring_sidecars(translated_root)
+    context = ValidationContext(
+        translated_root=translated_root,
+        wiring_dir=tmp_path / "wiring",
+        sidecars=load_result.sidecars,
+    )
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    dup_findings = [f for f in findings if "sharedAlias" in f.message]
+    assert len(dup_findings) >= 2, (
+        f"Both beans claiming alias 'sharedAlias' should produce duplicate "
+        f"findings; got: {findings}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Self-alias dedup: bean.name == bean.aliases[i] must not trigger false positive
+# ---------------------------------------------------------------------------
+
+
+def test_bean_whose_name_appears_in_its_own_aliases_no_false_positive(tmp_path: Path) -> None:
+    """A bean that lists its own name in aliases must not produce a duplicate finding."""
+    import json
+
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+
+    payload = {
+        "schema_version": 1,
+        "source": "config.xml",
+        "output": str(translated_root / "config.py"),
+        "elements": [
+            {
+                "plugin": "spring-xml",
+                "kind": "method",
+                "java_name": "svc",
+                "python_name": "svc",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "svc",
+                            "java_name": "svc",
+                            "python_name": "svc",
+                            "java_type": "Svc",
+                            "python_type": "Svc",
+                            "source_location": {
+                                "line": 1,
+                                "column": None,
+                                "end_line": None,
+                                "end_column": None,
+                            },
+                            "dependencies": [],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": False,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "aliases": ["svc"],  # same as name — should not be a duplicate
+                            "unsupported": [],
+                        },
+                    }
+                },
+            }
+        ],
+    }
+    (translated_root / "config.wiring.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    from j2py.wire.loader import load_wiring_sidecars
+    from j2py.wire.validation import SpringBeanDefinitionCheck, ValidationContext
+
+    load_result = load_wiring_sidecars(translated_root)
+    context = ValidationContext(
+        translated_root=translated_root,
+        wiring_dir=tmp_path / "wiring",
+        sidecars=load_result.sidecars,
+    )
+    findings = SpringBeanDefinitionCheck().run(context)
+    dup_findings = [f for f in findings if "svc" in f.message and "Duplicate" in f.message]
+    assert dup_findings == [], f"No duplicate finding expected; got: {findings}"
+
+
+# ---------------------------------------------------------------------------
+# Nested <ref> / <value> child elements
+# ---------------------------------------------------------------------------
+
+
+def test_constructor_arg_nested_ref_element(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <constructor-arg><ref bean="ownerRepo"/></constructor-arg>\n'
+        "    </bean>\n"
+        '    <bean id="ownerRepo" class="com.example.Repo"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "nested_ref.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    # Must NOT flag as unsupported
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert svc["unsupported"] == []
+    assert len(svc["dependencies"]) == 1
+    assert svc["dependencies"][0]["java_name"] == "ownerRepo"
+
+
+def test_property_nested_ref_element(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <property name="dataSource"><ref bean="ds"/></property>\n'
+        "    </bean>\n"
+        '    <bean id="ds" class="com.example.DS"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "nested_prop_ref.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert svc["unsupported"] == []
+    dep = svc["dependencies"][0]
+    assert dep["java_name"] == "ds"
+    assert dep["source"] == "property"
+
+
+def test_constructor_arg_nested_value_element(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        "        <constructor-arg><value>hello</value></constructor-arg>\n"
+        "    </bean>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "nested_value.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert svc["unsupported"] == []
+    assert svc["constructor_args"][0]["arguments"][0] == {"kind": "value", "value": "hello"}
+
+
+def test_constructor_arg_ref_without_bean_attr_is_unsupported(tmp_path: Path) -> None:
+    # <constructor-arg><ref parent="parentBeanName"/></constructor-arg> has no
+    # bean or local attribute — should be flagged as unsupported, not silently ignored.
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <constructor-arg><ref parent="parentBean"/></constructor-arg>\n'
+        "    </bean>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "empty_ref_ctor.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert any("ref" in u and "no bean or local" in u for u in svc["unsupported"])
+
+
+def test_property_ref_without_bean_attr_is_unsupported(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="svc" class="com.example.Svc">\n'
+        '        <property name="dep"><ref parent="parentBean"/></property>\n'
+        "    </bean>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "empty_ref_prop.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    beans = {b["name"]: b for b in _beans(result)}
+    svc = beans["svc"]
+    assert any("ref" in u and "no bean or local" in u for u in svc["unsupported"])
+
+
+# ---------------------------------------------------------------------------
+# default-* attribute warnings
+# ---------------------------------------------------------------------------
+
+
+def test_default_lazy_init_emits_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans"'
+        ' default-lazy-init="true">\n'
+        '    <bean id="svc" class="com.example.Svc"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "default_lazy.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    assert any(
+        "default-lazy-init" in d.message and d.level == "warning" for d in result.diagnostics
+    )
+    beans = {b["name"]: b for b in _beans(result)}
+    assert "svc" in beans  # bean still ingested
+
+
+def test_multiple_default_attrs_combined_in_one_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans"'
+        ' default-init-method="init" default-destroy-method="cleanup">\n'
+        '    <bean id="svc" class="com.example.Svc"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "default_init_destroy.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    default_warnings = [
+        d for d in result.diagnostics if "default-" in d.message and d.level == "warning"
+    ]
+    # Both attributes should appear in the single combined warning
+    assert len(default_warnings) == 1
+    assert "default-destroy-method" in default_warnings[0].message
+    assert "default-init-method" in default_warnings[0].message
+
+
+# ---------------------------------------------------------------------------
+# Profile warnings
+# ---------------------------------------------------------------------------
+
+
+def test_root_beans_with_profile_emits_warning(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans" profile="prod">\n'
+        '    <bean id="prodBean" class="com.example.ProdBean"/>\n'
+        "</beans>\n"
+    )
+    path = tmp_path / "profile_root.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    # Beans are still ingested (best-effort) but a warning is emitted
+    bean_names = {b["name"] for b in _beans(result)}
+    assert "prodBean" in bean_names
+    assert any("profile" in d.message and d.level == "warning" for d in result.diagnostics)
+
+
+def test_nested_beans_element_emits_warning_not_silent_skip(tmp_path: Path) -> None:
+    xml = (
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="mainBean" class="com.example.MainBean"/>\n'
+        '    <beans profile="dev">\n'
+        '        <bean id="devOnlyBean" class="com.example.DevBean"/>\n'
+        "    </beans>\n"
+        "</beans>\n"
+    )
+    path = tmp_path / "nested_beans.xml"
+    path.write_text(xml, encoding="utf-8")
+
+    result = ingest_spring_xml_files([path])
+    bean_names = {b["name"] for b in _beans(result)}
+    # Top-level mainBean is ingested; devOnlyBean inside nested <beans> is not
+    assert "mainBean" in bean_names
+    assert "devOnlyBean" not in bean_names
+    # Must warn, not silently skip
+    assert any("Nested <beans>" in d.message and d.level == "warning" for d in result.diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Source location (best-effort line numbers)
+# ---------------------------------------------------------------------------
+
+
+def test_source_location_has_line_number() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = _beans(result)
+    for bean in beans:
+        loc = bean["source_location"]
+        assert isinstance(loc["line"], int), f"Expected int line for {bean['name']}, got {loc}"
+        assert loc["line"] > 0
+
+
+def test_bean_line_numbers_are_ordered() -> None:
+    result = _ingest("petclinic_beans.xml")
+    beans = _beans(result)
+    lines = [b["source_location"]["line"] for b in beans]
+    assert lines == sorted(lines), "Beans should appear in file order"
+
+
+# ---------------------------------------------------------------------------
+# <import resource="..."> resolution
+# ---------------------------------------------------------------------------
+
+
+def test_import_follows_relative_file() -> None:
+    result = ingest_spring_xml_files([FIXTURES / "root_beans.xml"], resolve_imports=True)
+    # Should produce two sidecars: root_beans.xml + imported_beans.xml
+    assert len(result.sidecars) == 2
+    all_bean_names = {b["name"] for b in _beans(result)}
+    assert "mailSender" in all_bean_names
+    assert "emailService" in all_bean_names
+    assert result.diagnostics == []
+
+
+def test_import_not_followed_when_disabled() -> None:
+    result = ingest_spring_xml_files([FIXTURES / "root_beans.xml"], resolve_imports=False)
+    assert len(result.sidecars) == 1
+    all_bean_names = {b["name"] for b in _beans(result)}
+    assert "emailService" not in all_bean_names
+
+
+def test_classpath_import_emits_warning_not_error() -> None:
+    # Build a minimal XML with a classpath: import inline via tmp_path
+    import tempfile
+
+    xml = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           https://www.springframework.org/schema/beans/spring-beans.xsd">
+    <import resource="classpath:security-config.xml"/>
+    <bean id="myBean" class="com.example.MyBean"/>
+</beans>
+"""
+    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", encoding="utf-8", delete=False) as f:
+        f.write(xml)
+        tmp = Path(f.name)
+    try:
+        result = ingest_spring_xml_files([tmp], resolve_imports=True)
+        assert any(d.level == "warning" for d in result.diagnostics)
+        assert not any(d.level == "error" for d in result.diagnostics)
+        beans_found = {b["name"] for b in _beans(result)}
+        assert "myBean" in beans_found
+    finally:
+        tmp.unlink()
+
+
+def test_classpath_import_not_followed_even_when_sibling_file_exists(tmp_path: Path) -> None:
+    # Regression: a classpath: import must never be silently resolved to a
+    # sibling file that happens to share the name. Only one sidecar (the root)
+    # should be produced, and a warning emitted.
+    sibling = tmp_path / "security-config.xml"
+    sibling.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <bean id="secretBean" class="com.example.SecretBean"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+    root = tmp_path / "app.xml"
+    root.write_text(
+        '<?xml version="1.0"?>\n'
+        '<beans xmlns="http://www.springframework.org/schema/beans">\n'
+        '    <import resource="classpath:security-config.xml"/>\n'
+        '    <bean id="myBean" class="com.example.MyBean"/>\n'
+        "</beans>\n",
+        encoding="utf-8",
+    )
+
+    result = ingest_spring_xml_files([root], resolve_imports=True)
+
+    assert len(result.sidecars) == 1, "classpath import must not be followed to a sibling file"
+    bean_names = {b["name"] for b in _beans(result)}
+    assert "secretBean" not in bean_names
+    assert "myBean" in bean_names
+    assert any(d.level == "warning" and "classpath" in d.message for d in result.diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Bare XML (no namespace)
+# ---------------------------------------------------------------------------
+
+
+def test_bare_xml_without_namespace_is_parsed() -> None:
+    import tempfile
+
+    xml = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="simpleBean" class="com.example.Simple">
+        <constructor-arg ref="otherBean"/>
+    </bean>
+    <bean id="otherBean" class="com.example.Other"/>
+</beans>
+"""
+    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", encoding="utf-8", delete=False) as f:
+        f.write(xml)
+        tmp = Path(f.name)
+    try:
+        result = ingest_spring_xml_files([tmp])
+        assert result.diagnostics == []
+        beans = {b["name"]: b for b in _beans(result)}
+        assert "simpleBean" in beans
+        assert "otherBean" in beans
+        assert beans["simpleBean"]["dependencies"][0]["java_name"] == "otherBean"
+    finally:
+        tmp.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Error handling
+# ---------------------------------------------------------------------------
+
+
+def test_parse_error_produces_error_diagnostic() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", encoding="utf-8", delete=False) as f:
+        f.write("<beans><bean id=")  # truncated — deliberately malformed
+        tmp = Path(f.name)
+    try:
+        result = ingest_spring_xml_files([tmp])
+        assert any(d.level == "error" for d in result.diagnostics)
+        assert result.sidecars == []
+    finally:
+        tmp.unlink()
+
+
+def test_missing_file_produces_error_diagnostic() -> None:
+    result = ingest_spring_xml_files([Path("/does/not/exist/beans.xml")])
+    assert any(d.level == "error" for d in result.diagnostics)
+    assert result.sidecars == []
+
+
+# ---------------------------------------------------------------------------
+# Integration with SpringBeanDefinitionCheck
+# ---------------------------------------------------------------------------
+
+
+def test_xml_beans_resolve_against_java_beans_in_validation(tmp_path: Path) -> None:
+    """Beans defined in XML should satisfy dependency references from Java @Bean sidecars."""
+    import json
+
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir()
+
+    # Write a Java @Bean sidecar whose dependency is satisfied by the XML sidecar.
+    java_sidecar = {
+        "schema_version": 1,
+        "source": "AppConfig.java",
+        "output": str(translated_root / "app_config.py"),
+        "elements": [
+            {
+                "plugin": "spring-wiring",
+                "kind": "method",
+                "java_name": "ownerService",
+                "python_name": "owner_service",
+                "annotations": [],
+                "metadata": {
+                    "spring": {
+                        "profile_version": 1,
+                        "bean": {
+                            "name": "ownerService",
+                            "java_name": "ownerService",
+                            "python_name": "owner_service",
+                            "java_type": "OwnerService",
+                            "python_type": "OwnerService",
+                            "source_location": {
+                                "line": 10,
+                                "column": 4,
+                                "end_line": 12,
+                                "end_column": 5,
+                            },
+                            "dependencies": [
+                                {
+                                    "name": "owner_repository",
+                                    "java_name": "ownerRepository",
+                                    "type": "OwnerRepository",
+                                    "java_type": "OwnerRepository",
+                                    "source": "parameter",
+                                },
+                            ],
+                            "constructor_args": [],
+                            "factory_methods": [],
+                            "qualifier": None,
+                            "primary": True,
+                            "lazy": None,
+                            "init_method": "",
+                            "destroy_method": "",
+                            "unsupported": [],
+                        },
+                    },
+                },
+            },
+        ],
+    }
+    (translated_root / "app_config.wiring.json").write_text(
+        json.dumps(java_sidecar), encoding="utf-8"
+    )
+
+    # Ingest XML that defines the dependency.
+    xml_content = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans">
+    <bean id="ownerRepository" class="com.example.OwnerRepository"/>
+</beans>
+"""
+    xml_path = tmp_path / "beans.xml"
+    xml_path.write_text(xml_content, encoding="utf-8")
+    xml_result = ingest_spring_xml_files([xml_path])
+    assert not any(d.level == "error" for d in xml_result.diagnostics)
+
+    # Also write the XML sidecar to translated_root so load_wiring_sidecars picks it up.
+    (translated_root / "beans.wiring.json").write_text(
+        xml_result.sidecars[0].model_dump_json(indent=2), encoding="utf-8"
+    )
+
+    from j2py.wire.loader import load_wiring_sidecars
+
+    load_result = load_wiring_sidecars(translated_root)
+    context = ValidationContext(
+        translated_root=translated_root,
+        wiring_dir=tmp_path / "wiring",
+        sidecars=load_result.sidecars,
+    )
+    findings = SpringBeanDefinitionCheck().run(context)
+
+    assert findings == [], (
+        f"XML-provided bean 'ownerRepository' should satisfy dependency; got: {findings}"
+    )

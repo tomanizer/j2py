@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           https://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- Factory bean + factory method -->
+    <bean id="connectionPool"
+          class="com.example.pool.ConnectionPool"
+          factory-bean="poolFactory"
+          factory-method="createPool">
+    </bean>
+
+    <!-- Bean with unsupported scope attribute -->
+    <bean id="requestScopedBean"
+          class="com.example.web.RequestScopedBean"
+          scope="request">
+    </bean>
+
+    <!-- Bean with parent (unsupported) -->
+    <bean id="childService"
+          class="com.example.service.ChildService"
+          parent="abstractService">
+    </bean>
+
+    <!-- Bean with no id — should be skipped with a warning -->
+    <bean class="com.example.service.AnonymousBean"/>
+
+</beans>
