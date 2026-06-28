@@ -163,6 +163,7 @@ class SpringWiringPlugin(FrameworkPlugin):
 
     def transform_method(self, ctx: FrameworkContext) -> FrameworkTransformResult:
         bean = _annotation(ctx.annotations, "Bean")
+        bean_metadata = _bean_metadata(ctx, bean)
         jdbc_bean = _jdbc_bean_metadata(ctx, bean)
         if jdbc_bean is not None:
             ctx.diagnostics.warn(
@@ -175,18 +176,18 @@ class SpringWiringPlugin(FrameworkPlugin):
             )
         route_annotation = _first_annotation(ctx.annotations, set(_ROUTE_ANNOTATIONS))
         response_status = _annotation(ctx.annotations, "ResponseStatus")
-        if route_annotation is None and response_status is None and jdbc_bean is None:
+        if route_annotation is None and response_status is None and bean_metadata is None:
             return FrameworkTransformResult()
         if route_annotation is None:
-            metadata = (
-                {"spring": {"profile_version": _PROFILE_VERSION, "jdbc_bean": jdbc_bean}}
-                if jdbc_bean is not None
-                else {}
-            )
+            spring_metadata: dict[str, object] = {"profile_version": _PROFILE_VERSION}
+            if bean_metadata is not None:
+                spring_metadata["bean"] = bean_metadata
+            if jdbc_bean is not None:
+                spring_metadata["jdbc_bean"] = jdbc_bean
             return FrameworkTransformResult(
                 prefix_lines=_method_prefix_lines(ctx.annotations),
                 imports=_method_imports(ctx.annotations),
-                metadata=metadata,
+                metadata={"spring": spring_metadata},
                 handled=True,
             )
 
@@ -200,6 +201,8 @@ class SpringWiringPlugin(FrameworkPlugin):
         route["parameters"] = parameters
         route["request_body"] = request_body
         spring: dict[str, object] = {"profile_version": _PROFILE_VERSION, "route": route}
+        if bean_metadata is not None:
+            spring["bean"] = bean_metadata
         if jdbc_bean is not None:
             spring["jdbc_bean"] = jdbc_bean
 
@@ -451,6 +454,48 @@ def _qualifier(annotation: FrameworkAnnotation | None) -> str | None:
     return _clean_java_string(annotation.values.get("value") or annotation.values.get("name") or "")
 
 
+def _bean_metadata(
+    ctx: FrameworkContext,
+    bean: FrameworkAnnotation | None,
+) -> dict[str, object] | None:
+    if bean is None:
+        return None
+    location = ctx.node.location
+    body = ctx.node.child_by_field("body")
+    constructor_args: list[dict[str, object]] = []
+    method_calls: list[dict[str, object]] = []
+    factory_methods: list[dict[str, object]] = []
+    if body is not None:
+        constructor_args = _constructor_args(body)
+        method_calls = _method_calls(body)
+        factory_methods = [
+            call for call in method_calls if call["name"] not in _JDBC_PROPERTY_METHODS
+        ]
+
+    return {
+        "name": _bean_name(bean, ctx.java_name),
+        "java_name": ctx.java_name,
+        "python_name": ctx.py_name,
+        "java_type": ctx.java_type or "",
+        "python_type": ctx.py_type or "",
+        "source_location": {
+            "line": location.line,
+            "column": location.column,
+            "end_line": location.end_line,
+            "end_column": location.end_column,
+        },
+        "dependencies": _parameter_dependencies(ctx),
+        "constructor_args": constructor_args,
+        "factory_methods": factory_methods,
+        "qualifier": _qualifier(_annotation(ctx.annotations, "Qualifier")),
+        "primary": _annotation(ctx.annotations, "Primary") is not None,
+        "lazy": _lazy(_annotation(ctx.annotations, "Lazy")),
+        "init_method": _clean_java_string(bean.values.get("initMethod") or ""),
+        "destroy_method": _clean_java_string(bean.values.get("destroyMethod") or ""),
+        "unsupported": [],
+    }
+
+
 def _jdbc_bean_metadata(
     ctx: FrameworkContext,
     bean: FrameworkAnnotation | None,
@@ -462,24 +507,13 @@ def _jdbc_bean_metadata(
         return None
 
     location = ctx.node.location
-    constructor_args: list[dict[str, object]] = []
-    method_calls: list[dict[str, object]] = []
+    constructor_args = _constructor_args(body)
+    method_calls = _method_calls(body)
     properties: list[dict[str, object]] = []
-    for node in body.find_all("object_creation_expression"):
-        type_node = node.child_by_field("type")
-        if type_node is None:
-            continue
-        constructor_args.append(
-            {
-                "type": _simple_type(type_node.text),
-                "arguments": _argument_values(node),
-            },
-        )
     for node in body.find_all("method_invocation"):
         name_node = node.child_by_field("name")
         if name_node is None:
             continue
-        method_calls.append({"name": name_node.text, "arguments": _argument_values(node)})
         properties.extend(_property_bindings(node, name_node.text))
 
     return {
@@ -494,16 +528,7 @@ def _jdbc_bean_metadata(
             "end_line": location.end_line,
             "end_column": location.end_column,
         },
-        "dependencies": [
-            {
-                "name": param.py_name,
-                "java_name": param.java_name,
-                "type": param.py_type,
-                "java_type": param.java_type,
-                "source": "parameter",
-            }
-            for param in ctx.parameters
-        ],
+        "dependencies": _parameter_dependencies(ctx),
         "constructor_args": constructor_args,
         "method_calls": method_calls,
         "properties": properties,
@@ -512,6 +537,50 @@ def _jdbc_bean_metadata(
 
 def _bean_name(bean: FrameworkAnnotation, fallback: str) -> str:
     return _clean_java_string(bean.values.get("value") or bean.values.get("name") or "") or fallback
+
+
+def _parameter_dependencies(ctx: FrameworkContext) -> list[dict[str, object]]:
+    return [
+        {
+            "name": param.py_name,
+            "java_name": param.java_name,
+            "type": param.py_type,
+            "java_type": param.java_type,
+            "source": "parameter",
+        }
+        for param in ctx.parameters
+    ]
+
+
+def _constructor_args(body: JavaNode) -> list[dict[str, object]]:
+    args: list[dict[str, object]] = []
+    for node in body.find_all("object_creation_expression"):
+        type_node = node.child_by_field("type")
+        if type_node is None:
+            continue
+        args.append(
+            {
+                "type": _simple_type(type_node.text),
+                "arguments": _argument_values(node),
+            },
+        )
+    return args
+
+
+def _method_calls(body: JavaNode) -> list[dict[str, object]]:
+    calls: list[dict[str, object]] = []
+    for node in body.find_all("method_invocation"):
+        name_node = node.child_by_field("name")
+        if name_node is None:
+            continue
+        calls.append({"name": name_node.text, "arguments": _argument_values(node)})
+    return calls
+
+
+def _lazy(annotation: FrameworkAnnotation | None) -> bool | None:
+    if annotation is None:
+        return None
+    return "false" not in annotation.values.get("value", "true").lower()
 
 
 def _argument_values(node: JavaNode) -> list[dict[str, object]]:

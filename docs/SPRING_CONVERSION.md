@@ -126,8 +126,8 @@ The current Spring profile can help with:
 - preserving or lowering `@Transactional` semantics as explicit Python transaction
   markers or review comments where supported;
 - lowering `@ConfigurationProperties` classes to Pydantic settings classes;
-- emitting Spring route, dependency-injection, component-role, and JDBC bean topology
-  facts through the generic `*.wiring.json` sidecar path;
+- emitting Spring route, dependency-injection, component-role, general `@Bean`, and JDBC
+  bean topology facts through the generic `*.wiring.json` sidecar path;
 - generating FastAPI `APIRouter`, `Depends(...)` providers, and app registration helpers
   with `j2py-wire`.
 
@@ -257,7 +257,9 @@ factory. Replace or override it in your application.
 Spring JDBC conversion has two separate outputs:
 
 1. `SpringWiringPlugin` records `@Configuration` / `@Bean` JDBC topology in
-   `*.wiring.json` sidecars.
+   `*.wiring.json` sidecars. General Java `@Bean` methods also emit a non-JDBC `bean`
+   metadata object with visible method parameters, object creation, qualifiers, and
+   lifecycle attributes.
 2. The rule layer lowers supported `JdbcTemplate` and `NamedParameterJdbcTemplate`
    repository calls to SQLAlchemy Core scaffolding.
 
@@ -856,6 +858,72 @@ Entity metadata can also be minimal:
 These hints are enough for `j2py-wire` to associate repository providers and database
 models in the PetClinic owner-slice smoke test. Full JPA relationship modeling, JPQL, and
 derived-query semantics remain out of scope for profile v1.
+
+### Spring Bean Definitions
+
+General Java `@Bean` methods emit method-level bean-definition metadata under `bean`.
+This shape records visible source facts for downstream wiring tools; it does not
+instantiate beans, run lifecycle methods, resolve profiles, or emulate the Spring
+container.
+
+```json
+{
+  "spring": {
+    "profile_version": 1,
+    "bean": {
+      "name": "ownerService",
+      "java_name": "ownerService",
+      "python_name": "owner_service",
+      "java_type": "OwnerService",
+      "python_type": "OwnerService",
+      "source_location": {"line": 42, "column": 4, "end_line": 44, "end_column": 5},
+      "dependencies": [
+        {
+          "name": "owner_repository",
+          "java_name": "ownerRepository",
+          "type": "OwnerRepository",
+          "java_type": "OwnerRepository",
+          "source": "parameter"
+        }
+      ],
+      "constructor_args": [
+        {"type": "OwnerService", "arguments": [{"kind": "identifier", "value": "owner_repository"}]}
+      ],
+      "factory_methods": [],
+      "qualifier": null,
+      "primary": true,
+      "lazy": null,
+      "init_method": "start",
+      "destroy_method": "stop",
+      "unsupported": []
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `name` | Spring bean name. Explicit `@Bean("...")`, `@Bean(name = "...")`, or `@Bean(value = "...")` wins; otherwise the Java method name. |
+| `java_name` | Source Java method name for review traceability. |
+| `python_name` | Translated Python method name. |
+| `java_type` | Java return type text when known. |
+| `python_type` | Translated Python type text when known. |
+| `source_location` | Best-effort Java source range for review tooling. |
+| `dependencies` | Method-parameter dependencies (translated name, Java name, type, source). |
+| `constructor_args` | Object-creation expressions visible in the bean method body. |
+| `factory_methods` | Visible non-JDBC method calls that may matter to project-owned factory wiring. |
+| `qualifier` | `@Qualifier` value when present. |
+| `primary` | Whether `@Primary` is present. |
+| `lazy` | `@Lazy` value when present; otherwise `null`. |
+| `init_method` | `@Bean(initMethod = "...")` when present. |
+| `destroy_method` | `@Bean(destroyMethod = "...")` when present. |
+| `unsupported` | Reserved for future profile/XML cases. |
+
+`j2py-wire validate` reports duplicate `bean.name` values as errors and unresolved
+bean method-parameter dependencies as warnings when no matching bean or component
+provider is visible in the loaded sidecars. These are migration-readiness signals; they
+do not imply that j2py can choose a runtime container policy. Spring JDBC `@Bean`
+methods additionally emit `jdbc_bean` metadata (see next section).
 
 ### Spring JDBC beans
 

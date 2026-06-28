@@ -155,6 +155,73 @@
     },
     {
       "plugin": "spring-wiring",
+      "kind": "method",
+      "java_name": "ownerService",
+      "python_name": "owner_service",
+      "annotations": [
+        {
+          "name": "org.springframework.context.annotation.Bean",
+          "simple_name": "Bean",
+          "values": {
+            "name": "ownerService",
+            "initMethod": "start",
+            "destroyMethod": "stop"
+          }
+        },
+        {
+          "name": "org.springframework.context.annotation.Primary",
+          "simple_name": "Primary",
+          "values": {}
+        }
+      ],
+      "metadata": {
+        "spring": {
+          "profile_version": 1,
+          "bean": {
+            "name": "ownerService",
+            "java_name": "ownerService",
+            "python_name": "owner_service",
+            "java_type": "OwnerService",
+            "python_type": "OwnerService",
+            "source_location": {
+              "line": 42,
+              "column": 4,
+              "end_line": 44,
+              "end_column": 5
+            },
+            "dependencies": [
+              {
+                "name": "owner_repository",
+                "java_name": "ownerRepository",
+                "type": "OwnerRepository",
+                "java_type": "OwnerRepository",
+                "source": "parameter"
+              }
+            ],
+            "constructor_args": [
+              {
+                "type": "OwnerService",
+                "arguments": [
+                  {
+                    "kind": "identifier",
+                    "value": "owner_repository"
+                  }
+                ]
+              }
+            ],
+            "factory_methods": [],
+            "qualifier": null,
+            "primary": true,
+            "lazy": null,
+            "init_method": "start",
+            "destroy_method": "stop",
+            "unsupported": []
+          }
+        }
+      }
+    },
+    {
+      "plugin": "spring-wiring",
       "kind": "class",
       "java_name": "OwnerRepository",
       "python_name": "OwnerRepository",

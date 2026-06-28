@@ -67,6 +67,71 @@ class SpringProfileCheck:
         return findings
 
 
+class SpringBeanDefinitionCheck:
+    code = "spring-bean"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        bean_defs = _bean_definitions(context.sidecars)
+        provider_names = {
+            _normalize_bean_identity(provider)
+            for sidecar in context.sidecars
+            for element in sidecar.elements
+            for provider in _spring_provider_names(element)
+        }
+        findings: list[ValidationFinding] = []
+
+        beans_by_name: dict[str, list[tuple[WiringSidecar, WiringElement, dict[str, object]]]] = {}
+        for sidecar, element, bean in bean_defs:
+            name = bean.get("name")
+            if isinstance(name, str) and name:
+                beans_by_name.setdefault(name, []).append((sidecar, element, bean))
+
+        for name, records in beans_by_name.items():
+            if len(records) < 2:
+                continue
+            for sidecar, element, bean in records:
+                findings.append(
+                    _finding(
+                        self.code,
+                        sidecar.source,
+                        f"Duplicate Spring bean name '{name}' on {element.java_name}",
+                        "Rename one bean or add explicit project wiring policy",
+                        severity="error",
+                        line=_source_line(bean),
+                    ),
+                )
+
+        for sidecar, element, bean in bean_defs:
+            dependencies = bean.get("dependencies")
+            if not isinstance(dependencies, list):
+                continue
+            for dependency in dependencies:
+                if not isinstance(dependency, dict):
+                    continue
+                dep_name = dependency.get("name")
+                if not isinstance(dep_name, str) or not dep_name:
+                    continue
+                if _normalize_bean_identity(dep_name) in provider_names:
+                    continue
+                findings.append(
+                    _finding(
+                        self.code,
+                        sidecar.source,
+                        (
+                            f"Spring bean '{bean.get('name', element.java_name)}' depends on "
+                            f"unresolved provider '{dep_name}'"
+                        ),
+                        (
+                            "Translate or define the provider sidecar, or wire this "
+                            "dependency manually"
+                        ),
+                        severity="warning",
+                        line=_source_line(bean),
+                    ),
+                )
+        return findings
+
+
 class MissingProviderCheck:
     code = "missing-provider"
 
@@ -226,6 +291,7 @@ class OrphanControllerCheck:
 
 CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
+    SpringBeanDefinitionCheck(),
     OrphanControllerCheck(),
     UnresolvedImportCheck(),
     MissingProviderCheck(),
@@ -329,6 +395,54 @@ def _route_parameters(route: dict[str, object]) -> list[str]:
     if isinstance(request_body, dict) and isinstance(request_body.get("name"), str):
         names.append(request_body["name"])
     return names
+
+
+def _bean_definitions(
+    sidecars: list[WiringSidecar],
+) -> list[tuple[WiringSidecar, WiringElement, dict[str, object]]]:
+    beans: list[tuple[WiringSidecar, WiringElement, dict[str, object]]] = []
+    for sidecar in sidecars:
+        for element in sidecar.elements:
+            bean = element.spring.get("bean")
+            if isinstance(bean, dict):
+                beans.append((sidecar, element, bean))
+    return beans
+
+
+def _normalize_bean_identity(name: str) -> str:
+    """Canonical form for bean-name comparison across camelCase and snake_case.
+
+    Provider names come from Spring (camelCase: ``ownerRepository``) while
+    dependency names come from translated Python parameters (snake_case:
+    ``owner_repository``). Stripping underscores and lowercasing both sides
+    makes them comparable without losing real identity collisions.
+    """
+    return name.lower().replace("_", "")
+
+
+def _spring_provider_names(element: WiringElement) -> list[str]:
+    # v1 resolves providers by name only (bean.name and component_name).
+    # Type-based, @Qualifier, and @Primary resolution are intentionally out of
+    # scope — this is a migration-readiness signal, not a Spring container.
+    spring = element.spring
+    names: list[str] = []
+    bean = spring.get("bean")
+    if isinstance(bean, dict) and isinstance(bean.get("name"), str):
+        names.append(bean["name"])
+    component_name = spring.get("component_name")
+    if isinstance(component_name, str):
+        names.append(component_name)
+    return names
+
+
+def _source_line(bean: dict[str, object]) -> int | None:
+    location = bean.get("source_location")
+    if not isinstance(location, dict):
+        return None
+    line = location.get("line")
+    if isinstance(line, int):
+        return line
+    return None
 
 
 def _validate_spring_element(

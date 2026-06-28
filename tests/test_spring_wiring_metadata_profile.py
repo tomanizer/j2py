@@ -83,6 +83,7 @@ def test_spring_profile_fixture_covers_v1_metadata_families() -> None:
     assert any(spring.get("route", {}).get("request_body") for spring in spring_objects)
     assert any(spring.get("inject", {}).get("source") == "constructor" for spring in spring_objects)
     assert any(spring.get("inject", {}).get("source") == "field" for spring in spring_objects)
+    assert any("bean" in spring for spring in spring_objects)
     assert any("entity_type" in spring and "id_type" in spring for spring in spring_objects)
     assert any("table_name" in spring for spring in spring_objects)
 
@@ -115,6 +116,32 @@ def test_spring_profile_route_and_injection_values_are_enumerated() -> None:
             assert inject["source"] in ALLOWED_INJECTION_SOURCES
             assert isinstance(inject["required"], bool)
             assert "qualifier" in inject
+        if "bean" in spring:
+            bean = spring["bean"]
+            assert set(bean) == {
+                "name",
+                "java_name",
+                "python_name",
+                "java_type",
+                "python_type",
+                "source_location",
+                "dependencies",
+                "constructor_args",
+                "factory_methods",
+                "qualifier",
+                "primary",
+                "lazy",
+                "init_method",
+                "destroy_method",
+                "unsupported",
+            }
+            assert isinstance(bean["name"], str) and bean["name"]
+            assert isinstance(bean["primary"], bool)
+            assert bean["lazy"] is None or isinstance(bean["lazy"], bool)
+            assert isinstance(bean["dependencies"], list)
+            assert isinstance(bean["constructor_args"], list)
+            assert isinstance(bean["factory_methods"], list)
+            assert isinstance(bean["unsupported"], list)
 
 
 def test_spring_profile_keeps_route_composition_in_j2py_wire() -> None:
