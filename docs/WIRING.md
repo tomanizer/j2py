@@ -22,6 +22,7 @@ the class-by-class source translation:
 | Route registration | Generate router modules from route metadata. |
 | Dependency assembly | Generate provider functions for controllers, repositories, and services. |
 | Persistence scaffolding | Generate SQLAlchemy engine/session hooks and JDBC placeholder binding helpers. |
+| Settings scaffolding | Generate Pydantic Settings fields from visible Spring property keys. |
 | App registration | Generate an `app_wiring.py` helper that mounts generated routers. |
 | Review workflow | Turn sidecar metadata into Python files reviewers can inspect. |
 | CI checks | Validate generated wiring and report missing providers, imports, and runtime stubs. |
@@ -37,9 +38,9 @@ Wiring is not a framework runtime. Production behavior remains project-owned:
 
 ## Current support
 
-The current implemented targets are plain provider generation, SQLAlchemy persistence
-scaffolding, and FastAPI wiring generated from translated output. For the enterprise
-command path, see
+The current implemented targets are plain provider generation, Pydantic Settings
+scaffolding, SQLAlchemy persistence scaffolding, and FastAPI wiring generated from
+translated output. For the enterprise command path, see
 [Getting Started](GETTING_STARTED.md#enterprise-path).
 
 The implemented producer is the Spring wiring metadata path:
@@ -48,11 +49,8 @@ The implemented producer is the Spring wiring metadata path:
 2. `SpringWiringPlugin` extracts Spring route, injection, component, repository, entity, and
    JDBC bean facts where available.
 3. j2py writes `*.wiring.json` sidecars when `emit_wiring_metadata = True`.
-4. `j2py-wire` reads those sidecars and generates provider-only, SQLAlchemy persistence,
-   or FastAPI-oriented wiring.
-
-Future targets such as Pydantic Settings are expected to use the same sidecar-driven
-shape.
+4. `j2py-wire` reads those sidecars and generates provider-only, Pydantic Settings,
+   SQLAlchemy persistence, or FastAPI-oriented wiring.
 
 ## Inputs and outputs
 
@@ -75,6 +73,7 @@ translated_py/wiring/
   db.py
   persistence.py
   providers.py
+  settings.py
   owner_controller_wiring.py
   app_wiring.py
 ```
@@ -85,6 +84,22 @@ Generated provider wiring can include:
 - constructor arguments derived from Spring injection metadata;
 - repository factory functions that accept a caller-supplied SQLAlchemy `Session`;
 - no FastAPI `Depends(...)` calls and no container runtime.
+
+Generated Pydantic Settings wiring can include:
+
+- `settings.py` with an `ApplicationSettings(BaseSettings)` scaffold;
+- one optional string field per visible Spring property key;
+- `Field(validation_alias=...)` entries preserving source keys such as
+  `app.datasource.url`;
+- `SOURCE_PROPERTY_KEYS` metadata mapping generated Python field names back to Spring
+  property keys;
+- comments pointing from each generated field to the source sidecar property.
+
+The generated settings target is still scaffolding. Project code must decide environment
+variable names, defaults, secrets management, `.env` or deployment config sources, and any
+type coercion beyond the visible source facts. Shell-unfriendly Spring keys containing
+dots or hyphens are intentionally preserved as source aliases for review rather than
+silently converted into production policy.
 
 Generated FastAPI wiring can include:
 
@@ -167,6 +182,14 @@ j2py-wire generate translated_py \
   --output translated_py/wiring
 ```
 
+Generate Pydantic Settings scaffolding:
+
+```bash
+j2py-wire generate translated_py \
+  --target pydantic-settings \
+  --output translated_py/wiring
+```
+
 Generate SQLAlchemy persistence scaffolding:
 
 ```bash
@@ -184,8 +207,8 @@ j2py-wire validate translated_py \
 ```
 
 Use `--target providers` to validate the generated `providers.py` module instead of
-FastAPI router files. Use `--target sqlalchemy` to validate `db.py` and
-`persistence.py`.
+FastAPI router files. Use `--target pydantic-settings` to validate `settings.py`. Use
+`--target sqlalchemy` to validate `db.py` and `persistence.py`.
 
 For CI-friendly output:
 
@@ -219,6 +242,8 @@ Common findings:
 | `orphan-providers` | Provider sidecars exist but `providers.py` is missing. | Run `j2py-wire generate --target providers`. |
 | `provider-function` | A generated provider function is missing from `providers.py`. | Rerun provider generation from current sidecars. |
 | `provider-dependency` | An injection edge has no sidecar-backed provider. | Translate or define the dependency sidecar, or pass it manually. |
+| `orphan-pydantic-settings` | Spring property-key sidecar facts exist but `settings.py` is missing. | Run `j2py-wire generate --target pydantic-settings`. |
+| `pydantic-settings-property-conflict` | Duplicate Spring property keys or multiple keys normalizing to one Python field were detected. | Deduplicate the metadata or map the setting manually. |
 | `orphan-sqlalchemy-persistence` | SQLAlchemy sidecar facts exist but `db.py` or `persistence.py` is missing. | Run `j2py-wire generate --target sqlalchemy`. |
 | `sqlalchemy-placeholder-binding` | A translated repository uses a JDBC connection placeholder that generated persistence wiring does not bind. | Rerun SQLAlchemy generation from current translated output. |
 | `sqlalchemy-database-policy` | Generated `db.py` still uses the placeholder database URL/settings hook. | Map datasource keys to project settings and configure engine creation. |
@@ -270,6 +295,10 @@ python -m py_compile translated_py/wiring/*.py
 
 For provider-only wiring, replace `--target fastapi` with `--target providers`; the
 generated module remains ordinary importable Python.
+
+For Pydantic Settings scaffolding, replace `--target fastapi` with
+`--target pydantic-settings`; a clean validation result means generated source property
+keys are unique and `settings.py` is present.
 
 For SQLAlchemy persistence scaffolding, replace `--target fastapi` with
 `--target sqlalchemy`; the expected warning-only state means the generated database and
