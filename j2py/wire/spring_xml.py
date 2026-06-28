@@ -184,9 +184,11 @@ def _ingest_one(
         # description, property-placeholder, etc. — silently skip
 
     # Inject top-level <alias> targets into the matching bean's aliases list so
-    # that validation can resolve refs by alias name.
+    # that validation can resolve refs by alias name.  We also search previously
+    # created sidecars (from <import> children) so that an alias declared in the
+    # importing file can refer to a bean defined in an imported file.
     if raw_aliases:
-        _inject_aliases(elements, raw_aliases)
+        _inject_aliases(elements, raw_aliases, already_created=result.sidecars)
 
     result.sidecars.append(
         WiringSidecar(
@@ -200,13 +202,31 @@ def _ingest_one(
     )
 
 
-def _inject_aliases(elements: list[WiringElement], raw_aliases: list[tuple[str, str]]) -> None:
-    """Merge top-level <alias> declarations into the matching bean's aliases list."""
+def _inject_aliases(
+    elements: list[WiringElement],
+    raw_aliases: list[tuple[str, str]],
+    *,
+    already_created: list[WiringSidecar],
+) -> None:
+    """Merge top-level <alias> declarations into the matching bean's aliases list.
+
+    Searches both *elements* (current file) and *already_created* sidecars
+    (previously imported files) so that an alias declared in an importing file
+    can attach to a bean defined in one of its imports.  The current file's
+    elements take precedence when the same name appears in both.
+    """
     by_name: dict[str, dict[str, object]] = {}
+    # Index imported sidecars first so the current file can override.
+    for sidecar in already_created:
+        for elem in sidecar.elements:
+            bean = elem.spring.get("bean")
+            if isinstance(bean, dict) and isinstance(bean.get("name"), str):
+                by_name.setdefault(str(bean["name"]), bean)
+    # Current file elements take precedence.
     for elem in elements:
         bean = elem.spring.get("bean")
         if isinstance(bean, dict) and isinstance(bean.get("name"), str):
-            by_name[bean["name"]] = bean
+            by_name[str(bean["name"])] = bean
 
     for src, tgt in raw_aliases:
         bean = by_name.get(src)
@@ -278,6 +298,16 @@ def _parse_bean(
             value = child.get("value")
             type_attr = child.get("type", "")
 
+            # Also handle nested <ref bean="..."/> and <value>...</value> child
+            # elements, which are common alternatives to inline attributes.
+            if ref is None and value is None:
+                ref_elem = _find_child(child, "ref")
+                value_elem = _find_child(child, "value")
+                if ref_elem is not None:
+                    ref = ref_elem.get("bean") or ref_elem.get("local") or ""
+                elif value_elem is not None:
+                    value = value_elem.text or ""
+
             if ref:
                 py_ref = translate_field_name(ref)
                 dependencies.append(
@@ -309,6 +339,18 @@ def _parse_bean(
         elif local == "property":
             ref = child.get("ref")
             name_attr = child.get("name", "")
+
+            # Also handle nested <ref bean="..."/> and <value>...</value>.
+            if ref is None and child.get("value") is None:
+                ref_elem = _find_child(child, "ref")
+                value_elem = _find_child(child, "value")
+                if ref_elem is not None:
+                    ref = ref_elem.get("bean") or ref_elem.get("local") or ""
+                elif value_elem is not None:
+                    pass  # nested plain value — not a dependency, not unsupported
+                else:
+                    unsupported.append(f"property '{name_attr}' with nested value element")
+
             if ref:
                 py_ref = translate_field_name(ref)
                 dependencies.append(
@@ -321,9 +363,7 @@ def _parse_bean(
                     }
                 )
             elif child.get("value") is not None:
-                pass  # plain value property — not a dependency, not unsupported
-            else:
-                unsupported.append(f"property '{name_attr}' with nested value element")
+                pass  # plain attribute value — not a dependency, not unsupported
 
         elif local in {"lookup-method", "replaced-method", "qualifier"}:
             unsupported.append(local)
@@ -457,6 +497,11 @@ class _SaxHandler(xml.sax.handler.ContentHandler):
             if line_num is not None:
                 self._builder._line_map[id(elem)] = line_num
 
+    def characters(self, content: str) -> None:
+        if self._builder._stack:
+            current = self._builder._stack[-1]
+            current.text = (current.text or "") + content
+
     def endElementNS(self, name: tuple[str | None, str], qname: str | None) -> None:
         self._builder._stack.pop()
 
@@ -481,6 +526,11 @@ def _parse_xml(path: Path) -> tuple[_PositionedTreeBuilder, ET.Element]:
 # ---------------------------------------------------------------------------
 # Internal: helpers
 # ---------------------------------------------------------------------------
+
+
+def _find_child(elem: ET.Element, local_name: str) -> ET.Element | None:
+    """Return the first direct child whose local tag name matches *local_name*."""
+    return next((c for c in elem if _local(c.tag) == local_name), None)
 
 
 def _local(tag: str) -> str:

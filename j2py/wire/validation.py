@@ -80,11 +80,18 @@ class SpringBeanDefinitionCheck:
         }
         findings: list[ValidationFinding] = []
 
+        # Index beans by every name they can be resolved by (canonical + aliases)
+        # so that a duplicate alias produces a finding alongside a duplicate name.
         beans_by_name: dict[str, list[tuple[WiringSidecar, WiringElement, dict[str, object]]]] = {}
         for sidecar, element, bean in bean_defs:
             name = bean.get("name")
             if isinstance(name, str) and name:
                 beans_by_name.setdefault(name, []).append((sidecar, element, bean))
+            aliases = bean.get("aliases", [])
+            if isinstance(aliases, list):
+                for alias in aliases:
+                    if isinstance(alias, str) and alias:
+                        beans_by_name.setdefault(alias, []).append((sidecar, element, bean))
 
         for name, records in beans_by_name.items():
             if len(records) < 2:

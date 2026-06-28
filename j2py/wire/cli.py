@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -91,6 +92,21 @@ def ingest(
         raise typer.Exit(code=1)
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Detect duplicate output stems before writing so we don't silently
+    # overwrite one sidecar with another (e.g. spring/beans.xml vs test/beans.xml).
+    stem_counts = Counter(Path(s.source).stem for s in result.sidecars)
+    stem_clashes = {stem for stem, count in stem_counts.items() if count > 1}
+    if stem_clashes:
+        clash_list = ", ".join(sorted(stem_clashes))
+        typer.echo(
+            f"error: multiple XML files share the same stem ({clash_list}); "
+            f"they would overwrite each other in {output_dir}. "
+            f"Rename the files or use separate --output directories.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     written: list[str] = []
     for sidecar in result.sidecars:
         stem = Path(sidecar.source).stem
