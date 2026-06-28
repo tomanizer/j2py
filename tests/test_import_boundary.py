@@ -1,4 +1,4 @@
-"""Enforce the core <-> j2py-wire packaging boundary at import level.
+"""Enforce the core / j2py-wire / framework-plugin import boundaries at the AST level.
 
 The j2py core translator and the ``j2py.wire`` sidecar consumer are deliberately kept on
 opposite sides of a serialized contract (``*.wiring.json``). This test locks the seam so a
@@ -40,21 +40,38 @@ def _module_name(path: Path) -> str:
 
 
 def _imported_j2py_targets(path: Path) -> set[str]:
-    """Absolute ``j2py.*`` modules imported by ``path`` (relative imports skipped)."""
+    """Absolute ``j2py.*`` modules imported by ``path``, including resolved relative imports."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     targets: set[str] = set()
+    module_parts = _module_name(path).split(".")
+    # __init__.py *is* the package, so level=1 stays at the same depth;
+    # regular modules belong to the package one level up.
+    is_init = path.name == "__init__.py"
+    package_parts = module_parts if is_init else module_parts[:-1]
+
+    def _add(name: str) -> None:
+        if name == "j2py" or name.startswith("j2py."):
+            targets.add(name)
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "j2py" or alias.name.startswith("j2py."):
-                    targets.add(alias.name)
-        elif (
-            isinstance(node, ast.ImportFrom)
-            and node.level == 0
-            and node.module
-            and (node.module == "j2py" or node.module.startswith("j2py."))
-        ):
-            targets.add(node.module)
+                _add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                # absolute import
+                if node.module:
+                    _add(node.module)
+            else:
+                # relative import: strip (level-1) parts above the package root
+                base = package_parts[: len(package_parts) - (node.level - 1)]
+                if node.module:
+                    # e.g. ``from .schema import X``  or  ``from ..pipeline import X``
+                    _add(".".join(base + [node.module]))
+                else:
+                    # e.g. ``from . import schema, loader`` — each alias is a submodule
+                    for alias in node.names:
+                        _add(".".join(base + [alias.name]))
     return targets
 
 
