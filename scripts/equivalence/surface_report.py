@@ -241,7 +241,8 @@ def _public_methods_for_node(
         "annotation_type_declaration",
     }:
         name_node = node.child_by_field("name")
-        current_class = name_node.text if name_node is not None else fallback_class_name
+        node_name = name_node.text if name_node is not None else fallback_class_name
+        current_class = f"{class_name}.{node_name}" if class_name else node_name
         current_implicit_public = node.type in {
             "interface_declaration",
             "annotation_type_declaration",

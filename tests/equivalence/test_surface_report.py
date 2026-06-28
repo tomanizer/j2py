@@ -38,12 +38,34 @@ def test_public_method_extraction_counts_implicit_interface_methods(tmp_path: Pa
             int size();
             private int hidden() { return 0; }
         }
-        """
+        """,
+        encoding="utf-8",
     )
 
     signatures = {method.signature for method in public_methods_for_fixture(source)}
 
     assert signatures == {"Api.size()"}
+
+
+def test_public_method_extraction_qualifies_nested_classes(tmp_path: Path) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text(
+        """
+        public class Outer {
+            public void top() {}
+            public static class Inner {
+                public void nested() {}
+            }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    signatures = {method.signature for method in public_methods_for_fixture(source)}
+
+    assert "Outer.top()" in signatures
+    assert "Outer.Inner.nested()" in signatures
+    assert "Inner.nested()" not in signatures
 
 
 def test_surface_report_counts_verified_and_untestable_buckets() -> None:
@@ -129,7 +151,7 @@ def test_surface_report_adds_library_wide_denominator(monkeypatch: MonkeyPatch) 
     assert report["library_wide_summary"]["library_total_public_methods"] == 3000
 
     rendered = render_report(report)
-    assert "Equivalence-verified fixture surface (6 files)" in rendered
+    assert f"Equivalence-verified fixture surface ({len(report['fixtures'])} files)" in rendered
     assert "Library-wide denominator" in rendered
     assert "| guava | 0 | 2000 | 0.0% | guava-dense checkout, 20 files |" in rendered
 
