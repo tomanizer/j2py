@@ -1655,6 +1655,66 @@ def test_anonymous_class_local_names_do_not_leak_between_methods() -> None:
     assert_valid_python(result.source)
 
 
+def test_nested_anonymous_class_reuses_grandparent_outer_field_capture() -> None:
+    """Nested anonymous helpers can still read fields from the original class."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class Outer {
+            private final List<String> config;
+
+            public Object make() {
+                return new Object() {
+                    public Object nested() {
+                        return new Object() {
+                            public String read(int index) {
+                                return config.get(index);
+                            }
+                        };
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.config[index]" in result.source
+    assert "return config.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_concrete_java_list_get_lowers_to_subscript() -> None:
+    """Concrete Java List implementations are list-like `.get(index)` receivers."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.ArrayList;
+
+        final class ConcreteList {
+            private final ArrayList<String> items;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int index) {
+                        return items.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.items[index]" in result.source
+    assert "return items.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(

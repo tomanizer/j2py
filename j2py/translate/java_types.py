@@ -109,8 +109,8 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
 def _method_invocation_java_return_type(node: JavaNode, ctx: TranslationContext) -> str | None:
     from j2py.translate.node_utils import first_child_by_type
     from j2py.translate.rules.types import (
-        element_type_from_java_container,
         is_list_like_java_type,
+        java_element_type_from_java_container,
     )
 
     args_node = first_child_by_type(node, "argument_list")
@@ -126,7 +126,7 @@ def _method_invocation_java_return_type(node: JavaNode, ctx: TranslationContext)
     if java_receiver_type is None:
         return None
     if is_list_like_java_type(java_receiver_type):
-        return element_type_from_java_container(java_receiver_type, ctx.cfg) or java_receiver_type
+        return java_element_type_from_java_container(java_receiver_type) or java_receiver_type
     return None
 
 

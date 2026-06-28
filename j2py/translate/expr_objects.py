@@ -147,11 +147,25 @@ def _translate_anonymous_class(
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
     base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
-    needs_outer_self = uses_qualified_this(body_node) or references_enclosing_instance_fields(
+    current_field_reference = references_enclosing_instance_fields(
         body_node,
         ctx.class_fields,
     )
-    outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
+    inherited_field_reference = references_enclosing_instance_fields(
+        body_node,
+        ctx.enclosing_class_fields,
+    )
+    needs_outer_self = (
+        uses_qualified_this(body_node) or current_field_reference or inherited_field_reference
+    )
+    reuse_outer_self_alias = inherited_field_reference and not current_field_reference
+    outer_self_alias: str | None
+    if needs_outer_self and reuse_outer_self_alias and ctx.outer_self_alias is not None:
+        outer_self_alias = ctx.outer_self_alias
+        bind_outer_self_alias = False
+    else:
+        outer_self_alias = "_outer_self" if needs_outer_self and ctx.in_instance_method else None
+        bind_outer_self_alias = outer_self_alias is not None
     if needs_outer_self and outer_self_alias is None:
         ctx.diagnostics.record(
             node,
@@ -161,7 +175,7 @@ def _translate_anonymous_class(
         return f"__j2py_todo__({node.text!r})"
 
     helper_lines: list[str] = []
-    if outer_self_alias is not None:
+    if bind_outer_self_alias:
         helper_lines.extend([f"        {outer_self_alias} = self", ""])
     helper_lines.append(f"        class {helper_name}{base_clause}:")
 
@@ -216,15 +230,18 @@ def _translate_anonymous_class(
     instance_field_names = _instance_field_names(instance_fields)
     instance_field_types = _instance_field_types(instance_fields)
     instance_field_java_types = {field.name: field.java_type for field in instance_fields}
-    enclosing_field_names = ctx.class_fields - instance_field_names
+    enclosing_field_names = (ctx.class_fields | ctx.enclosing_class_fields) - instance_field_names
     enclosing_field_types = {
         name: py_type
-        for name, py_type in ctx.class_field_types.items()
+        for name, py_type in {**ctx.enclosing_class_field_types, **ctx.class_field_types}.items()
         if name in enclosing_field_names
     }
     enclosing_field_java_types = {
         name: java_type
-        for name, java_type in ctx.class_field_java_types.items()
+        for name, java_type in {
+            **ctx.enclosing_class_field_java_types,
+            **ctx.class_field_java_types,
+        }.items()
         if name in enclosing_field_names
     }
     from j2py.translate.class_methods import class_method_return_types

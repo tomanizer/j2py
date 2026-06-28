@@ -207,6 +207,16 @@ MAP_RETURNING_METHOD_NAMES: frozenset[str] = frozenset(
     },
 )
 
+LIST_LIKE_JAVA_SIMPLE_NAMES: frozenset[str] = frozenset(
+    {
+        "ArrayList",
+        "CopyOnWriteArrayList",
+        "LinkedList",
+        "Stack",
+        "Vector",
+    },
+)
+
 STATIC_FACTORY_METHOD_RETURN_TYPES: dict[tuple[str, str], str] = {
     ("MergedAnnotations", "from"): "MergedAnnotations",
 }
@@ -285,18 +295,28 @@ def static_factory_return_type(receiver_name: str, method_name: str) -> str | No
 def is_list_like_java_type(java_type: str) -> bool:
     """True when a Java receiver type behaves like a List for `.get(index)` lowering."""
     simple = java_type_simple_name(java_type)
+    if simple in LIST_LIKE_JAVA_SIMPLE_NAMES:
+        return True
     return simple.endswith("List") and not simple.endswith("Multimap")
 
 
 def element_type_from_java_container(java_type: str, cfg: TranslationConfig) -> str | None:
     """Return the first Java type argument lowered to a Python annotation."""
+    java_element_type = java_element_type_from_java_container(java_type)
+    if java_element_type is None:
+        return None
+    return translate_type(java_element_type, cfg)
+
+
+def java_element_type_from_java_container(java_type: str) -> str | None:
+    """Return the first Java type argument without lowering it to Python."""
     match = re.match(r"^[\w.]+\s*<(.+)>$", java_type.strip())
     if match is None:
         return None
     params = _split_type_params(match.group(1))
     if not params:
         return None
-    return translate_type(params[0], cfg)
+    return params[0]
 
 
 def is_list_like_type(py_type: str) -> bool:
