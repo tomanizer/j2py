@@ -290,20 +290,12 @@ def missing_placeholder_bindings(
 def _render_repository_provider(repository: RepositoryPersistenceSpec) -> list[str]:
     signature_parameters = ["connection: Connection"]
     constructor_args: list[str] = []
-    explicit_jdbc_params: list[ConstructorParameterSpec] = []
-    connection_bound = False
     for param in repository.constructor_parameters:
-        if not _is_jdbc_constructor_parameter(param):
-            signature_parameters.append(f"{param.name}: {param.python_type}")
-            constructor_args.append(param.name)
-            continue
-        if not connection_bound:
+        if _is_jdbc_constructor_parameter(param):
             constructor_args.append("connection")
-            connection_bound = True
             continue
         signature_parameters.append(f"{param.name}: {param.python_type}")
         constructor_args.append(param.name)
-        explicit_jdbc_params.append(param)
     lines = [
         (
             f"def {repository.provider_name}("
@@ -311,10 +303,6 @@ def _render_repository_provider(repository: RepositoryPersistenceSpec) -> list[s
         ),
         f"    repository = {repository.class_name}({', '.join(constructor_args)})",
     ]
-    for param in explicit_jdbc_params:
-        lines.append(
-            f"    # TODO(j2py): provide project-owned SQLAlchemy wrapper for {param.name}.",
-        )
     if not repository.jdbc_placeholders:
         lines.append(
             "    # TODO(j2py): no JDBC connection placeholders were found on this repository.",

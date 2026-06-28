@@ -140,7 +140,7 @@ def test_directory_output_path_does_not_crash_python_parsing(tmp_path: Path) -> 
     assert "repository = OwnerRepository()" in source
 
 
-def test_second_jdbc_constructor_parameter_stays_explicit(tmp_path: Path) -> None:
+def test_multiple_jdbc_constructor_parameters_share_connection(tmp_path: Path) -> None:
     translated_root = tmp_path / "translated"
     translated_root.mkdir(parents=True)
     module = translated_root / "owner_repository.py"
@@ -172,13 +172,9 @@ def test_second_jdbc_constructor_parameter_stays_explicit(tmp_path: Path) -> Non
     SQLAlchemyTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
 
     source = (output_dir / PERSISTENCE_FILENAME).read_text(encoding="utf-8")
-    assert (
-        "def get_owner_repository(connection: Connection, "
-        "named_jdbc_template: NamedParameterJdbcTemplate) -> OwnerRepository:"
-    ) in source
-    assert "repository = OwnerRepository(connection, named_jdbc_template)" in source
-    assert "provide project-owned SQLAlchemy wrapper for named_jdbc_template" in source
-    assert "repository = OwnerRepository(connection, connection)" not in source
+    assert "def get_owner_repository(connection: Connection) -> OwnerRepository:" in source
+    assert "repository = OwnerRepository(connection, connection)" in source
+    assert "provide project-owned SQLAlchemy wrapper for named_jdbc_template" not in source
 
 
 def test_optional_jdbc_constructor_type_is_bound_to_connection(tmp_path: Path) -> None:
