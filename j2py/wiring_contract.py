@@ -10,9 +10,10 @@ them. The only things both sides must agree on are:
   references the same identifiers the translator emitted.
 
 This module is the *single* place a sidecar consumer is permitted to import from core
-(enforced by ``tests/test_import_boundary.py``). It is a thin facade: the canonical
-definitions live in core internals and are re-exported here so the consumer never reaches
-into ``j2py.pipeline`` or ``j2py.translate.*`` (both Internal per
+(enforced by ``tests/test_import_boundary.py``). ``WIRING_METADATA_SCHEMA_VERSION`` is
+defined here; ``translate_field_name`` is re-exported from its canonical home in
+``j2py.translate.rules.naming``. In both cases the consumer never needs to reach into
+``j2py.pipeline`` or ``j2py.translate.*`` (both Internal per
 ``docs/developer/API_STABILITY.md``). See ADR 0022 (framework plugin architecture) and
 ADR 0024 (Spring extension boundary).
 """

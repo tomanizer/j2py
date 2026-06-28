@@ -16,6 +16,9 @@ future package split stays mechanical:
    ban is only on the reverse edge.
 
 See ADR 0022 / ADR 0024 and docs/developer/API_STABILITY.md.
+
+Scope note: these tests use static AST analysis and therefore catch source-level imports
+only. Dynamic imports (``importlib.import_module``, ``__import__``) are not detected.
 """
 
 from __future__ import annotations
