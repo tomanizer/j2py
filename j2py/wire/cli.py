@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 import typer
 
 from j2py.wire.loader import WiringLoadDiagnostic, load_wiring_sidecars, spring_elements
+from j2py.wire.spring_xml import XmlIngestDiagnostic, ingest_spring_xml_files
 from j2py.wire.targets.fastapi import FastAPITarget
 from j2py.wire.validation import (
     ValidationContext,
@@ -49,6 +50,73 @@ def list_sidecars(
     spring_count = len(spring_elements(result.sidecars))
     if spring_count:
         typer.echo(f"Spring metadata elements: {spring_count}")
+
+
+@app.command()
+def ingest(
+    xml_files: Annotated[
+        list[Path],
+        typer.Argument(help="Spring XML bean definition file(s) to ingest."),
+    ],
+    output_dir: Annotated[
+        Path,
+        typer.Option("--output", "-o", help="Directory to write *.wiring.json sidecars."),
+    ] = Path("."),
+    no_resolve_imports: Annotated[
+        bool,
+        typer.Option("--no-resolve-imports", help="Do not follow <import resource=...> elements."),
+    ] = False,
+    output_format: Annotated[
+        Literal["text", "json"],
+        typer.Option("--format", help="Diagnostic output format."),
+    ] = "text",
+) -> None:
+    """Ingest Spring XML bean definition files and write *.wiring.json sidecars.
+
+    Each XML file produces one sidecar whose elements correspond to <bean>
+    definitions. The sidecar uses the same metadata.spring.bean shape as the
+    Java @Bean plugin so that downstream validate / generate commands treat
+    XML-defined and Java-defined beans uniformly.
+
+    Exit code 0 = success (warnings may be present); 1 = at least one error.
+    """
+    result = ingest_spring_xml_files(
+        xml_files,
+        resolve_imports=not no_resolve_imports,
+    )
+
+    has_errors = any(d.level == "error" for d in result.diagnostics)
+    if has_errors:
+        _print_xml_diagnostics(result.diagnostics)
+        raise typer.Exit(code=1)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    for sidecar in result.sidecars:
+        stem = Path(sidecar.source).stem
+        sidecar_path = output_dir / f"{stem}.wiring.json"
+        sidecar_path.write_text(sidecar.model_dump_json(indent=2), encoding="utf-8")
+        written.append(str(sidecar_path))
+
+    if output_format == "json":
+        typer.echo(
+            json.dumps(
+                {
+                    "errors": 0,
+                    "warnings": sum(1 for d in result.diagnostics if d.level == "warning"),
+                    "diagnostics": [
+                        {"level": d.level, "path": d.path, "message": d.message}
+                        for d in result.diagnostics
+                    ],
+                    "sidecars_written": written,
+                },
+                indent=2,
+            )
+        )
+    else:
+        _print_xml_diagnostics(result.diagnostics)
+        for written_path, sidecar in zip(written, result.sidecars, strict=True):
+            typer.echo(f"wrote {written_path} ({len(sidecar.elements)} bean(s))")
 
 
 @app.command()
@@ -133,6 +201,14 @@ def validate(
     else:
         _print_validation_summary(findings)
     raise typer.Exit(code=exit_code)
+
+
+def _print_xml_diagnostics(diagnostics: list[XmlIngestDiagnostic]) -> None:
+    for diagnostic in diagnostics:
+        typer.echo(
+            f"{diagnostic.level}: {diagnostic.path}: {diagnostic.message}",
+            err=diagnostic.level == "error",
+        )
 
 
 def _print_diagnostics(diagnostics: list[WiringLoadDiagnostic]) -> None:
