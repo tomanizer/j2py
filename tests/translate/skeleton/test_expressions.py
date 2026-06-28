@@ -1588,6 +1588,73 @@ def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() 
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_block_local_does_not_mask_later_outer_field_read() -> None:
+    """Block-scoped locals do not hide outer fields after the block ends."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class BlockScoped {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int index) {
+                        if (index > 0) {
+                            int axes = 1;
+                        }
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "axes = 1" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_local_names_do_not_leak_between_methods() -> None:
+    """Locals declared in one anonymous method do not shadow fields in another."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class TwoMethods {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public int localOnly() {
+                        int axes = 1;
+                        return axes;
+                    }
+
+                    public String read(int index) {
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "def local_only(self) -> int:" in result.source
+    assert "axes = 1" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes[index]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(
