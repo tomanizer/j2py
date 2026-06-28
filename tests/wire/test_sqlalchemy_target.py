@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
@@ -12,7 +13,12 @@ from typer.testing import CliRunner
 from j2py.wire.cli import app
 from j2py.wire.loader import load_wiring_sidecars
 from j2py.wire.targets.common import GENERATED_HEADER
-from j2py.wire.targets.sqlalchemy import DB_FILENAME, PERSISTENCE_FILENAME, SQLAlchemyTarget
+from j2py.wire.targets.sqlalchemy import (
+    DB_FILENAME,
+    PERSISTENCE_FILENAME,
+    SQLAlchemyTarget,
+    transaction_facts,
+)
 from j2py.wire.validation import (
     ValidationContext,
     validate_sqlalchemy_wiring,
@@ -204,6 +210,52 @@ def test_optional_jdbc_constructor_type_is_bound_to_connection(tmp_path: Path) -
     source = (output_dir / PERSISTENCE_FILENAME).read_text(encoding="utf-8")
     assert "def get_owner_repository(connection: Connection) -> OwnerRepository:" in source
     assert "repository = OwnerRepository(connection)" in source
+
+
+def test_nested_jdbc_constructor_type_is_bound_to_connection(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir(parents=True)
+    module = translated_root / "owner_repository.py"
+    module.write_text(
+        "from __future__ import annotations\n"
+        "\n"
+        "class JdbcTemplate:\n"
+        "    pass\n"
+        "\n"
+        "class OwnerRepository:\n"
+        "    def __init__(self, template: dict[str, JdbcTemplate] | None) -> None:\n"
+        "        self.template = template\n"
+        "\n"
+        "    def rename_owner(self) -> int:\n"
+        "        return self.jdbc_template_connection.execute('update owners').rowcount\n",
+        encoding="utf-8",
+    )
+    _write_repository_sidecar(translated_root, module)
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    SQLAlchemyTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / PERSISTENCE_FILENAME).read_text(encoding="utf-8")
+    assert "def get_owner_repository(connection: Connection) -> OwnerRepository:" in source
+    assert "repository = OwnerRepository(connection)" in source
+
+
+def test_transaction_facts_handles_object_annotations() -> None:
+    element = SimpleNamespace(
+        annotations=[
+            SimpleNamespace(
+                simple_name=None,
+                name="org.springframework.transaction.annotation.Transactional",
+            ),
+        ],
+        java_name="OwnerRepository",
+        python_name="OwnerRepository",
+        spring={},
+    )
+    sidecar = SimpleNamespace(elements=[element])
+
+    assert transaction_facts([sidecar]) == ["@Transactional on OwnerRepository"]
 
 
 def test_missing_placeholder_binding_is_scoped_to_provider_body(tmp_path: Path) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -368,9 +369,8 @@ def _provider_identity(element: WiringElement) -> str:
 
 
 def _is_jdbc_constructor_parameter(param: ConstructorParameterSpec) -> bool:
-    return (
-        translate_field_name(param.name) in _JDBC_PARAMETER_NAMES
-        or _base_type(param.python_type) in _JDBC_TYPES
+    return translate_field_name(param.name) in _JDBC_PARAMETER_NAMES or any(
+        word in _JDBC_TYPES for word in re.findall(r"\b\w+\b", param.python_type)
     )
 
 
@@ -378,27 +378,6 @@ def _annotation_name(annotation: ast.expr | None) -> str:
     if annotation is not None:
         return ast.unparse(annotation)
     return "object"
-
-
-def _base_type(type_name: str) -> str:
-    cleaned = type_name.strip().strip("\"'")
-    if "|" in cleaned:
-        for part in cleaned.split("|"):
-            base = _base_type(part)
-            if base not in {"None", "NoneType"}:
-                return base
-        return "None"
-    if "[" in cleaned and cleaned.endswith("]"):
-        outer, inner = cleaned.split("[", maxsplit=1)
-        outer_base = outer.strip().rsplit(".", maxsplit=1)[-1]
-        if outer_base in {"Optional", "Union"}:
-            for part in inner[:-1].split(","):
-                base = _base_type(part)
-                if base not in {"None", "NoneType"}:
-                    return base
-            return "None"
-        return outer_base
-    return cleaned.rsplit(".", maxsplit=1)[-1]
 
 
 def _is_data_source(spec: JdbcBeanSpec) -> bool:
@@ -430,11 +409,15 @@ def _list_of_dicts(value: object) -> list[dict[str, object]]:
     return [item for item in value if isinstance(item, dict)]
 
 
-def _annotation_simple_name(annotation: dict[str, object]) -> str:
-    simple = annotation.get("simple_name")
+def _annotation_simple_name(annotation: dict[str, object] | object) -> str:
+    if isinstance(annotation, dict):
+        simple = annotation.get("simple_name")
+        name = annotation.get("name")
+    else:
+        simple = getattr(annotation, "simple_name", None)
+        name = getattr(annotation, "name", None)
     if isinstance(simple, str):
         return simple
-    name = annotation.get("name")
     if isinstance(name, str):
         return name.rsplit(".", maxsplit=1)[-1]
     return ""

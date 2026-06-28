@@ -195,7 +195,11 @@ class UnresolvedImportCheck:
     code = "unresolved-import"
 
     def __init__(self, allowed_import_modules: set[str] | None = None) -> None:
-        self.allowed_import_modules = allowed_import_modules or _DEFAULT_ALLOWED_IMPORT_MODULES
+        self.allowed_import_modules = (
+            allowed_import_modules
+            if allowed_import_modules is not None
+            else _DEFAULT_ALLOWED_IMPORT_MODULES
+        )
 
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         findings: list[ValidationFinding] = []
