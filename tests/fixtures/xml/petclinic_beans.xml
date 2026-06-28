@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           https://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="ownerService"
+          class="com.example.clinic.service.OwnerService"
+          init-method="start"
+          destroy-method="stop"
+          primary="true">
+        <constructor-arg ref="ownerRepository"/>
+    </bean>
+
+    <bean id="ownerRepository"
+          class="com.example.clinic.repository.OwnerRepository"
+          lazy-init="true">
+        <constructor-arg ref="dataSource"/>
+    </bean>
+
+    <bean id="dataSource"
+          class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="org.h2.Driver"/>
+        <property name="url" value="jdbc:h2:mem:testdb"/>
+    </bean>
+
+    <bean id="sessionFactory"
+          class="org.springframework.orm.hibernate5.LocalSessionFactoryBean"
+          factory-method="getObject">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+</beans>
