@@ -98,6 +98,48 @@ def test_sqlalchemy_validation_reports_policy_warnings(tmp_path: Path) -> None:
     assert validation_exit_code(findings) == 1
 
 
+def test_fully_qualified_jdbc_constructor_type_is_bound_to_connection(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir(parents=True)
+    module = translated_root / "owner_repository.py"
+    module.write_text(
+        "from __future__ import annotations\n"
+        "\n"
+        "class OwnerRepository:\n"
+        "    def __init__(self, jdbc_template: org.springframework.jdbc.core.JdbcTemplate):\n"
+        "        self.jdbc_template = jdbc_template\n"
+        "\n"
+        "    def rename_owner(self) -> int:\n"
+        "        return self.jdbc_template_connection.execute('update owners').rowcount\n",
+        encoding="utf-8",
+    )
+    _write_repository_sidecar(translated_root, module)
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    SQLAlchemyTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / PERSISTENCE_FILENAME).read_text(encoding="utf-8")
+    assert "def get_owner_repository(connection: Connection) -> OwnerRepository:" in source
+    assert "repository = OwnerRepository(connection)" in source
+
+
+def test_directory_output_path_does_not_crash_python_parsing(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir(parents=True)
+    output_path = translated_root / "owner_repository.py"
+    output_path.mkdir()
+    _write_repository_sidecar(translated_root, output_path)
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    SQLAlchemyTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+
+    source = (output_dir / PERSISTENCE_FILENAME).read_text(encoding="utf-8")
+    assert "def get_owner_repository(connection: Connection) -> OwnerRepository:" in source
+    assert "repository = OwnerRepository()" in source
+
+
 def test_sqlalchemy_validation_reports_missing_placeholder_binding(tmp_path: Path) -> None:
     translated_root = tmp_path / "translated"
     _write_translated_repository(translated_root)
@@ -217,6 +259,26 @@ def _write_persistence_sidecars(
                 "source": "OwnerRepository.java",
                 "output": str(module),
                 "elements": elements,
+            },
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_repository_sidecar(translated_root: Path, module: Path) -> None:
+    (translated_root / "owner_repository.wiring.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "OwnerRepository.java",
+                "output": str(module),
+                "elements": [
+                    _class_element(
+                        "OwnerRepository",
+                        role="repository",
+                        component_name="ownerRepository",
+                    ),
+                ],
             },
         ),
         encoding="utf-8",

@@ -383,7 +383,8 @@ def _annotation_name(annotation: ast.expr | None) -> str:
 
 
 def _base_type(type_name: str) -> str:
-    return re.split(r"[\[|.]", type_name, maxsplit=1)[0].strip().strip("\"'")
+    base = re.split(r"[\[|]", type_name, maxsplit=1)[0].strip().strip("\"'")
+    return base.rsplit(".", maxsplit=1)[-1]
 
 
 def _is_data_source(spec: JdbcBeanSpec) -> bool:
@@ -426,11 +427,11 @@ def _annotation_simple_name(annotation: dict[str, object]) -> str:
 
 
 def _parse_python(path: Path) -> ast.Module | None:
-    if not path.exists():
+    if not path.is_file():
         return None
     try:
         return ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:
+    except (OSError, SyntaxError):
         return None
 
 
