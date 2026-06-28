@@ -113,7 +113,22 @@ def _ingest_one(
         )
         return
 
+    # Warn when the root <beans> itself carries a profile attribute — its beans
+    # will be ingested as unconditional, which is incorrect.
+    root_profile = root.get("profile")
+    if root_profile:
+        result.diagnostics.append(
+            XmlIngestDiagnostic(
+                "warning",
+                str(path),
+                f"Root <beans> has profile='{root_profile}' but Spring profiles are not "
+                f"respected — beans are ingested as unconditional.",
+            )
+        )
+
     elements: list[WiringElement] = []
+    # Top-level <alias name="src" alias="tgt"/> elements, collected for post-processing.
+    raw_aliases: list[tuple[str, str]] = []
 
     for child in root:
         local = _local(child.tag)
@@ -122,6 +137,33 @@ def _ingest_one(
             if elem is not None:
                 elements.append(elem)
             result.diagnostics.extend(diags)
+        elif local == "alias":
+            src = child.get("name", "").strip()
+            tgt = child.get("alias", "").strip()
+            if src and tgt:
+                raw_aliases.append((src, tgt))
+            else:
+                result.diagnostics.append(
+                    XmlIngestDiagnostic(
+                        "warning",
+                        str(path),
+                        "<alias> element is missing 'name' or 'alias' attribute — skipped",
+                    )
+                )
+        elif local == "beans":
+            # Nested <beans> (commonly used for profile-conditional sections).
+            # Ingesting their content would require profile evaluation, which is
+            # out of scope; warn so the caller knows beans may be missing.
+            nested_profile = child.get("profile", "")
+            detail = f" (profile='{nested_profile}')" if nested_profile else ""
+            result.diagnostics.append(
+                XmlIngestDiagnostic(
+                    "warning",
+                    str(path),
+                    f"Nested <beans>{detail} is not ingested — nested bean blocks "
+                    f"require profile evaluation which is out of scope for this tool.",
+                )
+            )
         elif local == "import":
             if resolve_imports:
                 resource = child.get("resource", "")
@@ -139,7 +181,12 @@ def _ingest_one(
                             f"(only file-system paths are supported; classpath: prefixes are not)",
                         )
                     )
-        # <beans> nesting, alias, description, etc. — silently skip
+        # description, property-placeholder, etc. — silently skip
+
+    # Inject top-level <alias> targets into the matching bean's aliases list so
+    # that validation can resolve refs by alias name.
+    if raw_aliases:
+        _inject_aliases(elements, raw_aliases)
 
     result.sidecars.append(
         WiringSidecar(
@@ -151,6 +198,22 @@ def _ingest_one(
             elements=elements,
         )
     )
+
+
+def _inject_aliases(elements: list[WiringElement], raw_aliases: list[tuple[str, str]]) -> None:
+    """Merge top-level <alias> declarations into the matching bean's aliases list."""
+    by_name: dict[str, dict[str, object]] = {}
+    for elem in elements:
+        bean = elem.spring.get("bean")
+        if isinstance(bean, dict) and isinstance(bean.get("name"), str):
+            by_name[bean["name"]] = bean
+
+    for src, tgt in raw_aliases:
+        bean = by_name.get(src)
+        if bean is not None:
+            aliases = bean.setdefault("aliases", [])
+            if isinstance(aliases, list) and tgt not in aliases:
+                aliases.append(tgt)
 
 
 # ---------------------------------------------------------------------------
@@ -165,8 +228,21 @@ def _parse_bean(
 ) -> tuple[WiringElement | None, list[XmlIngestDiagnostic]]:
     diags: list[XmlIngestDiagnostic] = []
 
-    bean_id = elem.get("id") or elem.get("name") or ""
-    if not bean_id:
+    # Spring XML identity rules:
+    # - ``id`` is the canonical name (unique per file).
+    # - ``name`` may be comma/semicolon-separated and provides additional aliases.
+    #   When no ``id`` is present the first ``name`` value is the canonical name.
+    id_attr = (elem.get("id") or "").strip()
+    name_attr_raw = (elem.get("name") or "").strip()
+    name_parts = [p.strip() for p in name_attr_raw.replace(";", ",").split(",") if p.strip()]
+
+    if id_attr:
+        bean_id = id_attr
+        aliases_from_name: list[str] = name_parts  # all name values are aliases
+    elif name_parts:
+        bean_id = name_parts[0]
+        aliases_from_name = name_parts[1:]
+    else:
         diags.append(
             XmlIngestDiagnostic(
                 "warning",
@@ -290,6 +366,9 @@ def _parse_bean(
         "lazy": lazy,
         "init_method": elem.get("init-method", ""),
         "destroy_method": elem.get("destroy-method", ""),
+        # Additional identities (from name="a,b" or top-level <alias> elements).
+        # _inject_aliases() may append to this list after _parse_bean returns.
+        "aliases": list(aliases_from_name),
         "unsupported": unsupported,
     }
 

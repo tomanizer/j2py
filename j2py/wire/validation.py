@@ -421,14 +421,18 @@ def _normalize_bean_identity(name: str) -> str:
 
 
 def _spring_provider_names(element: WiringElement) -> list[str]:
-    # v1 resolves providers by name only (bean.name and component_name).
+    # v1 resolves providers by name only (bean.name, bean.aliases, component_name).
     # Type-based, @Qualifier, and @Primary resolution are intentionally out of
     # scope — this is a migration-readiness signal, not a Spring container.
     spring = element.spring
     names: list[str] = []
     bean = spring.get("bean")
-    if isinstance(bean, dict) and isinstance(bean.get("name"), str):
-        names.append(bean["name"])
+    if isinstance(bean, dict):
+        if isinstance(bean.get("name"), str):
+            names.append(bean["name"])
+        aliases = bean.get("aliases", [])
+        if isinstance(aliases, list):
+            names.extend(a for a in aliases if isinstance(a, str))
     component_name = spring.get("component_name")
     if isinstance(component_name, str):
         names.append(component_name)

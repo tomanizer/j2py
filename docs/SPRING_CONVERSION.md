@@ -947,7 +947,10 @@ to opt out).
 
 | XML element / attribute | Maps to `bean` field |
 |---|---|
-| `id` / `name` attribute | `name`, `java_name`, `python_name` |
+| `id` attribute | `name`, `java_name`, `python_name` (canonical identity) |
+| `name` attribute (single) | `name` when no `id`; otherwise an alias |
+| `name="a,b,c"` (comma-list) | first value → `name`; rest → `aliases` |
+| `<alias name="src" alias="tgt"/>` | appended to `aliases` of the `src` bean |
 | `class` attribute | `java_type`, `python_type` |
 | `init-method` attribute | `init_method` |
 | `destroy-method` attribute | `destroy_method` |
@@ -959,10 +962,15 @@ to opt out).
 | `<property name="..." ref="..."/>` | `dependencies` |
 | `<import resource="..."/>` | followed recursively (file-system paths only) |
 
+**Alias resolution** — `j2py-wire validate` resolves bean dependencies against both
+`bean.name` and `bean.aliases`, so a `<constructor-arg ref="repositoryAlias"/>` resolves
+correctly when the provider has `name="repo, repositoryAlias"` or a `<alias>` element.
+
 **Out of scope for v1** — Spring profiles, `${...}` placeholder resolution, parent bean
 inheritance, collection merging, custom namespace handlers, and `classpath:` import
 resolution.  Unsupported constructs found during parsing are recorded in `bean.unsupported`
-and as `warning`-level diagnostics, never silently ignored.
+and as `warning`-level diagnostics, never silently ignored.  Beans inside a nested
+`<beans profile="...">` block emit a warning and are not ingested.
 
 **Element identity** — XML-ingested elements use `plugin: "spring-xml"` (not
 `"spring-wiring"`) so downstream tools can distinguish the source.  The `source_location`
