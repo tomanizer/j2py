@@ -84,6 +84,11 @@ such as:
 - an `app_wiring.py` helper that registers generated routers with a `FastAPI` app;
 - placeholders where your application supplies a real database session factory.
 
+For provider-only generation, wiring means ordinary Python factory functions such as
+`get_owner_service(owner_repository)` and `get_owner_controller(owner_service)`. These
+providers are framework-neutral: no FastAPI `Depends(...)`, no dependency-injector
+container, and no hidden database runtime.
+
 That split gives you two review surfaces:
 
 1. Review `*.py` files for Java-to-Python source correspondence.
@@ -100,7 +105,7 @@ Sidecars and wiring close that gap without turning j2py into a Spring runtime:
 
 - translated classes stay reviewable and close to the Java source;
 - framework facts become structured data instead of comments a human must rediscover;
-- `j2py-wire` can generate repeatable FastAPI glue from those facts;
+- `j2py-wire` can generate repeatable provider functions or FastAPI glue from those facts;
 - `j2py-wire validate` can report missing providers, unresolved imports, route-handler
   mismatches, and session-factory gaps before runtime;
 - project code still owns production behavior such as database engines, sessions,
@@ -251,6 +256,32 @@ The generated router modules include:
 
 The generated `get_session()` placeholder is deliberately not a production session
 factory. Replace or override it in your application.
+
+## Generate Plain Providers
+
+Generate provider-only wiring when tests or project code need explicit constructors
+without FastAPI:
+
+```bash
+j2py-wire generate translated_py \
+  --target providers \
+  --output translated_py/wiring
+```
+
+This writes `translated_py/wiring/providers.py`. The generated functions are ordinary
+Python factories:
+
+```python
+def get_owner_repository(session: Session) -> OwnerRepository:
+    return OwnerRepository(session)
+
+
+def get_owner_service(owner_repository: OwnerRepository) -> OwnerService:
+    return OwnerService(owner_repository)
+```
+
+Repository providers accept a caller-supplied `Session`; they do not create engines,
+manage transactions, load credentials, or choose a production session lifecycle.
 
 ## Spring JDBC Conversion
 
@@ -460,6 +491,14 @@ j2py-wire validate translated_py \
   --wiring-dir translated_py/wiring
 ```
 
+For provider-only wiring:
+
+```bash
+j2py-wire validate translated_py \
+  --target providers \
+  --wiring-dir translated_py/wiring
+```
+
 JSON output is available for CI:
 
 ```bash
@@ -487,6 +526,9 @@ Common findings:
 | `route-handler` | Route metadata points to a translated controller method that validation could not find. |
 | `route-parameter` | Generated FastAPI route signature no longer matches route metadata. |
 | `spring-profile` | Sidecar metadata uses an unsupported Spring profile version or invalid element shape. |
+| `orphan-providers` | Provider sidecars exist but `providers.py` is missing. |
+| `provider-function` | A provider function expected from sidecars is missing from `providers.py`. |
+| `provider-dependency` | An injected dependency has no generated sidecar-backed provider. |
 
 ## Wire Into An Application
 

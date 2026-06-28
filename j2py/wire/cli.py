@@ -10,10 +10,12 @@ import typer
 
 from j2py.wire.loader import WiringLoadDiagnostic, load_wiring_sidecars, spring_elements
 from j2py.wire.targets.fastapi import FastAPITarget
+from j2py.wire.targets.providers import ProvidersTarget
 from j2py.wire.validation import (
     ValidationContext,
     ValidationFinding,
     validate_fastapi_wiring,
+    validate_providers_wiring,
     validation_exit_code,
 )
 
@@ -58,7 +60,7 @@ def generate(
         typer.Argument(help="Translated output directory containing *.wiring.json sidecars."),
     ],
     target: Annotated[
-        Literal["fastapi"],
+        Literal["fastapi", "providers"],
         typer.Option("--target", help="Wiring target to generate."),
     ] = "fastapi",
     output: Annotated[
@@ -77,6 +79,11 @@ def generate(
             result.sidecars,
             output,
         )
+    elif target == "providers":
+        generated = ProvidersTarget(translated_root=translated_output_dir).generate(
+            result.sidecars,
+            output,
+        )
     else:
         raise typer.Exit(code=2)
     for path in generated:
@@ -90,7 +97,7 @@ def validate(
         typer.Argument(help="Translated output directory containing *.wiring.json sidecars."),
     ],
     target: Annotated[
-        Literal["fastapi"],
+        Literal["fastapi", "providers"],
         typer.Option("--target", help="Wiring target to validate."),
     ] = "fastapi",
     wiring_dir: Annotated[
@@ -108,15 +115,24 @@ def validate(
     if result.has_errors:
         raise typer.Exit(code=2)
 
-    if target != "fastapi":
+    if target == "fastapi":
+        findings = validate_fastapi_wiring(
+            ValidationContext(
+                translated_root=translated_output_dir,
+                wiring_dir=wiring_dir,
+                sidecars=result.sidecars,
+            ),
+        )
+    elif target == "providers":
+        findings = validate_providers_wiring(
+            ValidationContext(
+                translated_root=translated_output_dir,
+                wiring_dir=wiring_dir,
+                sidecars=result.sidecars,
+            ),
+        )
+    else:
         raise typer.Exit(code=2)
-    findings = validate_fastapi_wiring(
-        ValidationContext(
-            translated_root=translated_output_dir,
-            wiring_dir=wiring_dir,
-            sidecars=result.sidecars,
-        ),
-    )
     exit_code = validation_exit_code(findings)
     if output_format == "json":
         typer.echo(
