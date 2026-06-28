@@ -13,11 +13,13 @@ from j2py.wire.loader import WiringLoadDiagnostic, load_wiring_sidecars, spring_
 from j2py.wire.spring_xml import XmlIngestDiagnostic, ingest_spring_xml_files
 from j2py.wire.targets.fastapi import FastAPITarget
 from j2py.wire.targets.providers import ProvidersTarget
+from j2py.wire.targets.sqlalchemy import SQLAlchemyTarget
 from j2py.wire.validation import (
     ValidationContext,
     ValidationFinding,
     validate_fastapi_wiring,
     validate_providers_wiring,
+    validate_sqlalchemy_wiring,
     validation_exit_code,
 )
 
@@ -144,7 +146,7 @@ def generate(
         typer.Argument(help="Translated output directory containing *.wiring.json sidecars."),
     ],
     target: Annotated[
-        Literal["fastapi", "providers"],
+        Literal["fastapi", "providers", "sqlalchemy"],
         typer.Option("--target", help="Wiring target to generate."),
     ] = "fastapi",
     output: Annotated[
@@ -168,6 +170,11 @@ def generate(
             result.sidecars,
             output,
         )
+    elif target == "sqlalchemy":
+        generated = SQLAlchemyTarget(translated_root=translated_output_dir).generate(
+            result.sidecars,
+            output,
+        )
     else:
         raise typer.Exit(code=2)
     for path in generated:
@@ -181,7 +188,7 @@ def validate(
         typer.Argument(help="Translated output directory containing *.wiring.json sidecars."),
     ],
     target: Annotated[
-        Literal["fastapi", "providers"],
+        Literal["fastapi", "providers", "sqlalchemy"],
         typer.Option("--target", help="Wiring target to validate."),
     ] = "fastapi",
     wiring_dir: Annotated[
@@ -209,6 +216,14 @@ def validate(
         )
     elif target == "providers":
         findings = validate_providers_wiring(
+            ValidationContext(
+                translated_root=translated_output_dir,
+                wiring_dir=wiring_dir,
+                sidecars=result.sidecars,
+            ),
+        )
+    elif target == "sqlalchemy":
+        findings = validate_sqlalchemy_wiring(
             ValidationContext(
                 translated_root=translated_output_dir,
                 wiring_dir=wiring_dir,

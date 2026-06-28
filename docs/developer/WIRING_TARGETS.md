@@ -16,10 +16,12 @@ generate target-stack wiring.
 | Validation framework | `j2py/wire/validation.py` |
 | FastAPI target | `j2py/wire/targets/fastapi.py` |
 | Plain provider target | `j2py/wire/targets/providers.py` |
+| SQLAlchemy persistence target | `j2py/wire/targets/sqlalchemy.py` |
 | Tests | `tests/wire/` |
 
-The current CLI target type is `Literal["fastapi", "providers"]`. A new target must be
-added to the CLI option, generator dispatch, and validation dispatch deliberately.
+The current CLI target type is `Literal["fastapi", "providers", "sqlalchemy"]`. A new
+target must be added to the CLI option, generator dispatch, and validation dispatch
+deliberately.
 
 ## Target Contract
 
@@ -63,6 +65,15 @@ checks such as:
 - route parameter mismatch;
 - placeholder SQLAlchemy session factory;
 - sidecar controller with no generated wiring file.
+
+The SQLAlchemy target uses checks for:
+
+- missing generated `db.py` or `persistence.py`;
+- unresolved generated imports;
+- translated JDBC connection placeholders that are not bound in `persistence.py`;
+- generated database URL/settings policy that still needs project implementation;
+- Spring `@Transactional` or transaction-manager facts that still need explicit
+  project-owned SQLAlchemy transaction policy.
 
 New targets should follow the same pattern: findings need a stable code, severity,
 location, message, and fix. Use `ValidationFinding` in `j2py/wire/validation.py`.
