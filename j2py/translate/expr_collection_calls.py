@@ -10,6 +10,7 @@ from j2py.translate.rules.types import (
     is_api_get_receiver_type,
     is_indexed_predicate_get_receiver_java_type,
     is_indexed_predicate_get_receiver_type,
+    is_list_like_java_type,
     is_map_like_type,
 )
 
@@ -124,4 +125,6 @@ def _translate_typed_get_invocation(
             java_receiver_type,
         ):
             return f"{receiver}.get({args})"
+        if java_receiver_type is not None and is_list_like_java_type(java_receiver_type):
+            return f"{receiver}[{args}]"
     return None

@@ -5,11 +5,14 @@ import pytest
 from j2py.config.loader import ConfigLoader
 from j2py.translate.rules.types import (
     element_type_from_container,
+    element_type_from_java_container,
     is_api_get_receiver_type,
     is_indexed_predicate_get_receiver_java_type,
     is_indexed_predicate_get_receiver_type,
+    is_list_like_java_type,
     is_map_like_type,
     is_var_type,
+    java_element_type_from_java_container,
     static_factory_return_type,
     translate_type,
 )
@@ -71,6 +74,11 @@ def test_element_type_from_container(container: str, expected: str | None) -> No
     assert element_type_from_container(container) == expected
 
 
+def test_java_container_element_type_preserves_java_type_text() -> None:
+    assert java_element_type_from_java_container("List<List<String>>") == "List<String>"
+    assert element_type_from_java_container("List<List<String>>", cfg) == "list[str]"
+
+
 @pytest.mark.parametrize(
     ("py_type", "expected"),
     [
@@ -101,6 +109,23 @@ def test_is_list_like_type(py_type: str, expected: bool) -> None:
     from j2py.translate.rules.types import is_list_like_type
 
     assert is_list_like_type(py_type) is expected
+
+
+@pytest.mark.parametrize(
+    ("java_type", "expected"),
+    [
+        ("List<String>", True),
+        ("ImmutableList<String>", True),
+        ("ArrayList<String>", True),
+        ("java.util.LinkedList<String>", True),
+        ("Vector<String>", True),
+        ("Stack<String>", True),
+        ("ArrayDeque<String>", False),
+        ("ListMultimap<String, String>", False),
+    ],
+)
+def test_is_list_like_java_type(java_type: str, expected: bool) -> None:
+    assert is_list_like_java_type(java_type) is expected
 
 
 @pytest.mark.parametrize(
