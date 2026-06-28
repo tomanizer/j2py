@@ -24,7 +24,17 @@ INTEGRAL_JAVA_TYPES: frozenset[str] = frozenset(
 def java_type_of_value(node: JavaNode, ctx: TranslationContext) -> str | None:
     """Return the Java type string for simple identifier/this-field expressions."""
     if node.type == "identifier":
-        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
+        if node.text in ctx.variable_java_types:
+            return ctx.variable_java_types[node.text]
+        if node.text in ctx.class_field_java_types:
+            return ctx.class_field_java_types[node.text]
+        if (
+            ctx.outer_self_alias
+            and node.text in ctx.enclosing_class_field_java_types
+            and node.text not in ctx.class_field_java_types
+        ):
+            return ctx.enclosing_class_field_java_types[node.text]
+        return None
     if node.type == "field_access" and len(node.named_children) == 2:
         obj, field = node.named_children
         if obj.type == "this":
@@ -62,7 +72,17 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
     if node.type in {"true", "false"}:
         return "boolean"
     if node.type == "identifier":
-        return ctx.variable_java_types.get(node.text) or ctx.class_field_java_types.get(node.text)
+        if node.text in ctx.variable_java_types:
+            return ctx.variable_java_types[node.text]
+        if node.text in ctx.class_field_java_types:
+            return ctx.class_field_java_types[node.text]
+        if (
+            ctx.outer_self_alias
+            and node.text in ctx.enclosing_class_field_java_types
+            and node.text not in ctx.class_field_java_types
+        ):
+            return ctx.enclosing_class_field_java_types[node.text]
+        return None
     if node.type == "field_access":
         return field_access_java_type(node, ctx)
     if node.type == "array_access" and node.named_children:
@@ -79,7 +99,34 @@ def java_expression_type(node: JavaNode, ctx: TranslationContext) -> str | None:
         if type_node is not None:
             return type_node.text
     if node.type == "method_invocation":
-        return method_invocation_java_type(node)
+        char_at_type = method_invocation_java_type(node)
+        if char_at_type is not None:
+            return char_at_type
+        return _method_invocation_java_return_type(node, ctx)
+    return None
+
+
+def _method_invocation_java_return_type(node: JavaNode, ctx: TranslationContext) -> str | None:
+    from j2py.translate.node_utils import first_child_by_type
+    from j2py.translate.rules.types import (
+        is_list_like_java_type,
+        java_element_type_from_java_container,
+    )
+
+    args_node = first_child_by_type(node, "argument_list")
+    named = node.named_children
+    if args_node is None or args_node not in named:
+        return None
+    args_index = named.index(args_node)
+    method_name = named[args_index - 1].text
+    receiver_nodes = named[: args_index - 1]
+    if method_name != "get" or not receiver_nodes:
+        return None
+    java_receiver_type = java_expression_type(receiver_nodes[0], ctx)
+    if java_receiver_type is None:
+        return None
+    if is_list_like_java_type(java_receiver_type):
+        return java_element_type_from_java_container(java_receiver_type) or java_receiver_type
     return None
 
 

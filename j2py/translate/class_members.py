@@ -133,6 +133,141 @@ def uses_qualified_this(node: JavaNode) -> bool:
     return any(uses_qualified_this(child) for child in node.named_children)
 
 
+def references_enclosing_instance_fields(
+    node: JavaNode,
+    enclosing_fields: set[str],
+    *,
+    exclude_fields: set[str] | None = None,
+) -> bool:
+    """Return True when a class body references outer-instance fields by simple name."""
+    if not enclosing_fields:
+        return False
+    excluded = exclude_fields or set()
+    candidate_fields = enclosing_fields - excluded
+    if not candidate_fields:
+        return False
+
+    class_scope_names = _direct_field_declaration_names(node)
+
+    def has_simple_reference(current: JavaNode, declared_names: set[str]) -> bool:
+        if current.type in {"method_declaration", "constructor_declaration"}:
+            method_names = declared_names | _parameter_declaration_names(current)
+            body = current.child_by_field("body") or first_child_by_type(
+                current,
+                "block",
+                "constructor_body",
+            )
+            return body is not None and has_simple_reference(body, method_names)
+        if current.type in {"block", "constructor_body"}:
+            block_names = set(declared_names)
+            for child in current.named_children:
+                if has_simple_reference(child, block_names):
+                    return True
+                block_names.update(_local_names_declared_by_statement(child))
+            return False
+        if current.type == "local_variable_declaration":
+            for child in current.named_children:
+                if child.type != "variable_declarator":
+                    continue
+                value_node = child.child_by_field("value")
+                if value_node is not None and has_simple_reference(value_node, declared_names):
+                    return True
+            return False
+        if current.type == "enhanced_for_statement":
+            name_node = current.child_by_field("name")
+            value_node = current.child_by_field("value")
+            body_node = current.child_by_field("body")
+            if value_node is not None and has_simple_reference(value_node, declared_names):
+                return True
+            loop_names = set(declared_names)
+            if name_node is not None:
+                loop_names.add(name_node.text)
+            return body_node is not None and has_simple_reference(body_node, loop_names)
+        if current.type == "for_statement":
+            init_node = current.child_by_field("init")
+            condition_node = current.child_by_field("condition")
+            update_node = current.child_by_field("update")
+            body_node = current.child_by_field("body")
+            loop_names = set(declared_names)
+            if init_node is not None:
+                if has_simple_reference(init_node, loop_names):
+                    return True
+                loop_names.update(_local_names_declared_by_statement(init_node))
+            for part in (condition_node, update_node):
+                if part is not None and has_simple_reference(part, loop_names):
+                    return True
+            return body_node is not None and has_simple_reference(body_node, loop_names)
+        if current.type == "field_access":
+            return any(
+                has_simple_reference(child, declared_names) for child in current.named_children[:-1]
+            )
+        if current.type == "method_invocation":
+            name_node = current.child_by_field("name")
+            skipped = {node_key(name_node)} if name_node is not None else set()
+            return any(
+                has_simple_reference(child, declared_names)
+                for child in current.named_children
+                if node_key(child) not in skipped
+            )
+        if current.type in {
+            "field_declaration",
+            "variable_declarator",
+            "formal_parameter",
+            "catch_formal_parameter",
+        }:
+            name_node = current.child_by_field("name")
+            skipped = {node_key(name_node)} if name_node is not None else set()
+            return any(
+                has_simple_reference(child, declared_names)
+                for child in current.named_children
+                if node_key(child) not in skipped
+            )
+        if current.type == "identifier":
+            return current.text in candidate_fields and current.text not in declared_names
+        return any(has_simple_reference(child, declared_names) for child in current.named_children)
+
+    return has_simple_reference(node, class_scope_names)
+
+
+def _direct_field_declaration_names(node: JavaNode) -> set[str]:
+    names: set[str] = set()
+    for member in node.named_children:
+        if member.type != "field_declaration":
+            continue
+        for child in member.walk():
+            if child.type == "variable_declarator":
+                name_node = child.child_by_field("name")
+                if name_node is not None:
+                    names.add(name_node.text)
+    return names
+
+
+def _parameter_declaration_names(node: JavaNode) -> set[str]:
+    names: set[str] = set()
+    parameters = first_child_by_type(node, "formal_parameters")
+    if parameters is None:
+        return names
+    for child in parameters.walk():
+        if child.type == "formal_parameter":
+            name_node = child.child_by_field("name")
+            if name_node is not None:
+                names.add(name_node.text)
+    return names
+
+
+def _local_names_declared_by_statement(node: JavaNode) -> set[str]:
+    names: set[str] = set()
+    if node.type != "local_variable_declaration":
+        return names
+    for child in node.named_children:
+        if child.type != "variable_declarator":
+            continue
+        name_node = child.child_by_field("name")
+        if name_node is not None:
+            names.add(name_node.text)
+    return names
+
+
 def _superclass_type_node(superclass: JavaNode) -> JavaNode | None:
     """Return the type-name node of an ``extends`` clause.
 
