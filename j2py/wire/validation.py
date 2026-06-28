@@ -24,14 +24,16 @@ from j2py.wire.targets.sqlalchemy import (
 )
 
 Severity = Literal["error", "warning"]
-_ALLOWED_IMPORT_MODULES = {
+_DEFAULT_ALLOWED_IMPORT_MODULES = {
     "__future__",
+    "fastapi",
+    "sqlalchemy.orm",
+}
+_SQLALCHEMY_ALLOWED_IMPORT_MODULES = _DEFAULT_ALLOWED_IMPORT_MODULES | {
     "collections.abc",
     "contextlib",
-    "fastapi",
     "sqlalchemy",
     "sqlalchemy.engine",
-    "sqlalchemy.orm",
 }
 
 
@@ -192,6 +194,9 @@ class MissingProviderCheck:
 class UnresolvedImportCheck:
     code = "unresolved-import"
 
+    def __init__(self, allowed_import_modules: set[str] | None = None) -> None:
+        self.allowed_import_modules = allowed_import_modules or _DEFAULT_ALLOWED_IMPORT_MODULES
+
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         findings: list[ValidationFinding] = []
         for path in _wiring_files(context.wiring_dir):
@@ -202,7 +207,7 @@ class UnresolvedImportCheck:
                 if not isinstance(node, ast.ImportFrom) or node.module is None:
                     continue
                 module = node.module
-                if module in _ALLOWED_IMPORT_MODULES:
+                if module in self.allowed_import_modules:
                     continue
                 if module.startswith(f"{context.wiring_dir.name}."):
                     if not _module_exists(context.wiring_dir.parent, module):
@@ -557,7 +562,7 @@ SQLALCHEMY_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
     OrphanSQLAlchemyPersistenceCheck(),
-    UnresolvedImportCheck(),
+    UnresolvedImportCheck(_SQLALCHEMY_ALLOWED_IMPORT_MODULES),
     SQLAlchemyPlaceholderBindingCheck(),
     SQLAlchemyDatabasePolicyCheck(),
     SQLAlchemyTransactionPolicyCheck(),

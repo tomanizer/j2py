@@ -209,6 +209,23 @@ def test_unresolved_import_check_reports_missing_translated_module(tmp_path: Pat
     assert "owner_controller" in findings[0].message
 
 
+def test_unresolved_import_check_does_not_allow_sqlalchemy_core_by_default(
+    tmp_path: Path,
+) -> None:
+    context = _context(tmp_path)
+    context.wiring_dir.mkdir()
+    (context.wiring_dir / "manual.py").write_text(
+        "from sqlalchemy.engine import Connection\n",
+        encoding="utf-8",
+    )
+
+    findings = UnresolvedImportCheck().run(context)
+
+    assert findings
+    assert findings[0].code == "unresolved-import"
+    assert "sqlalchemy.engine" in findings[0].message
+
+
 def test_route_handler_check_reports_missing_controller_method(tmp_path: Path) -> None:
     context = _generated_context(tmp_path)
     module = context.translated_root / "owner_controller.py"

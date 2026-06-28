@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -201,8 +200,8 @@ def render_db(jdbc_beans: list[JdbcBeanSpec], transaction_names: list[str]) -> s
         "# TODO(j2py): replace DATABASE_URL with the project database settings source.",
         'DEFAULT_DATABASE_URL = "sqlite+pysqlite:///:memory:"',
         "",
-        f"DATASOURCE_PROPERTIES: dict[str, dict[str, str]] = {_repr(datasource_properties)}",
-        f"JDBC_BEAN_TOPOLOGY: dict[str, dict[str, object]] = {_repr(jdbc_topology)}",
+        f"DATASOURCE_PROPERTIES: dict[str, dict[str, str]] = {repr(datasource_properties)}",
+        f"JDBC_BEAN_TOPOLOGY: dict[str, dict[str, object]] = {repr(jdbc_topology)}",
         f"TRANSACTION_FACTS: tuple[str, ...] = {_tuple_literal(transaction_names)}",
         "",
         "",
@@ -281,23 +280,30 @@ def missing_placeholder_bindings(
     """Return JDBC placeholders expected by repositories but absent from generated source."""
     missing: list[tuple[RepositoryPersistenceSpec, str]] = []
     for repository in repository_persistence_specs(sidecars, translated_root):
+        provider_source = _function_source(persistence_source, repository.provider_name)
         for placeholder in repository.jdbc_placeholders:
-            if f"repository.{placeholder} = connection" not in persistence_source:
+            if f"repository.{placeholder} = connection" not in provider_source:
                 missing.append((repository, placeholder))
     return missing
 
 
 def _render_repository_provider(repository: RepositoryPersistenceSpec) -> list[str]:
     signature_parameters = ["connection: Connection"]
-    signature_parameters.extend(
-        f"{param.name}: {param.python_type}"
-        for param in repository.constructor_parameters
-        if not _is_jdbc_constructor_parameter(param)
-    )
-    constructor_args = [
-        "connection" if _is_jdbc_constructor_parameter(param) else param.name
-        for param in repository.constructor_parameters
-    ]
+    constructor_args: list[str] = []
+    explicit_jdbc_params: list[ConstructorParameterSpec] = []
+    connection_bound = False
+    for param in repository.constructor_parameters:
+        if not _is_jdbc_constructor_parameter(param):
+            signature_parameters.append(f"{param.name}: {param.python_type}")
+            constructor_args.append(param.name)
+            continue
+        if not connection_bound:
+            constructor_args.append("connection")
+            connection_bound = True
+            continue
+        signature_parameters.append(f"{param.name}: {param.python_type}")
+        constructor_args.append(param.name)
+        explicit_jdbc_params.append(param)
     lines = [
         (
             f"def {repository.provider_name}("
@@ -305,6 +311,10 @@ def _render_repository_provider(repository: RepositoryPersistenceSpec) -> list[s
         ),
         f"    repository = {repository.class_name}({', '.join(constructor_args)})",
     ]
+    for param in explicit_jdbc_params:
+        lines.append(
+            f"    # TODO(j2py): provide project-owned SQLAlchemy wrapper for {param.name}.",
+        )
     if not repository.jdbc_placeholders:
         lines.append(
             "    # TODO(j2py): no JDBC connection placeholders were found on this repository.",
@@ -383,8 +393,24 @@ def _annotation_name(annotation: ast.expr | None) -> str:
 
 
 def _base_type(type_name: str) -> str:
-    base = re.split(r"[\[|]", type_name, maxsplit=1)[0].strip().strip("\"'")
-    return base.rsplit(".", maxsplit=1)[-1]
+    cleaned = type_name.strip().strip("\"'")
+    if "|" in cleaned:
+        for part in cleaned.split("|"):
+            base = _base_type(part)
+            if base not in {"None", "NoneType"}:
+                return base
+        return "None"
+    if "[" in cleaned and cleaned.endswith("]"):
+        outer, inner = cleaned.split("[", maxsplit=1)
+        outer_base = outer.strip().rsplit(".", maxsplit=1)[-1]
+        if outer_base in {"Optional", "Union"}:
+            for part in inner[:-1].split(","):
+                base = _base_type(part)
+                if base not in {"None", "NoneType"}:
+                    return base
+            return "None"
+        return outer_base
+    return cleaned.rsplit(".", maxsplit=1)[-1]
 
 
 def _is_data_source(spec: JdbcBeanSpec) -> bool:
@@ -435,8 +461,18 @@ def _parse_python(path: Path) -> ast.Module | None:
         return None
 
 
-def _repr(value: object) -> str:
-    return repr(value)
+def _function_source(source: str, function_name: str) -> str:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return ""
+    lines = source.splitlines()
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef) or node.name != function_name:
+            continue
+        end_lineno = node.end_lineno or node.lineno
+        return "\n".join(lines[node.lineno - 1 : end_lineno])
+    return ""
 
 
 def _tuple_literal(values: list[str]) -> str:
