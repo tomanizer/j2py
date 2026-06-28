@@ -15,10 +15,11 @@ generate target-stack wiring.
 | Sidecar schema | `j2py/wire/schema.py` |
 | Validation framework | `j2py/wire/validation.py` |
 | FastAPI target | `j2py/wire/targets/fastapi.py` |
+| Plain provider target | `j2py/wire/targets/providers.py` |
 | Tests | `tests/wire/` |
 
-The current CLI target type is `Literal["fastapi"]`. A new target must be added to the
-CLI option, generator dispatch, and validation dispatch deliberately.
+The current CLI target type is `Literal["fastapi", "providers"]`. A new target must be
+added to the CLI option, generator dispatch, and validation dispatch deliberately.
 
 ## Target Contract
 

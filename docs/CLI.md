@@ -189,7 +189,7 @@ See [SARIF export](SARIF.md).
 
 `j2py-wire` is the sibling CLI for post-translation framework wiring. It reads
 `*.wiring.json` sidecars emitted by `j2py translate` and generates or validates target
-framework glue. The current target is FastAPI.
+wiring. Supported targets are `fastapi` and `providers`.
 
 List sidecars:
 
@@ -205,6 +205,14 @@ j2py-wire generate translated_py \
   --output translated_py/wiring
 ```
 
+Generate framework-neutral provider functions:
+
+```bash
+j2py-wire generate translated_py \
+  --target providers \
+  --output translated_py/wiring
+```
+
 Validate generated wiring:
 
 ```bash
@@ -212,6 +220,8 @@ j2py-wire validate translated_py \
   --target fastapi \
   --wiring-dir translated_py/wiring
 ```
+
+Use `--target providers` to validate `translated_py/wiring/providers.py` instead.
 
 Validation can emit JSON for CI:
 

@@ -36,8 +36,9 @@ Wiring is not a framework runtime. Production behavior remains project-owned:
 
 ## Current support
 
-The current implemented target is FastAPI wiring generated from translated output. For
-the enterprise command path, see [Getting Started](GETTING_STARTED.md#enterprise-path).
+The current implemented targets are plain provider generation and FastAPI wiring generated
+from translated output. For the enterprise command path, see
+[Getting Started](GETTING_STARTED.md#enterprise-path).
 
 The implemented producer is the Spring wiring metadata path:
 
@@ -45,10 +46,11 @@ The implemented producer is the Spring wiring metadata path:
 2. `SpringWiringPlugin` extracts Spring route, injection, component, repository, entity, and
    JDBC bean facts where available.
 3. j2py writes `*.wiring.json` sidecars when `emit_wiring_metadata = True`.
-4. `j2py-wire` reads those sidecars and generates FastAPI-oriented wiring.
+4. `j2py-wire` reads those sidecars and generates provider-only or FastAPI-oriented
+   wiring.
 
-Future targets such as SQLAlchemy persistence, provider-only generation, and Pydantic
-Settings are expected to use the same sidecar-driven shape.
+Future targets such as SQLAlchemy persistence and Pydantic Settings are expected to use
+the same sidecar-driven shape.
 
 ## Inputs and outputs
 
@@ -68,9 +70,17 @@ Output:
 
 ```text
 translated_py/wiring/
+  providers.py
   owner_controller_wiring.py
   app_wiring.py
 ```
+
+Generated provider wiring can include:
+
+- plain factory functions such as `get_owner_service(...)`;
+- constructor arguments derived from Spring injection metadata;
+- repository factory functions that accept a caller-supplied SQLAlchemy `Session`;
+- no FastAPI `Depends(...)` calls and no container runtime.
 
 Generated FastAPI wiring can include:
 
@@ -118,6 +128,14 @@ j2py-wire generate translated_py \
   --output translated_py/wiring
 ```
 
+Generate plain providers:
+
+```bash
+j2py-wire generate translated_py \
+  --target providers \
+  --output translated_py/wiring
+```
+
 Validate the generated wiring:
 
 ```bash
@@ -125,6 +143,9 @@ j2py-wire validate translated_py \
   --target fastapi \
   --wiring-dir translated_py/wiring
 ```
+
+Use `--target providers` to validate the generated `providers.py` module instead of
+FastAPI router files.
 
 For CI-friendly output:
 
@@ -155,6 +176,9 @@ Common findings:
 | `orphan-controller` | A controller sidecar has no generated wiring file. | Run `j2py-wire generate` again. |
 | `unresolved-import` | Generated wiring imports a missing translated or generated module. | Check output paths and rerun generation from current translated output. |
 | `missing-provider` | An injected dependency has no provider function. | Rerun generation or add a project provider. |
+| `orphan-providers` | Provider sidecars exist but `providers.py` is missing. | Run `j2py-wire generate --target providers`. |
+| `provider-function` | A generated provider function is missing from `providers.py`. | Rerun provider generation from current sidecars. |
+| `provider-dependency` | An injection edge has no sidecar-backed provider. | Translate or define the dependency sidecar, or pass it manually. |
 | `route-handler` | A route refers to a handler missing from the translated controller. | Review translated method names and sidecar metadata. |
 | `route-parameter` | Generated route parameters do not match metadata. | Rerun generation and inspect parameter metadata. |
 | `missing-session-factory` | Generated `get_session()` is still the j2py placeholder. | Supply a real SQLAlchemy session factory in project code. |
@@ -197,6 +221,9 @@ j2py-wire validate translated_py \
   --wiring-dir translated_py/wiring
 python -m py_compile translated_py/wiring/*.py
 ```
+
+For provider-only wiring, replace `--target fastapi` with `--target providers`; the
+generated module remains ordinary importable Python.
 
 If you are contributing to j2py itself, use the focused wiring tests:
 

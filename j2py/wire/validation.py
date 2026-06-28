@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 from j2py.wire.schema import WiringElement, WiringSidecar
+from j2py.wire.targets.providers import (
+    PROVIDERS_FILENAME,
+    expected_provider_names,
+    missing_injection_provider_edges,
+    provider_cycles,
+    provider_name_collisions,
+)
 
 Severity = Literal["error", "warning"]
 
@@ -301,7 +308,113 @@ class OrphanControllerCheck:
         return findings
 
 
-CHECKS: list[ValidationCheck] = [
+class OrphanProvidersModuleCheck:
+    code = "orphan-providers"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if not expected_provider_names(context.sidecars, context.translated_root):
+            return []
+        providers_file = context.wiring_dir / PROVIDERS_FILENAME
+        if providers_file.exists():
+            return []
+        return [
+            _finding(
+                self.code,
+                str(providers_file),
+                "Generated providers module is missing",
+                "Run j2py-wire generate --target providers",
+                severity="error",
+            ),
+        ]
+
+
+class ProviderFunctionCheck:
+    code = "provider-function"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        providers_file = context.wiring_dir / PROVIDERS_FILENAME
+        source = _read_text(providers_file)
+        if not source:
+            return []
+        findings: list[ValidationFinding] = []
+        provider_names = expected_provider_names(context.sidecars, context.translated_root)
+        for provider_name in sorted(provider_names):
+            if f"def {provider_name}(" in source:
+                continue
+            findings.append(
+                _finding(
+                    self.code,
+                    str(providers_file),
+                    f"Missing generated provider function '{provider_name}'",
+                    "Run j2py-wire generate --target providers from current sidecars",
+                    severity="error",
+                ),
+            )
+        return findings
+
+
+class ProviderNameCollisionCheck:
+    code = "provider-name-collision"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for provider_name, specs in sorted(
+            provider_name_collisions(context.sidecars, context.translated_root).items(),
+        ):
+            identities = ", ".join(sorted(spec.identity for spec in specs))
+            findings.append(
+                _finding(
+                    self.code,
+                    str(context.wiring_dir / PROVIDERS_FILENAME),
+                    f"Provider function '{provider_name}' maps multiple identities: {identities}",
+                    "Rename one component or add explicit project wiring policy",
+                    severity="error",
+                ),
+            )
+        return findings
+
+
+class ProviderDependencyCheck:
+    code = "provider-dependency"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for sidecar, element, name in missing_injection_provider_edges(
+            context.sidecars,
+            context.translated_root,
+        ):
+            findings.append(
+                _finding(
+                    self.code,
+                    sidecar.source,
+                    f"Injected dependency '{name}' has no generated provider edge",
+                    "Translate or define the dependency sidecar, or pass this dependency manually",
+                    severity="warning",
+                    line=_spring_source_line(element),
+                ),
+            )
+        return findings
+
+
+class ProviderCycleCheck:
+    code = "provider-cycle"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for cycle in provider_cycles(context.sidecars, context.translated_root):
+            findings.append(
+                _finding(
+                    self.code,
+                    str(context.wiring_dir / PROVIDERS_FILENAME),
+                    "Provider dependency cycle detected: " + ", ".join(cycle),
+                    "Break the cycle manually or add project-owned provider construction",
+                    severity="warning",
+                ),
+            )
+        return findings
+
+
+FASTAPI_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
     OrphanControllerCheck(),
@@ -312,10 +425,28 @@ CHECKS: list[ValidationCheck] = [
     MissingSessionFactoryCheck(),
 ]
 
+PROVIDERS_CHECKS: list[ValidationCheck] = [
+    SpringProfileCheck(),
+    SpringBeanDefinitionCheck(),
+    OrphanProvidersModuleCheck(),
+    UnresolvedImportCheck(),
+    ProviderFunctionCheck(),
+    ProviderNameCollisionCheck(),
+    ProviderDependencyCheck(),
+    ProviderCycleCheck(),
+]
+
 
 def validate_fastapi_wiring(context: ValidationContext) -> list[ValidationFinding]:
     findings: list[ValidationFinding] = []
-    for check in CHECKS:
+    for check in FASTAPI_CHECKS:
+        findings.extend(check.run(context))
+    return findings
+
+
+def validate_providers_wiring(context: ValidationContext) -> list[ValidationFinding]:
+    findings: list[ValidationFinding] = []
+    for check in PROVIDERS_CHECKS:
         findings.extend(check.run(context))
     return findings
 
@@ -459,6 +590,18 @@ def _source_line(bean: dict[str, object]) -> int | None:
     if isinstance(line, int):
         return line
     return None
+
+
+def _spring_source_line(element: WiringElement) -> int | None:
+    source_location = element.spring.get("source_location")
+    if not isinstance(source_location, dict):
+        inject = element.spring.get("inject")
+        if isinstance(inject, dict):
+            source_location = inject.get("source_location")
+    if not isinstance(source_location, dict):
+        return None
+    line = source_location.get("line")
+    return line if isinstance(line, int) else None
 
 
 def _validate_spring_element(
