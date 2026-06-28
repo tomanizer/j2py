@@ -10,8 +10,8 @@ from typing import Literal
 
 from pydantic import ValidationError
 
-from j2py.pipeline import WIRING_METADATA_SCHEMA_VERSION
 from j2py.wire.schema import WiringSidecar
+from j2py.wiring_contract import WIRING_METADATA_SCHEMA_VERSION
 
 
 @dataclass(frozen=True)

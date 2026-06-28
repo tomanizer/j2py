@@ -11,7 +11,7 @@ through the CLI, `j2py.pipeline`, config models, doctor facades, and wiring side
 | Level | Meaning | Examples |
 |-------|---------|----------|
 | Public | Intended for normal user imports or commands. Changes need docs and compatibility review. | `j2py.pipeline.translate_file`, `TranslationConfig`, `validate_source` |
-| Public facade | Supported entry point that wraps internal modules. Keep imports stable even if implementation moves. | `j2py.doctor` facade exports |
+| Public facade | Supported entry point that wraps internal modules. Keep imports stable even if implementation moves. | `j2py.doctor` facade exports, `j2py.wiring_contract` |
 | Experimental | Documented but still expected to change. Changes need clear notes and tests, but may be less compatible. | `j2py.wire` Python helpers, VS Code extension |
 | Internal | No compatibility promise. Prefer not to document as user API. | Most `j2py.translate.*`, `j2py.parse.*`, `j2py.analyze.*`, `j2py.cli.*` internals |
 
@@ -46,6 +46,13 @@ Relevant models include:
 - `ValidationResult` in `j2py/validate/checks.py`;
 - doctor facade models exposed through `j2py.doctor`;
 - `WiringSidecar` and `WiringElement` in `j2py/wire/schema.py`.
+
+## Core / Framework Boundary
+
+`j2py.wiring_contract` is the **only** module outside `j2py/wire/` that `j2py.wire` may
+import from core. `j2py/framework_plugins/` modules are config-injected and must never be
+imported by core. Both rules are enforced by `tests/test_import_boundary.py`. See ADR 0022
+and ADR 0024.
 
 ## Deprecation Expectations
 
