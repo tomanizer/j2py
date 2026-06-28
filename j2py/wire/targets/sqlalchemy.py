@@ -289,6 +289,9 @@ def missing_placeholder_bindings(
 
 
 def _render_repository_provider(repository: RepositoryPersistenceSpec) -> list[str]:
+    # Known limitation: all JDBC-typed constructor parameters receive the same Connection.
+    # Applications with multiple physical DataSource beans that need distinct engine or
+    # session policies are not yet supported. See #636.
     signature_parameters = ["connection: Connection"]
     constructor_args: list[str] = []
     for param in repository.constructor_parameters:

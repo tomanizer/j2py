@@ -115,7 +115,12 @@ pool, credentials, migrations, retry policy, and transaction semantics in projec
 When a translated repository has multiple JDBC wrapper constructor parameters such as
 `JdbcTemplate` and `NamedParameterJdbcTemplate`, generated providers pass the same
 SQLAlchemy `Connection` to each wrapper slot so lowered calls participate in one
-transaction. Distinct physical datasource or engine policies remain project-owned.
+transaction. **Known limitation**: applications with multiple distinct physical
+`DataSource` beans that need separate SQLAlchemy engines, sessions, or connections are not
+yet supported — generated provider signatures collapse all JDBC dependencies to a single
+`Connection`. See [#636](https://github.com/tomanizer/j2py/issues/636) for the planned
+multi-datasource extension. Distinct physical datasource or engine policies remain
+project-owned until that is implemented.
 Detected Spring `@Transactional` annotations and transaction-manager beans are surfaced as
 TODOs and validation warnings; j2py does not translate rollback rules, propagation,
 isolation, or read-only behavior into a hidden runtime policy.

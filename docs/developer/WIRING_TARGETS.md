@@ -75,6 +75,12 @@ The SQLAlchemy target uses checks for:
 - Spring `@Transactional` or transaction-manager facts that still need explicit
   project-owned SQLAlchemy transaction policy.
 
+**Known limitation**: the SQLAlchemy target assumes a single physical datasource. All
+JDBC-typed constructor parameters in a repository receive the same `Connection`. Projects
+with multiple distinct `DataSource` beans that need separate engine, session, or connection
+policies are not yet supported; generated provider signatures will collapse them to one
+connection. Tracked in [#636](https://github.com/tomanizer/j2py/issues/636).
+
 New targets should follow the same pattern: findings need a stable code, severity,
 location, message, and fix. Use `ValidationFinding` in `j2py/wire/validation.py`.
 
