@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 
 from j2py.config.loader import TranslationConfig
@@ -45,8 +46,32 @@ def translate_literal(token: str, cfg: TranslationConfig) -> str:
 def translate_string_literal(token: str) -> str:
     """Translate a Java string literal token into a Python string literal."""
     if not _is_text_block(token):
-        return token
-    return _python_triple_quoted_string(java_string_literal_value(token))
+        return normalize_java_format_literal_expr(token)
+    return _python_triple_quoted_string(
+        _normalize_java_format_value(java_string_literal_value(token))
+    )
+
+
+_JAVA_DECIMAL_GROUPING_FORMAT_RE = re.compile(
+    r"%(?!%)(?P<prefix>(?:\d+\$)?[-#+ 0(]*),(?P<suffix>\d*d)"
+)
+
+
+def normalize_java_format_literal_expr(format_arg: str) -> str:
+    try:
+        value = ast.literal_eval(format_arg)
+    except (SyntaxError, ValueError):
+        return format_arg
+    if not isinstance(value, str):
+        return format_arg
+    normalized = _normalize_java_format_value(value)
+    if normalized == value:
+        return format_arg
+    return json.dumps(normalized)
+
+
+def _normalize_java_format_value(value: str) -> str:
+    return _JAVA_DECIMAL_GROUPING_FORMAT_RE.sub(r"%\g<prefix>\g<suffix>", value)
 
 
 def java_string_literal_value(token: str) -> str:

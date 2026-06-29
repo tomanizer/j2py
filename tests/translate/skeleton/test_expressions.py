@@ -540,9 +540,14 @@ def test_receiverless_static_calls_qualify_inherited_methods() -> None:
         ("return Double.parseDouble(text);", "return float(text)"),
         ("return String.valueOf(value);", "return str(value)"),
         ('return String.format("%s:%d", name, left);', 'return "%s:%d" % (name, left)'),
+        ('return String.format("%,d", left);', 'return "%d" % left'),
         (
             'return String.format(Locale.US, "%s:%d", name, left);',
             'return "%s:%d" % (name, left)',
+        ),
+        (
+            'return String.format(Locale.US, "index %,d", left);',
+            'return "index %d" % left',
         ),
         ("Collections.sort(values); return null;", "values.sort()"),
         ("Collections.reverse(values); return null;", "values.reverse()"),
