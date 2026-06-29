@@ -604,10 +604,14 @@ def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
 def _translate_arrays_copy_of(args: list[str]) -> str:
     source, new_length = args
     source_expr = _slice_source_expression(source)
-    # Truncate or right-pad to ``new_length``; padding mirrors Java's element default
-    # for reference arrays (``null`` -> ``None``). ``[None] * negative`` is empty, so the
-    # single expression covers both shrink and grow.
-    return f"{source_expr}[:{new_length}] + [None] * ({new_length} - len({source_expr}))"
+    use_source_walrus = "(" in source
+    use_len_walrus = "(" in new_length
+    arr_var = "_j2py_arr" if use_source_walrus else source_expr
+    len_var = "_j2py_len" if use_len_walrus else new_length
+    slice_expr = f"({arr_var} := {source_expr})" if use_source_walrus else arr_var
+    len_expr = f"({len_var} := {new_length})" if use_len_walrus else len_var
+    result = f"{slice_expr}[:{len_expr}] + [None] * ({len_var} - len({arr_var}))"
+    return f"({result})" if (use_source_walrus or use_len_walrus) else result
 
 
 def _translate_arrays_copy_of_range(args: list[str]) -> str:

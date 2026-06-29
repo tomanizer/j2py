@@ -430,10 +430,13 @@ def test_arrays_copy_of_and_hash_code_lower_to_python() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert (
-        "return values[:len(values) + 1] + [None] * (len(values) + 1 - len(values))"
+        "return (values[:(_j2py_len := len(values) + 1)] + [None] * (_j2py_len - len(values)))"
         in result.source
     )
-    assert "return values[:len(values)] + [None] * (len(values) - len(values))" in result.source
+    assert (
+        "return (values[:(_j2py_len := len(values))] + [None] * (_j2py_len - len(values)))"
+        in result.source
+    )
     assert "return hash(tuple(values))" in result.source
     assert "Arrays." not in result.source
     assert_valid_python(result.source)
