@@ -28,10 +28,10 @@ from j2py.translate.class_members import (
     direct_nested_type_names,
     docstring_for_group,
     enclosing_static_dispatch_for_nested_types,
+    group_has_to_string_override,
     inherited_static_dispatch,
     inherited_static_instance_static_aliases,
     inherited_static_instance_zero_arg_names,
-    is_to_string_override,
     member_docstrings,
     member_groups,
     member_method_names,
@@ -44,6 +44,7 @@ from j2py.translate.class_members import (
     raw_member_name,
     static_instance_collision_static_aliases,
     static_instance_collision_zero_arg_names,
+    to_string_dunder_wrapper,
     type_metadata_comment_lines,
 )
 from j2py.translate.class_methods import (
@@ -68,7 +69,7 @@ from j2py.translate.framework_dispatch import resolve_class, resolve_field
 from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 from j2py.translate.name_resolution import NameResolver, NameScope
 from j2py.translate.node_utils import class_body_needs_pass
-from j2py.translate.rules.naming import translate_class_name, translate_method_name
+from j2py.translate.rules.naming import translate_class_name
 from j2py.translate.spring_settings import configuration_properties_env_prefix
 from j2py.translate.statements import (
     class_uses_synchronized_this,
@@ -459,8 +460,8 @@ def translate_class(
                     static_instance_static_zero_arg_names=static_instance_static_zero_arg,
                 ),
             )
-            if _group_has_to_string_override(group):
-                lines.extend(_to_string_dunder_wrapper(cfg))
+            if group_has_to_string_override(group):
+                lines.extend(to_string_dunder_wrapper(cfg))
             continue
 
         member = group[0]
@@ -516,8 +517,8 @@ def translate_class(
                 docstring_lines=member_docstring_map.get(node_key(member)),
             )
         )
-        if _group_has_to_string_override(group):
-            lines.extend(_to_string_dunder_wrapper(cfg))
+        if group_has_to_string_override(group):
+            lines.extend(to_string_dunder_wrapper(cfg))
 
     if class_body_needs_pass(lines):
         lines.append("    pass")
@@ -847,16 +848,3 @@ def _overload_call_targets_for_members(
         for target in overload_call_targets_for_group(group, cfg):
             targets.setdefault(target.member, []).append(target)
     return targets
-
-
-def _group_has_to_string_override(group: list[JavaNode]) -> bool:
-    return any(is_to_string_override(member) for member in group)
-
-
-def _to_string_dunder_wrapper(cfg: TranslationConfig) -> list[str]:
-    method_name = translate_method_name("toString", snake_case=cfg.snake_case_methods)
-    return [
-        "",
-        "    def __str__(self) -> str:",
-        f"        return self.{method_name}()",
-    ]

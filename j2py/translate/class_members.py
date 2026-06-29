@@ -385,6 +385,19 @@ def is_to_string_override(member: JavaNode) -> bool:
     )
 
 
+def group_has_to_string_override(group: list[JavaNode]) -> bool:
+    return any(is_to_string_override(member) for member in group)
+
+
+def to_string_dunder_wrapper(cfg: TranslationConfig) -> list[str]:
+    method_name = translate_method_name("toString", snake_case=cfg.snake_case_methods)
+    return [
+        "",
+        "    def __str__(self) -> str:",
+        f"        return self.{method_name}()",
+    ]
+
+
 def static_instance_collision_python_names(
     members: Iterable[JavaNode],
     cfg: TranslationConfig,
