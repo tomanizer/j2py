@@ -594,7 +594,20 @@ def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
         return f"{args[0]} == {args[1]}"
     if method_name == "copyOfRange" and len(args) == 3:
         return _translate_arrays_copy_of_range(args)
+    if method_name == "copyOf" and len(args) == 2:
+        return _translate_arrays_copy_of(args)
+    if method_name == "hashCode" and len(args) == 1:
+        return f"hash(tuple({args[0]}))"
     return None
+
+
+def _translate_arrays_copy_of(args: list[str]) -> str:
+    source, new_length = args
+    source_expr = _slice_source_expression(source)
+    # Truncate or right-pad to ``new_length``; padding mirrors Java's element default
+    # for reference arrays (``null`` -> ``None``). ``[None] * negative`` is empty, so the
+    # single expression covers both shrink and grow.
+    return f"{source_expr}[:{new_length}] + [None] * ({new_length} - len({source_expr}))"
 
 
 def _translate_arrays_copy_of_range(args: list[str]) -> str:

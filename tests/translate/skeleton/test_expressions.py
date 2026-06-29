@@ -406,6 +406,39 @@ def test_arrays_copy_of_range_lowers_to_slices() -> None:
     assert_valid_python(result.source)
 
 
+def test_arrays_copy_of_and_hash_code_lower_to_python() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Arrays;
+
+        public class ArrayOps {
+            public String[] grow(String[] values) {
+                return Arrays.copyOf(values, values.length + 1);
+            }
+
+            public String[] clone(String[] values) {
+                return Arrays.copyOf(values, values.length);
+            }
+
+            public int hash(String[] values) {
+                return Arrays.hashCode(values);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert (
+        "return values[:len(values) + 1] + [None] * (len(values) + 1 - len(values))"
+        in result.source
+    )
+    assert "return values[:len(values)] + [None] * (len(values) - len(values))" in result.source
+    assert "return hash(tuple(values))" in result.source
+    assert "Arrays." not in result.source
+    assert_valid_python(result.source)
+
+
 def test_receiverless_static_sibling_method_calls_are_class_qualified() -> None:
     result = translate_source_with_diagnostics(
         """
