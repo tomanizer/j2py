@@ -54,20 +54,7 @@ class ResidualGap:
     good: str
 
 
-_ENCODE_HEX_TO_OUT_CALL = (
-    "            Hex.encode_hex("
-    "data, data_offset, data_len, Hex.to_alphabet(to_lower_case), out, out_offset)\n"
-)
-
-_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
-    ResidualGap(
-        "CODEC-HEX-14",
-        "Hex",
-        "void overload dispatcher branch falls through after delegated encodeHex call",
-        _ENCODE_HEX_TO_OUT_CALL,
-        _ENCODE_HEX_TO_OUT_CALL + "            return None\n",
-    ),
-)
+_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = ()
 
 
 class _Charset:
