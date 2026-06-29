@@ -303,8 +303,8 @@ def test_ClassKeyedRegistryGet_fixture_translates_without_unhandled_diagnostics(
     ast.parse(result.source)
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "for customizer in registry.get(Customizer):" in result.source
-    assert "registry[Customizer]" not in result.source
+    assert "for customizer in registry.get(ClassKeyedRegistryGet.Customizer):" in result.source
+    assert "registry[ClassKeyedRegistryGet.Customizer]" not in result.source
     assert "ambiguous get invocation requires receiver collection type" not in result.source
     assert "__j2py_todo__" not in result.source
 

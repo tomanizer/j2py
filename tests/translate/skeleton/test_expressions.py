@@ -1216,6 +1216,46 @@ def test_array_type_class_literals_translate_to_runtime_comparable_types() -> No
     assert instance.is_primitive_int_matrix(list[list[int]]) is True
 
 
+def test_nested_type_class_literals_are_enclosing_qualified() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Outer {
+            enum Color { RED, GREEN, BLUE }
+            static class Inner {}
+
+            Class<?> nestedEnum() {
+                return Color.class;
+            }
+
+            Class<?> nestedClass() {
+                return Inner.class;
+            }
+
+            Class<?> self() {
+                return Outer.class;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    # Nested-type class literals must be qualified through the enclosing class;
+    # the bare name is undefined inside a method body at runtime.
+    assert "return Outer.Color" in result.source
+    assert "return Outer.Inner" in result.source
+    assert "return Outer\n" in result.source
+    assert "__j2py_todo__" not in result.source
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    outer = namespace["Outer"]
+    instance = outer()
+    assert instance.nested_enum() is outer.Color
+    assert instance.nested_class() is outer.Inner
+    assert instance.self() is outer
+
+
 def test_text_block_string_literal_translates_to_python_triple_quoted_string() -> None:
     python_source, coverage = translate_source(
         '''
@@ -2527,8 +2567,9 @@ def test_class_keyed_registry_get_is_api_call() -> None:
     )
 
     assert result.coverage == 1.0
-    assert "for customizer in registry.get(Customizer):" in result.source
-    assert "registry[Customizer]" not in result.source
+    # The nested-interface class literal is enclosing-qualified so it resolves at runtime.
+    assert "for customizer in registry.get(ClassKeyedRegistryGet.Customizer):" in result.source
+    assert "registry[ClassKeyedRegistryGet.Customizer]" not in result.source
     assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
 
@@ -2548,7 +2589,9 @@ def test_unknown_registry_class_literal_get_receiver_stays_ambiguous() -> None:
     )
 
     assert result.coverage < 1.0
-    assert "return registry.get(Customizer)" in result.source
+    # The nested-type class literal is qualified through the enclosing class so it
+    # resolves at runtime; the get receiver itself stays ambiguous.
+    assert "return registry.get(UnknownClassKeyedGet.Customizer)" in result.source
     assert result.diagnostics.unhandled[-1].reason == (
         "ambiguous get invocation requires receiver collection type"
     )

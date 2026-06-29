@@ -215,7 +215,18 @@ def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
     if not children:
         ctx.diagnostics.record(node, supported=False, reason="malformed class literal")
         return f"__j2py_todo__({node.text!r})"
-    return translate_expression(children[0], ctx)
+    type_node = children[0]
+    if type_node.type == "type_identifier":
+        # ``type_identifier`` nodes otherwise translate to a bare class name with no
+        # name resolution, so a nested type's class literal (``Color.class`` inside
+        # ``Outer``) emits an unqualified ``Color`` that is undefined at runtime.
+        # Resolve it the way nested-type identifier references are resolved, but only
+        # adopt the qualified path for file-declared nested/containing types so that
+        # plain (``String.class``) and imported-type literals keep their behaviour.
+        resolved = ctx.name_resolver.resolve_identifier(type_node.text, scope_from_context(ctx))
+        if resolved.kind in {"file_type", "containing_type", "nested_type"}:
+            return resolved.python_name
+    return translate_expression(type_node, ctx)
 
 
 def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> str | None:

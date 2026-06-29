@@ -5,6 +5,14 @@ All notable changes to j2py will be documented in this file.
 The format follows the repository commit types: `feat`, `fix`, `refactor`, `test`,
 `docs`, `chore`, and `adr`.
 
+## Unreleased
+
+### Fixed
+- Class literals on file-declared nested types (e.g. `Color.class` inside `Outer`) are now
+  qualified through the enclosing class (`Outer.Color`) instead of emitting a bare name that
+  is undefined inside a method body at runtime. Plain (`String.class`) and imported-type
+  class literals are unchanged.
+
 ## 0.8.0 - 2026-06-29
 
 0.8.0 is a minor beta release after 0.7.0. The release focus is deeper
