@@ -166,7 +166,7 @@ DROP_IMPORTS: frozenset[str] = frozenset(
 )
 
 IMPORT_MAP: dict[str, str] = {
-    "java.util.Iterator": "from typing import Iterator",
+    "java.util.Iterator": "from collections.abc import Iterator",
     "java.util.function.Function": "from typing import Callable",
     "java.util.function.Predicate": "from typing import Callable",
     "java.util.function.Consumer": "from j2py_runtime import Consumer",

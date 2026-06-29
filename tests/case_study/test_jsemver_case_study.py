@@ -3,13 +3,13 @@
 Ports the library's own ``StreamTest`` JUnit 5 suite
 (``com.github.zafarkhaja.semver.util.StreamTest``, jsemver v0.10.2, MIT) to pytest and
 runs it against the **rule-layer translation** of the vendored ``util`` package, linked
-by ``tests/case_study/jsemver_harness.py``.
+by ``tests/case_study/jsemver_harness.py`` without residual translator patches.
 
 This is the behavioural oracle for the first external conversion case study: the assertions
 mirror the upstream JUnit cases one-for-one, so a green run means the translated Python is
 behaviourally equivalent to the Java for the exercised surface. The residual translator
-defects that had to be patched for the loop to close are asserted explicitly in
-``test_residual_gap_inventory`` and documented in docs/CASE_STUDY_JSEMVER.md.
+patch inventory is asserted explicitly in ``test_residual_gap_inventory`` and documented
+in docs/CASE_STUDY_JSEMVER.md.
 """
 
 from __future__ import annotations
@@ -26,6 +26,14 @@ Stream = _NS.Stream
 UnexpectedElementException = _NS.UnexpectedElementException
 
 
+class _ElementType:
+    def __init__(self, predicate: Callable[[Any], bool]) -> None:
+        self._predicate = predicate
+
+    def is_matched_by(self, element: Any) -> bool:
+        return self._predicate(element)
+
+
 def _et(predicate: Callable[[Any], bool]) -> Any:
     """Wrap a predicate as a ``Stream.ElementType`` (the Java functional interface).
 
@@ -33,12 +41,7 @@ def _et(predicate: Callable[[Any], bool]) -> Any:
     ``consume``/``positiveLookahead*`` call ``.is_matched_by(...)`` on each argument, so the
     oracle supplies a tiny concrete implementation rather than a bare lambda.
     """
-
-    class _ElementType:
-        def is_matched_by(self, element: Any) -> bool:
-            return predicate(element)
-
-    return _ElementType()
+    return _ElementType(predicate)
 
 
 def _stream(*chars: str) -> Any:
@@ -87,7 +90,7 @@ def test_should_raise_error_when_unexpected_element_consumed() -> None:
     stream = _stream("a", "b", "c")
     with pytest.raises(UnexpectedElementException) as exc_info:
         stream.consume(_et(lambda element: False))
-    assert exc_info.value.get_message() is not None
+    assert str(exc_info.value) is not None
 
 
 def test_should_lookahead_without_consuming() -> None:
@@ -157,21 +160,9 @@ def test_should_keep_track_of_current_offset() -> None:
 def test_residual_gap_inventory() -> None:
     """Lock the residual translator-defect list this case study reports.
 
-    If a future rule-layer change fixes one of these gaps, drop the corresponding patch
-    from ``jsemver_harness._RESIDUAL_GAP_PATCHES`` and update docs/CASE_STUDY_JSEMVER.md.
+    If a future rule-layer regression needs a harness patch, add it explicitly to
+    ``jsemver_harness._RESIDUAL_GAP_PATCHES`` and update docs/CASE_STUDY_JSEMVER.md.
     """
     applied = set(_NS.applied_gaps)
     declared = {gap.gap_id for gap in _RESIDUAL_GAP_PATCHES}
-    # Every documented gap is a real defect that actually fired on the current output.
-    assert (
-        applied
-        == declared
-        == {
-            "JSEMVER-1",
-            "JSEMVER-2",
-            "JSEMVER-3",
-            "JSEMVER-4",
-            "JSEMVER-5",
-            "JSEMVER-6",
-        }
-    )
+    assert applied == declared == set()

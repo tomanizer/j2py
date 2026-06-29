@@ -146,7 +146,7 @@ def _translate_anonymous_class(
     helper_id = len(ctx.pending_local_helpers) + 1
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
-    base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
+    base_clause = "" if base_name in {"Comparator", "Iterator", "Object"} else f"({base_name})"
     current_field_reference = references_enclosing_instance_fields(
         body_node,
         ctx.class_fields,
@@ -265,6 +265,7 @@ def _translate_anonymous_class(
                 extra_self_dispatch_methods=_receiverless_method_invocation_names(
                     init_members, ctx
                 ),
+                outer_self_alias=outer_self_alias,
             ),
         )
         wrote_member = True
@@ -307,6 +308,7 @@ def _anonymous_helper_init_lines(
     *,
     init_members: list[FieldInfo | JavaNode] | None = None,
     extra_self_dispatch_methods: set[str] | None = None,
+    outer_self_alias: str | None = None,
     def_indent: str = "            ",
     body_indent: str = "                ",
 ) -> list[str]:
@@ -324,10 +326,20 @@ def _anonymous_helper_init_lines(
         class_fields=_instance_field_names(fields),
         class_field_types=_class_field_types(fields),
         class_field_java_types={field.name: field.java_type for field in fields},
+        enclosing_class_fields=set(ctx.enclosing_class_fields) | set(ctx.class_fields),
+        enclosing_class_field_types={
+            **ctx.enclosing_class_field_types,
+            **ctx.class_field_types,
+        },
+        enclosing_class_field_java_types={
+            **ctx.enclosing_class_field_java_types,
+            **ctx.class_field_java_types,
+        },
         declared_type_fields=dict(ctx.declared_type_fields),
         declared_type_java_fields=dict(ctx.declared_type_java_fields),
         name_resolver=ctx.name_resolver,
         in_instance_method=True,
+        outer_self_alias=outer_self_alias,
         class_methods=set(ctx.class_methods) | set(extra_self_dispatch_methods or set()),
     )
     for member in init_members or fields:
@@ -496,6 +508,7 @@ def _anonymous_method_lines(
     lines.append(f"{member_indent}def {py_name}({', '.join(rendered_params)}){returns}:")
 
     previous_param_names = set(ctx.param_names)
+    previous_spread_param_names = set(ctx.spread_param_names)
     previous_local_names = set(ctx.local_names)
     previous_types = dict(ctx.variable_types)
     previous_java_types = dict(ctx.variable_java_types)
@@ -509,9 +522,14 @@ def _anonymous_method_lines(
     previous_allow_helpers = ctx.allow_local_helpers
     previous_outer_self_alias = ctx.outer_self_alias
     ctx.local_names = set()
+    ctx.spread_param_names = set()
     for param in params:
         ctx.param_names.add(param.raw_name)
-        ctx.variable_types[param.raw_name] = param.py_type
+        if param.is_spread:
+            ctx.spread_param_names.add(param.raw_name)
+        ctx.variable_types[param.raw_name] = (
+            f"list[{param.py_type}]" if param.is_spread else param.py_type
+        )
         ctx.variable_java_types[param.raw_name] = param.java_type
     ctx.class_fields = instance_field_names
     ctx.class_field_types = instance_field_types
@@ -536,6 +554,7 @@ def _anonymous_method_lines(
         lines.extend(body_lines)
     finally:
         ctx.param_names = previous_param_names
+        ctx.spread_param_names = previous_spread_param_names
         ctx.local_names = previous_local_names
         ctx.variable_types = previous_types
         ctx.variable_java_types = previous_java_types

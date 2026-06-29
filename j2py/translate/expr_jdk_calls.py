@@ -256,6 +256,21 @@ def _translate_to_array_call(
     return f"list({receiver})"
 
 
+def _translate_clone_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if not args:
+        return f"list({receiver})"
+    return None
+
+
 def _translate_equals_call(
     node: JavaNode,
     receiver: str,
@@ -563,6 +578,8 @@ def _translate_collections_call(
 def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
     if method_name == "asList":
         return f"[{', '.join(args)}]"
+    if method_name == "copyOfRange" and len(args) == 3:
+        return f"list({args[0]}[{args[1]}:{args[2]}])"
     if method_name == "stream" and len(args) == 1:
         return f"iter({args[0]})"
     if method_name == "equals" and len(args) == 2:
@@ -654,6 +671,7 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
 _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "charValue": _translate_char_value_call,
     "charAt": _translate_char_at_call,
+    "clone": _translate_clone_call,
     "compareTo": _translate_compare_to_call,
     "contains": _translate_contains_call,
     "endsWith": _translate_ends_with_call,

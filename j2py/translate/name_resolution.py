@@ -67,6 +67,7 @@ class TypeBinding:
 class FileNameBindings:
     package_name: str = ""
     imported_types: dict[str, TypeBinding] = field(default_factory=dict)
+    implicit_types: dict[str, TypeBinding] = field(default_factory=dict)
     compilation_unit_types: set[str] = field(default_factory=set)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
@@ -188,6 +189,16 @@ class NameResolver:
                     is_type_reference=True,
                     reason="nested type binding",
                 )
+            implicit_type = self.bindings.implicit_types.get(raw_name)
+            if implicit_type is not None:
+                return ResolvedName(
+                    raw_name=raw_name,
+                    python_name=implicit_type.python_name,
+                    kind="imported_type",
+                    import_line=implicit_type.import_line,
+                    is_type_reference=True,
+                    reason=f"{implicit_type.source} type binding",
+                )
             if self.bindings.package_name:
                 return ResolvedName(
                     raw_name=raw_name,
@@ -267,10 +278,25 @@ def build_file_name_bindings(
     return FileNameBindings(
         package_name=symbols.package,
         imported_types=imported_type_bindings(parsed, cfg),
+        implicit_types=implicit_type_bindings(cfg),
         compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
         static_field_aliases=dict(static_field_aliases or {}),
         static_method_imports=dict(static_method_imports or {}),
     )
+
+
+def implicit_type_bindings(cfg: TranslationConfig) -> dict[str, TypeBinding]:
+    """Return implicit ``java.lang`` type bindings that must not become sibling imports."""
+    bindings: dict[str, TypeBinding] = {}
+    for raw_name, python_name in cfg.exception_map.items():
+        if "." in raw_name:
+            continue
+        bindings[raw_name] = TypeBinding(
+            raw_name=raw_name,
+            python_name=python_name,
+            source="java_lang_builtin",
+        )
+    return bindings
 
 
 def imported_type_bindings(

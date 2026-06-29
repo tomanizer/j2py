@@ -149,9 +149,15 @@ def _translate_exception_creation(node: JavaNode, ctx: TranslationContext) -> st
     raw_type = type_node.text if type_node is not None else "Exception"
     py_type = ctx.cfg.exception_map.get(raw_type, raw_type)
     args = list(args_node.named_children) if args_node is not None else []
-    if len(args) >= 2 and args[1].type == "identifier":
+    if len(args) == 2 and args[1].type == "identifier":
         message = translate_expression(args[0], ctx)
         cause = translate_expression(args[1], ctx)
         return f"{py_type}({message}) from {cause}"
-    rendered_args = ", ".join(translate_expression(arg, ctx) for arg in args)
+    rendered_args = ", ".join(_translate_exception_argument(arg, ctx) for arg in args)
     return f"{py_type}({rendered_args})"
+
+
+def _translate_exception_argument(node: JavaNode, ctx: TranslationContext) -> str:
+    if node.type == "identifier" and node.text in ctx.spread_param_names:
+        return f"*{translate_expression(node, ctx)}"
+    return translate_expression(node, ctx)

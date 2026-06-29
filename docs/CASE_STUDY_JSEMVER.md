@@ -60,7 +60,7 @@ inner-class references (`Builder`, `Validators`, `Helper`), unqualified enum con
 To turn this from observation into a measured behavioural result, the `util` package is
 run against the library's own `StreamTest` (14 cases) ported one-for-one to pytest in
 [`tests/case_study/test_jsemver_case_study.py`](../tests/case_study/test_jsemver_case_study.py).
-The translation, patching, and linking happen in
+The translation and linking happen in
 [`tests/case_study/jsemver_harness.py`](../tests/case_study/jsemver_harness.py).
 
 | File | Node coverage | `# TODO(j2py)` | Confidence | Semantic warnings |
@@ -68,9 +68,9 @@ The translation, patching, and linking happen in
 | `UnexpectedElementException` | 100% | 0 | 0.99 | 9 |
 | `Stream` | 100% | 0 | 0.99 | 30 |
 
-**Result: 14 / 14 ported `StreamTest` cases pass** against the rule-layer translation —
-but only after **6 documented translator-defect patches** and **2 external-dependency
-stubs**. The two kinds of intervention are kept strictly separate in the harness.
+**Result: 14 / 14 ported `StreamTest` cases pass** against the rule-layer translation
+without residual translator-defect patches. The loop still uses **1 external-dependency
+stub** for a JDK symbol outside the tested logic.
 
 ### External-dependency stubs (scaffolding, not under test)
 
@@ -79,24 +79,25 @@ translated logic — analogous to the dependency stubs in the `tuple` and equiva
 harnesses:
 
 - `java.util.Arrays` — minimal `toString`.
-- `java.lang.RuntimeException` base — Python `Exception` plus a `get_message()` shim for
-  the `Throwable.getMessage()` the test calls.
 
-### Residual translator defects (the failure list)
+### Residual translator defects
 
-Each of these is a real defect in the deterministic rule-layer output. The harness applies
-one minimal, documented patch per gap so the loop can close; the gap inventory is locked by
-`test_residual_gap_inventory`. **This list is the deliverable** — it is exactly where the
-current rule layer emits Python that does not preserve the Java.
+None. `test_residual_gap_inventory` now locks the patch inventory at the empty set.
 
-| Gap id | Module | Defect |
+### Fixed translator defects
+
+These defects were originally exposed by the case-study harness as one documented patch
+per gap. They have been promoted into deterministic rule-layer fixes with general Java
+fixtures.
+
+| Gap id | Module | Fixed rule-layer behavior |
 |---|---|---|
-| `JSEMVER-1` | `UnexpectedElementException` | JDK builtin `RuntimeException` emitted as a sibling-package import (`from ...util.RuntimeException import RuntimeException`). |
-| `JSEMVER-2` | `Stream` | Java array `.clone()` not lowered to a Python copy (`elements.clone()` → `AttributeError`). |
-| `JSEMVER-3` | `Stream` | Anonymous-class body reads the enclosing field `offset` as a bare name instead of capturing it from the enclosing instance (`self.index = offset` → `NameError`). |
-| `JSEMVER-4` | `Stream` | 3-arg constructor `new UnexpectedElementException(lookahead, offset, expected)` mistranslated: the position argument and varargs were dropped and `offset` became Python `raise ... from` exception chaining. |
-| `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(...)` not lowered to a Python slice. |
-| `JSEMVER-6` | `Stream` | Anonymous `java.util.Iterator` implementation emits Java-style `next_`/`has_next` while inheriting Python's `Iterator` ABC, so the class cannot be instantiated (missing `__next__`/`__iter__`). |
+| `JSEMVER-1` | `UnexpectedElementException` | JDK builtin `RuntimeException` maps to Python `Exception` and never emits a same-package import. |
+| `JSEMVER-2` | `Stream` | Java array `.clone()` lowers to a shallow Python list copy. |
+| `JSEMVER-3` | `Stream` | Anonymous-class initializers capture enclosing instance fields through `_outer_self`. |
+| `JSEMVER-4` | `Stream` | Multi-argument exception constructors preserve all arguments, and forwarded Java varargs render as Python spread arguments. |
+| `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(array, from, to)` lowers to a Python slice copy. |
+| `JSEMVER-6` | `Stream` | Anonymous `java.util.Iterator` implementations are emitted as concrete helpers rather than inheriting Python's `Iterator` ABC. |
 
 `JSEMVER-3`, `JSEMVER-4`, and `JSEMVER-6` are the most interesting: each is a place where
 the rule layer produced *plausible, syntactically valid* Python that is silently wrong —
@@ -109,16 +110,15 @@ constructor argument into control-flow (exception chaining).
   against j2py output in-repo, hermetically, in `make check`.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
-- **Correctness has a measured, enumerated gap:** 6 concrete translator defects blocked a
-  ~400-LOC, 14-test package from running as-translated. Extrapolated across the 139 `F821`
-  findings on the full tree, the larger `Version` / `expr` / parser surface will surface
-  more of the same categories (sibling static refs, inner-class binding, JDK lowering).
+- **Correctness gaps became rule coverage:** the 6 concrete translator defects that
+  blocked a ~400-LOC, 14-test package from running as-translated are now deterministic
+  rule-layer fixes. Extrapolated across the 139 `F821` findings on the full tree, the
+  larger `Version` / `expr` / parser surface will surface more of the same categories
+  (sibling static refs, inner-class binding, JDK lowering).
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Promote the six `JSEMVER-*` defects into deterministic rule-layer fixes with fixtures,
-   then drop the corresponding harness patches.
-2. Extend the closed loop to the `Version` value class (parse / compare / increment /
+1. Extend the closed loop to the `Version` value class (parse / compare / increment /
    `toString`) — the library's core and the bulk of `VersionTest`.
-3. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
+2. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
    `translate_corpus.py` so the full-tree node-coverage number is regression-gated.

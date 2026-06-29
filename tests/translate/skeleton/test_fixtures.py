@@ -33,6 +33,10 @@ from tests.translate.skeleton.helpers import (
         ("PatternMatchSwitch", 1.0),
         ("StreamFlatMap", 1.0),
         ("ClassicForMultipleInitUpdate", 1.0),
+        ("ImplicitRuntimeExceptionBase", 1.0),
+        ("JdkArrayCloneCopyRange", 1.0),
+        ("AnonymousIteratorCapturesField", 1.0),
+        ("ThrowVarargsConstructor", 1.0),
     ],
 )
 def test_translate_fixture_with_rule_layer(

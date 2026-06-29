@@ -124,7 +124,7 @@ def java_import_policy(java_name: str, cfg: TranslationConfig) -> ImportPolicy |
             source="import_map",
         )
 
-    implicit = implicit_java_lang_type_policy(raw_name)
+    implicit = implicit_java_lang_type_policy(raw_name, cfg)
     if implicit is not None and java_name == implicit.java_name:
         return implicit
 
@@ -169,15 +169,19 @@ def is_jdbc_boundary_import(java_name: str) -> bool:
     return java_name.startswith(JDBC_BOUNDARY_PREFIXES)
 
 
-def implicit_java_lang_type_policy(raw_name: str) -> ImportPolicy | None:
+def implicit_java_lang_type_policy(raw_name: str, cfg: TranslationConfig) -> ImportPolicy | None:
     """Return policy for implicit ``java.lang`` type references."""
 
     java_name = f"java.lang.{raw_name}"
-    if java_name not in JAVA_LANG_BUILTINS:
+    if java_name not in JAVA_LANG_BUILTINS and raw_name not in cfg.exception_map:
         return None
     return ImportPolicy(
         java_name=java_name,
-        python_name=translate_class_name(raw_name),
+        python_name=(
+            cfg.exception_map.get(raw_name)
+            or cfg.type_map.get(raw_name)
+            or translate_class_name(raw_name)
+        ),
         source="java_lang_builtin",
     )
 

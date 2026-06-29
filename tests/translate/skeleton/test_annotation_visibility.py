@@ -212,7 +212,7 @@ def test_nested_empty_annotated_class_emits_pass() -> None:
     )
 
     assert result.coverage == 1.0
-    assert "class EarlyExitException(RuntimeException):" in result.source
+    assert "class EarlyExitException(Exception):" in result.source
     assert "    pass" in result.source
     assert_valid_python(result.source)
 
