@@ -6,7 +6,7 @@ import typer
 
 from j2py.cli.analyze import analyze
 from j2py.cli.compare import compare
-from j2py.cli.doctor import dashboard, doctor, sarif
+from j2py.cli.doctor import dashboard, doctor_app, sarif
 from j2py.cli.translate import translate
 from j2py.cli.watch import watch
 
@@ -18,11 +18,11 @@ app = typer.Typer(
 
 app.command()(translate)
 app.command()(dashboard)
-app.command(context_settings={"allow_extra_args": True})(doctor)
 app.command()(sarif)
 app.command()(watch)
 app.command()(analyze)
 app.command()(compare)
+app.add_typer(doctor_app, name="doctor")
 
 
 if __name__ == "__main__":

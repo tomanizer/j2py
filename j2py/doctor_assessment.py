@@ -165,7 +165,7 @@ def _assess_file(
     unresolved = _unresolved_import_candidates(symbols, cfg, import_owner)
     parse_ok = not parsed.has_errors
     parse_errors = [_node_payload(item, reason="Java parse error") for item in parsed.errors]
-    rule_coverage = diagnostics.coverage if diagnostics is not None else 0.0
+    rule_coverage: float = diagnostics.coverage if diagnostics is not None else 0.0
     semantic_warnings = (
         [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.warnings]
     )
@@ -663,7 +663,7 @@ def _recommended_next_commands(source: Path) -> list[str]:
     src = str(source)
     return [
         f"j2py translate {src} --no-llm --no-validate --dashboard j2py-dashboard.html",
-        f"j2py doctor {src} --json j2py-assessment.json --html j2py-assessment.html",
+        f"j2py doctor assess {src} --json j2py-assessment.json --html j2py-assessment.html",
         "make check",
     ]
 

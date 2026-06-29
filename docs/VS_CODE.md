@@ -78,7 +78,7 @@ The extension is intentionally marked experimental because it does not yet have:
 For assessment findings, use the existing CLI/SARIF path:
 
 ```bash
-j2py doctor src/main/java --json j2py-assessment.json --include-validation
+j2py doctor assess src/main/java --json j2py-assessment.json --include-validation
 j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 

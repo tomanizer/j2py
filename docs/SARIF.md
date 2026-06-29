@@ -11,7 +11,7 @@ network service.
 First generate a doctor assessment:
 
 ```bash
-j2py doctor src/main/java --json j2py-assessment.json
+j2py doctor assess src/main/java --json j2py-assessment.json
 ```
 
 Then export SARIF:
@@ -48,7 +48,7 @@ Example workflow step:
 ```yaml
 - name: Generate j2py assessment
   run: |
-    j2py doctor src/main/java --json j2py-assessment.json --include-validation
+    j2py doctor assess src/main/java --json j2py-assessment.json --include-validation
     j2py sarif j2py-assessment.json --output j2py.sarif
 
 - name: Upload j2py SARIF

@@ -20,7 +20,7 @@ For enterprise or framework-heavy code, use the full pipeline described in
 [Positioning and enterprise scope](POSITIONING.md#one-pipeline-five-layers):
 
 ```bash
-j2py doctor project/
+j2py doctor assess project/
 # create and review config
 j2py translate project/ --config j2py_config.py --output translated_py
 j2py-wire list translated_py
@@ -88,7 +88,7 @@ Use `--no-llm` until the deterministic output and diagnostics are clear.
 Run `doctor` before translating a project. It is rule-only and does not call an LLM:
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --json j2py-assessment.json \
   --html j2py-assessment.html \
   --config-suggestions j2py.suggested.yaml
