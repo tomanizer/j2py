@@ -1,6 +1,7 @@
 """Guardrails against corpus fixture overfitting in the core rule layer."""
 
 from __future__ import annotations
+from __future__ import annotations
 
 import re
 from pathlib import Path
