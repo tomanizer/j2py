@@ -228,9 +228,10 @@ Java source file(s)
 - `compare` is a single-file review shortcut that reuses an existing Python file or
   generates one through the normal file pipeline, then opens an editor diff command
 - `doctor` reuses parse/analyze/rule-only translation to emit JSON/HTML migration
-  assessment reports, conservative config suggestions, and assessment diffs without live
-  LLM calls; `j2py/doctor.py` is the public facade over `doctor_assessment.py`,
-  `doctor_diff.py`, `doctor_io.py`, `doctor_models.py`, and `doctor_renderers.py`.
+  assessment reports, conservative config suggestions, gate results, and assessment diffs
+  without live LLM calls; `j2py/doctor.py` is the public facade over
+  `doctor_assessment.py`, `doctor_gate.py`, `doctor_diff.py`, `doctor_io.py`,
+  `doctor_models.py`, and `doctor_renderers.py`.
   See [DOCTOR.md](DOCTOR.md)
 - `sarif` converts doctor assessment JSON into SARIF 2.1.0 for GitHub code scanning,
   CI artifacts, and review tooling; see [SARIF.md](SARIF.md)

@@ -12,7 +12,7 @@ import j2py.pipeline as pipeline
 from j2py.cli import compare as cli_compare
 from j2py.cli.main import app
 from j2py.cli.output import console
-from j2py.doctor import DOCTOR_SCHEMA_VERSION
+from j2py.doctor import DOCTOR_GATE_SCHEMA_VERSION, DOCTOR_SCHEMA_VERSION
 from j2py.llm.review import LlmReviewFinding
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
@@ -1379,6 +1379,143 @@ def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:
     assert "config_suggestions:" in suggestions
     assert 'java_import: "com.external.PaymentClient"' in suggestions
     assert "Config suggestions" in result.output
+
+
+def test_cli_doctor_gate_passes_ready_project(tmp_path: Path) -> None:
+    source = tmp_path / "Ready.java"
+    source.write_text("public class Ready {}")
+    json_path = tmp_path / "gate.json"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "gate",
+            str(source),
+            "--profile",
+            "one-zero",
+            "--json",
+            str(json_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(json_path.read_text())
+    assert payload["schema_version"] == DOCTOR_GATE_SCHEMA_VERSION
+    assert payload["profile"] == "one-zero"
+    assert payload["passed"] is True
+    assert payload["failures"] == []
+    assert "Doctor gate passed: profile=one-zero" in result.output
+
+
+def test_cli_doctor_gate_fails_with_threshold_details(tmp_path: Path) -> None:
+    source = tmp_path / "Risky.java"
+    source.write_text(
+        """
+        public class Risky {
+            public int half(int value) {
+                return value / 2;
+            }
+        }
+        """,
+    )
+    json_path = tmp_path / "gate.json"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "gate",
+            str(source),
+            "--profile",
+            "strict",
+            "--json",
+            str(json_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(json_path.read_text())
+    failures = {item["check"]: item for item in payload["failures"]}
+    assert payload["passed"] is False
+    assert failures["semantic_warnings"]["actual"] >= 1
+    assert failures["manual_port_files"]["actual"] == 1
+    assert "Doctor gate failed: profile=strict" in result.output
+    assert "semantic_warnings" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_doctor_gate_min_file_coverage_override_defaults_to_zero_allowed(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Broken.java"
+    source.write_text("public class Broken { public void broken( }")
+    json_path = tmp_path / "gate.json"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "gate",
+            str(source),
+            "--profile",
+            "advisory",
+            "--min-file-coverage",
+            "1.0",
+            "--json",
+            str(json_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(json_path.read_text())
+    failures = {item["check"]: item for item in payload["failures"]}
+    assert failures["files_below_coverage"]["actual"] == 1
+    assert failures["files_below_coverage"]["threshold"] == 0
+    assert failures["files_below_coverage"]["affected"][0]["path"] == "Broken.java"
+
+
+def test_cli_doctor_gate_reports_sample_caveat(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "A.java").write_text("public class A {}")
+    (source / "B.java").write_text("public class B {}")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "gate",
+            str(source),
+            "--profile",
+            "advisory",
+            "--sample-limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Doctor gate passed: profile=advisory" in result.output
+    assert "sampled" in result.output
+
+
+def test_cli_doctor_gate_rejects_unknown_profile(tmp_path: Path) -> None:
+    source = tmp_path / "Ready.java"
+    source.write_text("public class Ready {}")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["doctor", "gate", str(source), "--profile", "unknown"],
+    )
+
+    assert result.exit_code == 2
+    assert "unsupported doctor gate profile" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_doctor_advise_marks_markdown_output(

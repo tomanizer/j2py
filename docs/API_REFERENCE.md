@@ -266,6 +266,8 @@ Stability: Public facade.
 
 ```python
 DOCTOR_SCHEMA_VERSION: int
+DOCTOR_GATE_SCHEMA_VERSION: int
+DOCTOR_GATE_PROFILES: tuple[str, ...]
 
 @dataclass(frozen=True)
 class DoctorAssessment:
@@ -276,6 +278,19 @@ class DoctorAssessment:
 class DoctorDiff:
     payload: dict[str, Any]
     def to_json(self) -> str: ...
+
+@dataclass(frozen=True)
+class DoctorGateResult:
+    payload: dict[str, Any]
+    def to_json(self) -> str: ...
+
+@dataclass(frozen=True)
+class DoctorGateThresholds:
+    max_parse_failures: int | None = None
+    min_average_coverage: float | None = None
+    min_file_coverage: float | None = None
+    max_files_below_coverage: int | None = None
+    ...
 ```
 
 ```python
@@ -288,14 +303,24 @@ def assess_project(
 ) -> DoctorAssessment
 
 def diff_assessments(before: DoctorAssessment, after: DoctorAssessment) -> DoctorDiff
+def doctor_gate_thresholds_for_profile(profile: str) -> DoctorGateThresholds
+def evaluate_doctor_gate(
+    assessment: DoctorAssessment,
+    *,
+    profile: str,
+    thresholds: DoctorGateThresholds | None = None,
+    sample_limit: int | None = None,
+) -> DoctorGateResult
 def load_assessment_json(path: Path) -> DoctorAssessment
 def write_assessment_json(path: Path, assessment: DoctorAssessment) -> None
 def write_assessment_html(path: Path, assessment: DoctorAssessment) -> None
 def write_config_suggestions(path: Path, assessment: DoctorAssessment) -> None
 def write_doctor_diff_json(path: Path, diff: DoctorDiff) -> None
+def write_doctor_gate_json(path: Path, result: DoctorGateResult) -> None
 def render_assessment_html(assessment: DoctorAssessment) -> str
 def render_config_suggestions(assessment: DoctorAssessment) -> str
 def render_doctor_diff_text(diff: DoctorDiff) -> str
+def render_doctor_gate_text(result: DoctorGateResult) -> str
 ```
 
 Use [Doctor](DOCTOR.md) and [SARIF](SARIF.md) for output

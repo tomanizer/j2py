@@ -5,7 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment, DoctorDiff
+from j2py.doctor_models import (
+    DOCTOR_SCHEMA_VERSION,
+    DoctorAssessment,
+    DoctorDiff,
+    DoctorGateResult,
+)
 from j2py.doctor_renderers import render_assessment_html, render_config_suggestions
 
 
@@ -55,3 +60,8 @@ def _validate_doctor_schema(payload: dict[str, object], path: Path) -> None:
 def write_doctor_diff_json(path: Path, diff: DoctorDiff) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(diff.to_json(), encoding="utf-8")
+
+
+def write_doctor_gate_json(path: Path, result: DoctorGateResult) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(result.to_json(), encoding="utf-8")

@@ -27,3 +27,13 @@ class DoctorDiff:
 
     def to_json(self) -> str:
         return json.dumps(self.payload, indent=2, sort_keys=True) + "\n"
+
+
+@dataclass(frozen=True)
+class DoctorGateResult:
+    """JSON-serialisable doctor gate evaluation."""
+
+    payload: dict[str, Any]
+
+    def to_json(self) -> str:
+        return json.dumps(self.payload, indent=2, sort_keys=True) + "\n"

@@ -153,6 +153,8 @@ Assess Java sources before migration without live LLM calls.
 j2py doctor assess src/main/java
 j2py doctor assess src/main/java --json j2py-assessment.json --html j2py-assessment.html
 j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
+j2py doctor gate src/main/java --profile one-zero
+j2py doctor gate src/main/java --max-parse-failures 0 --min-average-coverage 0.99
 ```
 
 Options:
@@ -165,6 +167,20 @@ Options:
 | `--config-suggestions PATH` | Write advisory config suggestions YAML. |
 | `--include-validation` | Run generated-Python validation during assessment. |
 | `--sample-limit N` | Assess only the first N Java files in deterministic path order. |
+
+Fail CI when an assessment exceeds deterministic thresholds:
+
+```bash
+j2py doctor gate src/main/java --profile strict
+j2py doctor gate src/main/java --profile migration-trial --json doctor-gate.json
+```
+
+Built-in profiles are `strict`, `one-zero`, `migration-trial`, and `advisory`.
+Threshold options include `--max-parse-failures`, `--min-average-coverage`,
+`--min-file-coverage`, `--max-files-below-coverage`, `--max-semantic-warnings`,
+`--max-unhandled-diagnostics`, `--max-todo-lines`, `--max-validation-failures`,
+`--max-high-risk-files`, `--max-unresolved-imports`, and per-bucket limits such as
+`--max-needs-rule-work-files`.
 
 Generate migration planning from an assessment JSON:
 

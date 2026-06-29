@@ -119,6 +119,150 @@ def assess(
 
 
 @doctor_app.command()
+def gate(
+    source: Path = typer.Argument(..., help="Java file or directory to assess and gate."),
+    profile: str = typer.Option(
+        "migration-trial",
+        "--profile",
+        help="Built-in gate profile: strict, one-zero, migration-trial, or advisory.",
+    ),
+    config: list[Path] = typer.Option(
+        [], "--config", "-c", help="Extra config file(s) to layer on top of defaults."
+    ),
+    json_path: Path | None = typer.Option(
+        None,
+        "--json",
+        help="Write machine-readable gate result JSON.",
+    ),
+    include_validation: bool = typer.Option(
+        False,
+        "--include-validation",
+        help="Run Python syntax, ruff, and mypy checks before evaluating validation gates.",
+    ),
+    sample_limit: int | None = typer.Option(
+        None,
+        "--sample-limit",
+        min=1,
+        help="Gate only the first N Java files in deterministic path order.",
+    ),
+    max_parse_failures: int | None = typer.Option(None, "--max-parse-failures", min=0),
+    min_average_coverage: float | None = typer.Option(
+        None,
+        "--min-average-coverage",
+        min=0.0,
+        max=1.0,
+    ),
+    min_file_coverage: float | None = typer.Option(
+        None,
+        "--min-file-coverage",
+        min=0.0,
+        max=1.0,
+    ),
+    max_files_below_coverage: int | None = typer.Option(
+        None,
+        "--max-files-below-coverage",
+        min=0,
+    ),
+    max_semantic_warnings: int | None = typer.Option(None, "--max-semantic-warnings", min=0),
+    max_unhandled_diagnostics: int | None = typer.Option(
+        None,
+        "--max-unhandled-diagnostics",
+        min=0,
+    ),
+    max_todo_lines: int | None = typer.Option(None, "--max-todo-lines", min=0),
+    max_validation_failures: int | None = typer.Option(
+        None,
+        "--max-validation-failures",
+        min=0,
+    ),
+    max_high_risk_files: int | None = typer.Option(None, "--max-high-risk-files", min=0),
+    max_unresolved_imports: int | None = typer.Option(
+        None,
+        "--max-unresolved-imports",
+        min=0,
+    ),
+    max_parse_blocked_files: int | None = typer.Option(
+        None,
+        "--max-parse-blocked-files",
+        min=0,
+    ),
+    max_needs_rule_work_files: int | None = typer.Option(
+        None,
+        "--max-needs-rule-work-files",
+        min=0,
+    ),
+    max_needs_config_files: int | None = typer.Option(
+        None,
+        "--max-needs-config-files",
+        min=0,
+    ),
+    max_framework_boundary_files: int | None = typer.Option(
+        None,
+        "--max-framework-boundary-files",
+        min=0,
+    ),
+    max_manual_port_files: int | None = typer.Option(None, "--max-manual-port-files", min=0),
+) -> None:
+    """Fail CI when a doctor assessment exceeds deterministic thresholds."""
+    from j2py.doctor import (
+        assess_project,
+        doctor_gate_thresholds_for_profile,
+        evaluate_doctor_gate,
+        render_doctor_gate_text,
+        write_doctor_gate_json,
+    )
+
+    if not source.exists():
+        console.print(f"[red]Error:[/red] source path not found: {source}")
+        raise typer.Exit(code=1)
+
+    try:
+        thresholds = doctor_gate_thresholds_for_profile(profile).with_overrides(
+            **_gate_threshold_overrides(
+                max_parse_failures=max_parse_failures,
+                min_average_coverage=min_average_coverage,
+                min_file_coverage=min_file_coverage,
+                max_files_below_coverage=max_files_below_coverage,
+                max_semantic_warnings=max_semantic_warnings,
+                max_unhandled_diagnostics=max_unhandled_diagnostics,
+                max_todo_lines=max_todo_lines,
+                max_validation_failures=max_validation_failures,
+                max_high_risk_files=max_high_risk_files,
+                max_unresolved_imports=max_unresolved_imports,
+                max_parse_blocked_files=max_parse_blocked_files,
+                max_needs_rule_work_files=max_needs_rule_work_files,
+                max_needs_config_files=max_needs_config_files,
+                max_framework_boundary_files=max_framework_boundary_files,
+                max_manual_port_files=max_manual_port_files,
+            )
+        )
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    cfg = load_config(config, source if source.is_dir() else source.parent)
+    assessment = assess_project(
+        source,
+        cfg=cfg,
+        include_validation=include_validation,
+        sample_limit=sample_limit,
+    )
+    result = evaluate_doctor_gate(
+        assessment,
+        profile=profile,
+        thresholds=thresholds,
+        sample_limit=sample_limit,
+    )
+    if json_path is not None:
+        write_doctor_gate_json(json_path, result)
+        console.print(f"[green]Doctor gate JSON:[/green] {json_path}")
+
+    typer.echo(render_doctor_gate_text(result), nl=False)
+    if not result.payload["passed"]:
+        raise typer.Exit(code=1)
+
+
+@doctor_app.command()
 def diff(
     before_json: Path = typer.Argument(..., help="Assessment JSON before changes."),
     after_json: Path = typer.Argument(..., help="Assessment JSON after changes."),
@@ -292,6 +436,10 @@ def advise(
 def _write_output(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _gate_threshold_overrides(**values: int | float | None) -> dict[str, int | float | None]:
+    return {key: value for key, value in values.items() if value is not None}
 
 
 def dashboard(
