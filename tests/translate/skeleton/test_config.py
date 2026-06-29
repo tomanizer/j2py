@@ -248,10 +248,95 @@ def test_containing_and_nested_class_references_do_not_request_peer_imports() ->
     assert coverage == 1.0
     assert "from com.example.Inner import Inner" not in python_source
     assert "from com.example.Outer import Outer" not in python_source
-    assert "return Inner.create()" in python_source
+    # A nested type referenced from a method body is not a bare local in Python; it is
+    # reached through its enclosing class. The enclosing top-level class stays bare.
+    assert "return Outer.Inner.create()" in python_source
     assert "return Outer.create()" in python_source
     assert "inner.create()" not in python_source
     assert "outer.create()" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_static_imported_nested_member_qualifies_owner_in_method_body() -> None:
+    # A wildcard static import of a nested class's members (Validators.*) binds the
+    # owner to the bare nested name. From a method body that name is undefined, so the
+    # owner must be reached through its enclosing class.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import static com.example.Host.Validators.*;
+
+        public class Host {
+            public static int build(int raw) {
+                return nonNegative(raw);
+            }
+
+            static class Validators {
+                static int nonNegative(int arg) {
+                    return arg;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return Host.Validators.non_negative(raw)" in python_source
+    assert "return non_negative(raw)" not in python_source
+    assert "from com.example.Validators import Validators" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_static_imported_enum_constant_qualifies_through_enum() -> None:
+    # `import static Lexer.Kind.*` lets the source name DOT/HYPHEN bare; in Python they
+    # are reached through the enum, which itself is reached through its enclosing class.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import static com.example.Lexer.Kind.*;
+
+        public class Lexer {
+            public boolean isBoundary(Kind k) {
+                return k == DOT || k == HYPHEN;
+            }
+
+            enum Kind {
+                DOT,
+                HYPHEN,
+                EOI
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return k == Lexer.Kind.DOT or k == Lexer.Kind.HYPHEN" in python_source
+    assert "== DOT" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_nested_type_reference_in_class_body_stays_bare() -> None:
+    # Inside a class body the sibling nested name is a bare local while the enclosing
+    # class name is not yet bound, so a class-level reference must NOT be qualified.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        public class Holder {
+            static class Base {
+            }
+
+            static class Derived extends Base {
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "class Derived(Base):" in python_source
+    assert "class Derived(Holder.Base):" not in python_source
     assert_valid_python(python_source)
 
 

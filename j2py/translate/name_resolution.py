@@ -12,7 +12,7 @@ from j2py.translate.rules.imports import (
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 
 if TYPE_CHECKING:
-    from j2py.analyze.symbols import FileSymbols
+    from j2py.analyze.symbols import ClassSymbol, FileSymbols
     from j2py.config.loader import TranslationConfig
     from j2py.parse.java_ast import JavaNode, ParsedFile
     from j2py.translate.diagnostics import TranslationContext
@@ -25,6 +25,8 @@ ResolvedNameKind = Literal[
     "local",
     "field",
     "imported_type",
+    "file_type",
+    "enum_constant",
     "containing_type",
     "nested_type",
     "package_type",
@@ -68,6 +70,8 @@ class FileNameBindings:
     package_name: str = ""
     imported_types: dict[str, TypeBinding] = field(default_factory=dict)
     compilation_unit_types: set[str] = field(default_factory=set)
+    file_type_paths: dict[str, str] = field(default_factory=dict)
+    enum_constant_paths: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
 
@@ -159,6 +163,20 @@ class NameResolver:
                 reason="enclosing instance field binding",
             )
 
+        # A constant of a file-declared enum, brought into bare scope by a static
+        # import (``import static Outer.Kind.*``), is reachable through its enum
+        # (``Outer.Kind.DOT``) from a method body but is a class-body local inside the
+        # enum itself, so only qualify in a method context.
+        if scope.in_method:
+            enum_path = self.bindings.enum_constant_paths.get(raw_name)
+            if enum_path is not None:
+                return ResolvedName(
+                    raw_name=raw_name,
+                    python_name=enum_path,
+                    kind="enum_constant",
+                    reason="file enum constant binding",
+                )
+
         imported_type = self.bindings.imported_types.get(raw_name)
         if imported_type is not None:
             return ResolvedName(
@@ -172,6 +190,19 @@ class NameResolver:
 
         if raw_name[:1].isupper() and not raw_name.isupper():
             class_name = translate_class_name(raw_name)
+            # Nested types are reachable as bare locals inside a class body (where the
+            # enclosing class name is not yet bound), so only qualify references that
+            # appear inside a method body, where the bare name would be undefined.
+            if scope.in_method:
+                file_path = self.bindings.file_type_paths.get(class_name)
+                if file_path is not None:
+                    return ResolvedName(
+                        raw_name=raw_name,
+                        python_name=file_path,
+                        kind="file_type",
+                        is_type_reference=True,
+                        reason="file-declared nested type binding",
+                    )
             if class_name == scope.containing_class_name:
                 return ResolvedName(
                     raw_name=raw_name,
@@ -268,9 +299,113 @@ def build_file_name_bindings(
         package_name=symbols.package,
         imported_types=imported_type_bindings(parsed, cfg),
         compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
+        file_type_paths=_file_type_paths(symbols),
+        enum_constant_paths=_file_enum_constant_paths(parsed.root),
         static_field_aliases=dict(static_field_aliases or {}),
         static_method_imports=dict(static_method_imports or {}),
     )
+
+
+def _file_type_paths(symbols: FileSymbols) -> dict[str, str]:
+    """Map each *nested* file-declared type's simple Python name to its enclosing path.
+
+    Nested classes are not module globals in Python: a reference to ``Inner`` from
+    anywhere other than its own class body resolves through the enclosing class
+    (``Outer.Inner``), and it never needs a peer import because it lives in the same
+    module as its encloser. This map records that enclosing-qualified path for every
+    nested type so the resolver can qualify references and suppress bogus imports.
+
+    Top-level types are intentionally excluded: the project emits one module per
+    top-level class, so their resolution (bare reference vs. ``from X import X``) is
+    owned by the existing containing/package/compilation-unit handling. Simple names
+    that collide across distinct paths are dropped so the resolver falls back rather
+    than guessing a qualification.
+    """
+    paths: dict[str, str] = {}
+    collisions: set[str] = set()
+
+    def walk(cls: ClassSymbol, prefix: str) -> None:
+        py_name = translate_class_name(cls.name)
+        qualified = f"{prefix}.{py_name}" if prefix else py_name
+        if prefix:
+            if py_name in paths and paths[py_name] != qualified:
+                collisions.add(py_name)
+            paths[py_name] = qualified
+        for inner in cls.inner_classes:
+            walk(inner, qualified)
+
+    for cls in symbols.classes:
+        walk(cls, "")
+    for name in collisions:
+        paths.pop(name, None)
+    return paths
+
+
+_TYPE_DECLARATION_NODES = frozenset(
+    {
+        "class_declaration",
+        "interface_declaration",
+        "enum_declaration",
+        "record_declaration",
+        "annotation_type_declaration",
+    }
+)
+
+
+def _file_enum_constant_paths(root: JavaNode) -> dict[str, str]:
+    """Map each file-declared enum constant's name to its enclosing-qualified path.
+
+    A static import of an enum's constants (``import static Outer.Kind.*``) lets the
+    Java source name them bare (``DOT``). In Python a constant is reached through its
+    enum (``Outer.Kind.DOT``), so record that path for every enum constant declared in
+    the file. Names that collide across enums are dropped so the resolver leaves them
+    unqualified rather than guessing the wrong enum.
+    """
+    paths: dict[str, str] = {}
+    collisions: set[str] = set()
+
+    def nested_type_decls(body: JavaNode) -> list[JavaNode]:
+        decls: list[JavaNode] = []
+        for child in body.named_children:
+            if child.type in _TYPE_DECLARATION_NODES:
+                decls.append(child)
+            elif child.type == "enum_body_declarations":
+                decls.extend(c for c in child.named_children if c.type in _TYPE_DECLARATION_NODES)
+        return decls
+
+    def walk(type_node: JavaNode, prefix: str) -> None:
+        name_node = type_node.child_by_field("name")
+        if name_node is None:
+            return
+        qualified = translate_class_name(name_node.text)
+        if prefix:
+            qualified = f"{prefix}.{qualified}"
+        body = type_node.child_by_field("body")
+        if body is None:
+            return
+        if type_node.type == "enum_declaration":
+            for child in body.named_children:
+                if child.type != "enum_constant":
+                    continue
+                const_node = child.child_by_field("name")
+                const_name = (
+                    const_node.text
+                    if const_node is not None
+                    else child.text.split("(", 1)[0].strip()
+                )
+                const_path = f"{qualified}.{const_name}"
+                if const_name in paths and paths[const_name] != const_path:
+                    collisions.add(const_name)
+                paths[const_name] = const_path
+        for nested in nested_type_decls(body):
+            walk(nested, qualified)
+
+    for child in root.named_children:
+        if child.type in _TYPE_DECLARATION_NODES:
+            walk(child, "")
+    for name in collisions:
+        paths.pop(name, None)
+    return paths
 
 
 def imported_type_bindings(
