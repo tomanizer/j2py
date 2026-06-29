@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from collections.abc import Callable
 from typing import TypeAlias
 
@@ -591,7 +592,38 @@ def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
         return f"iter({args[0]})"
     if method_name == "equals" and len(args) == 2:
         return f"{args[0]} == {args[1]}"
+    if method_name == "copyOfRange" and len(args) == 3:
+        return _translate_arrays_copy_of_range(args)
     return None
+
+
+def _translate_arrays_copy_of_range(args: list[str]) -> str:
+    source, start, end = args
+    start_expr = "" if start == "0" else start
+    end_expr = "" if end == f"len({source})" else end
+    source = _slice_source_expression(source)
+    return f"{source}[{start_expr}:{end_expr}]"
+
+
+def _slice_source_expression(source: str) -> str:
+    try:
+        parsed = ast.parse(source, mode="eval")
+    except SyntaxError:
+        return source
+    if isinstance(parsed.body, _SIMPLE_SLICE_SOURCE_NODES):
+        return source
+    return f"({source})"
+
+
+_SIMPLE_SLICE_SOURCE_NODES: tuple[type[ast.expr], ...] = (
+    ast.Attribute,
+    ast.Call,
+    ast.Constant,
+    ast.List,
+    ast.Name,
+    ast.Subscript,
+    ast.Tuple,
+)
 
 
 def _translate_objects_call(

@@ -9,8 +9,7 @@ This is the first **external** end-to-end conversion case study: jsemver is a th
 OSS library, not a curated j2py fixture. The goal is to measure — honestly — how far the
 deterministic rule layer gets on real library code and to publish the residual gap list.
 
-Two kinds of intervention are applied before the translated source can run, and the
-case-study doc (docs/CASE_STUDY_JSEMVER.md) keeps them strictly separate:
+The harness keeps external scaffolding separate from any residual translator patches:
 
 * ``_EXTERNAL_STUBS`` — JDK/runtime symbols that are *not under test* (``Arrays``).
   These are scaffolding, exactly like the dependency stubs in
@@ -20,8 +19,7 @@ case-study doc (docs/CASE_STUDY_JSEMVER.md) keeps them strictly separate:
   output. Each patch is a single, documented source rewrite tagged with a gap id. The
   list of these patches **is** the residual failure list the case study reports: every
   entry is a place where the current rule layer emits Python that does not faithfully
-  preserve the Java. They are applied here so the loop can close and the behavioural
-  oracle can run; they are not silent fixes.
+  preserve the Java. They are not silent fixes.
 """
 
 from __future__ import annotations
@@ -62,15 +60,7 @@ class ResidualGap:
 # Each entry is a real defect in the deterministic rule-layer output. ``bad`` is the
 # exact text emitted by ``j2py translate --no-llm``; ``good`` is the minimal faithful
 # rewrite. See docs/CASE_STUDY_JSEMVER.md for the analysis behind each gap id.
-_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
-    ResidualGap(
-        gap_id="JSEMVER-5",
-        module="Stream",
-        summary="java.util.Arrays.copyOfRange not lowered to a Python slice",
-        bad="return Arrays.copy_of_range(self.elements, self.offset, len(self.elements))",
-        good="return self.elements[self.offset:]",
-    ),
-)
+_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = ()
 
 
 def _arrays_stub() -> types.SimpleNamespace:
