@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from j2py.llm.env import enabled_env_flag
 from j2py.llm.prompts import PROMPT_VERSION
 from j2py.translate.diagnostics import TranslationDiagnostics, diagnostic_payload
 from j2py.validate.checks import ValidationResult
@@ -51,12 +52,7 @@ class LlmHarvestRecord:
 
 
 def llm_harvest_enabled() -> bool:
-    return os.environ.get("J2PY_LLM_HARVEST", "1").strip().lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-    }
+    return enabled_env_flag("J2PY_LLM_HARVEST")
 
 
 def harvest_records_path(*, repo_root: Path | None = None) -> Path:

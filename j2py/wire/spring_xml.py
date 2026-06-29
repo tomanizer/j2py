@@ -557,9 +557,8 @@ def _parse_xml(path: Path) -> tuple[_PositionedTreeBuilder, ET.Element]:
     handler = _SaxHandler(builder)
     sax_parser = xml.sax.make_parser()
     sax_parser.setFeature(xml.sax.handler.feature_namespaces, True)
-    # Harden against XXE: do not resolve external general/parameter entities.
-    # Spring bean XML never legitimately needs them, and this parser may run on
-    # config pulled from a source tree we do not fully control.
+    # Disable external entity expansion for XXE safety. Spring bean XML does not
+    # need external entity resolution, and input may come from untrusted source trees.
     sax_parser.setFeature(xml.sax.handler.feature_external_ges, False)
     sax_parser.setFeature(xml.sax.handler.feature_external_pes, False)
     sax_parser.setContentHandler(handler)
@@ -567,9 +566,7 @@ def _parse_xml(path: Path) -> tuple[_PositionedTreeBuilder, ET.Element]:
     return builder, builder.root()
 
 
-# ---------------------------------------------------------------------------
-# Internal: helpers
-# ---------------------------------------------------------------------------
+# Helper functions for XML element lookup and path resolution.
 
 
 def _find_child(elem: ET.Element, local_name: str) -> ET.Element | None:
