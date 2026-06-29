@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_assignments import _ASSIGN_OR_UPDATE, _desugar_embedded_assign
 from j2py.translate.expr_types import _expression_py_type
@@ -21,15 +22,16 @@ def _translate_binary_expression(node: JavaNode, ctx: TranslationContext) -> str
     f_string = _translate_string_concat(node, ctx)
     if f_string is not None:
         return f_string
-    children = node.children
-    if len(children) >= 3:
-        operator_text = children[1].text
+    parts = _binary_parts(node)
+    if parts is not None:
+        left_node, operator_node, right_node = parts
+        operator_text = operator_node.text
         if operator_text == "/":
-            return _translate_division(node, children[0], children[2], ctx)
+            return _translate_division(node, left_node, right_node, ctx)
         if operator_text == ">>>":
-            return _translate_unsigned_right_shift(node, children[0], children[2], ctx)
+            return _translate_unsigned_right_shift(node, left_node, right_node, ctx)
         char_arithmetic = _translate_char_arithmetic(
-            node, children[0], children[2], operator_text, ctx
+            node, left_node, right_node, operator_text, ctx
         )
         if char_arithmetic is not None:
             return char_arithmetic
@@ -39,23 +41,32 @@ def _translate_binary_expression(node: JavaNode, ctx: TranslationContext) -> str
             ctx.diagnostics.record(
                 node,
                 supported=False,
-                reason=f"unsupported binary operator {children[1].text}",
+                reason=f"unsupported binary operator {operator_node.text}",
             )
             return f"__j2py_todo__({node.text!r})"
         null_comparison = _translate_null_comparison(
-            children[0],
-            children[2],
+            left_node,
+            right_node,
             binary_operator,
             ctx,
         )
         if null_comparison is not None:
             return null_comparison
-        left = _translate_binary_operand(children[0], operator_text, ctx, is_right=False)
-        right = _translate_binary_operand(children[2], operator_text, ctx, is_right=True)
+        left = _translate_binary_operand(left_node, operator_text, ctx, is_right=False)
+        right = _translate_binary_operand(right_node, operator_text, ctx, is_right=True)
         return f"{left} {binary_operator} {right}"
 
     ctx.diagnostics.record(node, supported=False, reason="malformed binary expression")
     return f"__j2py_todo__({node.text!r})"
+
+
+def _binary_parts(node: JavaNode) -> tuple[JavaNode, JavaNode, JavaNode] | None:
+    if node.type != "binary_expression":
+        return None
+    children = [child for child in node.children if not is_comment(child)]
+    if len(children) < 3:
+        return None
+    return children[0], children[1], children[2]
 
 
 def _translate_binary_operator(operator: str) -> str | None:
@@ -126,9 +137,10 @@ def _translate_binary_operand(
         return f"({expression})"
     if inner.type in {"switch_expression", "ternary_expression"}:
         return f"({expression})"
-    if inner.type != "binary_expression" or len(inner.children) < 3:
+    inner_parts = _binary_parts(inner)
+    if inner_parts is None:
         return expression
-    inner_operator = inner.children[1].text
+    inner_operator = inner_parts[1].text
     if _binary_parentheses_change_meaning(
         parent_operator,
         inner_operator,
@@ -139,11 +151,12 @@ def _translate_binary_operand(
 
 
 def _binary_operand_needs_parentheses(parent_operator: str, node: JavaNode) -> bool:
-    if node.type != "binary_expression" or len(node.children) < 3:
+    parts = _binary_parts(node)
+    if parts is None:
         return False
     if parent_operator not in {"&", "|", "^"}:
         return False
-    return node.children[1].text in {"==", "!=", "<", "<=", ">", ">="}
+    return parts[1].text in {"==", "!=", "<", "<=", ">", ">="}
 
 
 def _binary_parentheses_change_meaning(
@@ -421,12 +434,12 @@ def _flatten_plus(node: JavaNode) -> list[JavaNode] | None:
     if node.type != "binary_expression":
         return [node]
 
-    children = node.children
-    if len(children) != 3 or children[1].text != "+":
+    parts = _binary_parts(node)
+    if parts is None or parts[1].text != "+":
         return None
 
-    left = _flatten_plus(children[0])
-    right = _flatten_plus(children[2])
+    left = _flatten_plus(parts[0])
+    right = _flatten_plus(parts[2])
     if left is None or right is None:
         return None
     return left + right

@@ -3781,6 +3781,40 @@ def test_ternary_ignores_inline_comments_near_true_branch() -> None:
     assert_valid_python(result.source)
 
 
+def test_binary_expression_ignores_line_comments_before_operator() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class CommentedBinary {
+            public boolean utf8(byte byte2, byte[] bytes, int index) {
+                return byte2 > (byte) 0xBF
+                    // Third byte trailing-byte test.
+                    || bytes[index] > (byte) 0xBF;
+            }
+
+            public boolean both(boolean left, boolean right) {
+                return left
+                    // explanation
+                    && right;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "unsupported binary operator" not in result.source
+    assert "Third byte trailing-byte test" not in result.source
+    assert "return left and right" in result.source
+    assert "or bytes_[index] >" in result.source
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated>", "exec"), namespace)
+    translated = namespace["CommentedBinary"]()
+    assert translated.both(True, False) is False
+    assert translated.both(True, True) is True
+
+
 def test_ternary_ignores_inline_comments_near_false_branch() -> None:
     result = translate_source_with_diagnostics(
         """
