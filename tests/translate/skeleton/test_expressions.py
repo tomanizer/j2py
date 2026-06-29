@@ -1627,6 +1627,47 @@ def test_anonymous_java_iterator_implements_python_iterator_protocol() -> None:
         next(iterator)
 
 
+def test_anonymous_java_iterator_bridge_uses_configured_method_names() -> None:
+    cfg = CFG.model_copy(update={"snake_case_methods": False})
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Iterator;
+
+        final class IteratorFactory {
+            public Iterator<Integer> iterator() {
+                return new Iterator<Integer>() {
+                    private int index = 0;
+
+                    public boolean hasNext() {
+                        return index < 1;
+                    }
+
+                    public Integer next() {
+                        index++;
+                        return index;
+                    }
+                };
+            }
+        }
+        """,
+        cfg=cfg,
+    )
+
+    assert result.coverage == 1.0
+    assert "def hasNext(self) -> bool:" in result.source
+    assert "if not self.hasNext():" in result.source
+    assert "return self.next_()" in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated-iterator>", "exec"), namespace)
+    iterator = namespace["IteratorFactory"]().iterator()  # type: ignore[index, operator]
+    assert next(iterator) == 1
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
 def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() -> None:
     """Qualified same-name fields do not hide separate simple outer-field reads."""
     result = translate_source_with_diagnostics(

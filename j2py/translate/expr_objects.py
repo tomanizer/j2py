@@ -301,10 +301,12 @@ def _translate_anonymous_class(
                     snake_case=ctx.cfg.snake_case_methods,
                 ),
             )
-    if base_name == "Iterator" and {"has_next", "next_"} <= method_names:
+    has_next_name = translate_method_name("hasNext", snake_case=ctx.cfg.snake_case_methods)
+    next_name = translate_method_name("next", snake_case=ctx.cfg.snake_case_methods)
+    if base_name == "Iterator" and {has_next_name, next_name} <= method_names:
         if wrote_member:
             helper_lines.append("")
-        helper_lines.extend(_anonymous_iterator_protocol_lines())
+        helper_lines.extend(_anonymous_iterator_protocol_lines(has_next_name, next_name))
         wrote_member = True
 
     ctx.class_method_return_types = previous_return_types
@@ -322,6 +324,8 @@ def _translate_anonymous_class(
 
 
 def _anonymous_iterator_protocol_lines(
+    has_next_name: str,
+    next_name: str,
     *,
     def_indent: str = "            ",
     body_indent: str = "                ",
@@ -331,9 +335,9 @@ def _anonymous_iterator_protocol_lines(
         f"{body_indent}return self",
         "",
         f"{def_indent}def __next__(self):",
-        f"{body_indent}if not self.has_next():",
+        f"{body_indent}if not self.{has_next_name}():",
         f"{body_indent}    raise StopIteration",
-        f"{body_indent}return self.next_()",
+        f"{body_indent}return self.{next_name}()",
     ]
 
 
