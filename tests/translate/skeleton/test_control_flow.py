@@ -855,6 +855,47 @@ def test_switch_expression_translates_arrow_rules_and_yield_blocks() -> None:
     assert_valid_python(python_source)
 
 
+def test_defaultless_switch_expression_uses_explicit_no_match_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public enum Mode { PROXY, ASPECTJ }
+
+        public class Switches {
+            public String label(Mode mode) {
+                return switch (mode) {
+                    case PROXY -> "proxy";
+                    case ASPECTJ -> "aspectj";
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert any(
+        warning.reason == "default-less switch expression lowered with explicit no-match fallback"
+        for warning in result.diagnostics.warnings
+    )
+    assert "def _j2py_switch_1(_j2py_subject: object) -> str:" in result.source
+    assert "if _j2py_subject == Mode.PROXY:" in result.source
+    assert "if _j2py_subject == Mode.ASPECTJ:" in result.source
+    assert "raise ValueError(f'no matching switch case for {_j2py_subject!r}')" in (result.source)
+    assert "switch expression without default" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated>", "exec"), namespace)
+    mode = namespace["Mode"]
+    switches = namespace["Switches"]()
+    assert switches.label(mode.PROXY) == "proxy"
+    assert switches.label(mode.ASPECTJ) == "aspectj"
+    with pytest.raises(ValueError, match="no matching switch case"):
+        switches.label(object())
+
+
 def test_pattern_matching_switch_expression_uses_python_match_helper() -> None:
     parsed = parse_file(FIXTURES / "java" / "PatternMatchSwitch.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
