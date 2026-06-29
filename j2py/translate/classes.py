@@ -52,6 +52,7 @@ from j2py.translate.class_methods import (
     class_method_return_types,
     collect_declared_type_method_return_types,
     parameter_infos,
+    render_parameter_list,
     translate_method,
 )
 from j2py.translate.class_model import (
@@ -786,14 +787,7 @@ def _render_init_params(
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
 ) -> list[str]:
-    rendered: list[str] = []
-    for param in params:
-        if cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(param.py_type)
-            rendered.append(f"{param.py_name}: {param.py_type}")
-        else:
-            rendered.append(param.py_name)
-    return rendered
+    return render_parameter_list(params, cfg=cfg, diagnostics=diagnostics)
 
 
 def translate_overloaded_members(
