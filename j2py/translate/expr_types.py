@@ -5,7 +5,11 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.java_types import java_type_of_value, jdk_static_integral_field_type
+from j2py.translate.java_types import (
+    java_expression_type,
+    java_type_of_value,
+    jdk_static_integral_field_type,
+)
 from j2py.translate.node_utils import first_child_by_type, ternary_expression_operands
 from j2py.translate.rules.types import (
     LIST_RETURNING_METHOD_NAMES,
@@ -57,6 +61,12 @@ def infer_expression_py_type(node: JavaNode, ctx: TranslationContext) -> str | N
         return None
     if node.type == "field_access":
         return _field_access_py_type(node, ctx)
+    if node.type == "array_access":
+        array_element_type = java_expression_type(node, ctx)
+        if array_element_type is not None:
+            translated_type = translate_type(array_element_type, ctx.cfg)
+            if translated_type is not None:
+                return translated_type
     if node.type == "parenthesized_expression" and len(node.named_children) == 1:
         return infer_expression_py_type(node.named_children[0], ctx)
     if node.type == "cast_expression":

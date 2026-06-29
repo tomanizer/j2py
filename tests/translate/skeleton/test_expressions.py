@@ -3510,6 +3510,25 @@ def test_integral_division_uses_ordinal_type_certainty() -> None:
     assert_valid_python(result.source)
 
 
+def test_integral_division_uses_array_access_element_type_certainty() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class MathOps {
+            public int quotient(int[] values) {
+                return values[0] / values[1];
+            }
+        }
+        """
+    )
+
+    assert result.coverage == 1.0
+    assert "return values[0] // values[1]" in result.source
+    assert "division requires numeric type certainty" not in [
+        item.reason for item in result.diagnostics.unhandled
+    ]
+    assert_valid_python(result.source)
+
+
 def test_floating_point_remainder_infers_float_type() -> None:
     parsed = parse_source(
         """
