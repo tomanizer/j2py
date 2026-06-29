@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 
 from j2py.parse.java_ast import JavaNode
@@ -13,6 +14,10 @@ from j2py.translate.member_resolution import (
     static_import_binding,
     static_import_method_fallback,
 )
+from j2py.translate.name_resolution import scope_from_context
+from j2py.translate.rules.naming import translate_method_name
+
+_TYPE_RECEIVER_SEGMENT = re.compile(r"[A-Z][A-Za-z_0-9]*\Z")
 
 
 def _qualify_file_type_owner(
@@ -33,6 +38,34 @@ def _qualify_file_type_owner(
     if qualified is None or qualified == owner:
         return binding
     return replace(binding, python_owner=qualified)
+
+
+def _alias_static_instance_member(
+    binding: JavaMemberBinding,
+    ctx: TranslationContext,
+) -> JavaMemberBinding:
+    owner = binding.python_owner or binding.owner
+    aliases = ctx.module_static_instance_static_aliases.get(owner)
+    if aliases is None:
+        aliases = ctx.module_static_instance_static_aliases.get(owner.rsplit(".", 1)[-1])
+    if not aliases:
+        return binding
+    py_member = translate_method_name(binding.member, snake_case=ctx.cfg.snake_case_methods)
+    alias = aliases.get(py_member)
+    if alias is None:
+        return binding
+    return replace(binding, python_member=alias)
+
+
+def _request_runtime_type_import(import_line: str, kind: str, ctx: TranslationContext) -> None:
+    if ctx.in_method_body and kind == "package_type":
+        ctx.body_local_imports.add(import_line)
+    else:
+        ctx.diagnostics.imports.need_line(import_line)
+
+
+def _is_type_receiver_segment(owner: str) -> bool:
+    return _TYPE_RECEIVER_SEGMENT.fullmatch(owner) is not None
 
 
 def translate_static_method_invocation(
@@ -57,7 +90,48 @@ def translate_static_method_invocation(
     if raw_receiver:
         binding = configured_member_binding_for_receiver(raw_receiver, method_name, ctx)
         if binding is not None and binding.kind in {"method", "unknown"}:
-            return static_import_method_fallback(binding, args, ctx.cfg)
+            return static_import_method_fallback(
+                _alias_static_instance_member(_qualify_file_type_owner(binding, ctx), ctx),
+                args,
+                ctx.cfg,
+            )
+        owner = raw_receiver.rsplit(".", 1)[-1]
+        aliases = ctx.module_static_instance_static_aliases.get(owner)
+        if aliases:
+            py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+            alias = aliases.get(py_method)
+            if alias is not None:
+                resolved_owner = ctx.name_resolver.resolve_identifier(
+                    owner,
+                    scope_from_context(ctx),
+                )
+                if resolved_owner.import_line and resolved_owner.kind != "compilation_unit_type":
+                    _request_runtime_type_import(
+                        resolved_owner.import_line,
+                        resolved_owner.kind,
+                        ctx,
+                    )
+                return f"{owner}.{alias}({', '.join(args)})"
+        if not _is_type_receiver_segment(owner):
+            return None
+        qualified_owner = ctx.name_resolver.bindings.file_type_paths.get(owner)
+        if qualified_owner is not None and ctx.in_method:
+            py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+            return f"{qualified_owner}.{py_method}({', '.join(args)})"
+        resolved_owner = ctx.name_resolver.resolve_identifier(owner, scope_from_context(ctx))
+        if resolved_owner.is_type_reference and resolved_owner.kind in {
+            "imported_type",
+            "package_type",
+            "compilation_unit_type",
+        }:
+            if resolved_owner.import_line and resolved_owner.kind != "compilation_unit_type":
+                _request_runtime_type_import(
+                    resolved_owner.import_line,
+                    resolved_owner.kind,
+                    ctx,
+                )
+            py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
+            return f"{resolved_owner.python_name}.{py_method}({', '.join(args)})"
     return None
 
 
@@ -72,6 +146,7 @@ def translate_static_imported_method(
 ) -> str | None:
     member_binding = binding or static_import_binding(imported_name, ctx.cfg, kind="method")
     member_binding = _qualify_file_type_owner(member_binding, ctx)
+    member_binding = _alias_static_instance_member(member_binding, ctx)
     raw_receiver = member_binding.owner
     method_name = member_binding.member
     result = translate_static_method_invocation(

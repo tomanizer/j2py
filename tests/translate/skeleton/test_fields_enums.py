@@ -401,7 +401,7 @@ def test_anonymous_class_method_can_emit_nested_block_lambda_helper() -> None:
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "class _J2pyAnonymous1(Maker):" in result.source
+    assert "class _J2pyAnonymous1(AnonymousHelpers.Maker):" in result.source
     assert "def make(self, prefix: str) -> Runnable:" in result.source
     assert "def _j2py_lambda_1()" in result.source
     assert "print(prefix)" in result.source
@@ -606,6 +606,33 @@ def test_enum_constant_class_body_dispatches_method_arguments() -> None:
     assert namespace["Scored"].HIGH.score(5) == 15
 
 
+def test_enum_constant_class_body_synthesizes_interface_method_dispatcher() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        interface Matcher {
+            boolean matches(String value);
+        }
+
+        public enum Token implements Matcher {
+            LETTER {
+                @Override
+                public boolean matches(String value) {
+                    return value.equals("a");
+                }
+            };
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def matches(self, value: str)" in result.source
+    assert "return body_cls.matches(self, value)" in result.source
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated>", "exec"), namespace)
+    assert namespace["Token"].LETTER.matches("a") is True
+    assert namespace["Token"].LETTER.matches("b") is False
+
+
 def test_enum_direct_declarations_do_not_capture_nested_type_members() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -690,9 +717,9 @@ def test_block_lambda_in_field_initializer_emits_local_helper_in_init() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert "def _j2py_lambda_1(s):" in result.source
-    assert "self.mapper: Function[str, str] = _j2py_lambda_1" in result.source
+    assert "self.mapper: Callable[str, str] = _j2py_lambda_1" in result.source
     assert result.source.index("def _j2py_lambda_1(") < result.source.index(
-        "self.mapper: Function[str, str] = _j2py_lambda_1",
+        "self.mapper: Callable[str, str] = _j2py_lambda_1",
     )
     assert_valid_python(result.source)
 

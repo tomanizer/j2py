@@ -204,15 +204,44 @@ def translate_commons_codec_hex() -> tuple[dict[str, str], dict[str, Translation
 
 def _strip_external_imports(source: str) -> str:
     kept: list[str] = []
-    for line in source.splitlines():
+    lines = source.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
         stripped = line.strip()
+        if stripped == "if TYPE_CHECKING:":
+            block: list[str] = []
+            index += 1
+            while index < len(lines) and (lines[index].startswith("    ") or not lines[index]):
+                block.append(lines[index])
+                index += 1
+            linked_only = all(
+                not item.strip()
+                or item.strip().startswith(
+                    (
+                        "from java.",
+                        "import java.",
+                        "from org.apache.commons.codec.",
+                        "import org.apache.commons.codec.",
+                    ),
+                )
+                for item in block
+            )
+            if linked_only:
+                continue
+            kept.append(line)
+            kept.extend(block)
+            continue
         if stripped.startswith(("from java.", "import java.")):
+            index += 1
             continue
         if stripped.startswith(
             ("from org.apache.commons.codec.", "import org.apache.commons.codec.")
         ):
+            index += 1
             continue
         kept.append(line)
+        index += 1
     return "\n".join(kept)
 
 

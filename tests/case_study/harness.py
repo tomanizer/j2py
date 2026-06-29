@@ -141,11 +141,35 @@ def _strip_linked_imports(source: str) -> str:
     stubs in the namespace). Kept: ``__future__``, ``j2py_runtime``, ``abc``, ``typing``.
     """
     kept: list[str] = []
-    for line in source.splitlines():
+    lines = source.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
         stripped = line.strip()
+        if stripped == "if TYPE_CHECKING:":
+            block: list[str] = []
+            index += 1
+            while index < len(lines) and (lines[index].startswith("    ") or not lines[index]):
+                block.append(lines[index])
+                index += 1
+            linked_only = all(
+                not item.strip()
+                or item.strip().startswith(
+                    ("from org.apache.commons.lang3.tuple.", "from java.", "import java."),
+                )
+                for item in block
+            )
+            if linked_only:
+                continue
+            kept.append(line)
+            kept.extend(block)
+            continue
         if stripped.startswith("from org.apache.commons.lang3.tuple."):
+            index += 1
             continue
         if stripped.startswith(("from java.", "import java.")):
+            index += 1
             continue
         kept.append(line)
+        index += 1
     return "\n".join(kept)

@@ -456,6 +456,7 @@ def translate_class(
                     nested_class_names=direct_nested_names,
                     enclosing_static_dispatch=enclosing_dispatch,
                     static_instance_static_aliases=static_instance_aliases,
+                    module_static_instance_static_aliases=merged_static_instance_aliases,
                     static_instance_instance_zero_arg_names=static_instance_instance_zero_arg,
                     static_instance_static_zero_arg_names=static_instance_static_zero_arg,
                 ),
@@ -491,6 +492,7 @@ def translate_class(
             nested_class_names=direct_nested_names,
             enclosing_static_dispatch=enclosing_dispatch,
             static_instance_static_aliases=static_instance_aliases,
+            module_static_instance_static_aliases=merged_static_instance_aliases,
             static_instance_instance_zero_arg_names=static_instance_instance_zero_arg,
             static_instance_static_zero_arg_names=static_instance_static_zero_arg,
         )
@@ -522,8 +524,27 @@ def translate_class(
 
     if class_body_needs_pass(lines):
         lines.append("    pass")
+    if _needs_iterable_bridge(class_method_names, cfg):
+        lines.extend(_iterable_bridge_lines(cfg))
 
     return lines
+
+
+def _needs_iterable_bridge(
+    class_method_names: set[str],
+    cfg: TranslationConfig,
+) -> bool:
+    iterator_name = "iterator" if cfg.snake_case_methods else "iterator"
+    return iterator_name in class_method_names
+
+
+def _iterable_bridge_lines(cfg: TranslationConfig) -> list[str]:
+    method_name = "iterator" if cfg.snake_case_methods else "iterator"
+    return [
+        "",
+        "    def __iter__(self):",
+        f"        return self.{method_name}()",
+    ]
 
 
 def _data_model_members(
@@ -798,6 +819,7 @@ def translate_overloaded_members(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
     static_instance_instance_zero_arg_names: set[str] | None = None,
     static_instance_static_zero_arg_names: set[str] | None = None,
     python_name_override: str | None = None,
@@ -829,6 +851,7 @@ def translate_overloaded_members(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         nested_class_names=nested_class_names or set(),
         static_instance_static_aliases=static_instance_static_aliases,
+        module_static_instance_static_aliases=module_static_instance_static_aliases,
         static_instance_instance_zero_arg_names=static_instance_instance_zero_arg_names,
         static_instance_static_zero_arg_names=static_instance_static_zero_arg_names,
         python_name_override=python_name_override,

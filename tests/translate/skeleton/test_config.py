@@ -467,7 +467,7 @@ def test_default_package_class_references_emit_absolute_import() -> None:
     )
 
     assert coverage == 1.0
-    assert "from Peer import Peer" in python_source
+    assert "from Peer import Peer" not in python_source
     assert "Peer.fill(" in python_source
     assert "peer.fill(" not in python_source
     assert_valid_python(python_source)

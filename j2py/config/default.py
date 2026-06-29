@@ -177,6 +177,8 @@ IMPORT_MAP: dict[str, str] = {
     "java.io.IOException": "",  # maps to OSError (builtin)
     "java.io.InputStream": "from typing import IO",
     "java.io.OutputStream": "from typing import IO",
+    "java.io.ObjectInputStream": "from typing import Any as ObjectInputStream",
+    "java.io.InvalidObjectException": "from j2py_runtime import InvalidObjectException",
     "java.io.BufferedReader": "import io",
     "java.io.PrintWriter": "import io",
     "java.nio.file.Path": "from pathlib import Path",

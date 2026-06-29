@@ -196,7 +196,7 @@ def test_object_name_static_overloads_emit_typing_dispatcher() -> None:
     assert not result.diagnostics.unhandled
     assert "from j2py_runtime import ObjectName" in result.source
     assert "from j2py_runtime import MalformedObjectNameException" in result.source
-    assert "from typing import overload" in result.source
+    assert "from typing import TYPE_CHECKING, overload" in result.source
     assert "from j2py_runtime import overloaded" not in result.source
     assert "from javax." not in result.source
     assert result.source.count("    @staticmethod\n    @overload") == 4
@@ -1191,7 +1191,8 @@ def test_fixed_arity_beats_varargs_in_value_dispatcher() -> None:
     assert (
         "if len(args) == 3 and isinstance(args[0], int) and not isinstance(args[0], bool)"
     ) in python_source
-    assert "if len(args) >= 0 and all(isinstance(value, int)" in python_source
+    assert "if len(args) >= 0 and ((" in python_source
+    assert "all(isinstance(value, int) and not isinstance(value, bool)" in python_source
     assert python_source.index("len(args) == 3") < python_source.index("len(args) >= 0")
     assert "NotImplementedError" not in python_source
     assert_valid_python(python_source)
@@ -1241,6 +1242,40 @@ def test_varargs_value_dispatch_accepts_empty_tail_with_fixed_overload() -> None
     assert releases.run_empty_tail() == 0  # type: ignore[attr-defined]
     assert releases.run_with_tail() == 1  # type: ignore[attr-defined]
     assert releases.run_fixed() == 5  # type: ignore[attr-defined]
+
+
+def test_varargs_value_dispatch_accepts_forwarded_varargs_array() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Releases {
+            public int bump(String... labels) {
+                return bump(1, labels);
+            }
+
+            public int bump(int value, String... labels) {
+                return labels.length;
+            }
+
+            public int runEmpty() {
+                return bump();
+            }
+
+            public int runWithLabels() {
+                return bump("alpha", "beta");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "if len(args) >= 0" in python_source
+    assert "isinstance(args[1], (list, tuple))" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<releases>", "exec"), namespace)
+    releases = namespace["Releases"]()
+    assert releases.run_empty() == 0  # type: ignore[attr-defined]
+    assert releases.run_with_labels() == 2  # type: ignore[attr-defined]
 
 
 def test_equivalent_varargs_erasure_collisions_collapse_to_value_dispatcher() -> None:
@@ -1874,4 +1909,68 @@ def test_static_instance_collision_module_index_merges_parent_from_other_unit() 
     assert result.coverage == 1.0
     assert "return Base.is_open_static(breaker)" in result.source
     assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+
+
+def test_class_qualified_static_instance_collision_uses_module_alias() -> None:
+    from j2py.analyze.symbols import extract_symbols
+    from j2py.config.loader import ConfigLoader
+    from j2py.parse.java_ast import parse_source
+    from j2py.translate.class_members import (
+        collect_file_class_declarations,
+        collect_file_class_static_instance_aliases,
+        collect_file_class_static_methods,
+        merge_class_declaration_indexes,
+        merge_class_static_instance_alias_indexes,
+        merge_class_static_method_indexes,
+    )
+    from j2py.translate.skeleton import translate_skeleton_with_diagnostics
+
+    cfg = ConfigLoader().add_defaults().build()
+    parser_parsed = parse_source(
+        """
+        public class Parser {
+            public static String parse(String value) {
+                return value;
+            }
+
+            public String parse() {
+                return "";
+            }
+        }
+        """,
+    )
+    use_parsed = parse_source(
+        """
+        public class UseParser {
+            public static String run(String value) {
+                return Parser.parse(value);
+            }
+        }
+        """,
+    )
+    module_methods = merge_class_static_method_indexes(
+        collect_file_class_static_methods(parser_parsed.root, cfg),
+        collect_file_class_static_methods(use_parsed.root, cfg),
+    )
+    module_aliases = merge_class_static_instance_alias_indexes(
+        collect_file_class_static_instance_aliases(parser_parsed.root, cfg),
+        collect_file_class_static_instance_aliases(use_parsed.root, cfg),
+    )
+    module_declarations = merge_class_declaration_indexes(
+        collect_file_class_declarations(parser_parsed.root),
+        collect_file_class_declarations(use_parsed.root),
+    )
+    result = translate_skeleton_with_diagnostics(
+        use_parsed,
+        extract_symbols(use_parsed),
+        cfg,
+        module_class_static_methods=module_methods,
+        module_class_static_instance_aliases=module_aliases,
+        module_class_declarations=module_declarations,
+    )
+
+    assert result.coverage == 1.0
+    assert "return Parser.parse_static(value)" in result.source
+    assert "return Parser.parse(value)" not in result.source
     assert_valid_python(result.source)

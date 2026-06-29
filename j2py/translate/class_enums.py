@@ -103,6 +103,7 @@ def translate_enum(
     constant_assignments: list[list[str]] = []
     constants_with_bodies: list[str] = []
     overridden_method_py_names: set[str] = set()
+    overridden_method_nodes: dict[str, JavaNode] = {}
     bodies_map_name = _enum_constant_bodies_map_name(class_name)
 
     for constant in constants:
@@ -111,7 +112,7 @@ def translate_enum(
             "identifier",
         )
         constant_name = name_node.text if name_node is not None else constant.text.split("(", 1)[0]
-        assignment_lines, helper_lines, overridden = _translate_enum_constant(
+        assignment_lines, helper_lines, overridden, overridden_nodes = _translate_enum_constant(
             constant,
             cfg,
             diagnostics,
@@ -128,9 +129,10 @@ def translate_enum(
             constant_body_helpers.append(helper_lines)
             constants_with_bodies.append(constant_name)
             for raw_name in overridden:
-                overridden_method_py_names.add(
-                    translate_method_name(raw_name, snake_case=cfg.snake_case_methods),
-                )
+                py_name = translate_method_name(raw_name, snake_case=cfg.snake_case_methods)
+                overridden_method_py_names.add(py_name)
+                if raw_name in overridden_nodes:
+                    overridden_method_nodes.setdefault(py_name, overridden_nodes[raw_name])
 
     for helper_lines in constant_body_helpers:
         module_prefix.extend(helper_lines)
@@ -153,8 +155,14 @@ def translate_enum(
             diagnostics.imports.need_type_annotation(field.py_type)
         lines.append(f"    {_field_assignment(field.py_name, field.py_type, cfg)}")
 
+    emitted_member_py_names: set[str] = set()
     for group in member_groups(members):
         lines.append("")
+        group_name_node = group[0].child_by_field("name")
+        if group_name_node is not None:
+            emitted_member_py_names.add(
+                translate_method_name(group_name_node.text, snake_case=cfg.snake_case_methods),
+            )
         if len(group) > 1:
             lines.extend(
                 translate_overloaded_members(
@@ -231,6 +239,27 @@ def translate_enum(
         lines.extend(translate_method(group[0], ctx))
         if group_has_to_string_override(group):
             lines.extend(to_string_dunder_wrapper(cfg))
+    for py_name, method in overridden_method_nodes.items():
+        if py_name in emitted_member_py_names:
+            continue
+        lines.append("")
+        diagnostics.record(
+            method,
+            supported=True,
+            reason="translated enum constant body method via synthesized dispatch",
+        )
+        lines.extend(
+            _enum_constant_body_dispatcher(
+                method,
+                py_name,
+                cfg,
+                diagnostics,
+                bodies_map_name=bodies_map_name,
+            ),
+        )
+    if constants_with_bodies:
+        lines.append("")
+        lines.append(f"{class_name}._j2py_enum_bodies = {bodies_map_name}")
     return module_prefix + lines
 
 
@@ -269,11 +298,12 @@ def _translate_enum_constant(
     enum_field_names: set[str],
     enum_field_types: dict[str, str],
     enum_field_java_types: dict[str, str],
-) -> tuple[list[str], list[str] | None, set[str]]:
+) -> tuple[list[str], list[str] | None, set[str], dict[str, JavaNode]]:
     diagnostics.record(constant, supported=True, reason="translated enum constant")
     body = first_child_by_type(constant, "class_body")
     helper_lines: list[str] | None = None
     overridden: set[str] = set()
+    overridden_nodes: dict[str, JavaNode] = {}
     if body is not None:
         ctx = TranslationContext(
             cfg=cfg,
@@ -286,7 +316,7 @@ def _translate_enum_constant(
             name_resolver=name_resolver,
             allow_local_helpers=True,
         )
-        helper_lines, overridden = _translate_enum_constant_class_body(
+        helper_lines, overridden, overridden_nodes = _translate_enum_constant_class_body(
             body,
             constant_name,
             ctx,
@@ -307,14 +337,14 @@ def _translate_enum_constant(
         value = f"({', '.join(args)})" if len(args) > 1 else args[0]
         assignment = [f"    {constant_name} = {value}"]
 
-    return assignment, helper_lines, overridden
+    return assignment, helper_lines, overridden, overridden_nodes
 
 
 def _translate_enum_constant_class_body(
     body: JavaNode,
     constant_name: str,
     ctx: TranslationContext,
-) -> tuple[list[str], set[str]]:
+) -> tuple[list[str], set[str], dict[str, JavaNode]]:
     from j2py.translate.expr_objects import (
         _anonymous_helper_init_lines,
         _anonymous_method_lines,
@@ -331,6 +361,7 @@ def _translate_enum_constant_class_body(
     instance_fields: list[FieldInfo] = []
     methods: list[JavaNode] = []
     overridden: set[str] = set()
+    overridden_nodes: dict[str, JavaNode] = {}
     for member in body.named_children:
         if is_comment(member):
             ctx.diagnostics.warn(member, reason="preserved comment")
@@ -361,6 +392,7 @@ def _translate_enum_constant_class_body(
             name_node = member.child_by_field("name")
             if name_node is not None:
                 overridden.add(name_node.text)
+                overridden_nodes.setdefault(name_node.text, member)
             continue
         ctx.diagnostics.record(
             member,
@@ -411,7 +443,7 @@ def _translate_enum_constant_class_body(
     if not wrote_member:
         lines.append("    pass")
 
-    return lines, overridden
+    return lines, overridden, overridden_nodes
 
 
 def _enum_constant_bodies_map_name(class_name: str) -> str:
@@ -445,7 +477,7 @@ def _enum_constant_body_dispatcher(
 
     return [
         f"    def {py_name}({', '.join(rendered_params)}){returns}:",
-        f"        body_cls = {bodies_map_name}.get(self.name)",
+        "        body_cls = self.__class__._j2py_enum_bodies.get(self.name)",
         "        if body_cls is None:",
         "            raise NotImplementedError(self.name)",
         "        if not hasattr(self, '_j2py_enum_initialized'):",

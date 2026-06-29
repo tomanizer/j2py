@@ -78,7 +78,13 @@ def _value_dispatch_condition(guards: list[_DispatchGuard], params: list[Paramet
     spread_guard = guards[spread_index]
     if spread_guard.condition_template is not None and spread_guard.specificity > 0:
         element_check = spread_guard.condition_template.format(arg="value")
-        parts.append(f"all({element_check} for value in args[{spread_index}:])")
+        separate_values = f"all({element_check} for value in args[{spread_index}:])"
+        array_value = (
+            f"len(args) == {spread_index + 1} "
+            f"and isinstance(args[{spread_index}], (list, tuple)) "
+            f"and all({element_check} for value in args[{spread_index}])"
+        )
+        parts.append(f"(({array_value}) or {separate_values})")
     return " and ".join(parts)
 
 
@@ -108,7 +114,13 @@ def _value_dispatch_assignments(
     ]
     spread_param = params[spread_index]
     if should_assign(spread_param):
-        lines.append(f"{indent}{spread_param.py_name} = args[{spread_index}:]")
+        lines.append(
+            f"{indent}{spread_param.py_name} = "
+            f"tuple(args[{spread_index}]) "
+            f"if len(args) == {spread_index + 1} "
+            f"and isinstance(args[{spread_index}], (list, tuple)) "
+            f"else args[{spread_index}:]"
+        )
     return lines
 
 

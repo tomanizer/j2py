@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_types import bind_annotation_type_names
 from j2py.translate.class_members import references_enclosing_instance_fields, uses_qualified_this
 from j2py.translate.class_model import FieldInfo
 from j2py.translate.comments import is_comment, translate_comment
@@ -253,7 +254,8 @@ def _translate_anonymous_class(
     helper_id = len(ctx.pending_local_helpers) + 1
     helper_name = f"_J2pyAnonymous{helper_id}"
     base_name = translate_class_name(base_type)
-    base_clause = "" if base_name in {"Comparator", "Object"} else f"({base_name})"
+    bound_base_name = bind_annotation_type_names(base_name, ctx)
+    base_clause = "" if bound_base_name in {"Comparator", "Object"} else f"({bound_base_name})"
     current_field_reference = references_enclosing_instance_fields(
         body_node,
         ctx.class_fields,
@@ -611,6 +613,7 @@ def _anonymous_method_lines(
         annotation_comment_lines,
         record_annotation_diagnostics,
     )
+    from j2py.translate.annotation_types import bind_annotation_type_names
     from j2py.translate.class_methods import (
         method_body,
         parameter_infos,
@@ -637,6 +640,17 @@ def _anonymous_method_lines(
 
     is_static = "static" in _modifiers(method)
     params = parameter_infos(method, ctx.cfg)
+    params = [
+        type(param)(
+            raw_name=param.raw_name,
+            py_name=param.py_name,
+            py_type=bind_annotation_type_names(param.py_type, ctx),
+            java_type=param.java_type,
+            is_spread=param.is_spread,
+            py_annotations=param.py_annotations,
+        )
+        for param in params
+    ]
     rendered_params = [
         f"{param.py_name}: {param.py_type}" if ctx.cfg.emit_type_hints else param.py_name
         for param in params
@@ -662,6 +676,7 @@ def _anonymous_method_lines(
     previous_enclosing_class_field_types = dict(ctx.enclosing_class_field_types)
     previous_enclosing_class_field_java_types = dict(ctx.enclosing_class_field_java_types)
     previous_in_instance_method = ctx.in_instance_method
+    previous_in_method = ctx.in_method
     previous_allow_helpers = ctx.allow_local_helpers
     previous_outer_self_alias = ctx.outer_self_alias
     ctx.local_names = set()
@@ -680,6 +695,7 @@ def _anonymous_method_lines(
     ctx.enclosing_class_field_types = enclosing_field_types
     ctx.enclosing_class_field_java_types = enclosing_field_java_types
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
     ctx.allow_local_helpers = True
     ctx.outer_self_alias = outer_self_alias
     start_index = len(ctx.pending_local_helpers)
@@ -707,6 +723,7 @@ def _anonymous_method_lines(
         ctx.enclosing_class_field_types = previous_enclosing_class_field_types
         ctx.enclosing_class_field_java_types = previous_enclosing_class_field_java_types
         ctx.in_instance_method = previous_in_instance_method
+        ctx.in_method = previous_in_method
         ctx.allow_local_helpers = previous_allow_helpers
         ctx.outer_self_alias = previous_outer_self_alias
 

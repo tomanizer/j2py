@@ -309,6 +309,17 @@ def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:
     if method_node == named[0]:
         ctx.diagnostics.record(node, supported=False, reason="malformed method reference")
         return f"__j2py_todo__({node.text!r})"
+    if target == "Character":
+        predicate = {
+            "isDigit": "isdigit",
+            "isLetter": "isalpha",
+            "isLetterOrDigit": "isalnum",
+            "isLowerCase": "islower",
+            "isUpperCase": "isupper",
+            "isWhitespace": "isspace",
+        }.get(method_node.text)
+        if predicate is not None:
+            return f"lambda value: value is not None and len(value) == 1 and value.{predicate}()"
     method_name = translate_method_name(method_node.text, snake_case=ctx.cfg.snake_case_methods)
     return f"{target}.{method_name}"
 

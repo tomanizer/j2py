@@ -6,6 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
 from j2py.translate.java_types import java_expression_type, java_type_simple_name
+from j2py.translate.name_resolution import scope_from_context
 from j2py.translate.node_utils import direct_children_by_type, first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
@@ -140,10 +141,21 @@ def _catch_type(parameter: JavaNode, ctx: TranslationContext) -> str:
     types = _catch_java_types(parameter)
     if not types:
         return "Exception"
-    mapped = [ctx.cfg.exception_map.get(java_type, java_type) for java_type in types]
+    mapped = [_resolve_exception_type(java_type, ctx) for java_type in types]
     if len(mapped) == 1:
         return mapped[0]
     return f"({', '.join(mapped)})"
+
+
+def _resolve_exception_type(java_type: str, ctx: TranslationContext) -> str:
+    mapped = ctx.cfg.exception_map.get(java_type)
+    if mapped is not None:
+        return mapped
+    raw_name = java_type.rsplit(".", 1)[-1]
+    resolved = ctx.name_resolver.resolve_identifier(raw_name, scope_from_context(ctx))
+    if resolved.import_line:
+        ctx.diagnostics.imports.need_type_checking_line(resolved.import_line)
+    return resolved.python_name if resolved.is_type_reference else raw_name
 
 
 def _catch_java_types(parameter: JavaNode) -> list[str]:
@@ -169,7 +181,7 @@ def _translate_exception_creation(node: JavaNode, ctx: TranslationContext) -> st
     type_node = node.child_by_field("type")
     args_node = first_child_by_type(node, "argument_list")
     raw_type = type_node.text if type_node is not None else "Exception"
-    py_type = ctx.cfg.exception_map.get(raw_type, raw_type)
+    py_type = _resolve_exception_type(raw_type, ctx)
     args = list(args_node.named_children) if args_node is not None else []
     if len(args) == 2 and _is_exception_cause_argument(args[1], ctx):
         message = translate_expression(args[0], ctx)

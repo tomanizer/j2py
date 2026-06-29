@@ -22,8 +22,8 @@ trial in #613 because it is small, dependency-free, and exhaustively tested.
 The whole library is pinned as the `jsemver` corpus preset
 ([`scripts/corpus/corpus_presets.py`](../scripts/corpus/corpus_presets.py)) for
 scoreboard / hotspot work over the full tree. For the hermetic in-`make check` loop, the
-`com.github.zafarkhaja.semver.util` package (`Stream` + `UnexpectedElementException`) is
-vendored under
+`com.github.zafarkhaja.semver.util` package (`Stream` + `UnexpectedElementException`)
+and the `Version` / parser dependency closure are vendored under
 [`tests/fixtures/case_study/jsemver/java/`](../tests/fixtures/case_study/jsemver/java)
 (MIT, headers intact).
 
@@ -47,15 +47,13 @@ library completely.
 
 Node coverage measures mechanical completion, not correctness — the same lesson as the
 [`tuple` case study](CASE_STUDY_COMMONS_LANG_TUPLE.md), now confirmed on external code.
-A static lint over the untouched output shows the gap immediately: **139 `F821`
-undefined-name findings** across the tree. Most are harmless (type-only annotations under
-`from __future__ import annotations`), but a systematic minority are real binding and
-lowering defects: bare references to sibling static members (`lt`, `gte`, `eq`),
-inner-class references (`Builder`, `Validators`, `Helper`), unqualified enum constants
-(`DOT`, `HYPHEN`, `EOI`, `DIGIT`), and un-lowered JDK types (`Arrays`, `Optional`,
-`Character`, `Predicate`).
+A static lint over the untouched whole-tree output originally showed **139 `F821`
+undefined-name findings**. The in-repo Version-core closure now links and runs its
+exercised behavior, and a lint pass over the seven generated Version-core files reports
+**0 `F821` findings**. The remaining full-tree work is outside this seven-file closed
+loop and belongs with the corpus baseline follow-up.
 
-## The closed loop: `util` package vs. its own `StreamTest`
+## Closed loop 1: `util` package vs. its own `StreamTest`
 
 To turn this from observation into a measured behavioural result, the `util` package is
 run against the library's own `StreamTest` (14 cases) ported one-for-one to pytest in
@@ -68,9 +66,9 @@ The translation, patching, and linking happen in
 | `UnexpectedElementException` | 100% | 0 | 0.99 | 9 |
 | `Stream` | 100% | 0 | 0.99 | 30 |
 
-**Result: 14 / 14 ported `StreamTest` cases pass** against the rule-layer translation —
-but only after **6 documented translator-defect patches** and **2 external-dependency
-stubs**. The two kinds of intervention are kept strictly separate in the harness.
+**Result: 14 / 14 ported `StreamTest` cases pass** against the rule-layer translation,
+with **0 residual translator-defect patches**. External scaffolding remains separate from
+translator-gap patches in the harness.
 
 ### External-dependency stubs (scaffolding, not under test)
 
@@ -102,20 +100,44 @@ from the residual list by the deterministic array-copy lowering fix tracked in i
 helper call instead of a Python slice, was removed from the residual list by the
 deterministic slice-lowering fix tracked in issue #646.
 
+## Closed loop 2: `Version` core vs. the VersionTest slice
+
+Issue [#654](https://github.com/tomanizer/j2py/issues/654) extends the hermetic loop to
+the library core: `Version`, `VersionParser`, parser exceptions, `Parser`, and the shared
+`Stream` utility. The harness links the seven-file dependency closure with shared
+module-level class/static indexes, supplies only external JDK-style scaffolding
+(`Optional` and `ExpressionParser`), and applies **0 residual translator-defect patches**.
+
+| File | Node coverage | `# TODO(j2py)` | Semantic warnings |
+|---|---:|---:|---:|
+| `ParseException` | 100% | 0 | 5 |
+| `UnexpectedElementException` | 100% | 0 | 9 |
+| `Stream` | 100% | 0 | 30 |
+| `UnexpectedCharacterException` | 100% | 0 | 12 |
+| `Parser` | 100% | 0 | 0 |
+| `VersionParser` | 100% | 0 | 55 |
+| `Version` | 100% | 0 | 204 |
+
+**Result: 5 / 5 ported Version-core oracle cases pass** against the rule-layer
+translation:
+
+- `Version.of(1, 2, 3)` accessors and `str(version)` -> `1.2.3`
+- `Version.parse("1.2.3")`
+- `Version.parse("1.2.3-alpha.1+build.5")`
+- numeric `compareTo` ordering
+- `nextPatchVersion()` -> `1.2.4`
+
 ## Honest scope and conclusion
 
-- **Demonstrated, not asserted:** an external OSS library's own test suite now runs
-  against j2py output in-repo, hermetically, in `make check`.
+- **Demonstrated, not asserted:** external OSS library tests now run against j2py output
+  in-repo, hermetically, in `make check`: 14 util tests plus 5 Version-core tests.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
 - **Correctness has a measured, enumerated boundary:** 0 residual translator-defect
-  patches are now needed for this ~400-LOC, 14-test package. Extrapolated across the 139 `F821`
-  findings on the full tree, the larger `Version` / `expr` / parser surface will surface
-  more of the same categories (sibling static refs, inner-class binding, JDK lowering).
+  patches are now needed for the util package or the exercised Version-core slice, and
+  the generated seven-file Version-core output has 0 `F821` undefined-name findings.
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Extend the closed loop to the `Version` value class (parse / compare / increment /
-   `toString`) — the library's core and the bulk of `VersionTest`.
-2. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
+1. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
    `translate_corpus.py` so the full-tree node-coverage number is regression-gated.

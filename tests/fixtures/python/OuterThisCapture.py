@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from com.example.Task import Task
 
 
 class Task(Protocol):
@@ -32,5 +35,5 @@ class OuterThisCapture:
     def process(self) -> None:
         print(self.name)
 
-    def create_inner(self) -> InnerTask:
+    def create_inner(self) -> OuterThisCapture.InnerTask:
         return self.InnerTask(self)

@@ -344,6 +344,7 @@ def test_enum_set_factory_methods_route_to_runtime_enum_set() -> None:
                 EnumSet<Color> n = EnumSet.noneOf(Color.class);
                 EnumSet<Color> r = EnumSet.range(Color.RED, Color.GREEN);
                 EnumSet<Color> c = EnumSet.copyOf(a);
+                EnumSet<Color> inverse = EnumSet.complementOf(n);
             }
         }
         """,
@@ -355,6 +356,7 @@ def test_enum_set_factory_methods_route_to_runtime_enum_set() -> None:
     assert "EnumSet.none_of(" in result.source
     assert "EnumSet.range(" in result.source
     assert "EnumSet.copy_of(" in result.source
+    assert "EnumSet.complement_of(" in result.source
 
 
 def test_math_increment_exact_warns_overflow_semantics_not_preserved() -> None:

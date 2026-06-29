@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_types import translate_type_annotation
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import infer_expression_py_type, translate_expression
 from j2py.translate.node_utils import direct_children_by_type, first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_field_name
-from j2py.translate.rules.types import is_var_type, translate_type
+from j2py.translate.rules.types import is_var_type
 
 TYPE_DECLARATION_NODES = {
     "class_declaration",
@@ -359,7 +360,7 @@ def _translate_local_variable_declaration(
             inferred = infer_expression_py_type(value_node, ctx) if value_node is not None else None
             py_type = inferred or "object"
         else:
-            py_type = translate_type(java_type, ctx.cfg)
+            py_type = translate_type_annotation(java_type, ctx)
         if ctx.cfg.emit_type_hints:
             ctx.diagnostics.imports.need_type_annotation(py_type)
         ctx.variable_types[raw_name] = py_type

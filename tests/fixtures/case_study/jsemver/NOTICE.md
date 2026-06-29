@@ -1,9 +1,10 @@
-# Vendored fixture: java-semver (`com.github.zafarkhaja.semver.util`)
+# Vendored fixture: java-semver (`com.github.zafarkhaja.semver`)
 
 The `java/` sources are copied verbatim (MIT License) from java-semver / jsemver
 (https://github.com/zafarkhaja/jsemver), tag `v0.10.2`, commit
-`75b5abe97ca55c4569ea84e09330db22a0df2db7`, package
-`com.github.zafarkhaja.semver.util`. Each file retains its original MIT license header.
+`75b5abe97ca55c4569ea84e09330db22a0df2db7`, packages
+`com.github.zafarkhaja.semver` and `com.github.zafarkhaja.semver.util`. Each file
+retains its original MIT license header.
 
 They are vendored so the end-to-end case study
 (docs/CASE_STUDY_JSEMVER.md, issue #613) runs hermetically in `make check` without a

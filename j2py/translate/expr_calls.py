@@ -123,6 +123,27 @@ def _translate_static_or_platform_method_invocation(
     parts: _MethodInvocationParts,
     ctx: TranslationContext,
 ) -> str | None:
+    if (
+        not parts.receiver_nodes
+        and ctx.in_instance_method
+        and parts.method_name in {"getMessage", "getCause", "initCause"}
+    ):
+        py_method = translate_method_name(parts.method_name, snake_case=ctx.cfg.snake_case_methods)
+        return f"self.{py_method}({parts.args})"
+
+    if (
+        not parts.receiver_nodes
+        and parts.method_name == "values"
+        and not parts.args
+        and ctx.containing_class_name is not None
+        and "values" not in ctx.class_methods
+    ):
+        enum_owner = ctx.name_resolver.bindings.file_type_paths.get(
+            ctx.containing_class_name,
+            ctx.containing_class_name,
+        )
+        return f"list({enum_owner})"
+
     if not parts.receiver_nodes and parts.method_name in ctx.static_method_imports:
         static_call = translate_static_imported_method(
             node,
@@ -369,7 +390,11 @@ def _translate_unqualified_dispatch(
         and ctx.containing_class_name
         and _route_static_instance_collision_to_static(py_method, parts.args, ctx)
     ):
-        return f"{ctx.containing_class_name}.{static_py_method}({parts.args})"
+        owner = ctx.name_resolver.bindings.file_type_paths.get(
+            ctx.containing_class_name,
+            ctx.containing_class_name,
+        )
+        return f"{owner}.{static_py_method}({parts.args})"
 
     enclosing_class = ctx.enclosing_static_dispatch.get(py_method)
     if enclosing_class and _route_static_instance_collision_to_static(
@@ -397,7 +422,11 @@ def _translate_unqualified_dispatch(
         ):
             return None
         if binding.python_owner:
-            return f"{binding.python_owner}.{binding.python_member}({parts.args})"
+            owner = ctx.name_resolver.bindings.file_type_paths.get(
+                binding.python_owner,
+                binding.python_owner,
+            )
+            return f"{owner}.{binding.python_member}({parts.args})"
         return static_import_method_fallback(binding, parts.arg_expressions, ctx.cfg)
 
     return None

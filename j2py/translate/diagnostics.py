@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -63,6 +64,7 @@ class ImportSet:
     """Tracks imports required by emitted Python constructs."""
 
     lines: set[str] = field(default_factory=set)
+    type_checking_lines: set[str] = field(default_factory=set)
     typing_names: set[str] = field(default_factory=set)
 
     def need_abc(self) -> None:
@@ -99,6 +101,10 @@ class ImportSet:
         if line:
             self.lines.add(line)
 
+    def need_type_checking_line(self, line: str) -> None:
+        if line:
+            self.type_checking_lines.add(line)
+
     def need_type_annotation(self, annotation: str) -> None:
         for name in _TYPING_ANNOTATION_NAMES:
             if _uses_typing_name(annotation, name):
@@ -106,13 +112,21 @@ class ImportSet:
 
     def update(self, other: ImportSet) -> None:
         self.lines.update(other.lines)
+        self.type_checking_lines.update(other.type_checking_lines)
         self.typing_names.update(other.typing_names)
 
     def render(self) -> list[str]:
         imports = set(self.lines)
+        if self.type_checking_lines:
+            self.typing_names.add("TYPE_CHECKING")
         if self.typing_names:
-            imports.add(f"from typing import {', '.join(sorted(self.typing_names))}")
-        return sorted(_combine_simple_from_imports(imports))
+            imports.add(f"from typing import {', '.join(_sorted_typing_names(self.typing_names))}")
+        rendered = _group_import_lines(sorted(_combine_simple_from_imports(imports)))
+        if self.type_checking_lines:
+            rendered.append("")
+            rendered.append("if TYPE_CHECKING:")
+            rendered.extend(f"    {line}" for line in sorted(self.type_checking_lines))
+        return rendered
 
 
 @dataclass
@@ -210,6 +224,7 @@ class TranslationContext:
     # Canonical Python method name -> emitted static overload name when static and
     # instance Java overloads share one Python name after translation.
     static_instance_static_aliases: dict[str, str] = field(default_factory=dict)
+    module_static_instance_static_aliases: dict[str, dict[str, str]] = field(default_factory=dict)
     # Collision names whose instance or static overload group includes a 0-arg member.
     static_instance_instance_zero_arg_names: set[str] = field(default_factory=set)
     static_instance_static_zero_arg_names: set[str] = field(default_factory=set)
@@ -310,6 +325,25 @@ _TYPING_ANNOTATION_NAMES = frozenset(
     },
 )
 
+
+def _sorted_typing_names(names: set[str]) -> list[str]:
+    return sorted(names, key=lambda name: (name != "TYPE_CHECKING", name))
+
+
+def _group_import_lines(lines: list[str]) -> list[str]:
+    stdlib = [line for line in lines if _is_stdlib_import_line(line)]
+    other = [line for line in lines if not _is_stdlib_import_line(line)]
+    if stdlib and other:
+        return stdlib + [""] + other
+    return lines
+
+
+def _is_stdlib_import_line(line: str) -> bool:
+    match = _IMPORT_MODULE_RE.match(line)
+    return match is not None and match.group(1) in sys.stdlib_module_names
+
+
+_IMPORT_MODULE_RE = re.compile(r"^(?:from|import)\s+([A-Za-z_]\w*)(?:[.\s]|$)")
 _SIMPLE_FROM_IMPORT_RE = re.compile(r"^from ([A-Za-z_][\w.]*?) import ([A-Za-z_]\w*)$")
 
 
