@@ -123,7 +123,7 @@ Use JSON for automation and diffs:
 j2py doctor src/main/java --json j2py-assessment.json
 ```
 
-The JSON payload is deterministic and versioned with `schema_version: 1`. The top-level
+The JSON payload is deterministic and versioned with `schema_version: 2`. The top-level
 keys are:
 
 | Key | Meaning |
@@ -134,6 +134,7 @@ keys are:
 | `unresolved_imports` | Imports not covered by defaults, user config, or project declarations. |
 | `config_suggestions` | Advisory `import_map`, `type_map`, and `annotation_map` candidates. |
 | `hotspots` | Ranked unhandled node types, warning reasons, import packages, annotations, risk reasons, and files (coverage/risk). |
+| `diagnostic_clusters` | Repeated warning and unhandled families with file counts, node-type summaries, owner hints, sample locations, and examples. |
 | `recommended_next_commands` | Follow-up commands grounded in the assessed source path. |
 | `files` | Per-file parse, symbol, import, annotation, and rule-only translation diagnostics. |
 
@@ -160,7 +161,7 @@ j2py doctor src/main/java --html j2py-assessment.html
 The report is static and self-contained, so it can be shared as a CI artifact or review
 attachment. It summarizes file count, parse failures, average rule coverage, risk,
 readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
-status, annotation names, hotspots, and recommended next commands.
+status, annotation names, hotspots, recurring diagnostic clusters, and recommended next commands.
 
 ### Config Suggestions
 
@@ -368,7 +369,7 @@ request comments, or future IDE integration.
 The current implementation provides:
 
 - `j2py doctor <file|dir>`;
-- deterministic `schema_version: 1` JSON output;
+- deterministic `schema_version: 2` JSON output;
 - static HTML report output;
 - source/class/method/field inventory from the existing parser/analyzer;
 - Java parse-error reporting;
@@ -403,6 +404,7 @@ The current implementation provides:
 | D11 | Support assessment diffs. |
 | D12 | Identify methods/classes that are good candidates for literal-oracle equivalence tests. |
 | D13 | Produce stable reusable artifacts for config suggestions, SARIF conversion, stub generation, assessment diffs, dashboards, and review comments. |
+| D14 | Report repeated warning/unhandled diagnostic clusters with owner hints and sample locations. |
 
 ### Non-goals
 

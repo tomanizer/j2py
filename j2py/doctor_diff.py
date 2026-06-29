@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from j2py.doctor_models import DoctorAssessment, DoctorDiff
+from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment, DoctorDiff
 
 
 def diff_assessments(before: DoctorAssessment, after: DoctorAssessment) -> DoctorDiff:
@@ -28,7 +28,7 @@ def diff_assessments(before: DoctorAssessment, after: DoctorAssessment) -> Docto
     after_parse_failures = {path for path, item in after_files.items() if not item["parse_ok"]}
 
     payload = {
-        "schema_version": 1,
+        "schema_version": DOCTOR_SCHEMA_VERSION,
         "before_source": before_payload.get("source"),
         "after_source": after_payload.get("source"),
         "summary_delta": _summary_delta(

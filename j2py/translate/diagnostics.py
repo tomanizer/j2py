@@ -32,12 +32,17 @@ def todo_lines(source: str) -> list[str]:
 
 
 def diagnostic_payload(item: TranslationDiagnostic) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "line": item.line,
         "node_type": item.node_type,
         "reason": item.reason,
         "text": item.text,
     }
+    if item.category is not None:
+        payload["category"] = item.category
+    if item.facts:
+        payload["facts"] = dict(item.facts)
+    return payload
 
 
 @dataclass(frozen=True)

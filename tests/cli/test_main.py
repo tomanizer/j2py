@@ -1325,7 +1325,7 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(json_path.read_text())
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["summary"]["files"] == 1
     assert payload["files"][0]["classes"][0]["name"] == "Sample"
     assert "Doctor assessment" in result.output
@@ -1496,7 +1496,7 @@ def test_cli_sarif_writes_report_from_doctor_assessment(tmp_path: Path) -> None:
     assessment.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "source": "src",
                 "files": [
                     {

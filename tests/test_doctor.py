@@ -27,9 +27,9 @@ CFG = ConfigLoader().add_defaults().build()
 
 
 def test_doctor_public_facade_exports_stable_api() -> None:
-    assert DOCTOR_SCHEMA_VERSION == 1
-    assert DoctorAssessment({"schema_version": 1}).to_json()
-    assert DoctorDiff({"schema_version": 1}).to_json()
+    assert DOCTOR_SCHEMA_VERSION == 2
+    assert DoctorAssessment({"schema_version": DOCTOR_SCHEMA_VERSION}).to_json()
+    assert DoctorDiff({"schema_version": DOCTOR_SCHEMA_VERSION}).to_json()
     assert callable(assess_project)
     assert callable(diff_assessments)
     assert callable(load_assessment_json)
@@ -71,7 +71,7 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
 
     payload = assess_project(source, cfg=CFG).payload
 
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == DOCTOR_SCHEMA_VERSION
     assert payload["summary"]["files"] == 3
     assert payload["summary"]["parse_failures"] == 1
     assert payload["summary"]["semantic_warnings"] >= 1
@@ -201,6 +201,42 @@ def test_doctor_config_suggestions_honor_full_name_annotation_map(tmp_path: Path
     assert payload["config_suggestions"]["annotation_map"] == []
 
 
+def test_doctor_assessment_reports_repeated_diagnostic_clusters(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "A.java").write_text(
+        "package com.example; public class A { int x(int value) { return value / 2; } }"
+    )
+    (source / "B.java").write_text(
+        "package com.example; public class B { int y(int value) { return value / 2; } }"
+    )
+    (source / "C.java").write_text(
+        "package com.example; import static com.example.Missing.*; "
+        "public class C { int z() { return ONE + TWO; } }"
+    )
+    (source / "D.java").write_text(
+        "package com.example; import static com.example.Missing.*; "
+        "public class D { int w() { return ONE + TWO; } }"
+    )
+
+    payload = assess_project(source, cfg=CFG).payload
+    clusters = payload["diagnostic_clusters"]
+    cluster_by_id = {cluster["cluster_id"]: cluster for cluster in clusters}
+
+    assert cluster_by_id["numeric-operators"]["count"] == 2
+    assert len(cluster_by_id["numeric-operators"]["examples"]) == 2
+    assert cluster_by_id["numeric-operators"]["affected_files"] == [
+        {"path": "A.java", "count": 1},
+        {"path": "B.java", "count": 1},
+    ]
+    assert cluster_by_id["wildcard_static_import_unresolved"]["count"] == 2
+    assert len(cluster_by_id["wildcard_static_import_unresolved"]["affected_files"]) == 2
+    assert {
+        "numeric-operators",
+        "wildcard_static_import_unresolved",
+    } <= set(cluster_by_id)
+
+
 def test_doctor_assessment_json_is_deterministic(tmp_path: Path) -> None:
     source = tmp_path / "Sample.java"
     source.write_text("public class Sample {}")
@@ -285,6 +321,7 @@ def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
     assert "j2py doctor assessment" in html
     assert "Sample.java" in html
     assert "Hotspots" in html
+    assert "Diagnostic Clusters" in html
     assert "Risk" in html
     assert "Ready files" in html
     assert "<script" not in html

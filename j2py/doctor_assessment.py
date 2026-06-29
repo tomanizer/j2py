@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from collections import Counter
 from pathlib import Path
@@ -26,6 +27,74 @@ _RISK_WARNING_WEIGHT_PER_UNIT = 3.0
 _RISK_UNHANDLED_WEIGHT_PER_UNIT = 4.0
 _RISK_TODO_WEIGHT_PER_UNIT = 1.0
 _RISK_UNRESOLVED_IMPORT_WEIGHT_PER_UNIT = 1.0
+_DIAGNOSTIC_CLUSTER_LIMIT = 25
+_DIAGNOSTIC_CLUSTER_SAMPLE_LIMIT = 6
+_DIAGNOSTIC_CLUSTER_MIN_COUNT = 2
+
+_CLUSTER_CATEGORY_HINTS: dict[str, list[str]] = {
+    "missing_receiver_type": [
+        "j2py/translate/name_resolution.py",
+        "j2py/translate/expr_collection_calls.py",
+    ],
+    "opaque_receiver_shape": [
+        "j2py/translate/name_resolution.py",
+        "j2py/translate/expr_collection_calls.py",
+    ],
+    "wildcard_static_import_unresolved": [
+        "j2py/translate/skeleton.py",
+        "j2py/translate/expr_calls.py",
+        "j2py/translate/expr_static_calls.py",
+    ],
+    "overload_erasure_collision": [
+        "j2py/translate/expr_calls.py",
+        "j2py/translate/overload_dispatch.py",
+        "j2py/translate/overloads.py",
+    ],
+    "jdbc-boundary": ["j2py/translate/expr_jdbc_calls.py"],
+    "spring-jdbc-row-mapper": ["j2py/translate/expr_jdbc_calls.py"],
+    "spring-jdbc-sqlalchemy": ["j2py/translate/expr_jdbc_calls.py"],
+    "spring-jdbc-sqlalchemy-todo": ["j2py/translate/expr_jdbc_calls.py"],
+}
+
+_CLUSTER_REASON_PATTERNS: tuple[tuple[str, re.Pattern[str], str | None, list[str]], ...] = (
+    (
+        "numeric-operators",
+        re.compile(
+            r"division requires numeric type certainty|"
+            r"integer division translated with floor division; verify truncation semantics"
+        ),
+        "division requires numeric type certainty",
+        ["j2py/translate/expr_binary.py"],
+    ),
+    (
+        "ambiguous-collection-get",
+        re.compile(r"ambiguous get invocation requires receiver collection type"),
+        "ambiguous get invocation requires receiver collection type",
+        [
+            "j2py/translate/expr_collection_calls.py",
+            "j2py/translate/name_resolution.py",
+        ],
+    ),
+    (
+        "unknown-static-import",
+        re.compile(r"^unknown static import "),
+        "wildcard static import unresolved",
+        ["j2py/translate/expr_static_calls.py", "j2py/translate/skeleton.py"],
+    ),
+    (
+        "unsupported-annotation-member",
+        re.compile(r"^unsupported annotation member"),
+        "unsupported annotation member",
+        ["j2py/translate/class_annotations.py", "j2py/translate/class_fields.py"],
+    ),
+    (
+        "overload-call-mixed-args",
+        re.compile(r"overload call .+ lacks source Java argument types"),
+        "overload call missing argument-type facts",
+        ["j2py/translate/expr_calls.py", "j2py/translate/overloads.py"],
+    ),
+)
+_CLUSTER_OWNER_FALLBACK = ["j2py/translate"]
 
 
 def assess_project(
@@ -73,6 +142,7 @@ def assess_project(
         "unresolved_imports": _unresolved_imports(files),
         "config_suggestions": _config_suggestions(files, cfg),
         "hotspots": _hotspots(files),
+        "diagnostic_clusters": _diagnostic_clusters(files),
         "recommended_next_commands": _recommended_next_commands(source),
         "files": files,
     }
@@ -272,6 +342,106 @@ def _hotspots(files: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         "lowest_coverage_files": _lowest_coverage_files(files),
         "highest_risk_files": _top_risk_files(files),
     }
+
+
+def _diagnostic_clusters(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    clusters: dict[str, dict[str, Any]] = {}
+    for item in files:
+        path = item["path"]
+        for diagnostic_key in ("semantic_warnings", "unhandled"):
+            for diagnostic in item["translation"][diagnostic_key]:
+                cluster_id, reason, owner_hints = _diagnostic_cluster_identity(diagnostic)
+                cluster = clusters.setdefault(
+                    cluster_id,
+                    {
+                        "cluster_id": cluster_id,
+                        "reason": reason,
+                        "owner_hints": owner_hints,
+                        "count": 0,
+                        "files": Counter(),
+                        "node_types": Counter(),
+                        "sample_locations": [],
+                    },
+                )
+                cluster["count"] += 1
+                cluster["files"][path] += 1
+                cluster["node_types"][diagnostic["node_type"]] += 1
+                cluster["sample_locations"].append(
+                    {
+                        "path": path,
+                        "line": diagnostic["line"],
+                        "node_type": diagnostic["node_type"],
+                        "text": _compact_text(diagnostic.get("text", ""), limit=120),
+                    }
+                )
+
+    ranked = sorted(
+        clusters.values(),
+        key=lambda item: (-item["count"], item["reason"], item["cluster_id"]),
+    )
+
+    output: list[dict[str, Any]] = []
+    for item in ranked[:_DIAGNOSTIC_CLUSTER_LIMIT]:
+        if item["count"] < _DIAGNOSTIC_CLUSTER_MIN_COUNT:
+            continue
+        files = [
+            {"path": path, "count": count}
+            for path, count in sorted(
+                item["files"].items(),
+                key=lambda value: (-value[1], value[0]),
+            )
+        ]
+        node_types = sorted(
+            node_type
+            for node_type, count in item["node_types"].items()
+            if count > 0
+        )
+        samples = sorted(
+            item["sample_locations"],
+            key=lambda sample: (
+                str(sample["path"]),
+                sample["line"] if sample["line"] is not None else -1,
+                sample["node_type"],
+            ),
+        )
+        output.append(
+            {
+                "cluster_id": item["cluster_id"],
+                "reason": item["reason"],
+                "count": item["count"],
+                "owner_hints": sorted(set(item["owner_hints"])),
+                "node_types": node_types,
+                "affected_files": files,
+                "sample_locations": samples[:_DIAGNOSTIC_CLUSTER_SAMPLE_LIMIT],
+                "examples": samples[: max(1, min(3, len(samples)))],
+            }
+        )
+    return output
+
+
+def _diagnostic_cluster_identity(diagnostic: dict[str, Any]) -> tuple[str, str, list[str]]:
+    reason = _normalize_text(diagnostic.get("reason", ""))
+    category = diagnostic.get("category")
+    if isinstance(category, str) and category:
+        return (
+            _cluster_id(category),
+            reason or category,
+            list(_CLUSTER_CATEGORY_HINTS.get(category, _CLUSTER_OWNER_FALLBACK)),
+        )
+
+    for cluster_id, reason_pattern, reason_label, owner_hints in _CLUSTER_REASON_PATTERNS:
+        if reason_pattern.search(reason):
+            return cluster_id, reason_label or reason, list(owner_hints)
+
+    return _cluster_id(reason), reason or "diagnostic", list(_CLUSTER_OWNER_FALLBACK)
+
+
+def _cluster_id(value: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_]+", "-", value.lower()).strip("-") or "diagnostic-cluster"
+
+
+def _normalize_text(value: str) -> str:
+    return " ".join(str(value).split()).strip()
 
 
 def _counter_payload(counter: Counter[str], label: str, *, limit: int = 10) -> list[dict[str, Any]]:
