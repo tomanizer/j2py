@@ -1429,6 +1429,10 @@ def test_new_string_char_array_lowers_to_join() -> None:
                 return new String(chars);
             }
 
+            public String fromParenthesized(char[] chars) {
+                return new String((chars));
+            }
+
             public String fromInline() {
                 return new String(new char[] { 'a', 'b' });
             }
@@ -1459,6 +1463,7 @@ def test_new_string_char_array_lowers_to_join() -> None:
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
     assert 'return "".join(chars)' in result.source
+    assert result.source.count('return "".join(chars)') == 2
     assert 'return "".join(["a", "b"])' in result.source
     assert 'return "".join(Chars.make(a, b))' in result.source
     assert 'return "".join(Chars.choose(lower))' in result.source
@@ -1469,6 +1474,7 @@ def test_new_string_char_array_lowers_to_join() -> None:
     exec(compile(result.source, "<chars>", "exec"), namespace)
     chars = namespace["Chars"]()
     assert chars.from_chars(["x", "y"]) == "xy"  # type: ignore[attr-defined]
+    assert chars.from_parenthesized(["p", "q"]) == "pq"  # type: ignore[attr-defined]
     assert chars.from_inline() == "ab"  # type: ignore[attr-defined]
     assert chars.from_call("c", "d") == "cd"  # type: ignore[attr-defined]
     assert chars.from_overload(True) == "x"  # type: ignore[attr-defined]

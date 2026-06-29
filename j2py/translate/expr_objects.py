@@ -12,7 +12,7 @@ from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_access import request_type_import
 from j2py.translate.expressions import translate_expression
 from j2py.translate.java_types import java_expression_type
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_class_name, translate_method_name
 from j2py.translate.rules.types import java_default_value
 
@@ -149,6 +149,7 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
 
 
 def _is_char_array_expression(node: JavaNode, ctx: TranslationContext) -> bool:
+    node = unwrap_parens(node)
     java_type = java_expression_type(node, ctx)
     if java_type is not None:
         return _is_char_array_type(java_type)
