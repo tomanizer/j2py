@@ -335,13 +335,17 @@ def _wildcard_static_method_owners(
     owners: dict[str, str] = {}
     collisions: set[str] = set()
     for simple_owner in wildcard_static_imports:
-        py_owner = translate_class_name(simple_owner.rsplit(".", 1)[-1])
+        raw_owner = simple_owner.rsplit(".", 1)[-1]
+        py_owner = translate_class_name(raw_owner)
         owner_path = file_type_paths.get(py_owner)
         if owner_path is None:
             if py_owner not in compilation_unit_types:
                 continue
             owner_path = py_owner
-        for java_method in declared_type_method_return_types.get(py_owner, {}):
+        methods = declared_type_method_return_types.get(py_owner) or declared_type_method_return_types.get(
+            raw_owner, {}
+        )
+        for java_method in methods:
             if java_method in owners and owners[java_method] != owner_path:
                 collisions.add(java_method)
             owners[java_method] = owner_path
