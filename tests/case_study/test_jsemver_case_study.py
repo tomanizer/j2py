@@ -1,15 +1,15 @@
-"""jsemver external end-to-end case study (issue #613).
+"""jsemver external end-to-end case study (issues #613 and #654).
 
-Ports the library's own ``StreamTest`` JUnit 5 suite
-(``com.github.zafarkhaja.semver.util.StreamTest``, jsemver v0.10.2, MIT) to pytest and
-runs it against the **rule-layer translation** of the vendored ``util`` package, linked
-by ``tests/case_study/jsemver_harness.py``.
+Ports the library's own ``StreamTest`` plus a focused ``VersionTest`` core slice
+(``com.github.zafarkhaja.semver``, jsemver v0.10.2, MIT) to pytest and runs them
+against the **rule-layer translation** of the vendored ``util`` and ``Version`` /
+parser dependency closure, linked by ``tests/case_study/jsemver_harness.py``.
 
 This is the behavioural oracle for the first external conversion case study: the assertions
 mirror the upstream JUnit cases one-for-one, so a green run means the translated Python is
-behaviourally equivalent to the Java for the exercised surface. The residual translator
-defects that had to be patched for the loop to close are asserted explicitly in
-``test_residual_gap_inventory`` and documented in docs/CASE_STUDY_JSEMVER.md.
+behaviourally equivalent to the Java for the exercised surface. The zero residual-patch
+inventory and Version-core generated-output ``F821`` gate are locked here and documented
+in docs/CASE_STUDY_JSEMVER.md.
 """
 
 from __future__ import annotations

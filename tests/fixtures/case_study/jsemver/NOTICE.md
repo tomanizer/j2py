@@ -7,8 +7,9 @@ The `java/` sources are copied verbatim (MIT License) from java-semver / jsemver
 retains its original MIT license header.
 
 They are vendored so the end-to-end case study
-(docs/CASE_STUDY_JSEMVER.md, issue #613) runs hermetically in `make check` without a
-corpus checkout. They are inputs to the j2py translator, not j2py source code.
+(docs/CASE_STUDY_JSEMVER.md, issues #613 and #654) runs the `util` and `Version` core
+slices hermetically in `make check` without a corpus checkout. They are inputs to the
+j2py translator, not j2py source code.
 
 The full library is also pinned as the `jsemver` corpus preset in
 `scripts/corpus/corpus_presets.py` for scoreboard / hotspot work over the whole tree.

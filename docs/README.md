@@ -80,7 +80,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [LLM_HARVEST.md](LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion to targets and GitHub issues. |
 | [CASE_STUDY_COMMONS_LANG_TUPLE.md](CASE_STUDY_COMMONS_LANG_TUPLE.md) | End-to-end multi-file case study for commons-lang `tuple`. |
 | [CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md](CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) | NumberUtils equivalence case study: verified surface, stubs, and exclusions. |
-| [CASE_STUDY_JSEMVER.md](CASE_STUDY_JSEMVER.md) | First external end-to-end case study: java-semver translated and run against its own JUnit suite (#613). |
+| [CASE_STUDY_JSEMVER.md](CASE_STUDY_JSEMVER.md) | First external end-to-end case study: java-semver `util` and `Version` core slices translated and run against ported upstream JUnit assertions (#613, #654). |
 | [CASE_STUDY_COMMONS_CODEC_HEX.md](CASE_STUDY_COMMONS_CODEC_HEX.md) | Second external end-to-end case study: Apache Commons Codec `Hex` translated and run against focused upstream assertions (#656). |
 | [CASE_STUDY_COMMONS_TEXT_CASEUTILS.md](CASE_STUDY_COMMONS_TEXT_CASEUTILS.md) | Third external end-to-end case study: Apache Commons Text `CaseUtils` string/code-point slice; surfaces CT-1..CT-4 translator gaps (#657). |
 | [RELEASING.md](RELEASING.md) | Beta/pre-release checklist and publish verification workflow. |
