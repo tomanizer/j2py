@@ -14,6 +14,7 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     summary = payload["summary"]
     rows = "\n".join(_file_row(item) for item in payload["files"])
     hotspots = payload["hotspots"]
+    project_structure = payload.get("project_structure")
     diagnostic_clusters = payload.get("diagnostic_clusters", [])
     annotations = "\n".join(
         f"<li><code>{escape(item['name'])}</code>: {item['count']}</li>"
@@ -40,6 +41,10 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     )
     readiness_summary = {
         item["bucket"]: item["files"] for item in summary["readiness_distribution"]
+    }
+    migration_readiness_summary = {
+        item["bucket"]: item["files"]
+        for item in summary.get("migration_readiness_distribution", [])
     }
     return f"""<!doctype html>
 <html lang="en">
@@ -74,7 +79,12 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Ready files", readiness_summary["ready"])}
     {_metric("Manual-fix files", readiness_summary["requires_manual_fixes"])}
     {_metric("Not-ready files", readiness_summary["not_ready"])}
+    {_metric("Translate-ready", migration_readiness_summary.get("ready_to_translate", 0))}
+    {_metric("Needs config", migration_readiness_summary.get("needs_config", 0))}
+    {_metric("Needs rules", migration_readiness_summary.get("needs_rule_work", 0))}
+    {_metric("Boundaries", migration_readiness_summary.get("framework_boundary", 0))}
   </section>
+  {_project_structure_section(project_structure)}
   <section>
     <h2>Files</h2>
     <table>
@@ -87,6 +97,7 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
           <th>Risk</th>
           <th>Band</th>
           <th>Readiness</th>
+          <th>Next Action</th>
           <th>Warnings</th>
           <th>Unhandled</th>
           <th>Unresolved Imports</th>
@@ -211,6 +222,7 @@ def _metric(label: str, value: object) -> str:
 
 def _file_row(item: dict[str, Any]) -> str:
     translation = item["translation"]
+    readiness = item.get("migration_readiness", {})
     return f"""
 <tr>
   <td>{escape(item["path"])}</td>
@@ -219,11 +231,69 @@ def _file_row(item: dict[str, Any]) -> str:
   <td>{translation["rule_coverage"]:.0%}</td>
   <td>{item["risk_score"]:.1f}</td>
   <td>{escape(item["risk_band"])}</td>
-  <td>{escape(item["readiness_bucket"])}</td>
+  <td>{escape(str(readiness.get("bucket", item["readiness_bucket"])))}</td>
+  <td>{escape(str(readiness.get("next_action", "")))}</td>
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>
 </tr>"""
+
+
+def _project_structure_section(project_structure: dict[str, Any] | None) -> str:
+    if not project_structure:
+        return ""
+    build_systems = ", ".join(project_structure.get("build_systems", [])) or "none"
+    java_level = project_structure.get("java_language_level") or "unknown"
+    warnings = "\n".join(
+        f"<li>{escape(str(item))}</li>" for item in project_structure.get("warnings", [])
+    )
+    modules = "\n".join(_project_module_card(module) for module in project_structure["modules"])
+    return f"""
+  <section>
+    <h2>Project Structure</h2>
+    <div class="summary">
+      {_metric("Build systems", build_systems)}
+      {_metric("Modules", len(project_structure["modules"]))}
+      {_metric("Java level", java_level)}
+      {_metric("Project root", project_structure.get("root", "."))}
+    </div>
+    <div class="columns">{modules}</div>
+    {f"<ul>{warnings}</ul>" if warnings else ""}
+  </section>"""
+
+
+def _project_module_card(module: dict[str, Any]) -> str:
+    build_files = _inline_code_list(module.get("build_files", []), "No build files.")
+    source_roots = _inline_code_list(module.get("source_roots", []), "No source roots.")
+    test_roots = _inline_code_list(module.get("test_roots", []), "No test roots.")
+    generated_roots = _inline_code_list(
+        module.get("generated_source_roots", []),
+        "No generated source roots.",
+    )
+    build_systems = ", ".join(module.get("build_systems", [])) or "none"
+    java_level = module.get("java_language_level") or "unknown"
+    return f"""
+<article>
+  <h3>{escape(str(module.get("name", "")))}</h3>
+  <p><strong>Path:</strong> <code>{escape(str(module.get("path", ".")))}</code></p>
+  <p>
+    <strong>Build:</strong> {escape(build_systems)};
+    <strong>Java:</strong> {escape(java_level)}
+  </p>
+  <h4>Build files</h4>
+  <ul>{build_files}</ul>
+  <h4>Source roots</h4>
+  <ul>{source_roots}</ul>
+  <h4>Test roots</h4>
+  <ul>{test_roots}</ul>
+  <h4>Generated roots</h4>
+  <ul>{generated_roots}</ul>
+</article>"""
+
+
+def _inline_code_list(items: list[str], empty: str) -> str:
+    rows = "\n".join(f"<li><code>{escape(str(item))}</code></li>" for item in items)
+    return rows or f"<li>{escape(empty)}</li>"
 
 
 def _hotspot_list(

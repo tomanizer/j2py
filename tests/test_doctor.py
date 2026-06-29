@@ -25,6 +25,7 @@ from j2py.doctor import (
     write_doctor_diff_json,
 )
 from j2py.doctor_assessment import _file_risk_profile
+from j2py.doctor_readiness import migration_readiness_profile
 
 CFG = ConfigLoader().add_defaults().build()
 
@@ -100,11 +101,12 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
         """,
     )
     (source / "Broken.java").write_text("public class Broken { public void broken( }")
+    (source / "Ready.java").write_text("package com.example; public class Ready {}")
 
     payload = assess_project(source, cfg=CFG).payload
 
     assert payload["schema_version"] == DOCTOR_SCHEMA_VERSION
-    assert payload["summary"]["files"] == 3
+    assert payload["summary"]["files"] == 4
     assert payload["summary"]["parse_failures"] == 1
     assert payload["summary"]["semantic_warnings"] >= 1
     assert payload["summary"]["unresolved_imports"] == 2
@@ -116,6 +118,14 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert readiness["not_ready"] == 1
     assert readiness["ready"] >= 1
     assert readiness["requires_manual_fixes"] >= 0
+    migration_readiness = {
+        item["bucket"]: item["files"]
+        for item in payload["summary"]["migration_readiness_distribution"]
+    }
+    assert migration_readiness["parse_blocked"] == 1
+    assert migration_readiness["framework_boundary"] == 1
+    assert migration_readiness["ready_to_translate"] >= 1
+    assert all("migration_readiness" in item for item in payload["files"])
     assert [item["path"] for item in payload["summary"]["top_risk_files"]][:1] == ["Broken.java"]
     assert [item["name"] for item in payload["annotation_inventory"]] == ["RestController"]
 
@@ -135,7 +145,12 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert broken["risk_score"] >= 80.0
     assert broken["risk_band"] == "critical"
     assert broken["readiness_bucket"] == "not_ready"
+    assert broken["migration_readiness"]["bucket"] == "parse_blocked"
+    assert broken["migration_readiness"]["next_action"]
     assert {reason["reason"] for reason in broken["risk_reasons"]} == {"parse_errors"}
+
+    assert controller["migration_readiness"]["bucket"] == "framework_boundary"
+    assert controller["migration_readiness"]["next_action"].startswith("Decide target-stack")
 
     suggestions = payload["config_suggestions"]
     assert {item["annotation"] for item in suggestions["annotation_map"]} == {"RestController"}
@@ -148,6 +163,238 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
         "parse_errors",
     }
     assert "j2py translate" in payload["recommended_next_commands"][0]
+
+
+def test_doctor_assessment_reports_maven_project_structure(tmp_path: Path) -> None:
+    project = tmp_path / "orders"
+    main_root = project / "src" / "main" / "java" / "com" / "example"
+    test_root = project / "src" / "test" / "java" / "com" / "example"
+    generated_root = project / "target" / "generated-sources" / "annotations"
+    main_root.mkdir(parents=True)
+    test_root.mkdir(parents=True)
+    generated_root.mkdir(parents=True)
+    (project / "pom.xml").write_text(
+        """
+        <project>
+          <properties>
+            <maven.compiler.release>17</maven.compiler.release>
+          </properties>
+        </project>
+        """,
+    )
+    (main_root / "Orders.java").write_text("package com.example; public class Orders {}")
+    (test_root / "OrdersTest.java").write_text("package com.example; public class OrdersTest {}")
+
+    payload = assess_project(project, cfg=CFG).payload
+    structure = payload["project_structure"]
+
+    assert structure["root"] == "."
+    assert structure["build_systems"] == ["maven"]
+    assert structure["java_language_level"] == "17"
+    assert structure["modules"] == [
+        {
+            "name": "orders",
+            "path": ".",
+            "build_systems": ["maven"],
+            "build_files": ["pom.xml"],
+            "source_roots": ["src/main/java"],
+            "test_roots": ["src/test/java"],
+            "generated_source_roots": ["target/generated-sources"],
+            "java_language_level": "17",
+        }
+    ]
+    orders = next(item for item in payload["files"] if item["path"].endswith("Orders.java"))
+    assert orders["project_structure"] == {
+        "module": "orders",
+        "module_path": ".",
+        "source_root": "src/main/java",
+        "source_set": "main",
+    }
+    test_file = next(item for item in payload["files"] if item["path"].endswith("OrdersTest.java"))
+    assert test_file["project_structure"]["source_root"] == "src/test/java"
+    assert test_file["project_structure"]["source_set"] == "test"
+
+
+def test_doctor_assessment_reports_maven_multi_module_structure(tmp_path: Path) -> None:
+    root = tmp_path / "platform"
+    api_root = root / "api" / "src" / "main" / "java"
+    worker_root = root / "worker" / "src" / "main" / "java"
+    api_root.mkdir(parents=True)
+    worker_root.mkdir(parents=True)
+    (root / "pom.xml").write_text(
+        """
+        <project>
+          <modules>
+            <module>api</module>
+            <module>worker</module>
+          </modules>
+        </project>
+        """,
+    )
+    (root / "api" / "pom.xml").write_text(
+        """
+        <project>
+          <build>
+            <plugins>
+              <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration><source>11</source></configuration>
+              </plugin>
+            </plugins>
+          </build>
+        </project>
+        """,
+    )
+    (root / "worker" / "pom.xml").write_text("<project />")
+    (api_root / "Api.java").write_text("public class Api {}")
+    (worker_root / "Worker.java").write_text("public class Worker {}")
+
+    structure = assess_project(root, cfg=CFG).payload["project_structure"]
+    modules = {module["path"]: module for module in structure["modules"]}
+
+    assert structure["build_systems"] == ["maven"]
+    assert structure["java_language_level"] == "11"
+    assert set(modules) == {".", "api", "worker"}
+    assert modules["."]["source_roots"] == []
+    assert modules["api"]["source_roots"] == ["api/src/main/java"]
+    assert modules["api"]["java_language_level"] == "11"
+    assert modules["worker"]["build_files"] == ["worker/pom.xml"]
+
+
+def test_doctor_assessment_reports_gradle_multi_module_structure(tmp_path: Path) -> None:
+    root = tmp_path / "gradle-project"
+    app_root = root / "app" / "src" / "main" / "java"
+    lib_root = root / "lib" / "src" / "test" / "java"
+    app_root.mkdir(parents=True)
+    lib_root.mkdir(parents=True)
+    (root / "settings.gradle").write_text("include 'app', ':lib'\n")
+    (root / "build.gradle").write_text("sourceCompatibility = '21'\n")
+    (root / "app" / "build.gradle").write_text("plugins { id 'java' }\n")
+    (root / "lib" / "build.gradle.kts").write_text("plugins { java }\n")
+    (app_root / "App.java").write_text("public class App {}")
+    (lib_root / "LibTest.java").write_text("public class LibTest {}")
+
+    payload = assess_project(root, cfg=CFG).payload
+    structure = payload["project_structure"]
+    modules = {module["path"]: module for module in structure["modules"]}
+
+    assert structure["build_systems"] == ["gradle"]
+    assert structure["java_language_level"] == "21"
+    assert set(modules) == {".", "app", "lib"}
+    assert modules["."]["source_roots"] == []
+    assert modules["app"]["source_roots"] == ["app/src/main/java"]
+    assert modules["lib"]["test_roots"] == ["lib/src/test/java"]
+    app_file = next(item for item in payload["files"] if item["path"].endswith("App.java"))
+    assert app_file["project_structure"]["module"] == "app"
+    assert app_file["project_structure"]["source_set"] == "main"
+
+
+def test_doctor_assessment_reports_source_only_project_structure(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    package_dir = source / "com" / "example"
+    package_dir.mkdir(parents=True)
+    (package_dir / "Sample.java").write_text("package com.example; public class Sample {}")
+
+    payload = assess_project(source, cfg=CFG).payload
+    structure = payload["project_structure"]
+
+    assert structure["root"] == "."
+    assert structure["build_systems"] == []
+    assert structure["java_language_level"] is None
+    assert structure["modules"][0]["build_files"] == []
+    assert structure["modules"][0]["source_roots"] == ["."]
+    assert payload["files"][0]["project_structure"]["source_root"] == "."
+
+
+def test_migration_readiness_profile_buckets_are_deterministic() -> None:
+    ready = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert ready["bucket"] == "ready_to_translate"
+    assert ready["risk_score"] == 0.0
+
+    parse_blocked = migration_readiness_profile(
+        parse_ok=False,
+        parse_error_count=2,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert parse_blocked["bucket"] == "parse_blocked"
+    assert parse_blocked["risk_score"] == 100.0
+
+    needs_rule_work = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=0.5,
+        semantic_warnings=[],
+        unhandled=[{"reason": "unsupported"}],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation={"ok": False, "errors": ["syntax"]},
+    )
+    assert needs_rule_work["bucket"] == "needs_rule_work"
+    assert {reason["reason"] for reason in needs_rule_work["reasons"]} >= {
+        "low_rule_coverage",
+        "unhandled_nodes",
+        "validation_failures",
+    }
+
+    framework_boundary = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[
+            {"import": "org.springframework.stereotype.Service", "category": "framework-boundary"}
+        ],
+        annotations=[{"framework_candidate": True}],
+        validation=None,
+    )
+    assert framework_boundary["bucket"] == "framework_boundary"
+
+    needs_config = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[
+            {"import": "com.external.PaymentClient", "category": "external-import"}
+        ],
+        annotations=[],
+        validation=None,
+    )
+    assert needs_config["bucket"] == "needs_config"
+
+    manual_port = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[{"reason": "verify"}],
+        unhandled=[],
+        todo_count=1,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert manual_port["bucket"] == "manual_port"
 
 
 def test_file_risk_profile_is_deterministic() -> None:
@@ -163,9 +410,9 @@ def test_file_risk_profile_is_deterministic() -> None:
     assert score == 100.0
     assert band == "critical"
     assert readiness == "not_ready"
-    assert reasons == [
-        {"reason": "parse_errors", "count": 2, "weight": 100.0},
-    ]
+    assert reasons[0]["reason"] == "parse_errors"
+    assert reasons[0]["count"] == 2
+    assert reasons[0]["weight"] == 100.0
 
     score, band, readiness, reasons = _file_risk_profile(
         parse_ok=True,
@@ -433,4 +680,31 @@ def test_load_assessment_json_rejects_non_integer_schema_version(tmp_path: Path)
     path.write_text("{}", encoding="utf-8")
 
     with pytest.raises(ValueError, match="invalid doctor schema_version"):
+        load_assessment_json(path)
+
+
+def test_load_assessment_json_rejects_missing_summary(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text(
+        json.dumps({"schema_version": DOCTOR_SCHEMA_VERSION, "files": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid payload: expected 'summary'"):
+        load_assessment_json(path)
+
+
+def test_load_assessment_json_rejects_missing_files(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "summary": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid payload: expected 'files' array"):
         load_assessment_json(path)

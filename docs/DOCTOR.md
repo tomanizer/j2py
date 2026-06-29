@@ -6,7 +6,8 @@ can translate deterministically, and where project policy or manual work is like
 needed.
 
 It is an evidence report, not a full Java compiler, classpath-aware migration planner, or
-automatic framework migration tool. It never calls live LLM provider APIs.
+automatic framework migration tool. The base `doctor` command does not call live LLM
+provider APIs.
 
 ## Overview / When to use
 
@@ -38,9 +39,11 @@ runtime policy.
    and annotations.
 5. Optionally runs generated-Python validation when `--include-validation` is set.
 6. Emits JSON, HTML, config suggestions, and assessment diffs.
+7. `doctor advise` can call a configured LLM to produce migration recommendations from the
+   same deterministic evidence payload.
 
-It never calls the LLM layer. By default it also skips Python validation checks so it can
-run without optional `ruff` or `mypy` installs.
+By default the base assessment command also skips Python validation checks so it can run
+without optional `ruff` or `mypy` installs.
 
 ## Command reference
 
@@ -49,13 +52,13 @@ run without optional `ruff` or `mypy` installs.
 Print the assessment JSON to stdout:
 
 ```bash
-j2py doctor src/main/java
+j2py doctor assess src/main/java
 ```
 
 Write JSON and HTML reports:
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --json j2py-assessment.json \
   --html j2py-assessment.html
 ```
@@ -63,7 +66,7 @@ j2py doctor src/main/java \
 Write advisory config suggestions:
 
 ```bash
-j2py doctor src/main/java --config-suggestions j2py.suggested.yaml
+j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
 ```
 
 Compare two assessments after changing config or rules:
@@ -72,16 +75,27 @@ Compare two assessments after changing config or rules:
 j2py doctor diff before.json after.json
 ```
 
+Generate migration recommendations for an assessment:
+
+```bash
+j2py doctor advise assessment.json
+j2py doctor advise assessment.json \
+  --provider anthropic \
+  --model claude-test \
+  --output-format json \
+  --output j2py-doctor-advice.json
+```
+
 Assess one file:
 
 ```bash
-j2py doctor src/main/java/com/acme/Orders.java --json orders-assessment.json
+j2py doctor assess src/main/java/com/acme/Orders.java --json orders-assessment.json
 ```
 
 Use explicit j2py config:
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --config j2py.yaml \
   --json j2py-assessment.json
 ```
@@ -89,7 +103,7 @@ j2py doctor src/main/java \
 Run generated-Python validation during assessment:
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --include-validation \
   --json j2py-assessment.json
 ```
@@ -97,7 +111,7 @@ j2py doctor src/main/java \
 Limit a large assessment to the first N Java files in deterministic path order:
 
 ```bash
-j2py doctor src/main/java --sample-limit 100 --html j2py-sample.html
+j2py doctor assess src/main/java --sample-limit 100 --html j2py-sample.html
 ```
 
 ### Options
@@ -111,6 +125,20 @@ j2py doctor src/main/java --sample-limit 100 --html j2py-sample.html
 | `--include-validation` | Run syntax, ruff, and mypy validation on rule-only generated Python. |
 | `--sample-limit N` | Assess only the first N Java files after deterministic path sorting. |
 
+`doctor advise` options:
+
+| Option | Meaning |
+|---|---|
+| `assessment` | A deterministic assessment JSON payload from `j2py doctor assess --json`. |
+| `--provider`, `--llm-provider` | LLM provider override (`anthropic`, `gemini`, `openai`). |
+| `--model`, `-m` | LLM model ID. |
+| `--llm-base-url` | OpenAI-compatible API base URL override. |
+| `--config`, `-c` | Optional extra config files used to resolve defaults. |
+| `--output`, `-o` | Write output to file; defaults to stdout. |
+| `--output-format markdown|json` | Return markdown directly or write JSON envelope. |
+| `--max-evidence-items N` | Cap per-section evidence examples added to the model context. |
+| `--cache/--no-cache` | Enable or disable cached advice responses. |
+
 Missing source paths fail with a normal CLI error and do not write output files.
 
 ## Outputs
@@ -120,7 +148,7 @@ Missing source paths fail with a normal CLI error and do not write output files.
 Use JSON for automation and diffs:
 
 ```bash
-j2py doctor src/main/java --json j2py-assessment.json
+j2py doctor assess src/main/java --json j2py-assessment.json
 ```
 
 The JSON payload is deterministic and versioned with `schema_version: 2`. The top-level
@@ -128,8 +156,9 @@ keys are:
 
 | Key | Meaning |
 |---|---|
-| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, readiness, and unresolved-import counts. |
+| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, legacy readiness, migration-readiness, and unresolved-import counts. |
 | `dependency_graph` | Translation order and dependency graph warnings from existing analyzer output. |
+| `project_structure` | Detected Maven/Gradle build files, source roots, test roots, generated-source roots, modules, and Java language level when declared. |
 | `annotation_inventory` | Observed Java annotation names and counts. |
 | `unresolved_imports` | Imports not covered by defaults, user config, or project declarations. |
 | `config_suggestions` | Advisory `import_map`, `type_map`, and `annotation_map` candidates. |
@@ -143,32 +172,46 @@ Each entry under `files` includes:
 - `path`, `package`, `parse_ok`, and `parse_errors`;
 - `classes` with field, method, and nested-class inventory;
 - raw Java `imports`;
+- `project_structure` with the detected module, source root, and source-set classification;
 - observed `annotations`;
 - per-file `unresolved_imports`;
-- `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`.
+- `migration_readiness.bucket`, `risk_score`, `risk_band`, `reasons`, and `next_action`;
+- legacy mirror fields: `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`;
 - `translation.rule_coverage` and surfaced `translation.confidence`;
 - `translation.semantic_warnings`, `translation.unhandled`, `translation.todos`;
 - `translation.validation` when validation was requested.
+
+`migration_readiness.bucket` uses these deterministic values:
+
+| Bucket | Meaning |
+|---|---|
+| `ready_to_translate` | No parse, rule, config, boundary, warning, TODO, or validation blockers were observed. |
+| `needs_config` | Unresolved project or third-party imports need reviewed config mapping, stubs, or project-owned handling. |
+| `needs_rule_work` | Rule coverage, unhandled diagnostics, or requested validation failures indicate translator work is needed before bulk migration. |
+| `framework_boundary` | Framework/platform imports or annotations require explicit target-stack policy. |
+| `manual_port` | Semantic warnings or TODOs require human review, but no stronger blocker was observed. |
+| `parse_blocked` | Java parse errors prevent reliable migration assessment for the file. |
 
 ### HTML
 
 Use HTML for review:
 
 ```bash
-j2py doctor src/main/java --html j2py-assessment.html
+j2py doctor assess src/main/java --html j2py-assessment.html
 ```
 
 The report is static and self-contained, so it can be shared as a CI artifact or review
 attachment. It summarizes file count, parse failures, average rule coverage, risk,
 readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
-status, annotation names, hotspots, recurring diagnostic clusters, and recommended next commands.
+status, project structure, annotation names, hotspots, recurring diagnostic clusters,
+and recommended next commands.
 
 ### Config Suggestions
 
 Use config suggestions as a draft:
 
 ```bash
-j2py doctor src/main/java --config-suggestions j2py.suggested.yaml
+j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
 ```
 
 Suggestions are conservative. They identify candidates; they do not decide framework
@@ -193,7 +236,7 @@ framework policy.
 Use SARIF for code-scanning workflows:
 
 ```bash
-j2py doctor src/main/java --json j2py-assessment.json --include-validation
+j2py doctor assess src/main/java --json j2py-assessment.json --include-validation
 j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 
@@ -248,7 +291,7 @@ is a reviewed behavior to apply.
 
 Current direct consumers include:
 
-- `j2py doctor --config-suggestions j2py.suggested.yaml`;
+- `j2py doctor assess --config-suggestions j2py.suggested.yaml`;
 - `j2py doctor diff before.json after.json`;
 - `j2py sarif j2py-assessment.json --output j2py.sarif`.
 
@@ -266,7 +309,7 @@ semantics.
 ### First migration scan
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --json j2py-assessment.json \
   --html j2py-assessment.html
 ```
@@ -277,8 +320,8 @@ adding project config.
 ### Check whether config helped
 
 ```bash
-j2py doctor src/main/java --json before.json
-j2py doctor src/main/java --config j2py.yaml --json after.json
+j2py doctor assess src/main/java --json before.json
+j2py doctor assess src/main/java --config j2py.yaml --json after.json
 j2py doctor diff before.json after.json
 ```
 
@@ -288,7 +331,7 @@ diagnostics, parse failures, and average rule coverage improved.
 ### Export config suggestions
 
 ```bash
-j2py doctor src/main/java --config-suggestions j2py.suggested.yaml
+j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
 ```
 
 The suggestions file is an advisory artifact. Review it before copying entries into
@@ -298,14 +341,14 @@ low-confidence unless current defaults already define the behavior.
 ### Export SARIF
 
 ```bash
-j2py doctor src/main/java --json j2py-assessment.json --include-validation
+j2py doctor assess src/main/java --json j2py-assessment.json --include-validation
 j2py sarif j2py-assessment.json --output j2py.sarif
 ```
 
 ### Validate generated Python during assessment
 
 ```bash
-j2py doctor src/main/java --include-validation --json j2py-assessment.json
+j2py doctor assess src/main/java --include-validation --json j2py-assessment.json
 ```
 
 Use this when you want early syntax, ruff, and mypy feedback from rule-only output. It is
@@ -316,9 +359,9 @@ slower than the default scan and may skip validation tools that are not installe
 A good assessment workflow is repeatable:
 
 ```bash
-j2py doctor src/main/java --json before.json --html before.html
+j2py doctor assess src/main/java --json before.json --html before.html
 # update reviewed config or translator rules
-j2py doctor src/main/java --config j2py.toml --json after.json --html after.html
+j2py doctor assess src/main/java --config j2py.toml --json after.json --html after.html
 j2py doctor diff before.json after.json
 ```
 
@@ -368,15 +411,18 @@ request comments, or future IDE integration.
 
 The current implementation provides:
 
-- `j2py doctor <file|dir>`;
+- `j2py doctor assess <file|dir>`;
 - deterministic `schema_version: 2` JSON output;
 - static HTML report output;
 - source/class/method/field inventory from the existing parser/analyzer;
 - Java parse-error reporting;
 - dependency-graph translation order and graph warnings;
+- Maven/Gradle build-system, source-root, module, generated-source, and Java language-level
+  detection without invoking external build tools;
 - rule-only translation coverage, confidence, semantic warnings, TODOs, and unhandled
   diagnostics;
-- per-file risk scoring, readiness buckets, and top-risk hotspots;
+- per-file `migration_readiness` scoring, six actionable readiness buckets, legacy
+  readiness mirrors, and top-risk hotspots;
 - annotation inventory;
 - unresolved import candidates;
 - conservative advisory config suggestions;
@@ -400,7 +446,7 @@ The current implementation provides:
 | D7 | Support risk scoring and prioritization from observable evidence. |
 | D8 | Aggregate hotspots for unhandled nodes, warnings, imports, annotations, risk reasons, warning-heavy files, low-coverage files, and highest-risk files. |
 | D9 | Detect common Java project structure such as Maven, Gradle, source roots, multi-module layouts, and Java language level when available. |
-| D10 | Feed the standalone SARIF exporter; future integrated command: `j2py doctor src/main/java --sarif j2py.sarif`. |
+| D10 | Feed the standalone SARIF exporter; future integrated command: `j2py doctor assess src/main/java --sarif j2py.sarif`. |
 | D11 | Support assessment diffs. |
 | D12 | Identify methods/classes that are good candidates for literal-oracle equivalence tests. |
 | D13 | Produce stable reusable artifacts for config suggestions, SARIF conversion, stub generation, assessment diffs, dashboards, and review comments. |
@@ -419,7 +465,7 @@ The current implementation provides:
 
 ### Success criteria
 
-1. `j2py doctor <src>` runs without LLM API keys.
+1. `j2py doctor assess <src>` runs without LLM API keys.
 2. Missing source paths fail with a clean CLI error.
 3. JSON output is deterministic and schema-versioned.
 4. HTML output is self-contained and usable without network access.

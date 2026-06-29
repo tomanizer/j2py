@@ -6,6 +6,7 @@ from typing import Any, NotRequired, TypedDict
 
 PROMPT_VERSION = "j2py-translation-v8"
 REVIEW_PROMPT_VERSION = "j2py-review-v1"
+ADVICE_PROMPT_VERSION = "j2py-doctor-advice-v1"
 
 
 class TextPromptBlock(TypedDict):
@@ -96,6 +97,22 @@ Rules:
   {"findings":[{"severity":"info|warning|error","category":"...","source_line":1|null,
   "output_line":1|null,"message":"...","recommendation":"..."|null}]}
 - If there are no findings, output {"findings":[]}.
+"""
+
+
+ADVICE_SYSTEM_PROMPT = """You are an experienced migration planner for Java-to-Python projects.
+
+Task:
+- Propose a practical migration plan from this doctor evidence.
+- Identify issue slices that should be handled first.
+- Recommend concrete config and rule-layer work that this evidence supports.
+
+Hard constraints:
+- Use only the evidence object below. Do not add facts not present there.
+- If evidence is incomplete for a claim, say "insufficient evidence" and lower confidence.
+- Include evidence references explicitly using the format "[evidence: <path>]".
+- Keep output as plain markdown with short, reviewable bullets.
+- Keep phrasing factual and non-prescriptive.
 """
 
 
@@ -190,4 +207,30 @@ def build_review_prompt(
     user_parts.append(f"<java_source>\n{java_source}\n</java_source>")
     user_parts.append(f"<python_output>\n{python_source}\n</python_output>")
     user_parts.append("Review the Java and Python above. Return only the structured JSON findings.")
+    return system, [{"role": "user", "content": "\n\n".join(user_parts)}]
+
+
+def build_doctor_advice_prompt(
+    *,
+    evidence_json: str,
+) -> tuple[list[TextPromptBlock], list[dict[str, Any]]]:
+    """Build the system prompt and messages list for an advice call."""
+    system: list[TextPromptBlock] = [
+        {
+            "type": "text",
+            "text": ADVICE_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        },
+    ]
+    user_parts = [
+        "Use this evidence object only. Do not invent facts.",
+        "<evidence>",
+        evidence_json,
+        "</evidence>",
+        (
+            "Return markdown with these headings:\n"
+            "## Migration plan\n## Issue slices\n## Config and rule-work"
+        ),
+        "Include explicit evidence tags in each section as [evidence: <path>].",
+    ]
     return system, [{"role": "user", "content": "\n\n".join(user_parts)}]

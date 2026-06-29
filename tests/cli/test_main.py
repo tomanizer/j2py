@@ -2,8 +2,10 @@
 
 import json
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
+from tenacity import RetryError
 from typer.testing import CliRunner
 
 import j2py.pipeline as pipeline
@@ -1306,8 +1308,12 @@ def test_cli_dashboard_rejects_state_directory(tmp_path: Path) -> None:
 
 def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     source = tmp_path / "src"
-    source.mkdir()
-    (source / "Sample.java").write_text("package com.example; public class Sample {}")
+    java_root = source / "src" / "main" / "java"
+    java_root.mkdir(parents=True)
+    (source / "pom.xml").write_text(
+        "<project><properties><maven.compiler.release>17</maven.compiler.release></properties></project>"
+    )
+    (java_root / "Sample.java").write_text("package com.example; public class Sample {}")
     json_path = tmp_path / "assessment.json"
     html_path = tmp_path / "assessment.html"
     runner = CliRunner()
@@ -1316,6 +1322,7 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
         app,
         [
             "doctor",
+            "assess",
             str(source),
             "--json",
             str(json_path),
@@ -1329,8 +1336,14 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     assert payload["schema_version"] == 2
     assert payload["summary"]["files"] == 1
     assert payload["files"][0]["classes"][0]["name"] == "Sample"
+    assert payload["project_structure"]["build_systems"] == ["maven"]
+    assert payload["files"][0]["migration_readiness"]["bucket"] == "ready_to_translate"
     assert "Doctor assessment" in result.output
-    assert "j2py doctor assessment" in html_path.read_text()
+    assert "translate=1" in result.output
+    assert "build=maven" in result.output
+    html = html_path.read_text()
+    assert "j2py doctor assessment" in html
+    assert "Project Structure" in html
 
 
 def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:
@@ -1354,6 +1367,7 @@ def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:
         app,
         [
             "doctor",
+            "assess",
             str(source),
             "--config-suggestions",
             str(suggestions_path),
@@ -1365,6 +1379,296 @@ def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:
     assert "config_suggestions:" in suggestions
     assert 'java_import: "com.external.PaymentClient"' in suggestions
     assert "Config suggestions" in result.output
+
+
+def test_cli_doctor_advise_marks_markdown_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+
+    observed: dict[str, object] = {}
+
+    def fake_advice_with_doctor_assessment(
+        *,
+        evidence: str,
+        evidence_fingerprint: str,
+        output_format: str,
+        model: str | None,
+        provider: str,
+        base_url: str | None,
+        use_cache: bool,
+        max_evidence_items: int,
+    ) -> str:
+        observed["evidence_len"] = len(evidence)
+        observed["evidence_fingerprint"] = evidence_fingerprint
+        observed["output_format"] = output_format
+        observed["provider"] = provider
+        observed["model"] = model
+        observed["use_cache"] = use_cache
+        observed["max_evidence_items"] = max_evidence_items
+        observed["base_url"] = base_url
+        return "## Migration plan\n- Start with low-risk files."
+
+    monkeypatch.setattr(
+        "j2py.llm.client.advise_with_doctor_assessment",
+        fake_advice_with_doctor_assessment,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+            "--max-evidence-items",
+            "5",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Start with low-risk files." in result.output
+    assert observed["provider"] == "anthropic"
+    assert observed["model"] == "claude-test"
+    assert observed["output_format"] == "markdown"
+    assert observed["max_evidence_items"] == 5
+    assert observed["use_cache"] is True
+
+
+def test_cli_doctor_advise_supports_json_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+    output = tmp_path / "advice.json"
+
+    monkeypatch.setattr(
+        "j2py.llm.client.advise_with_doctor_assessment",
+        lambda **_: "## Migration plan\n- Start with the highest-priority files.",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+            "--output-format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Doctor advice JSON:" in result.output
+    payload = json.loads(output.read_text())
+    assert payload["provider"] == "anthropic"
+    assert payload["model"] == "claude-test"
+    assert payload["output_format"] == "json"
+    assert payload["advice_markdown"].startswith("## Migration plan")
+
+
+def test_cli_doctor_advise_outputs_to_nested_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+    output = tmp_path / "out" / "nested" / "advice.json"
+
+    monkeypatch.setattr(
+        "j2py.llm.client.advise_with_doctor_assessment",
+        lambda **_: "## Migration plan\n- Start with the highest-priority files.",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+            "--output-format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert output.is_file()
+    payload = json.loads(output.read_text())
+    assert payload["provider"] == "anthropic"
+
+
+def test_cli_doctor_advise_handles_retry_error_without_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+
+    attempt = Mock()
+    attempt.exception.return_value = RuntimeError("temporary failure")
+    monkeypatch.setattr(
+        "j2py.llm.client.advise_with_doctor_assessment",
+        lambda **_: (_ for _ in ()).throw(RetryError(attempt)),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: RetryError" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_doctor_advise_halts_on_none_assessment_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text("{}")
+
+    monkeypatch.setattr("j2py.cli.doctor._load_assessment", lambda *args, **kwargs: (None, 0))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+
+
+def test_cli_doctor_advise_openai_requires_explicit_model(tmp_path: Path) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "openai",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "requires an explicit --model" in result.output
+
+
+def test_cli_doctor_advise_rejects_invalid_output_format(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--output-format",
+            "yaml",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "unsupported output format" in result.output
 
 
 def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
@@ -1508,7 +1812,7 @@ def test_cli_doctor_diff_without_operands_reports_usage() -> None:
     result = runner.invoke(app, ["doctor", "diff"])
 
     assert result.exit_code == 2
-    assert "usage: j2py doctor diff BEFORE_JSON AFTER_JSON" in result.output
+    assert "doctor diff [OPTIONS] BEFORE_JSON AFTER_JSON" in result.output
     assert "source path not found" not in result.output
 
 
@@ -1517,7 +1821,10 @@ def test_cli_doctor_reports_missing_source_without_traceback(tmp_path: Path) -> 
     json_path = tmp_path / "assessment.json"
     runner = CliRunner()
 
-    result = runner.invoke(app, ["doctor", str(source), "--json", str(json_path)])
+    result = runner.invoke(
+        app,
+        ["doctor", "assess", str(source), "--json", str(json_path)],
+    )
 
     assert result.exit_code == 1
     assert "source path not found" in result.output
@@ -1533,6 +1840,26 @@ def test_cli_sarif_writes_report_from_doctor_assessment(tmp_path: Path) -> None:
             {
                 "schema_version": 2,
                 "source": "src",
+                "summary": {
+                    "files": 1,
+                    "classes": 1,
+                    "parse_failures": 0,
+                    "graph_warnings": 0,
+                    "semantic_warnings": 0,
+                    "unhandled_diagnostics": 0,
+                    "todo_lines": 0,
+                    "unresolved_imports": 1,
+                    "average_rule_coverage": 0.0,
+                    "average_risk_score": 0.0,
+                    "max_risk_score": 0.0,
+                    "min_risk_score": 0.0,
+                    "readiness_distribution": [
+                        {"bucket": "ready", "files": 0},
+                        {"bucket": "requires_manual_fixes", "files": 1},
+                        {"bucket": "not_ready", "files": 0},
+                    ],
+                    "top_risk_files": [],
+                },
                 "files": [
                     {
                         "path": "Sample.java",

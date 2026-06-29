@@ -71,7 +71,7 @@ leaving an unresolved Java package boundary.
 | `j2py.yaml` / `j2py.yml` | Larger mapping tables that are easier to read as YAML | Requires the optional `yaml` extra. |
 | `j2py_config.py` | Trusted Python objects, especially `framework_plugins` | Must be passed explicitly with `--config`; executing it runs Python code. |
 
-Use `j2py doctor <source> --config-suggestions j2py.suggested.yaml` to draft config
+Use `j2py doctor assess <source> --config-suggestions j2py.suggested.yaml` to draft config
 candidates, then review them before committing them. Generated suggestions are advisory;
 they should not be treated as trusted application policy without review.
 
@@ -140,10 +140,10 @@ This configuration guide only explains how plugins are registered.
 Start small. A good config usually grows from actual diagnostics and review findings, not
 from trying to model the whole Java ecosystem upfront.
 
-1. Run `doctor` on a representative package:
+1. Run `doctor assess` on a representative package:
 
    ```bash
-   j2py doctor src/main/java \
+   j2py doctor assess src/main/java \
      --config-suggestions j2py.suggested.yaml \
      --html j2py-assessment.html
    ```
@@ -258,7 +258,7 @@ Treat config as source-controlled migration policy. Test it before applying it b
 Use this loop:
 
 ```bash
-j2py doctor src/main/java \
+j2py doctor assess src/main/java \
   --config j2py.toml \
   --html j2py-assessment.html
 
