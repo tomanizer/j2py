@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from j2py.llm.prompts import PROMPT_VERSION
-from j2py.translate.diagnostics import TranslationDiagnostic, TranslationDiagnostics
+from j2py.translate.diagnostics import TranslationDiagnostics, diagnostic_payload
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
 
@@ -276,21 +276,12 @@ def _build_trigger(
     return LlmHarvestTrigger(
         kinds=tuple(kinds),
         coverage=coverage,
-        unhandled=tuple(_diagnostic_dict(item) for item in diagnostics.unhandled),
+        unhandled=tuple(diagnostic_payload(item) for item in diagnostics.unhandled),
         pre_validation_errors=_pre_validation_errors(pre_validation),
         structural_errors=tuple(structural_verification.errors)
         if structural_verification is not None
         else (),
     )
-
-
-def _diagnostic_dict(item: TranslationDiagnostic) -> dict[str, object]:
-    return {
-        "line": item.line,
-        "node_type": item.node_type,
-        "reason": item.reason,
-        "text": item.text,
-    }
 
 
 def _pre_validation_errors(pre_validation: ValidationResult | None) -> tuple[str, ...]:

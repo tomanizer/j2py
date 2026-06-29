@@ -7,8 +7,14 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from j2py.wire.schema import WiringElement, WiringSidecar
-from j2py.wire.targets.common import GENERATED_HEADER
+from j2py.wire.schema import WiringSidecar
+from j2py.wire.targets.common import (
+    GENERATED_HEADER,
+    constructor_parameters,
+    list_of_dicts,
+    parse_python,
+    provider_identity,
+)
 from j2py.wiring_contract import translate_field_name
 
 DB_FILENAME = "db.py"
@@ -119,7 +125,7 @@ def repository_persistence_specs(
         for element in sidecar.elements:
             if element.kind != "class" or element.spring.get("role") != "repository":
                 continue
-            identity = _provider_identity(element)
+            identity = provider_identity(element)
             specs.append(
                 RepositoryPersistenceSpec(
                     identity=identity,
@@ -163,7 +169,7 @@ def transaction_facts(sidecars: list[WiringSidecar]) -> list[str]:
             python_name = _str(jdbc_bean.get("python_name"), default=element.python_name)
             if "TransactionManager" in java_type or "transaction_manager" in python_name:
                 facts.add(python_name)
-            for constructor_arg in _list_of_dicts(jdbc_bean.get("constructor_args")):
+            for constructor_arg in list_of_dicts(jdbc_bean.get("constructor_args")):
                 arg_type = _str(constructor_arg.get("type"), default="")
                 if "TransactionManager" in arg_type:
                     facts.add(python_name)
@@ -327,26 +333,14 @@ def _imports_for_repositories(
 
 
 def _constructor_parameters(path: Path, class_name: str) -> list[ConstructorParameterSpec]:
-    tree = _parse_python(path)
-    if tree is None:
-        return []
-    for node in tree.body:
-        if not isinstance(node, ast.ClassDef) or node.name != class_name:
-            continue
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
-                return [
-                    ConstructorParameterSpec(
-                        name=arg.arg,
-                        python_type=_annotation_name(arg.annotation),
-                    )
-                    for arg in item.args.args[1:]
-                ]
-    return []
+    return [
+        ConstructorParameterSpec(name=name, python_type=python_type)
+        for name, python_type in constructor_parameters(path, class_name)
+    ]
 
 
 def _jdbc_placeholders(path: Path, class_name: str) -> list[str]:
-    tree = _parse_python(path)
+    tree = parse_python(path)
     if tree is None:
         return []
     placeholders: set[str] = set()
@@ -364,23 +358,10 @@ def _jdbc_placeholders(path: Path, class_name: str) -> list[str]:
     return sorted(placeholders)
 
 
-def _provider_identity(element: WiringElement) -> str:
-    component_name = element.spring.get("component_name")
-    if isinstance(component_name, str) and component_name:
-        return component_name
-    return translate_field_name(element.python_name)
-
-
 def _is_jdbc_constructor_parameter(param: ConstructorParameterSpec) -> bool:
     return translate_field_name(param.name) in _JDBC_PARAMETER_NAMES or any(
         word in _JDBC_TYPES for word in re.findall(r"\b\w+\b", param.python_type)
     )
-
-
-def _annotation_name(annotation: ast.expr | None) -> str:
-    if annotation is not None:
-        return ast.unparse(annotation)
-    return "object"
 
 
 def _is_data_source(spec: JdbcBeanSpec) -> bool:
@@ -389,7 +370,7 @@ def _is_data_source(spec: JdbcBeanSpec) -> bool:
 
 def _properties(value: object) -> dict[str, str]:
     properties: dict[str, str] = {}
-    for item in _list_of_dicts(value):
+    for item in list_of_dicts(value):
         target = item.get("target")
         key = item.get("key")
         if isinstance(target, str) and isinstance(key, str):
@@ -399,17 +380,11 @@ def _properties(value: object) -> dict[str, str]:
 
 def _dependencies(value: object) -> list[str]:
     dependencies: list[str] = []
-    for item in _list_of_dicts(value):
+    for item in list_of_dicts(value):
         name = item.get("name")
         if isinstance(name, str):
             dependencies.append(name)
     return sorted(dependencies)
-
-
-def _list_of_dicts(value: object) -> list[dict[str, object]]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, dict)]
 
 
 def _annotation_simple_name(annotation: dict[str, object] | object) -> str:
@@ -424,15 +399,6 @@ def _annotation_simple_name(annotation: dict[str, object] | object) -> str:
     if isinstance(name, str):
         return name.rsplit(".", maxsplit=1)[-1]
     return ""
-
-
-def _parse_python(path: Path) -> ast.Module | None:
-    if not path.is_file():
-        return None
-    try:
-        return ast.parse(path.read_text(encoding="utf-8"))
-    except (OSError, SyntaxError):
-        return None
 
 
 def _function_source(source: str, function_name: str) -> str:

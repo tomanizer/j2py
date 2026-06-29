@@ -12,8 +12,8 @@ from j2py.translate.class_model import TYPE_DECLARATION_NODES
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
+from j2py.translate.framework_annotations import annotation_full_name
 from j2py.translate.name_resolution import NameResolver
-from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.literals import translate_literal, translate_string_literal
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
@@ -54,7 +54,7 @@ def translate_annotation_declaration(
         for annotation in modifiers.named_children:
             if annotation.type not in {"annotation", "marker_annotation"}:
                 continue
-            name = _annotation_node_name(annotation)
+            name = annotation_full_name(annotation)
             if name is None:
                 continue
             if name in _ANNOTATION_META_NAMES:
@@ -200,13 +200,6 @@ def _translate_annotation_nested_type(
     return [f"    {line}" if line else line for line in nested_lines]
 
 
-def _annotation_node_name(annotation: JavaNode) -> str | None:
-    name_node = annotation.child_by_field("name")
-    if name_node is None:
-        name_node = first_child_by_type(annotation, "identifier", "scoped_identifier")
-    return name_node.text if name_node is not None else None
-
-
 def _annotation_comment_text(
     annotation: JavaNode,
     static_field_aliases: dict[str, str],
@@ -281,7 +274,7 @@ def _record_annotation_element_modifiers(
         for annotation in modifiers.named_children:
             if annotation.type not in {"annotation", "marker_annotation"}:
                 continue
-            name = _annotation_node_name(annotation)
+            name = annotation_full_name(annotation)
             if name is None:
                 continue
             diagnostics.warn(

@@ -8,6 +8,7 @@ from rich.console import Console
 
 from j2py.llm.review import review_findings_payload
 from j2py.pipeline import PARSE_ERROR_LLM_SKIP_MSG
+from j2py.translate.diagnostics import todo_lines
 
 if TYPE_CHECKING:
     from j2py.pipeline import DirectoryTranslationResult, TranslationResult
@@ -81,14 +82,6 @@ def directory_payload(batch: DirectoryTranslationResult) -> dict[str, object]:
         "warnings": batch.warnings,
         "files": [result_payload(result) for result in batch.files],
     }
-
-
-def todo_lines(source: str) -> list[str]:
-    return [
-        line.strip()
-        for line in source.splitlines()
-        if "TODO(j2py)" in line or "__j2py_todo__" in line
-    ]
 
 
 def print_result_summary(result: TranslationResult) -> None:
