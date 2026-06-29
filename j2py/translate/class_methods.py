@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
@@ -442,18 +442,48 @@ def params_for_method(
     return params
 
 
-def _render_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list[str]:
+def render_parameter_list(
+    params: Iterable[ParameterInfo],
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    ctx: TranslationContext | None = None,
+    register: bool = False,
+    skip_existing: bool = False,
+    render_spread: bool = False,
+    type_renderer: Callable[[ParameterInfo], str] | None = None,
+) -> list[str]:
     rendered: list[str] = []
     for param in params:
-        register_param(ctx, param)
-        prefix = "*" if param.is_spread else ""
-        py_type = _render_parameter_type(param, ctx)
-        if ctx.cfg.emit_type_hints:
-            ctx.diagnostics.imports.need_type_annotation(py_type)
+        if skip_existing:
+            if ctx is None:
+                raise ValueError("ctx is required when skip_existing=True")
+            if param.raw_name in ctx.param_names or param.py_name in ctx.param_names:
+                continue
+        if register:
+            if ctx is None:
+                raise ValueError("ctx is required when register=True")
+            register_param(ctx, param)
+        prefix = "*" if render_spread and param.is_spread else ""
+        if cfg.emit_type_hints:
+            py_type = type_renderer(param) if type_renderer is not None else param.py_type
+            diagnostics.imports.need_type_annotation(py_type)
             rendered.append(f"{prefix}{param.py_name}: {py_type}")
         else:
             rendered.append(f"{prefix}{param.py_name}")
     return rendered
+
+
+def _render_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list[str]:
+    return render_parameter_list(
+        params,
+        cfg=ctx.cfg,
+        diagnostics=ctx.diagnostics,
+        ctx=ctx,
+        register=True,
+        render_spread=True,
+        type_renderer=lambda param: _render_parameter_type(param, ctx),
+    )
 
 
 def _varargs_normalization_lines(
@@ -493,18 +523,15 @@ def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
 
 
 def _render_extra_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list[str]:
-    rendered: list[str] = []
-    for param in params:
-        if param.raw_name in ctx.param_names or param.py_name in ctx.param_names:
-            continue
-        register_param(ctx, param)
-        if ctx.cfg.emit_type_hints:
-            py_type = _render_parameter_type(param, ctx)
-            ctx.diagnostics.imports.need_type_annotation(py_type)
-            rendered.append(f"{param.py_name}: {py_type}")
-        else:
-            rendered.append(param.py_name)
-    return rendered
+    return render_parameter_list(
+        params,
+        cfg=ctx.cfg,
+        diagnostics=ctx.diagnostics,
+        ctx=ctx,
+        register=True,
+        skip_existing=True,
+        type_renderer=lambda param: _render_parameter_type(param, ctx),
+    )
 
 
 def _render_parameter_type(param: ParameterInfo, ctx: TranslationContext) -> str:
