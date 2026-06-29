@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.annotation_types import bind_annotation_type_names
+from j2py.translate.annotation_types import (
+    bind_annotation_type_names,
+    split_top_level_annotation,
+)
 from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import method_body, parameter_infos
 from j2py.translate.class_methods import return_type as method_return_type
@@ -53,21 +56,7 @@ def _erase_py_type(py_type: str) -> str:
 
 
 def _split_top_level_union(text: str) -> list[str]:
-    parts: list[str] = []
-    depth = 0
-    current: list[str] = []
-    for char in text:
-        if char in "[(":
-            depth += 1
-        elif char in "])":
-            depth -= 1
-        if char == "|" and depth == 0:
-            parts.append("".join(current).strip())
-            current = []
-        else:
-            current.append(char)
-    parts.append("".join(current).strip())
-    return [part for part in parts if part]
+    return split_top_level_annotation(text, delimiter="|")
 
 
 def _union_types(types: Iterable[str]) -> str:

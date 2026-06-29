@@ -11,6 +11,7 @@ from j2py.translate.annotation_emit import (
     annotation_comment_lines,
     record_annotation_diagnostics,
 )
+from j2py.translate.annotation_types import split_top_level_annotation
 from j2py.translate.class_environment import ClassTranslationEnvironment
 from j2py.translate.class_members import (
     member_method_names,
@@ -712,30 +713,11 @@ def _is_optional_type_var(py_type: str, type_param: str) -> bool:
 
 
 def _split_python_union(text: str) -> list[str]:
-    return _split_top_level(text, delimiter="|")
+    return split_top_level_annotation(text, delimiter="|")
 
 
 def _split_python_type_args(text: str) -> list[str]:
-    return _split_top_level(text, delimiter=",")
-
-
-def _split_top_level(text: str, *, delimiter: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    depth = 0
-    for char in text:
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-        if char == delimiter and depth == 0:
-            parts.append("".join(current).strip())
-            current = []
-        else:
-            current.append(char)
-    if current:
-        parts.append("".join(current).strip())
-    return parts
+    return split_top_level_annotation(text, delimiter=",")
 
 
 def _register_type_var(
