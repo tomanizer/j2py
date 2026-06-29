@@ -31,7 +31,18 @@ def test_list_preset_names_includes_spring_and_guava() -> None:
     assert "petclinic" in names
     assert "openjdk-java-base" in names
     assert "guava-dense" in names
+    assert "jsemver" in names
     assert names == sorted(names)
+
+
+def test_jsemver_preset_pins_case_study_library() -> None:
+    preset = presets.get_preset("jsemver")
+
+    assert preset.remote == "https://github.com/zafarkhaja/jsemver.git"
+    assert preset.ref == "v0.10.2"
+    assert preset.checkout_dir == "jsemver"
+    assert preset.modules == ("src/main/java",)
+    assert preset.baseline.name == "jsemver-baseline.json"
 
 
 def test_spring_app_dense_preset_targets_application_samples() -> None:

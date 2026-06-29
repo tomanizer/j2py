@@ -80,6 +80,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [LLM_HARVEST.md](LLM_HARVEST.md) | LLM harvest: batch runs, triage, content cache, promotion to targets and GitHub issues. |
 | [CASE_STUDY_COMMONS_LANG_TUPLE.md](CASE_STUDY_COMMONS_LANG_TUPLE.md) | End-to-end multi-file case study for commons-lang `tuple`. |
 | [CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md](CASE_STUDY_COMMONS_LANG_NUMBER_UTILS.md) | NumberUtils equivalence case study: verified surface, stubs, and exclusions. |
+| [CASE_STUDY_JSEMVER.md](CASE_STUDY_JSEMVER.md) | First external end-to-end case study: java-semver translated and run against its own JUnit suite (#613). |
 | [RELEASING.md](RELEASING.md) | Beta/pre-release checklist and publish verification workflow. |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history and user-visible changes. |
 | [releases/README.md](releases/README.md) | Release-record convention, canonical filenames, and per-version evidence layout. |
