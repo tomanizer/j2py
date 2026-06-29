@@ -1202,6 +1202,47 @@ def test_fixed_arity_beats_varargs_in_value_dispatcher() -> None:
     assert stats.run_varargs() == 4  # type: ignore[attr-defined]
 
 
+def test_varargs_value_dispatch_accepts_empty_tail_with_fixed_overload() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Releases {
+            public static int bump(int value) {
+                return value;
+            }
+
+            public static int bump(String label, String... suffixes) {
+                return suffixes.length;
+            }
+
+            public static int runEmptyTail() {
+                return bump("patch");
+            }
+
+            public static int runWithTail() {
+                return bump("patch", "build");
+            }
+
+            public static int runFixed() {
+                return bump(5);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "def bump(*args: object) -> int:" in python_source
+    assert "if len(args) >= 1 and isinstance(args[0], str)" in python_source
+    assert "all(isinstance(value, str) for value in args[1:])" in python_source
+    assert 'raise TypeError("bump overload dispatch failed")' in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<releases>", "exec"), namespace)
+    releases = namespace["Releases"]
+    assert releases.run_empty_tail() == 0  # type: ignore[attr-defined]
+    assert releases.run_with_tail() == 1  # type: ignore[attr-defined]
+    assert releases.run_fixed() == 5  # type: ignore[attr-defined]
+
+
 def test_equivalent_varargs_erasure_collisions_collapse_to_value_dispatcher() -> None:
     python_source, coverage = translate_source(
         """
