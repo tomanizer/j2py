@@ -79,13 +79,28 @@ def translate_jdk_instance_method_invocation(
     )
 
 
-def translate_string_format(args: list[str]) -> str:
+def translate_string_format(
+    args: list[str],
+    *,
+    arg_nodes: list[JavaNode] | None = None,
+    ctx: TranslationContext | None = None,
+) -> str:
     args = [normalize_java_format_literal_expr(args[0]), *args[1:]] if args else args
     if len(args) == 1:
         return args[0]
     if len(args) == 2:
+        if (
+            arg_nodes is not None
+            and ctx is not None
+            and _is_spread_parameter_arg(arg_nodes[1], ctx)
+        ):
+            return f"{args[0]} % tuple({args[1]})"
         return f"{args[0]} % {args[1]}"
     return f"{args[0]} % ({', '.join(args[1:])})"
+
+
+def _is_spread_parameter_arg(node: JavaNode, ctx: TranslationContext) -> bool:
+    return node.type == "identifier" and node.text in ctx.spread_param_names
 
 
 def _translate_math_static_call(
@@ -164,10 +179,14 @@ def _translate_string_static_call(
     ctx: TranslationContext,
 ) -> str | None:
     if method_name == "valueOf" and len(args) == 1:
-        return f"str({args[0]})"
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_value")
+        return f"_j2py_string_value({args[0]})"
     if method_name == "format" and args:
         format_args = args[1:] if arg_nodes and _is_locale_argument(arg_nodes[0]) else args
-        return translate_string_format(format_args)
+        format_arg_nodes = (
+            arg_nodes[1:] if arg_nodes and _is_locale_argument(arg_nodes[0]) else arg_nodes
+        )
+        return translate_string_format(format_args, arg_nodes=format_arg_nodes, ctx=ctx)
     if method_name == "join" and len(args) >= 2:
         if len(args) == 2:
             ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_join")

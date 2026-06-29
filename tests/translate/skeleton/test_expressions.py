@@ -1,7 +1,10 @@
 """Skeleton translator tests — expressions, literals, and calls."""
 
+import sys
+
 import pytest
 
+import j2py.translate.runtime.j2py_runtime as _j2py_runtime_module
 from j2py.analyze.symbols import extract_symbols
 from j2py.parse.java_ast import parse_file, parse_source
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
@@ -14,6 +17,8 @@ from tests.translate.skeleton.helpers import (
     translate_source,
     translate_source_with_diagnostics,
 )
+
+sys.modules.setdefault("j2py_runtime", _j2py_runtime_module)
 
 
 def test_comments_and_dropped_annotations_do_not_reduce_coverage() -> None:
@@ -410,6 +415,8 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
         "return str(value) + format(value, 'b') + format(value, 'x')",
         "return 2**31 - 1",
         "return float(value)",
+        "from j2py_runtime import _j2py_string_value",
+        "return _j2py_string_value(value)",
         'return "%s:%d" % (name, count)',
         "return [first, second]",
         "return iter(values)",
@@ -615,7 +622,7 @@ def test_receiverless_static_calls_qualify_inherited_methods() -> None:
         ("return Character.toLowerCase(left);", "return ord(chr(left).lower())"),
         ("return Long.parseLong(text);", "return int(text)"),
         ("return Double.parseDouble(text);", "return float(text)"),
-        ("return String.valueOf(value);", "return str(value)"),
+        ("return String.valueOf(value);", "return _j2py_string_value(value)"),
         ('return String.format("%s:%d", name, left);', 'return "%s:%d" % (name, left)'),
         ('return String.format("%,d", left);', 'return "%d" % left'),
         ('return String.format("%,.2f", base);', 'return "%.2f" % base'),
@@ -1123,6 +1130,50 @@ def test_varargs_parameter_with_inline_comment_keeps_element_type() -> None:
     assert "def names(self, *labels: str) -> None:" in python_source
     assert "block_comment" not in python_source
     assert_valid_python(python_source)
+
+
+def test_varargs_parameter_normalizes_to_mutable_list() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class VarargsMutation {
+            public static String first(String... values) {
+                values[0] = String.valueOf(null);
+                return values[0];
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "values = list(values[0])" in python_source
+    assert "values = list(values)" in python_source
+    assert "values = tuple" not in python_source
+    assert "from j2py_runtime import _j2py_string_value" in python_source
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    translated = namespace["VarargsMutation"]
+    assert translated.first("x") == "null"  # type: ignore[attr-defined]
+    assert translated.first(["x"]) == "null"  # type: ignore[attr-defined]
+
+
+def test_string_format_spreads_varargs_parameter_after_list_normalization() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class FormatSpread {
+            public static String format(String pattern, Object... args) {
+                return String.format(pattern, args);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "args = list(args)" in python_source
+    assert "return pattern % tuple(args)" in python_source
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    translated = namespace["FormatSpread"]
+    assert translated.format_("%s:%d", "n", 3) == "n:3"  # type: ignore[attr-defined]
 
 
 def test_hex_literals_inline_argument_comments_and_primitive_class_literals_translate() -> None:

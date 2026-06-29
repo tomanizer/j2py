@@ -432,7 +432,9 @@ def _varargs_normalization_lines(params: list[ParameterInfo], *, indent: str) ->
             [
                 f"{indent}if len({param.py_name}) == 1 and "
                 f"isinstance({param.py_name}[0], (list, tuple)):",
-                f"{indent}    {param.py_name} = tuple({param.py_name}[0])",
+                f"{indent}    {param.py_name} = list({param.py_name}[0])",
+                f"{indent}else:",
+                f"{indent}    {param.py_name} = list({param.py_name})",
             ]
         )
     return lines

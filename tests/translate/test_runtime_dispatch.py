@@ -22,6 +22,7 @@ from j2py.translate.runtime import (
     _j2py_monitor,
     _j2py_string_from_value,
     _j2py_string_join,
+    _j2py_string_value,
     overloaded,
 )
 from j2py.translate.runtime.j2py_runtime import _j2py_monitor_registry
@@ -125,6 +126,13 @@ def test_string_from_value_runtime_helper_handles_common_constructors() -> None:
     assert _j2py_string_from_value([65, 66]) == "AB"
     assert _j2py_string_from_value(StringBuilder().append(["x", "y"])) == "xy"
     assert _j2py_string_from_value("already") == "already"
+
+
+def test_string_value_runtime_helper_matches_java_null_text() -> None:
+    assert _j2py_string_value(None) == "null"
+    assert _j2py_string_value(["a", "b"]) == "ab"
+    assert _j2py_string_value("already") == "already"
+    assert _j2py_string_value(5) == "5"
 
 
 def test_string_join_runtime_helper_treats_single_string_as_one_element() -> None:

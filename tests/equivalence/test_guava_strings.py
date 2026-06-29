@@ -108,9 +108,5 @@ def test_lenient_format_without_args(strings) -> None:
     assert strings.lenient_format("%s without args") == "%s without args"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="generated varargs code mutates Python's immutable *args tuple",
-)
-def test_lenient_format_with_args_known_gap(strings) -> None:
+def test_lenient_format_with_args(strings) -> None:
     assert strings.lenient_format("%s scored %s", "Ada", 42) == "Ada scored 42"

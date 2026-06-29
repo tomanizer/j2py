@@ -21,6 +21,10 @@ notes, evidence, and known limits.
   case: the `util` package and seven-file `Version` / parser core run hermetically in
   `make check` with zero residual translator-defect patches and zero generated-output
   `F821` findings for the Version-core bundle (#702).
+- A Guava `com.google.common.base.Strings` external case study now vendors the pinned
+  Guava source/test slice and runs a focused upstream-derived pytest port against the
+  rule-layer translation, with explicit stubs and zero active residual translator patches
+  for the scoped `Strings` slice (#658).
 
 ### Changed
 - `j2py-wire` target generators now share common helper logic for TODO lines,
@@ -50,6 +54,9 @@ notes, evidence, and known limits.
 - Forwarding overloads can now preserve a no-arg overload that forwards `null` into a
   varargs implementation separately from an explicit empty varargs array, fixing
   WordUtils delimiter semantics (#711).
+- Direct Java varargs parameters now normalize to mutable Python lists, and
+  `String.valueOf(...)` now lowers through a null-safe runtime helper, fixing the Guava
+  `Strings.lenientFormat` residual gap `GS-1` (#658).
 
 ## 0.8.0 - 2026-06-29
 
