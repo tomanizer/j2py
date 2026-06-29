@@ -311,20 +311,30 @@ def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:
         ctx.diagnostics.record(node, supported=False, reason="malformed method reference")
         return f"__j2py_todo__({node.text!r})"
     if target == "Character":
-        predicate = {
-            "isDigit": "isdigit",
-            "isLetter": "isalpha",
-            "isLetterOrDigit": "isalnum",
-            "isLowerCase": "islower",
-            "isUpperCase": "isupper",
-            "isWhitespace": "isspace",
-        }.get(method_node.text)
-        if predicate is not None:
-            return f"lambda value: value is not None and len(value) == 1 and value.{predicate}()"
+        character_predicate = _character_method_reference_predicate(method_node.text)
+        if character_predicate is not None:
+            return character_predicate
     method_name = translate_method_name(method_node.text, snake_case=ctx.cfg.snake_case_methods)
     if method_node.text == "contains" and _is_collection_method_reference_target(named[0], ctx):
         return f"{target}.__contains__"
     return f"{target}.{method_name}"
+
+
+def _character_method_reference_predicate(method_name: str) -> str | None:
+    predicate = {
+        "isDigit": "isdigit",
+        "isLetter": "isalpha",
+        "isLetterOrDigit": "isalnum",
+        "isLowerCase": "islower",
+        "isUpperCase": "isupper",
+        "isWhitespace": "isspace",
+    }.get(method_name)
+    value = "(chr(value) if isinstance(value, int) and not isinstance(value, bool) else value)"
+    if predicate is not None:
+        return f"(lambda value: value is not None and {value}.{predicate}())"
+    if method_name == "isTitleCase":
+        return f"(lambda value: value is not None and {value}.istitle() and not {value}.isupper())"
+    return None
 
 
 def _method_reference_target(node: JavaNode, ctx: TranslationContext) -> str:

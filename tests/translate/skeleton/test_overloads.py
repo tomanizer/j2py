@@ -567,6 +567,58 @@ def test_forwarded_null_varargs_default_preserves_explicit_empty_array() -> None
     assert words.run_one() == "-"  # type: ignore[attr-defined]
 
 
+def test_forwarded_varargs_parameter_preserves_null_and_empty_array() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Words {
+            public static String choose(String value) {
+                return choose(value, null);
+            }
+
+            public static String choose(String value, String... delimiters) {
+                if (delimiters == null) {
+                    return "default";
+                }
+                if (delimiters.length == 0) {
+                    return "empty";
+                }
+                return delimiters[0];
+            }
+
+            public static String chooseFully(String value) {
+                return chooseFully(value, null);
+            }
+
+            public static String chooseFully(String value, String... delimiters) {
+                return choose(value, delimiters);
+            }
+
+            public static String runDefault() {
+                return chooseFully("x");
+            }
+
+            public static String runEmpty() {
+                return chooseFully("x", new String[] {});
+            }
+
+            public static String runOne() {
+                return chooseFully("x", "-");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "delimiters[0] is None" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<words>", "exec"), namespace)
+    words = namespace["Words"]
+    assert words.run_default() == "default"  # type: ignore[attr-defined]
+    assert words.run_empty() == "empty"  # type: ignore[attr-defined]
+    assert words.run_one() == "-"  # type: ignore[attr-defined]
+
+
 def test_same_arity_boxed_wrapper_forwarding_merges_to_implementation() -> None:
     result = translate_source_with_diagnostics(
         """
@@ -924,6 +976,40 @@ def test_array_and_string_overloads_use_distinct_value_guards() -> None:
     array_dispatch = namespace["ArrayDispatch"]
     assert array_dispatch.kind(["a"]) == "chars"  # type: ignore[attr-defined]
     assert array_dispatch.kind("a") == "string"  # type: ignore[attr-defined]
+
+
+def test_nullable_char_array_overload_dispatch_accepts_none() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Delimiters {
+            public static boolean isDelimiter(char ch, char[] delimiters) {
+                if (delimiters == null) {
+                    return Character.isWhitespace(ch);
+                }
+                return false;
+            }
+
+            public static boolean isDelimiter(int codePoint, char[] delimiters) {
+                if (delimiters == null) {
+                    return Character.isWhitespace(codePoint);
+                }
+                return false;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "args[1] is None" in python_source
+    assert "chr(code_point).isspace()" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<delimiters>", "exec"), namespace)
+    delimiters = namespace["Delimiters"]
+    assert delimiters.is_delimiter(" ", None) is True  # type: ignore[attr-defined]
+    assert delimiters.is_delimiter(".", None) is False  # type: ignore[attr-defined]
+    assert delimiters.is_delimiter(ord(" "), None) is True  # type: ignore[attr-defined]
+    assert delimiters.is_delimiter(ord("."), None) is False  # type: ignore[attr-defined]
 
 
 def test_char_and_byte_array_overloads_use_element_shape_guards() -> None:

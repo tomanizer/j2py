@@ -68,6 +68,21 @@ def class_method_return_types(
     return result
 
 
+def class_method_params(
+    members: Iterable[JavaNode],
+    cfg: TranslationConfig,
+) -> dict[str, tuple[tuple[ParameterInfo, ...], ...]]:
+    grouped: dict[str, list[tuple[ParameterInfo, ...]]] = {}
+    for member in members:
+        if member.type != "method_declaration":
+            continue
+        raw_name = raw_member_name(member)
+        if raw_name == "__init__":
+            continue
+        grouped.setdefault(raw_name, []).append(tuple(parameter_infos(member, cfg)))
+    return {name: tuple(signatures) for name, signatures in grouped.items()}
+
+
 def collect_declared_type_method_return_types(
     class_node: JavaNode,
     cfg: TranslationConfig,
@@ -430,7 +445,9 @@ def _varargs_normalization_lines(params: list[ParameterInfo], *, indent: str) ->
             continue
         lines.extend(
             [
-                f"{indent}if len({param.py_name}) == 1 and "
+                f"{indent}if len({param.py_name}) == 1 and {param.py_name}[0] is None:",
+                f"{indent}    {param.py_name} = None",
+                f"{indent}elif len({param.py_name}) == 1 and "
                 f"isinstance({param.py_name}[0], (list, tuple)):",
                 f"{indent}    {param.py_name} = tuple({param.py_name}[0])",
             ]

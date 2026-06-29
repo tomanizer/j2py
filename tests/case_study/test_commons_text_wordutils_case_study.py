@@ -5,7 +5,7 @@ cases from Apache Commons Text (commit ``af9cca8``, post-1.15.0). They run again
 rule-layer translation linked by ``tests/case_study/commons_text_caseutils_harness.py``.
 
 Regex-heavy ``containsAllWords`` and ``wrap`` cases are intentionally excluded from this
-first expansion; the residual inventory and case-study doc explain the active gaps.
+first expansion; the residual inventory and case-study doc keep those boundaries explicit.
 """
 
 from __future__ import annotations
@@ -173,4 +173,4 @@ def test_wordutils_residual_gap_inventory() -> None:
     applied = set(_NS.applied_gaps)
     declared = {gap.gap_id for gap in _WORDUTILS_RESIDUAL_GAP_PATCHES}
     assert applied == declared
-    assert declared == {"WU-2", "WU-4", "WU-6"}
+    assert declared == set()
