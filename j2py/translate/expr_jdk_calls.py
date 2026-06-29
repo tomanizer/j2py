@@ -12,7 +12,6 @@ from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.java_types import (
     java_expression_type,
     java_type_simple_name,
-    java_type_strip_one_array_dimension,
 )
 from j2py.translate.rules.literals import normalize_java_format_literal_expr
 from j2py.translate.rules.naming import _receiver_simple_name
@@ -321,9 +320,6 @@ def _translate_clone_call(
 
 
 def _is_array_or_list_like_receiver(node: JavaNode, ctx: TranslationContext) -> bool:
-    receiver_type = java_expression_type(node, ctx)
-    if receiver_type is not None and java_type_strip_one_array_dimension(receiver_type) is not None:
-        return True
     inferred_type = infer_expression_py_type(node, ctx)
     return inferred_type is not None and is_list_like_type(inferred_type)
 
