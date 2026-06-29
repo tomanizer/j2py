@@ -35,6 +35,8 @@ from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar, cast
 _T_contra = TypeVar("_T_contra", contravariant=True)
 _T = TypeVar("_T")
 
+_j2py_null_varargs = object()
+
 __all__ = [
     "Comparator",
     "Consumer",
@@ -52,6 +54,7 @@ __all__ = [
     "_j2py_idiv",
     "_j2py_long_hash_code",
     "_j2py_monitor",
+    "_j2py_null_varargs",
     "_j2py_string_from_value",
     "_j2py_string_join",
     "_j2py_string_value",

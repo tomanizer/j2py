@@ -1215,14 +1215,18 @@ def test_varargs_parameter_normalizes_to_mutable_list() -> None:
     )
 
     assert coverage == 1.0
+    assert "from j2py_runtime import _j2py_null_varargs" in python_source
+    assert "values[0] is _j2py_null_varargs" in python_source
+    assert "values[0] is None" not in python_source
     assert "values = list(values[0])" in python_source
     assert "values = list(values)" in python_source
     assert "values = tuple" not in python_source
-    assert "from j2py_runtime import _j2py_string_value" in python_source
+    assert "_j2py_string_value" in python_source
     namespace: dict[str, object] = {}
     exec(compile(python_source, "<translated>", "exec"), namespace)
     translated = namespace["VarargsMutation"]
     assert translated.first("x") == "null"  # type: ignore[attr-defined]
+    assert translated.first(None) == "null"  # type: ignore[attr-defined]
     assert translated.first(["x"]) == "null"  # type: ignore[attr-defined]
 
 

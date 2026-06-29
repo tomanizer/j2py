@@ -220,6 +220,8 @@ def _merged_constructor_overload(
         impl.params,
         defaults_by_position,
     )
+    if any("_j2py_null_varargs" in line for line in sentinel_lines):
+        diagnostics.imports.need_line("from j2py_runtime import _j2py_null_varargs")
     signature_params = [
         param
         for param in extra_params
@@ -645,6 +647,8 @@ def _merged_forwarding_method_overload(
         impl.params,
         defaults_by_position,
     )
+    if any("_j2py_null_varargs" in line for line in sentinel_lines):
+        diagnostics.imports.need_line("from j2py_runtime import _j2py_null_varargs")
     signature_params = _bind_param_annotations(signature_params, ctx)
     return_type = bind_annotation_type_names(
         _union_types(method_return_type(member, cfg) for member in members),
@@ -923,7 +927,8 @@ def _defaulted_parameters(
             omitted_name = f"_j2py_{param.py_name}_omitted"
             sentinel_lines.append(f"        {omitted_name} = len({param.py_name}) == 0")
             sentinel_lines.append(
-                f"        if len({param.py_name}) == 1 and {param.py_name}[0] is None:"
+                f"        if len({param.py_name}) == 1 and "
+                f"{param.py_name}[0] is _j2py_null_varargs:"
             )
             sentinel_lines.append(f"            {param.py_name} = None")
             sentinel_lines.append(

@@ -100,7 +100,18 @@ def _method_invocation_parts(
         return None
 
     arg_nodes = _argument_nodes(args_node)
+    args_index = named.index(args_node)
+    method_node = named[args_index - 1]
+    method_name = method_node.text
+    receiver_nodes = named[: args_index - 1]
+    raw_receiver = receiver_nodes[0].text if receiver_nodes else ""
     arg_expressions = [_translate_argument(child, ctx) for child in arg_nodes]
+    arg_expressions = _mark_null_varargs_array_arg(
+        method_name,
+        arg_nodes,
+        arg_expressions,
+        ctx,
+    )
     arg_expressions, forwarded_varargs = _spread_forwarded_varargs(
         node,
         arg_nodes,
@@ -108,12 +119,6 @@ def _method_invocation_parts(
         ctx,
     )
     args = ", ".join(arg_expressions)
-
-    args_index = named.index(args_node)
-    method_node = named[args_index - 1]
-    method_name = method_node.text
-    receiver_nodes = named[: args_index - 1]
-    raw_receiver = receiver_nodes[0].text if receiver_nodes else ""
 
     return _MethodInvocationParts(
         arg_nodes=arg_nodes,
@@ -124,6 +129,36 @@ def _method_invocation_parts(
         receiver_nodes=receiver_nodes,
         raw_receiver=raw_receiver,
     )
+
+
+def _mark_null_varargs_array_arg(
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    ctx: TranslationContext,
+) -> list[str]:
+    """Mark Java ``target(..., null)`` calls that pass a null varargs array."""
+    if not arg_nodes:
+        return arg_expressions
+    target_signatures = ctx.class_method_params.get(method_name, ())
+    if not target_signatures:
+        return arg_expressions
+
+    from j2py.translate.class_model import ParameterInfo
+
+    last_index = len(arg_nodes) - 1
+    if unwrap_parens(arg_nodes[last_index]).type != "null_literal":
+        return arg_expressions
+
+    for signature in target_signatures:
+        params = [param for param in signature if isinstance(param, ParameterInfo)]
+        spread_index = next((i for i, param in enumerate(params) if param.is_spread), None)
+        if spread_index == last_index:
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_null_varargs")
+            marked = list(arg_expressions)
+            marked[last_index] = "_j2py_null_varargs"
+            return marked
+    return arg_expressions
 
 
 def _spread_forwarded_varargs(
@@ -185,7 +220,7 @@ def _argument_targets_spread_parameter(
         if index > spread_index:
             return True
         spread_type = params[spread_index].java_type
-        if arg_type is None or arg_type == spread_type:
+        if arg_type is None or arg_type == spread_type or arg_type.strip() == f"{spread_type}[]":
             return True
     return False
 
@@ -382,13 +417,19 @@ def _translate_source_proven_overload_call(
             return None
         if receiver and not _receiver_is_current_overload_owner(parts, receiver, ctx):
             return None
-        return f"{owner}.{target.helper_name}({parts.args})"
+        callable_expr = f"{owner}.{target.helper_name}"
+        forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+        return forwarded or f"{callable_expr}({parts.args})"
     if receiver:
         if not _receiver_is_current_overload_owner(parts, receiver, ctx):
             return None
-        return f"{receiver}.{target.helper_name}({parts.args})"
+        callable_expr = f"{receiver}.{target.helper_name}"
+        forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+        return forwarded or f"{callable_expr}({parts.args})"
     if ctx.in_instance_method:
-        return f"self.{target.helper_name}({parts.args})"
+        callable_expr = f"self.{target.helper_name}"
+        forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+        return forwarded or f"{callable_expr}({parts.args})"
     return None
 
 
@@ -492,7 +533,9 @@ def _translate_unqualified_dispatch(
             ctx.containing_class_name,
             ctx.containing_class_name,
         )
-        return f"{owner}.{static_py_method}({parts.args})"
+        callable_expr = f"{owner}.{static_py_method}"
+        forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+        return forwarded or f"{callable_expr}({parts.args})"
 
     enclosing_class = ctx.enclosing_static_dispatch.get(py_method)
     if enclosing_class and _route_static_instance_collision_to_static(
@@ -510,7 +553,9 @@ def _translate_unqualified_dispatch(
         and ctx.static_dispatch_class_name
         and _route_static_instance_collision_to_static(py_method, parts.args, ctx)
     ):
-        return f"{ctx.static_dispatch_class_name}.{static_py_method}({parts.args})"
+        callable_expr = f"{ctx.static_dispatch_class_name}.{static_py_method}"
+        forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+        return forwarded or f"{callable_expr}({parts.args})"
 
     binding = resolve_unqualified_member(parts.method_name, ctx, kind="method")
     if binding is not None:
