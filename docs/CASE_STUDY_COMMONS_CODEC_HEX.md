@@ -50,7 +50,7 @@ The pytest oracle is
 backed by
 [`tests/case_study/commons_codec_hex_harness.py`](../tests/case_study/commons_codec_hex_harness.py).
 
-Result: **24 / 24 focused upstream-derived Hex assertions pass** against the linked
+Result: **27 / 27 focused upstream-derived Hex assertions pass** against the linked
 rule-layer translation.
 
 Covered surface:
@@ -60,12 +60,14 @@ Covered surface:
 - partial byte-array encoding;
 - decode into an existing output buffer;
 - odd-length and illegal-character `DecoderException` paths;
-- Java signed-byte behavior for values such as `0x80` and `0xff`.
+- Java signed-byte behavior for values such as `0x80` and `0xff`;
+- bounded `ByteBuffer` paths for array-backed and copy-backed remaining slices;
+- UTF-8 charset decoding through `Hex.decode(ByteBuffer)`.
 
-Deliberately excluded from the first slice:
+Still deliberately excluded:
 
-- `ByteBuffer` read/position/limit behavior;
-- full charset matrix and unsupported-charset behavior;
+- broad `ByteBuffer` behavior beyond the methods needed by `Hex.toByteArray(...)`;
+- full charset matrix, unsupported-charset behavior, and platform-specific codec errors;
 - randomized upstream loops;
 - instance `encode(Object)` / `decode(Object)` paths that rely on broader `String`,
   `ByteBuffer`, and cast behavior.
@@ -75,8 +77,10 @@ Deliberately excluded from the first slice:
 These are JDK or platform symbols outside the tested Commons Codec logic. They are
 scaffolding, not residual translator patches:
 
-- `ByteBuffer` marker for dispatcher guards; ByteBuffer behavior is out of scope here.
-- `Charset`, `StandardCharsets`, and `CharEncoding` enough to initialize `Hex`.
+- `ByteBuffer` with bounded `remaining`, `position`, `limit`, `flip`, `put`, `get`,
+  `hasArray`, and `array` behavior for `Hex.toByteArray(...)`.
+- `Charset`, `StandardCharsets`, and `CharEncoding` enough to initialize `Hex` and run
+  UTF-8 decode paths.
 - `Character.digit` for hexadecimal digit conversion.
 
 ## Residual translator defects
@@ -92,10 +96,9 @@ remove the corresponding patch and update this table.
 
 1. Promote the remaining dispatcher fall-through issue into a general rule-layer fix
    with small Java/Python fixture pairs.
-2. Add a bounded `ByteBuffer` stub or rule-layer support only when a test genuinely needs
-   position/limit behavior.
-3. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,
+2. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,
    `new String(byte[], Charset)`, and cast/classification behavior are handled.
-4. Defer `Base64` until the Hex residual list is smaller and ByteBuffer handling has a
-   clear owner. Base64 is still the natural next Commons Codec expansion, but starting it
-   now would mix a new algorithm with unresolved harness/runtime gaps.
+3. Defer `Base64` until the Hex residual list is smaller and the remaining
+   string/cast runtime boundaries have clear owners. Base64 is still the natural next
+   Commons Codec expansion, but starting it now would mix a new algorithm with unresolved
+   harness/runtime gaps.
