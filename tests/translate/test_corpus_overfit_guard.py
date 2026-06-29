@@ -37,6 +37,7 @@ def _fixture_stems() -> set[str]:
 def test_core_rule_layer_does_not_reference_corpus_fixture_stems() -> None:
     """Corpus examples should drive general rules, not fixture-name branches."""
     forbidden = _fixture_stems()
+    assert forbidden, "No fixture stems were found. Ensure the fixture directories are populated."
     assert forbidden, "expected at least one corpus fixture stem to guard against"
     hits: list[str] = []
 
