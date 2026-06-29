@@ -30,6 +30,7 @@ from j2py.translate.overload_equivalence import (
 from j2py.translate.overload_guards import (
     _dispatch_guard_for_parameter,
     _DispatchGuard,
+    _java_type_is_array,
     _member_dispatch_key,
     _value_dispatch_assignments,
     _value_dispatch_branch_order_key,
@@ -291,11 +292,6 @@ def _is_null_applicable_reference_param(param: ParameterInfo) -> bool:
 
 def _is_nullable_reference_param(param: ParameterInfo) -> bool:
     return param.java_type.rsplit(".", 1)[-1] in {"Character", "String"}
-
-
-def _java_type_is_array(java_type: str) -> bool:
-    stripped = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
-    return stripped.endswith("[]")
 
 
 def _value_dispatch_preconditions(
