@@ -51,7 +51,8 @@ backed by
 [`tests/case_study/commons_codec_hex_harness.py`](../tests/case_study/commons_codec_hex_harness.py).
 
 Result: **27 / 27 focused upstream-derived Hex assertions pass** against the linked
-rule-layer translation.
+rule-layer translation, plus one bounded `ByteBuffer` stub regression test for the
+case-study platform scaffold.
 
 Covered surface:
 
@@ -85,20 +86,18 @@ scaffolding, not residual translator patches:
 
 ## Residual translator defects
 
-The harness locks these defects in `_RESIDUAL_GAP_PATCHES`; future rule-layer fixes should
-remove the corresponding patch and update this table.
+The harness locks active generated-output defects in `_RESIDUAL_GAP_PATCHES`; future
+case-study work should keep platform scaffolding separate from this list.
 
 | Gap id | Module | Generated-output defect |
 |---|---|---|
-| `CODEC-HEX-14` | `Hex` | A Java `void` overload dispatcher branch delegates, then falls through to `TypeError`. |
+| _None_ | _n/a_ | No active residual translator patches remain for the scoped Hex slice. |
 
 ## Follow-ups
 
-1. Promote the remaining dispatcher fall-through issue into a general rule-layer fix
-   with small Java/Python fixture pairs.
-2. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,
+1. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,
    `new String(byte[], Charset)`, and cast/classification behavior are handled.
-3. Defer `Base64` until the Hex residual list is smaller and the remaining
+2. Defer `Base64` until the remaining
    string/cast runtime boundaries have clear owners. Base64 is still the natural next
    Commons Codec expansion, but starting it now would mix a new algorithm with unresolved
    harness/runtime gaps.
