@@ -7,11 +7,28 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+## 0.8.1 - 2026-06-29
+
+0.8.1 is a patch beta release after 0.8.0. It ships correctness fixes and
+case-study evidence that landed after the 0.8.0 release: nested class-literal
+qualification, order-preserving `EnumSet` lowering, WordUtils delimiter and
+code-point fixes, and a larger java-semver closed-loop case study. See
+[docs/releases/0.8.1/RELEASE_NOTES.md](docs/releases/0.8.1/RELEASE_NOTES.md) for release
+notes, evidence, and known limits.
+
 ### Added
 - The java-semver external case study now completes the scoped semver end-to-end use
   case: the `util` package and seven-file `Version` / parser core run hermetically in
   `make check` with zero residual translator-defect patches and zero generated-output
   `F821` findings for the Version-core bundle (#702).
+
+### Changed
+- `j2py-wire` target generators now share common helper logic for TODO lines,
+  class-kind detection, diagnostic payloads, constructor parameters, injection facts,
+  and annotation names, reducing duplicated implementation paths without changing the
+  generated wiring contract (#710).
+- The java-semver case-study docs, fixture notice, and release evidence now mark the
+  scoped `Version` core loop complete after the PR #702 harness expansion (#712).
 
 ### Fixed
 - Class literals on file-declared nested types (e.g. `Color.class` inside `Outer`) are now
@@ -26,6 +43,13 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 - `Math.incrementExact` now emits a semantic warning noting that Java's
   `ArithmeticException`-on-overflow contract is not preserved (Python ints are unbounded),
   rather than diverging silently.
+- Typed `Predicate.test(value)` calls now lower to direct Python callable invocation,
+  collection `::contains` method references lower to Python membership predicates, and
+  `Character.toLowerCase(codePoint)` preserves int-to-int code-point conversion for the
+  Commons Text WordUtils case study (#711).
+- Forwarding overloads can now preserve a no-arg overload that forwards `null` into a
+  varargs implementation separately from an explicit empty varargs array, fixing
+  WordUtils delimiter semantics (#711).
 
 ## 0.8.0 - 2026-06-29
 
