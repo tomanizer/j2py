@@ -42,16 +42,17 @@ limitations.
   explicit for reviewers and downstream config authors (#507).
 - Literal-oracle equivalence coverage now includes the remaining `CharUtils` overload
   surface, `NumberUtils` create-family methods, `BigDecimal` conversions, and
-  `createNumber`, raising the checked-in equivalence-verified surface to **96/97
+  `createNumber`, raising the checked-in verified fixture surface to **96/97
   public methods (99%)** (#515, #517, #519, #520).
 - The measured equivalence surface now includes Commons-Lang `BooleanUtils` and Guava
-  `Strings`, raising the verified count to **120/152 public methods** while resetting the
-  percentage floor against the larger denominator (#514).
+  `Strings`, raising the verified fixture surface to **120/152 public methods** while
+  also reporting the pinned library-wide denominator, currently **118/11057 public
+  methods** across the Commons Lang and Guava source roots (#514, #614).
 
 ## 0.6.0b1 - 2026-06-18
 
-First 0.6 beta. The headline is a step-change in proven correctness: the equivalence-verified
-surface climbs from 28.9% (at 0.5.0b3) to **68% (66/97 public methods)**, driven by a JDK
+First 0.6 beta. The headline is a step-change in proven correctness: the verified
+fixture surface climbs from 28.9% (at 0.5.0b3) to **68% (66/97 public methods)**, driven by a JDK
 call-lowering wave and comprehensive `NumberUtils` min/max/isNumber coverage. User-facing
 documentation (install, getting started, CLI reference, Python API, output review) ships for
 the first time. The rule layer gains support for static initializer blocks, annotation

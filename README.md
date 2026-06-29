@@ -282,7 +282,7 @@ supported imports and result models are listed in
 ```bash
 make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
-make equivalence-report # literal-oracle verified-surface report and floor check
+make equivalence-report # verified fixture surface + library-wide denominator report
 make test-targets  # future strict-xfail roadmap targets
 make release-check # pre-release gate: release-test + dist-check (3.11+ in CI publish workflow)
 ```

@@ -27,10 +27,11 @@ equivalence gate. The verified methods are:
 | `isCreatable` | `NumberUtils.isCreatable(String)` |
 | `isNumber` | `NumberUtils.isNumber(String)` |
 
-The current post-0.6.0b1 equivalence wave expanded the repository floor to **120/152**
-public signatures after adding BooleanUtils and Guava Strings fixtures. Within
-`NumberUtils`, the only remaining unverified public method is
-`NumberUtils.createBigInteger(String)`.
+The current post-0.6.0b1 equivalence wave expanded the repository floor to a verified
+fixture surface of **120/152** public signatures after adding BooleanUtils and Guava
+Strings fixtures. The paired pinned library-wide denominator is **118/11057** public
+signatures across the Commons Lang and Guava source roots. Within `NumberUtils`, the
+only remaining unverified public method is `NumberUtils.createBigInteger(String)`.
 
 ## Stub boundary
 
