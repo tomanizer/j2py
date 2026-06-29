@@ -259,7 +259,7 @@ def translate_method(
             lines.append("")
 
         lines.extend(pre_body_lines or [])
-        lines.extend(_varargs_normalization_lines(method_params, indent="        "))
+        lines.extend(_varargs_normalization_lines(ctx, method_params, indent="        "))
 
         if ctx.pending_local_helpers:
             for helper in ctx.pending_local_helpers:
@@ -438,18 +438,27 @@ def _render_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list
     return rendered
 
 
-def _varargs_normalization_lines(params: list[ParameterInfo], *, indent: str) -> list[str]:
+def _varargs_normalization_lines(
+    ctx: TranslationContext,
+    params: list[ParameterInfo],
+    *,
+    indent: str,
+) -> list[str]:
     lines: list[str] = []
     for param in params:
         if not param.is_spread:
             continue
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_null_varargs")
         lines.extend(
             [
-                f"{indent}if len({param.py_name}) == 1 and {param.py_name}[0] is None:",
+                f"{indent}if len({param.py_name}) == 1 and "
+                f"{param.py_name}[0] is _j2py_null_varargs:",
                 f"{indent}    {param.py_name} = None",
                 f"{indent}elif len({param.py_name}) == 1 and "
                 f"isinstance({param.py_name}[0], (list, tuple)):",
-                f"{indent}    {param.py_name} = tuple({param.py_name}[0])",
+                f"{indent}    {param.py_name} = list({param.py_name}[0])",
+                f"{indent}else:",
+                f"{indent}    {param.py_name} = list({param.py_name})",
             ]
         )
     return lines

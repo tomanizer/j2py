@@ -35,6 +35,8 @@ from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar, cast
 _T_contra = TypeVar("_T_contra", contravariant=True)
 _T = TypeVar("_T")
 
+_j2py_null_varargs = object()
+
 __all__ = [
     "Comparator",
     "Consumer",
@@ -52,8 +54,10 @@ __all__ = [
     "_j2py_idiv",
     "_j2py_long_hash_code",
     "_j2py_monitor",
+    "_j2py_null_varargs",
     "_j2py_string_from_value",
     "_j2py_string_join",
+    "_j2py_string_value",
     "bean",
     "component",
     "configuration",
@@ -413,6 +417,13 @@ def _j2py_string_from_value(value: Any, charset: Any | None = None) -> str:
         encoding = str(charset) if charset is not None else "utf-8"
         return bytes(value).decode(encoding)
     return str(value)
+
+
+def _j2py_string_value(value: Any) -> str:
+    """Return Java ``String.valueOf(Object)`` null-safe string conversion."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return "".join(value)
+    return "null" if value is None else str(value)
 
 
 def _j2py_string_join(delimiter: str, elements: Any) -> str:

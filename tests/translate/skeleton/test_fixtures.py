@@ -320,7 +320,10 @@ def test_graduated_issue_44_overload_dispatch_target_fixture_translates() -> Non
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "from j2py_runtime import overloaded" in result.source
+    assert any(
+        line.startswith("from j2py_runtime import ") and "overloaded" in line
+        for line in result.source.splitlines()
+    )
     assert "NotImplementedError" not in result.source
     # Each Java overload stays a same-named def with its body translated 1:1.
     assert result.source.count("def register_type(") == 2

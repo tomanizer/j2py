@@ -83,6 +83,7 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [CASE_STUDY_JSEMVER.md](CASE_STUDY_JSEMVER.md) | First external end-to-end case study: java-semver `util` and `Version` core slices translated and run against ported upstream JUnit assertions (#613, #654). |
 | [CASE_STUDY_COMMONS_CODEC_HEX.md](CASE_STUDY_COMMONS_CODEC_HEX.md) | Second external end-to-end case study: Apache Commons Codec `Hex` translated and run against focused upstream assertions (#656). |
 | [CASE_STUDY_COMMONS_TEXT_CASEUTILS.md](CASE_STUDY_COMMONS_TEXT_CASEUTILS.md) | Third external end-to-end case study: Apache Commons Text `CaseUtils` and `WordUtils` string/code-point slices; surfaces CT-* and WU-* translator gaps (#657). |
+| [CASE_STUDY_GUAVA_BASE_STRINGS.md](CASE_STUDY_GUAVA_BASE_STRINGS.md) | Guava `com.google.common.base.Strings` case study: rule-only translation, upstream-derived pytest port, explicit stubs, and `GS-*` residual-gap inventory (#658). |
 | [RELEASING.md](RELEASING.md) | Beta/pre-release checklist and publish verification workflow. |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history and user-visible changes. |
 | [releases/README.md](releases/README.md) | Release-record convention, canonical filenames, and per-version evidence layout. |

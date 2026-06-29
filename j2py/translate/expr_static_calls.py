@@ -183,7 +183,7 @@ def _render_forwarded_varargs_static_call(
         return None
     target_signatures = ctx.class_method_params.get(method_name, ())
     if not target_signatures:
-        return None
+        return _render_spread_identifier_forward(callable_expr, arg_nodes, args, ctx)
 
     from j2py.translate.class_model import ParameterInfo
     from j2py.translate.java_types import java_expression_type
@@ -198,7 +198,12 @@ def _render_forwarded_varargs_static_call(
             spread_index = next((i for i, param in enumerate(params) if param.is_spread), None)
             if spread_index is None or index != spread_index or index != len(args) - 1:
                 continue
-            if arg_type is not None and arg_type != params[spread_index].java_type:
+            spread_type = params[spread_index].java_type
+            if (
+                arg_type is not None
+                and arg_type != spread_type
+                and arg_type.strip() != f"{spread_type}[]"
+            ):
                 continue
             prefix = ", ".join(args[:index])
             without_forward = f"{callable_expr}({prefix})" if prefix else f"{callable_expr}()"
@@ -207,7 +212,28 @@ def _render_forwarded_varargs_static_call(
                 f"({without_forward} if {arg_expression} is None "
                 f"else {callable_expr}({with_forward_args}))"
             )
-    return None
+    return _render_spread_identifier_forward(callable_expr, arg_nodes, args, ctx)
+
+
+def _render_spread_identifier_forward(
+    callable_expr: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if not ctx.spread_param_names or not arg_nodes:
+        return None
+    index = len(arg_nodes) - 1
+    inner = unwrap_parens(arg_nodes[index])
+    if inner.type != "identifier" or inner.text not in ctx.spread_param_names:
+        return None
+    arg_expression = args[index]
+    prefix = ", ".join(args[:index])
+    without_forward = f"{callable_expr}({prefix})" if prefix else f"{callable_expr}()"
+    with_forward_args = f"{prefix}, {arg_expression}" if prefix else arg_expression
+    return (
+        f"({without_forward} if {arg_expression} is None else {callable_expr}({with_forward_args}))"
+    )
 
 
 def translate_static_imported_method(

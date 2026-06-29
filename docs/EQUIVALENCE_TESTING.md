@@ -11,9 +11,8 @@ exit criterion. The harness infrastructure lives in `tests/equivalence/harness.p
 float approximation, integer overflow semantics, exception mapping). Overloaded methods
 that are now backed by deterministic dispatcher behavior are included in the public
 surface; any remaining skipped rows are explicit fixture-level exclusions. `make
-test-equivalence` currently selects **1,740 equivalence items**: 1,733 passing, six
-`NumberUtils.createNumber` edge cases skipped, and one strict xfail documenting the
-generated `Strings.lenientFormat` non-empty-varargs gap. Run alone with:
+test-equivalence` currently selects **1,740 equivalence items**: 1,734 passing and six
+`NumberUtils.createNumber` edge cases skipped. Run alone with:
 
 ```bash
 make test-equivalence         # just the equivalence gate

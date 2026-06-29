@@ -609,7 +609,8 @@ def test_forwarded_varargs_parameter_preserves_null_and_empty_array() -> None:
     )
 
     assert coverage == 1.0
-    assert "delimiters[0] is None" in python_source
+    assert "from j2py_runtime import _j2py_null_varargs" in python_source
+    assert "delimiters[0] is _j2py_null_varargs" in python_source
     assert_valid_python(python_source)
     namespace: dict[str, object] = {}
     exec(compile(python_source, "<words>", "exec"), namespace)
@@ -617,6 +618,7 @@ def test_forwarded_varargs_parameter_preserves_null_and_empty_array() -> None:
     assert words.run_default() == "default"  # type: ignore[attr-defined]
     assert words.run_empty() == "empty"  # type: ignore[attr-defined]
     assert words.run_one() == "-"  # type: ignore[attr-defined]
+    assert words.choose_fully("x", None) is None  # type: ignore[attr-defined]
 
 
 def test_parenthesized_forwarded_varargs_parameter_spreads_elements() -> None:
@@ -904,7 +906,10 @@ def test_static_annotated_varargs_overloads_dispatch_after_parameter_recovery() 
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "from j2py_runtime import overloaded" in result.source
+    assert any(
+        line.startswith("from j2py_runtime import ") and "overloaded" in line
+        for line in result.source.splitlines()
+    )
     assert result.source.count("@staticmethod\n    @overloaded") == 3
     assert "def create(script_source: str) -> object:" in result.source
     assert (
