@@ -378,6 +378,8 @@ def params_for_method(
 
 def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:
     ctx.param_names.add(param.raw_name)
+    if param.is_spread:
+        ctx.spread_param_names.add(param.raw_name)
     ctx.variable_types[param.raw_name] = (
         f"list[{param.py_type}]" if param.is_spread else param.py_type
     )

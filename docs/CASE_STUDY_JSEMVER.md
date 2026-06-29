@@ -84,24 +84,24 @@ harnesses:
 
 ### Residual translator defects (the failure list)
 
-Each of these is a real defect in the deterministic rule-layer output. The harness applies
-one minimal, documented patch per gap so the loop can close; the gap inventory is locked by
-`test_residual_gap_inventory`. **This list is the deliverable** — it is exactly where the
-current rule layer emits Python that does not preserve the Java.
+Each remaining entry is a real defect in the deterministic rule-layer output. The harness
+applies one minimal, documented patch per gap so the loop can close; the gap inventory is
+locked by `test_residual_gap_inventory`. **This list is the deliverable** — it is exactly
+where the current rule layer emits Python that does not preserve the Java.
 
 | Gap id | Module | Defect |
 |---|---|---|
 | `JSEMVER-1` | `UnexpectedElementException` | JDK builtin `RuntimeException` emitted as a sibling-package import (`from ...util.RuntimeException import RuntimeException`). |
 | `JSEMVER-2` | `Stream` | Java array `.clone()` not lowered to a Python copy (`elements.clone()` → `AttributeError`). |
 | `JSEMVER-3` | `Stream` | Anonymous-class body reads the enclosing field `offset` as a bare name instead of capturing it from the enclosing instance (`self.index = offset` → `NameError`). |
-| `JSEMVER-4` | `Stream` | 3-arg constructor `new UnexpectedElementException(lookahead, offset, expected)` mistranslated: the position argument and varargs were dropped and `offset` became Python `raise ... from` exception chaining. |
 | `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(...)` not lowered to a Python slice. |
 | `JSEMVER-6` | `Stream` | Anonymous `java.util.Iterator` implementation emits Java-style `next_`/`has_next` while inheriting Python's `Iterator` ABC, so the class cannot be instantiated (missing `__next__`/`__iter__`). |
 
-`JSEMVER-3`, `JSEMVER-4`, and `JSEMVER-6` are the most interesting: each is a place where
-the rule layer produced *plausible, syntactically valid* Python that is silently wrong —
-precisely the failure mode node coverage cannot detect. `JSEMVER-4` in particular turned a
-constructor argument into control-flow (exception chaining).
+`JSEMVER-3` and `JSEMVER-6` remain the most interesting: each is a place where the rule
+layer produced *plausible, syntactically valid* Python that is silently wrong — precisely
+the failure mode node coverage cannot detect. `JSEMVER-4`, which had turned a constructor
+argument into control-flow (exception chaining), was removed from the residual list by the
+deterministic throw-constructor fix tracked in issue #641.
 
 ## Honest scope and conclusion
 
@@ -109,15 +109,15 @@ constructor argument into control-flow (exception chaining).
   against j2py output in-repo, hermetically, in `make check`.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
-- **Correctness has a measured, enumerated gap:** 6 concrete translator defects blocked a
+- **Correctness has a measured, enumerated gap:** 5 concrete translator defects still block a
   ~400-LOC, 14-test package from running as-translated. Extrapolated across the 139 `F821`
   findings on the full tree, the larger `Version` / `expr` / parser surface will surface
   more of the same categories (sibling static refs, inner-class binding, JDK lowering).
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Promote the six `JSEMVER-*` defects into deterministic rule-layer fixes with fixtures,
-   then drop the corresponding harness patches.
+1. Promote the remaining five `JSEMVER-*` defects into deterministic rule-layer fixes with
+   fixtures, then drop the corresponding harness patches.
 2. Extend the closed loop to the `Version` value class (parse / compare / increment /
    `toString`) — the library's core and the bulk of `VersionTest`.
 3. Add a `jsemver-baseline.json` corpus baseline once the tree is run through

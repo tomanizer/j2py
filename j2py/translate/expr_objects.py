@@ -497,6 +497,7 @@ def _anonymous_method_lines(
 
     previous_param_names = set(ctx.param_names)
     previous_local_names = set(ctx.local_names)
+    previous_spread_param_names = set(ctx.spread_param_names)
     previous_types = dict(ctx.variable_types)
     previous_java_types = dict(ctx.variable_java_types)
     previous_class_fields = set(ctx.class_fields)
@@ -509,8 +510,12 @@ def _anonymous_method_lines(
     previous_allow_helpers = ctx.allow_local_helpers
     previous_outer_self_alias = ctx.outer_self_alias
     ctx.local_names = set()
+    ctx.param_names = set()
+    ctx.spread_param_names = set()
     for param in params:
         ctx.param_names.add(param.raw_name)
+        if param.is_spread:
+            ctx.spread_param_names.add(param.raw_name)
         ctx.variable_types[param.raw_name] = param.py_type
         ctx.variable_java_types[param.raw_name] = param.java_type
     ctx.class_fields = instance_field_names
@@ -537,6 +542,7 @@ def _anonymous_method_lines(
     finally:
         ctx.param_names = previous_param_names
         ctx.local_names = previous_local_names
+        ctx.spread_param_names = previous_spread_param_names
         ctx.variable_types = previous_types
         ctx.variable_java_types = previous_java_types
         ctx.class_fields = previous_class_fields
