@@ -67,9 +67,9 @@ the linked translation with **no residual patches at all**.
 
 `WordUtils` repeats the same lesson: the file translates at 100% node coverage with zero
 TODOs, but the first executable expansion needed six residual generated-output patches
-before the non-regex oracle could run. WU-1 and WU-5 have since graduated to the rule
-layer; the remaining active `WU-*` gaps are locked in the harness until they are fixed
-there too.
+before the non-regex oracle could run. WU-1, WU-3, and WU-5 have since graduated to the
+rule layer; the remaining active `WU-*` gaps are locked in the harness until they are
+fixed there too.
 
 ## Closed loop
 
@@ -167,7 +167,6 @@ A fourth observation is **not** a residual patch but a known limitation:
 | Gap id | Status | Module | Defect |
 |---|---|---|---|
 | WU-2 | **Active** | `WordUtils` | Internal forwarding from `capitalizeFully(String, char...)` passes the varargs tuple as one delimiter instead of spreading it. |
-| WU-3 | **Active** | `WordUtils` | Merged no-arg/varargs overloads treat omitted delimiters as an explicit empty `char[]`; Java's no-arg overload forwards `null` to mean whitespace. |
 | WU-4 | **Active** | `WordUtils` | `Character` case predicates and conversions on int code points lower to Python string APIs on integers, including no-argument `Character.lower()` / `upper()` calls. |
 | WU-6 | **Active** | `WordUtils` | The collapsed `isDelimiter` overload dispatcher rejects null delimiter arrays and uses string-only APIs on int code points. |
 
@@ -176,6 +175,7 @@ Graduated `WordUtils` patches:
 | Gap id | Status | Module | Defect |
 |---|---|---|---|
 | WU-1 | **Done** | `WordUtils` | `Predicate<Integer>.test(...)` now lowers to direct callable invocation for typed predicate locals, and collection `::contains` method references lower to Python membership predicates. |
+| WU-3 | **Done** | `WordUtils` | Forwarded `null` defaults for merged no-arg/varargs overloads now preserve omitted varargs separately from explicit empty arrays. |
 | WU-5 | **Done** | `WordUtils` | `Character.toLowerCase(codePoint)` now preserves the code-point argument and lowers to an int-to-int Python case conversion. |
 
 ## Follow-ups
@@ -187,7 +187,7 @@ Graduated `WordUtils` patches:
    ADR-level decision: route `java.lang` wrapper types to a runtime shim or `import_map`
    entry, and migrate the equivalence-gate fixtures off the same-package-stub mechanism in
    the same change.
-4. Fix WU-2, WU-3, WU-4, and WU-6 in the rule layer, removing each harness patch as it graduates.
+4. Fix WU-2, WU-4, and WU-6 in the rule layer, removing each harness patch as it graduates.
 5. Add a bounded regex/matcher shim or targeted JDK lowering before expanding to
    `containsAllWords` and `wrap`.
 6. Defer `StringEscapeUtils` until the lookup machinery has a clear owner.

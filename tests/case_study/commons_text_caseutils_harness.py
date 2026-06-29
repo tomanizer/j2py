@@ -68,16 +68,25 @@ _WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
             "tuple as one delimiter instead of spreading it."
         ),
         bad="""        return str_ if StringUtils.is_empty(str_) else WordUtils.capitalize(str_.lower(), delimiters)""",
-        good="""        return str_ if StringUtils.is_empty(str_) else WordUtils.capitalize(str_.lower(), *delimiters)""",
+        good="""        return str_ if StringUtils.is_empty(str_) else (WordUtils.capitalize(str_.lower()) if delimiters is None else WordUtils.capitalize(str_.lower(), delimiters))""",
     ),
     ResidualGap(
-        gap_id="WU-3",
+        gap_id="WU-4",
         module="WordUtils",
         summary=(
-            "Merged no-arg/varargs overloads treat an omitted delimiter list as an explicit "
-            "empty char[]; Java's no-arg overload forwards null to mean whitespace."
+            "Character case predicates and conversions on int code points lower to Python "
+            "string APIs on integers, including no-argument Character.lower()/upper() calls."
         ),
         bad="""        is_delimiter = None
+        if delimiters is None or len(delimiters) == 0:
+            is_delimiter = lambda value: value is not None and len(value) == 1 and value.isspace() if delimiters is None else lambda c: False
+        else:
+            delimiter_set: set[int] = set()
+            for index in range(0, len(delimiters)):
+                delimiter_set.add(Character.code_point_at(delimiters, index))
+            is_delimiter = delimiter_set.__contains__
+        return is_delimiter""",
+        good="""        is_delimiter = None
         if delimiters is None or len(delimiters) == 0:
             is_delimiter = Character.is_whitespace if delimiters is None else lambda c: False
         else:
@@ -86,38 +95,6 @@ _WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
                 delimiter_set.add(Character.code_point_at(delimiters, index))
             is_delimiter = delimiter_set.__contains__
         return is_delimiter""",
-        good="""        normalized = delimiters
-        if isinstance(normalized, tuple):
-            if len(normalized) == 0 or normalized == (None,):
-                normalized = None
-            elif len(normalized) == 1 and isinstance(normalized[0], (list, tuple)):
-                normalized = list(normalized[0])
-            else:
-                normalized = list(normalized)
-        if normalized is None:
-            return Character.is_whitespace
-        if len(normalized) == 0:
-            return lambda _code_point: False
-        delimiter_set = {
-            Character.code_point_at(normalized, index) for index in range(len(normalized))
-        }
-        return delimiter_set.__contains__""",
-    ),
-    ResidualGap(
-        gap_id="WU-3",
-        module="WordUtils",
-        summary=(
-            "Merged no-arg/varargs overloads treat an omitted delimiter list as an explicit "
-            "empty char[]; Java's no-arg overload forwards null to mean whitespace."
-        ),
-        bad="""        if delimiters is not None and len(delimiters) == 0:
-            return StringUtils.EMPTY""",
-        good="""        if (
-            len(delimiters) == 1
-            and isinstance(delimiters[0], (list, tuple))
-            and len(delimiters[0]) == 0
-        ):
-            return StringUtils.EMPTY""",
     ),
     ResidualGap(
         gap_id="WU-4",
@@ -134,7 +111,7 @@ _WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
                     new_code_point = Character.to_title_case(old_codepoint)
                     whitespace = False
                 else:
-                    new_code_point = Character.upper()
+                    new_code_point = Character.to_upper_case(old_codepoint)
             else:
                 whitespace = (len(old_codepoint) == 1 and old_codepoint.isspace())
                 new_code_point = old_codepoint""",
