@@ -179,6 +179,7 @@ def translate_method(
     previous_variable_types = dict(ctx.variable_types)
     previous_variable_java_types = dict(ctx.variable_java_types)
     previous_expression_aliases = dict(ctx.expression_aliases)
+    previous_map_like_receiver_names = set(ctx.map_like_receiver_names)
     ctx.in_instance_method = not is_static
     ctx.in_method = True
     ctx.param_names = set()
@@ -187,6 +188,7 @@ def translate_method(
     ctx.variable_types = {}
     ctx.variable_java_types = {}
     ctx.expression_aliases = {}
+    ctx.map_like_receiver_names = set()
     try:
         method_return_type = (
             "None" if is_constructor else translate_type_annotation(_return_type_text(node), ctx)
@@ -291,6 +293,7 @@ def translate_method(
         ctx.variable_types = previous_variable_types
         ctx.variable_java_types = previous_variable_java_types
         ctx.expression_aliases = previous_expression_aliases
+        ctx.map_like_receiver_names = previous_map_like_receiver_names
 
 
 def signature(
