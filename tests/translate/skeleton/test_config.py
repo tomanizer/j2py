@@ -288,6 +288,35 @@ def test_static_imported_nested_member_qualifies_owner_in_method_body() -> None:
     assert_valid_python(python_source)
 
 
+def test_static_imported_enum_constant_qualifies_through_enum() -> None:
+    # `import static Lexer.Kind.*` lets the source name DOT/HYPHEN bare; in Python they
+    # are reached through the enum, which itself is reached through its enclosing class.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import static com.example.Lexer.Kind.*;
+
+        public class Lexer {
+            public boolean isBoundary(Kind k) {
+                return k == DOT || k == HYPHEN;
+            }
+
+            enum Kind {
+                DOT,
+                HYPHEN,
+                EOI
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return k == Lexer.Kind.DOT or k == Lexer.Kind.HYPHEN" in python_source
+    assert "== DOT" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_nested_type_reference_in_class_body_stays_bare() -> None:
     # Inside a class body the sibling nested name is a bare local while the enclosing
     # class name is not yet bound, so a class-level reference must NOT be qualified.

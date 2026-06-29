@@ -26,6 +26,7 @@ ResolvedNameKind = Literal[
     "field",
     "imported_type",
     "file_type",
+    "enum_constant",
     "containing_type",
     "nested_type",
     "package_type",
@@ -70,6 +71,7 @@ class FileNameBindings:
     imported_types: dict[str, TypeBinding] = field(default_factory=dict)
     compilation_unit_types: set[str] = field(default_factory=set)
     file_type_paths: dict[str, str] = field(default_factory=dict)
+    enum_constant_paths: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
 
@@ -160,6 +162,20 @@ class NameResolver:
                 kind="field",
                 reason="enclosing instance field binding",
             )
+
+        # A constant of a file-declared enum, brought into bare scope by a static
+        # import (``import static Outer.Kind.*``), is reachable through its enum
+        # (``Outer.Kind.DOT``) from a method body but is a class-body local inside the
+        # enum itself, so only qualify in a method context.
+        if scope.in_method:
+            enum_path = self.bindings.enum_constant_paths.get(raw_name)
+            if enum_path is not None:
+                return ResolvedName(
+                    raw_name=raw_name,
+                    python_name=enum_path,
+                    kind="enum_constant",
+                    reason="file enum constant binding",
+                )
 
         imported_type = self.bindings.imported_types.get(raw_name)
         if imported_type is not None:
@@ -284,6 +300,7 @@ def build_file_name_bindings(
         imported_types=imported_type_bindings(parsed, cfg),
         compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
         file_type_paths=_file_type_paths(symbols),
+        enum_constant_paths=_file_enum_constant_paths(parsed.root),
         static_field_aliases=dict(static_field_aliases or {}),
         static_method_imports=dict(static_method_imports or {}),
     )
@@ -319,6 +336,71 @@ def _file_type_paths(symbols: FileSymbols) -> dict[str, str]:
 
     for cls in symbols.classes:
         walk(cls, "")
+    for name in collisions:
+        paths.pop(name, None)
+    return paths
+
+
+_TYPE_DECLARATION_NODES = frozenset(
+    {
+        "class_declaration",
+        "interface_declaration",
+        "enum_declaration",
+        "record_declaration",
+        "annotation_type_declaration",
+    }
+)
+
+
+def _file_enum_constant_paths(root: JavaNode) -> dict[str, str]:
+    """Map each file-declared enum constant's name to its enclosing-qualified path.
+
+    A static import of an enum's constants (``import static Outer.Kind.*``) lets the
+    Java source name them bare (``DOT``). In Python a constant is reached through its
+    enum (``Outer.Kind.DOT``), so record that path for every enum constant declared in
+    the file. Names that collide across enums are dropped so the resolver leaves them
+    unqualified rather than guessing the wrong enum.
+    """
+    paths: dict[str, str] = {}
+    collisions: set[str] = set()
+
+    def nested_type_decls(body: JavaNode) -> list[JavaNode]:
+        decls: list[JavaNode] = []
+        for child in body.named_children:
+            if child.type in _TYPE_DECLARATION_NODES:
+                decls.append(child)
+            elif child.type == "enum_body_declarations":
+                decls.extend(c for c in child.named_children if c.type in _TYPE_DECLARATION_NODES)
+        return decls
+
+    def walk(type_node: JavaNode, prefix: str) -> None:
+        name_node = type_node.child_by_field("name")
+        if name_node is None:
+            return
+        qualified = translate_class_name(name_node.text)
+        if prefix:
+            qualified = f"{prefix}.{qualified}"
+        body = type_node.child_by_field("body")
+        if body is None:
+            return
+        if type_node.type == "enum_declaration":
+            for child in body.named_children:
+                if child.type != "enum_constant":
+                    continue
+                const_node = child.child_by_field("name")
+                const_name = (
+                    const_node.text if const_node is not None else child.text.split("(", 1)[0]
+                )
+                const_path = f"{qualified}.{const_name}"
+                if const_name in paths and paths[const_name] != const_path:
+                    collisions.add(const_name)
+                paths[const_name] = const_path
+        for nested in nested_type_decls(body):
+            walk(nested, qualified)
+
+    for child in root.named_children:
+        if child.type in _TYPE_DECLARATION_NODES:
+            walk(child, "")
     for name in collisions:
         paths.pop(name, None)
     return paths
