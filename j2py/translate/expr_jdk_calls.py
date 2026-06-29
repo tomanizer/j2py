@@ -95,7 +95,7 @@ def _translate_math_static_call(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
-    return _translate_math_call(method_name, args, ctx)
+    return _translate_math_call(node, method_name, args, ctx)
 
 
 def _translate_integer_static_call(
@@ -194,8 +194,19 @@ def _translate_enum_set_static_call(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
-    if method_name == "of" and args:
-        return "{" + ", ".join(args) + "}"
+    # Map the JDK factory methods onto the order-preserving runtime EnumSet so
+    # iteration order and ``toString`` match Java (a plain Python set loses both).
+    runtime_methods = {
+        "of": "of",
+        "allOf": "all_of",
+        "noneOf": "none_of",
+        "copyOf": "copy_of",
+        "range": "range",
+    }
+    py_method = runtime_methods.get(method_name)
+    if py_method is not None:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import EnumSet")
+        return f"EnumSet.{py_method}({', '.join(args)})"
     return None
 
 
@@ -572,6 +583,7 @@ def _translate_compare_to_call(
 
 
 def _translate_math_call(
+    node: JavaNode,
     method_name: str,
     args: list[str],
     ctx: TranslationContext,
@@ -583,6 +595,14 @@ def _translate_math_call(
     if method_name == "min" and len(args) == 2:
         return f"min({args[0]}, {args[1]})"
     if method_name == "incrementExact" and len(args) == 1:
+        # Java throws ArithmeticException on overflow; Python ints are unbounded
+        # so the check is dropped. Flag it rather than diverge silently.
+        ctx.diagnostics.warn(
+            node,
+            reason=(
+                "Math.incrementExact overflow check not preserved; Python ints do not overflow"
+            ),
+        )
         return f"({args[0]} + 1)"
     if method_name == "pow" and len(args) == 2:
         return f"pow({args[0]}, {args[1]})"

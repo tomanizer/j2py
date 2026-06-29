@@ -226,6 +226,9 @@ def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
         resolved = ctx.name_resolver.resolve_identifier(type_node.text, scope_from_context(ctx))
         if resolved.kind in {"file_type", "containing_type", "nested_type"}:
             return resolved.python_name
+        if resolved.import_line:
+            request_type_import(resolved.import_line, resolved.kind, ctx)
+            return resolved.python_name
     return translate_expression(type_node, ctx)
 
 

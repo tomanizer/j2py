@@ -323,7 +323,57 @@ def test_explicit_util_enumset_and_locale_do_not_become_java_imports() -> None:
     assert "from com.github.zafarkhaja.semver.EnumSet import EnumSet" not in result.source
     assert "from com.github.zafarkhaja.semver.Locale import Locale" not in result.source
     assert 'return "%s" % kind' in result.source
-    assert "return {kind}" in result.source
+    # EnumSet.of lowers to the order-preserving runtime EnumSet (not a plain
+    # Python set, which would lose Java's ordinal iteration order and toString).
+    assert "return EnumSet.of(kind)" in result.source
+    assert "from j2py_runtime import EnumSet" in result.source
+
+
+def test_enum_set_factory_methods_route_to_runtime_enum_set() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        package com.example;
+
+        import java.util.EnumSet;
+
+        public class EnumSetFactories {
+            enum Color { RED, GREEN, BLUE }
+
+            void build() {
+                EnumSet<Color> a = EnumSet.allOf(Color.class);
+                EnumSet<Color> n = EnumSet.noneOf(Color.class);
+                EnumSet<Color> r = EnumSet.range(Color.RED, Color.GREEN);
+                EnumSet<Color> c = EnumSet.copyOf(a);
+            }
+        }
+        """,
+    )
+
+    ast.parse(result.source)
+    assert "from j2py_runtime import EnumSet" in result.source
+    assert "EnumSet.all_of(" in result.source
+    assert "EnumSet.none_of(" in result.source
+    assert "EnumSet.range(" in result.source
+    assert "EnumSet.copy_of(" in result.source
+
+
+def test_math_increment_exact_warns_overflow_semantics_not_preserved() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        package com.example;
+
+        public class Counter {
+            int bump(int value) {
+                return Math.incrementExact(value);
+            }
+        }
+        """,
+    )
+
+    ast.parse(result.source)
+    assert "(value + 1)" in result.source
+    reasons = [diagnostic.reason for diagnostic in result.diagnostics.warnings]
+    assert any("incrementExact" in reason and "overflow" in reason for reason in reasons)
 
 
 def test_java_lang_runtime_exception_superclass_maps_to_builtin_exception() -> None:

@@ -12,6 +12,14 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
   qualified through the enclosing class (`Outer.Color`) instead of emitting a bare name that
   is undefined inside a method body at runtime. Plain (`String.class`) and imported-type
   class literals are unchanged.
+- `java.util.EnumSet` factory methods (`of`, `allOf`, `noneOf`, `copyOf`, `range`) now
+  lower to an order-preserving runtime `EnumSet` instead of a plain Python set, restoring
+  Java's ordinal iteration order and `toString` form (`[RED, BLUE]`). Previously `EnumSet.of`
+  silently diverged on iteration and printing, and `allOf`/`noneOf`/`range` referenced an
+  undefined `EnumSet`.
+- `Math.incrementExact` now emits a semantic warning noting that Java's
+  `ArithmeticException`-on-overflow contract is not preserved (Python ints are unbounded),
+  rather than diverging silently.
 
 ## 0.8.0 - 2026-06-29
 
