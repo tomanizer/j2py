@@ -1421,6 +1421,83 @@ def test_to_char_array_lowers_to_list() -> None:
     assert_valid_python(python_source)
 
 
+def test_new_string_char_array_lowers_to_join() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Chars {
+            public String fromChars(char[] chars) {
+                return new String(chars);
+            }
+
+            public String fromParenthesized(char[] chars) {
+                return new String((chars));
+            }
+
+            public String fromInline() {
+                return new String(new char[] { 'a', 'b' });
+            }
+
+            private static char[] make(char a, char b) {
+                return new char[] { a, b };
+            }
+
+            public String fromCall(char a, char b) {
+                return new String(make(a, b));
+            }
+
+            private static char[] choose(boolean lower) {
+                return new char[] { 'x' };
+            }
+
+            private static void choose(char[] out) {
+                out[0] = 'z';
+            }
+
+            public String fromOverload(boolean lower) {
+                return new String(choose(lower));
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'return "".join(chars)' in result.source
+    assert result.source.count('return "".join(chars)') == 2
+    assert 'return "".join(["a", "b"])' in result.source
+    assert 'return "".join(Chars.make(a, b))' in result.source
+    assert 'return "".join(Chars.choose(lower))' in result.source
+    assert "_j2py_string_from_value" not in result.source
+    assert "from Chars.String import String" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<chars>", "exec"), namespace)
+    chars = namespace["Chars"]()
+    assert chars.from_chars(["x", "y"]) == "xy"  # type: ignore[attr-defined]
+    assert chars.from_parenthesized(["p", "q"]) == "pq"  # type: ignore[attr-defined]
+    assert chars.from_inline() == "ab"  # type: ignore[attr-defined]
+    assert chars.from_call("c", "d") == "cd"  # type: ignore[attr-defined]
+    assert chars.from_overload(True) == "x"  # type: ignore[attr-defined]
+
+
+def test_new_string_byte_array_keeps_runtime_helper() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Bytes {
+            public String fromBytes(byte[] bytes) {
+                return new String(bytes);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "from j2py_runtime import _j2py_string_from_value" in result.source
+    assert "return _j2py_string_from_value(bytes_)" in result.source
+    assert_valid_python(result.source)
+
+
 def test_array_clone_lowers_to_list_copy() -> None:
     """Java array clone() lowers to a Python shallow list copy."""
     python_source, coverage = translate_source("""
