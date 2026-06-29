@@ -150,6 +150,147 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert "j2py translate" in payload["recommended_next_commands"][0]
 
 
+def test_doctor_assessment_reports_maven_project_structure(tmp_path: Path) -> None:
+    project = tmp_path / "orders"
+    main_root = project / "src" / "main" / "java" / "com" / "example"
+    test_root = project / "src" / "test" / "java" / "com" / "example"
+    generated_root = project / "target" / "generated-sources" / "annotations"
+    main_root.mkdir(parents=True)
+    test_root.mkdir(parents=True)
+    generated_root.mkdir(parents=True)
+    (project / "pom.xml").write_text(
+        """
+        <project>
+          <properties>
+            <maven.compiler.release>17</maven.compiler.release>
+          </properties>
+        </project>
+        """,
+    )
+    (main_root / "Orders.java").write_text("package com.example; public class Orders {}")
+    (test_root / "OrdersTest.java").write_text("package com.example; public class OrdersTest {}")
+
+    payload = assess_project(project, cfg=CFG).payload
+    structure = payload["project_structure"]
+
+    assert structure["root"] == "."
+    assert structure["build_systems"] == ["maven"]
+    assert structure["java_language_level"] == "17"
+    assert structure["modules"] == [
+        {
+            "name": "orders",
+            "path": ".",
+            "build_systems": ["maven"],
+            "build_files": ["pom.xml"],
+            "source_roots": ["src/main/java"],
+            "test_roots": ["src/test/java"],
+            "generated_source_roots": ["target/generated-sources"],
+            "java_language_level": "17",
+        }
+    ]
+    orders = next(item for item in payload["files"] if item["path"].endswith("Orders.java"))
+    assert orders["project_structure"] == {
+        "module": "orders",
+        "module_path": ".",
+        "source_root": "src/main/java",
+        "source_set": "main",
+    }
+    test_file = next(item for item in payload["files"] if item["path"].endswith("OrdersTest.java"))
+    assert test_file["project_structure"]["source_root"] == "src/test/java"
+    assert test_file["project_structure"]["source_set"] == "test"
+
+
+def test_doctor_assessment_reports_maven_multi_module_structure(tmp_path: Path) -> None:
+    root = tmp_path / "platform"
+    api_root = root / "api" / "src" / "main" / "java"
+    worker_root = root / "worker" / "src" / "main" / "java"
+    api_root.mkdir(parents=True)
+    worker_root.mkdir(parents=True)
+    (root / "pom.xml").write_text(
+        """
+        <project>
+          <modules>
+            <module>api</module>
+            <module>worker</module>
+          </modules>
+        </project>
+        """,
+    )
+    (root / "api" / "pom.xml").write_text(
+        """
+        <project>
+          <build>
+            <plugins>
+              <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration><source>11</source></configuration>
+              </plugin>
+            </plugins>
+          </build>
+        </project>
+        """,
+    )
+    (root / "worker" / "pom.xml").write_text("<project />")
+    (api_root / "Api.java").write_text("public class Api {}")
+    (worker_root / "Worker.java").write_text("public class Worker {}")
+
+    structure = assess_project(root, cfg=CFG).payload["project_structure"]
+    modules = {module["path"]: module for module in structure["modules"]}
+
+    assert structure["build_systems"] == ["maven"]
+    assert structure["java_language_level"] == "11"
+    assert set(modules) == {".", "api", "worker"}
+    assert modules["."]["source_roots"] == []
+    assert modules["api"]["source_roots"] == ["api/src/main/java"]
+    assert modules["api"]["java_language_level"] == "11"
+    assert modules["worker"]["build_files"] == ["worker/pom.xml"]
+
+
+def test_doctor_assessment_reports_gradle_multi_module_structure(tmp_path: Path) -> None:
+    root = tmp_path / "gradle-project"
+    app_root = root / "app" / "src" / "main" / "java"
+    lib_root = root / "lib" / "src" / "test" / "java"
+    app_root.mkdir(parents=True)
+    lib_root.mkdir(parents=True)
+    (root / "settings.gradle").write_text("include 'app', ':lib'\n")
+    (root / "build.gradle").write_text("sourceCompatibility = '21'\n")
+    (root / "app" / "build.gradle").write_text("plugins { id 'java' }\n")
+    (root / "lib" / "build.gradle.kts").write_text("plugins { java }\n")
+    (app_root / "App.java").write_text("public class App {}")
+    (lib_root / "LibTest.java").write_text("public class LibTest {}")
+
+    payload = assess_project(root, cfg=CFG).payload
+    structure = payload["project_structure"]
+    modules = {module["path"]: module for module in structure["modules"]}
+
+    assert structure["build_systems"] == ["gradle"]
+    assert structure["java_language_level"] == "21"
+    assert set(modules) == {".", "app", "lib"}
+    assert modules["."]["source_roots"] == []
+    assert modules["app"]["source_roots"] == ["app/src/main/java"]
+    assert modules["lib"]["test_roots"] == ["lib/src/test/java"]
+    app_file = next(item for item in payload["files"] if item["path"].endswith("App.java"))
+    assert app_file["project_structure"]["module"] == "app"
+    assert app_file["project_structure"]["source_set"] == "main"
+
+
+def test_doctor_assessment_reports_source_only_project_structure(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    package_dir = source / "com" / "example"
+    package_dir.mkdir(parents=True)
+    (package_dir / "Sample.java").write_text("package com.example; public class Sample {}")
+
+    payload = assess_project(source, cfg=CFG).payload
+    structure = payload["project_structure"]
+
+    assert structure["root"] == "."
+    assert structure["build_systems"] == []
+    assert structure["java_language_level"] is None
+    assert structure["modules"][0]["build_files"] == []
+    assert structure["modules"][0]["source_roots"] == ["."]
+    assert payload["files"][0]["project_structure"]["source_root"] == "."
+
+
 def test_file_risk_profile_is_deterministic() -> None:
     score, band, readiness, reasons = _file_risk_profile(
         parse_ok=False,

@@ -158,6 +158,7 @@ keys are:
 |---|---|
 | `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, readiness, and unresolved-import counts. |
 | `dependency_graph` | Translation order and dependency graph warnings from existing analyzer output. |
+| `project_structure` | Detected Maven/Gradle build files, source roots, test roots, generated-source roots, modules, and Java language level when declared. |
 | `annotation_inventory` | Observed Java annotation names and counts. |
 | `unresolved_imports` | Imports not covered by defaults, user config, or project declarations. |
 | `config_suggestions` | Advisory `import_map`, `type_map`, and `annotation_map` candidates. |
@@ -171,6 +172,7 @@ Each entry under `files` includes:
 - `path`, `package`, `parse_ok`, and `parse_errors`;
 - `classes` with field, method, and nested-class inventory;
 - raw Java `imports`;
+- `project_structure` with the detected module, source root, and source-set classification;
 - observed `annotations`;
 - per-file `unresolved_imports`;
 - `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`.
@@ -189,7 +191,8 @@ j2py doctor assess src/main/java --html j2py-assessment.html
 The report is static and self-contained, so it can be shared as a CI artifact or review
 attachment. It summarizes file count, parse failures, average rule coverage, risk,
 readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
-status, annotation names, hotspots, recurring diagnostic clusters, and recommended next commands.
+status, project structure, annotation names, hotspots, recurring diagnostic clusters,
+and recommended next commands.
 
 ### Config Suggestions
 
@@ -402,6 +405,8 @@ The current implementation provides:
 - source/class/method/field inventory from the existing parser/analyzer;
 - Java parse-error reporting;
 - dependency-graph translation order and graph warnings;
+- Maven/Gradle build-system, source-root, module, generated-source, and Java language-level
+  detection without invoking external build tools;
 - rule-only translation coverage, confidence, semantic warnings, TODOs, and unhandled
   diagnostics;
 - per-file risk scoring, readiness buckets, and top-risk hotspots;

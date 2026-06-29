@@ -1308,8 +1308,12 @@ def test_cli_dashboard_rejects_state_directory(tmp_path: Path) -> None:
 
 def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     source = tmp_path / "src"
-    source.mkdir()
-    (source / "Sample.java").write_text("package com.example; public class Sample {}")
+    java_root = source / "src" / "main" / "java"
+    java_root.mkdir(parents=True)
+    (source / "pom.xml").write_text(
+        "<project><properties><maven.compiler.release>17</maven.compiler.release></properties></project>"
+    )
+    (java_root / "Sample.java").write_text("package com.example; public class Sample {}")
     json_path = tmp_path / "assessment.json"
     html_path = tmp_path / "assessment.html"
     runner = CliRunner()
@@ -1332,8 +1336,12 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     assert payload["schema_version"] == 2
     assert payload["summary"]["files"] == 1
     assert payload["files"][0]["classes"][0]["name"] == "Sample"
+    assert payload["project_structure"]["build_systems"] == ["maven"]
     assert "Doctor assessment" in result.output
-    assert "j2py doctor assessment" in html_path.read_text()
+    assert "build=maven" in result.output
+    html = html_path.read_text()
+    assert "j2py doctor assessment" in html
+    assert "Project Structure" in html
 
 
 def test_cli_doctor_writes_config_suggestions(tmp_path: Path) -> None:

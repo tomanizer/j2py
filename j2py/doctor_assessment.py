@@ -12,6 +12,7 @@ from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import ClassSymbol, FileSymbols, class_kind, extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment
+from j2py.doctor_project_structure import detect_project_structure, file_project_structure
 from j2py.parse.java_ast import JavaNode, parse_file
 from j2py.pipeline import translate_file
 from j2py.translate.annotation_emit import _FRAMEWORK_ANNOTATIONS
@@ -114,15 +115,18 @@ def assess_project(
     import_owner = _import_owner_index(symbols_by_path.values())
     graph = build_dependency_graph(list(symbols_by_path.values()))
     graph_warnings, order = _translation_order(graph)
+    source_root = source if source.is_dir() else source.parent
+    project_structure = detect_project_structure(source, java_files)
     files = [
         _assess_file(
             path,
-            source_root=source if source.is_dir() else source.parent,
+            source_root=source_root,
             cfg=cfg,
             symbols=symbols_by_path[path],
             parsed=parsed_by_path[path],
             import_owner=import_owner,
             include_validation=include_validation,
+            project_structure=project_structure,
         )
         for path in java_files
     ]
@@ -133,11 +137,9 @@ def assess_project(
         "summary": _summary(files, graph_warnings),
         "dependency_graph": {
             "warnings": graph_warnings,
-            "translation_order": [
-                _relative_path(Path(path), source if source.is_dir() else source.parent)
-                for path in order
-            ],
+            "translation_order": [_relative_path(Path(path), source_root) for path in order],
         },
+        "project_structure": project_structure,
         "annotation_inventory": _annotation_inventory(files),
         "unresolved_imports": _unresolved_imports(files),
         "config_suggestions": _config_suggestions(files, cfg),
@@ -158,6 +160,7 @@ def _assess_file(
     parsed: Any,
     import_owner: dict[str, str],
     include_validation: bool,
+    project_structure: dict[str, Any],
 ) -> dict[str, Any]:
     result = translate_file(path, cfg=cfg, use_llm=False, validate=include_validation)
     diagnostics = result.diagnostics
@@ -197,6 +200,11 @@ def _assess_file(
         "parse_errors": parse_errors,
         "classes": [_class_payload(item) for item in symbols.classes],
         "imports": symbols.imports,
+        "project_structure": file_project_structure(
+            path,
+            project_structure,
+            assessment_root=source_root,
+        ),
         "annotations": annotations,
         "unresolved_imports": unresolved,
         "risk_score": risk_score,
