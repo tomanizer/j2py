@@ -22,6 +22,14 @@ if TYPE_CHECKING:
     from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 
 
+def todo_lines(source: str) -> list[str]:
+    return [
+        line.strip()
+        for line in source.splitlines()
+        if "TODO(j2py)" in line or "__j2py_todo__" in line
+    ]
+
+
 @dataclass(frozen=True)
 class TranslationDiagnostic:
     """A single handled or unhandled Java construct observed by the rule layer."""

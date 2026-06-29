@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 from j2py.wire.schema import WiringElement, WiringSidecar
+from j2py.wire.targets.common import parse_python
 from j2py.wire.targets.providers import (
     PROVIDERS_FILENAME,
     expected_provider_names,
@@ -224,7 +225,7 @@ class UnresolvedImportCheck:
         for path in _wiring_files(context.wiring_dir):
             if self.file_names is not None and path.name not in self.file_names:
                 continue
-            tree = _parse_python(path)
+            tree = parse_python(path)
             if tree is None:
                 continue
             for node in ast.walk(tree):
@@ -922,15 +923,6 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
-def _parse_python(path: Path) -> ast.Module | None:
-    if not path.exists():
-        return None
-    try:
-        return ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return None
-
-
 def _module_exists(root: Path, module: str) -> bool:
     module_path = root.joinpath(*module.split("."))
     return module_path.with_suffix(".py").exists() or (module_path / "__init__.py").exists()
@@ -952,7 +944,7 @@ def _settings_property_location(spec: SettingsPropertySpec) -> str:
 
 
 def _class_methods(path: Path, class_name: str) -> set[str]:
-    tree = _parse_python(path)
+    tree = parse_python(path)
     if tree is None:
         return set()
     for node in tree.body:
@@ -962,7 +954,7 @@ def _class_methods(path: Path, class_name: str) -> set[str]:
 
 
 def _function_signatures(path: Path) -> dict[str, _Signature]:
-    tree = _parse_python(path)
+    tree = parse_python(path)
     if tree is None:
         return {}
     signatures: dict[str, _Signature] = {}

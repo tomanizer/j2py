@@ -8,7 +8,7 @@ from pathlib import Path
 import networkx as nx
 import typer
 
-from j2py.analyze.symbols import ClassSymbol
+from j2py.analyze.symbols import ClassSymbol, class_kind
 from j2py.cli.output import console
 
 
@@ -52,19 +52,11 @@ def _print_class_inventory(cls: ClassSymbol, *, indent: int) -> None:
 
 
 def _format_class_inventory_line(cls: ClassSymbol, *, indent: int) -> str:
-    kind = _class_kind(cls)
     padding = " " * indent
-    return f"{padding}{cls.name} ({kind}) — {len(cls.methods)} methods, {len(cls.fields)} fields"
-
-
-def _class_kind(cls: ClassSymbol) -> str:
-    if cls.is_interface:
-        return "interface"
-    if cls.is_enum:
-        return "enum"
-    if cls.is_record:
-        return "record"
-    return "class"
+    return (
+        f"{padding}{cls.name} ({class_kind(cls)}) — "
+        f"{len(cls.methods)} methods, {len(cls.fields)} fields"
+    )
 
 
 def _relative_display_path(path: Path, root: Path) -> str:

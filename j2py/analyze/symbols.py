@@ -53,6 +53,16 @@ class FileSymbols:
     classes: list[ClassSymbol] = field(default_factory=list)
 
 
+def class_kind(cls: ClassSymbol) -> str:
+    if cls.is_interface:
+        return "interface"
+    if cls.is_enum:
+        return "enum"
+    if cls.is_record:
+        return "record"
+    return "class"
+
+
 def extract_symbols(parsed: ParsedFile) -> FileSymbols:
     """Walk the parsed Java AST and build a symbol table for the file."""
     root = parsed.root

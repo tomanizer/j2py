@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from j2py.analyze.graph import build_dependency_graph, translation_order
-from j2py.analyze.symbols import ClassSymbol, FileSymbols, extract_symbols
+from j2py.analyze.symbols import ClassSymbol, FileSymbols, class_kind, extract_symbols
 from j2py.config.loader import TranslationConfig
 from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment
 from j2py.parse.java_ast import JavaNode, parse_file
 from j2py.pipeline import translate_file
 from j2py.translate.annotation_emit import _FRAMEWORK_ANNOTATIONS
-from j2py.translate.diagnostics import TranslationDiagnostic
+from j2py.translate.diagnostics import TranslationDiagnostic, todo_lines
 
 
 def assess_project(
@@ -100,7 +100,7 @@ def _assess_file(
             "unhandled": []
             if diagnostics is None
             else [_diagnostic_payload(item) for item in diagnostics.unhandled],
-            "todos": _todo_lines(result.python_source),
+            "todos": todo_lines(result.python_source),
             "validation": _validation_payload(result.validation),
         },
     }
@@ -291,7 +291,7 @@ def _class_payload(cls: ClassSymbol) -> dict[str, Any]:
     return {
         "name": cls.name,
         "line": cls.line,
-        "kind": _class_kind(cls),
+        "kind": class_kind(cls),
         "fields": [
             {
                 "name": field.name,
@@ -312,16 +312,6 @@ def _class_payload(cls: ClassSymbol) -> dict[str, Any]:
         ],
         "inner_classes": [_class_payload(inner) for inner in cls.inner_classes],
     }
-
-
-def _class_kind(cls: ClassSymbol) -> str:
-    if cls.is_interface:
-        return "interface"
-    if cls.is_enum:
-        return "enum"
-    if cls.is_record:
-        return "record"
-    return "class"
 
 
 def _annotations(root: JavaNode, imports: list[str]) -> list[dict[str, Any]]:
@@ -432,14 +422,6 @@ def _validation_payload(validation: Any) -> dict[str, Any] | None:
         "mypy_ok": validation.mypy_ok,
         "errors": validation.syntax_errors + validation.ruff_errors + validation.mypy_errors,
     }
-
-
-def _todo_lines(source: str) -> list[str]:
-    return [
-        line.strip()
-        for line in source.splitlines()
-        if "TODO(j2py)" in line or "__j2py_todo__" in line
-    ]
 
 
 def _relative_path(path: Path, root: Path) -> str:

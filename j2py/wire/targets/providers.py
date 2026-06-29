@@ -3,30 +3,22 @@
 from __future__ import annotations
 
 import ast
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.wire.schema import WiringElement, WiringSidecar
-from j2py.wire.targets.common import GENERATED_HEADER
+from j2py.wire.targets.common import (
+    GENERATED_HEADER,
+    annotation_name,
+    base_type,
+    parse_python,
+    provider_identity,
+    should_import_type,
+    type_modules,
+)
 from j2py.wiring_contract import translate_field_name
 
 PROVIDERS_FILENAME = "providers.py"
-_BUILTIN_TYPES = {
-    "Any",
-    "bool",
-    "bytes",
-    "dict",
-    "float",
-    "int",
-    "list",
-    "None",
-    "object",
-    "set",
-    "str",
-    "tuple",
-}
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PROVIDER_ROLES = {"component", "controller", "repository", "service"}
 
 
@@ -57,7 +49,7 @@ class ProvidersTarget:
         path = output_dir / PROVIDERS_FILENAME
         specs = provider_specs(sidecars, self.translated_root)
         path.write_text(
-            render_providers(specs, _type_modules(sidecars, self.translated_root)),
+            render_providers(specs, type_modules(sidecars, self.translated_root)),
             encoding="utf-8",
         )
         return [path]
@@ -74,7 +66,7 @@ def provider_specs(sidecars: list[WiringSidecar], translated_root: Path) -> list
             role = _str(element.spring.get("role"), default="")
             if role not in _PROVIDER_ROLES:
                 continue
-            identity = _provider_identity(element)
+            identity = provider_identity(element)
             sidecar_injections = _injections_for_class(sidecar.elements, index)
             constructor_params = _constructor_parameters(Path(sidecar.output), element.python_name)
             specs.append(
@@ -184,21 +176,11 @@ def _imports_for_specs(
     for spec in specs:
         imports.setdefault(spec.module, set()).add(spec.class_name)
         for injection in spec.injections:
-            type_name = _base_type(injection.python_type)
+            type_name = base_type(injection.python_type)
             module = resolved_type_modules.get(type_name)
-            if module is not None and _should_import_type(type_name):
+            if module is not None and should_import_type(type_name):
                 imports.setdefault(module, set()).add(type_name)
     return imports
-
-
-def _type_modules(sidecars: list[WiringSidecar], translated_root: Path) -> dict[str, str]:
-    modules: dict[str, str] = {}
-    for sidecar in sidecars:
-        module = sidecar.python_module(translated_root)
-        for element in sidecar.elements:
-            if element.kind == "class":
-                modules[element.python_name] = module
-    return modules
 
 
 def _ordered_specs(specs: list[ProviderSpec]) -> list[ProviderSpec]:
@@ -248,13 +230,6 @@ def _provider_dependencies(specs: list[ProviderSpec]) -> dict[str, list[str]]:
     return dependencies
 
 
-def _provider_identity(element: WiringElement) -> str:
-    component_name = element.spring.get("component_name")
-    if isinstance(component_name, str) and component_name:
-        return component_name
-    return translate_field_name(element.python_name)
-
-
 def _injections_for_class(
     elements: list[WiringElement],
     class_index: int,
@@ -283,7 +258,7 @@ def _injections(elements: list[WiringElement]) -> list[ProviderInjectionSpec]:
 
 
 def _constructor_parameters(path: Path, class_name: str) -> list[ProviderInjectionSpec]:
-    tree = _parse_python(path)
+    tree = parse_python(path)
     if tree is None:
         return []
     for node in tree.body:
@@ -294,7 +269,7 @@ def _constructor_parameters(path: Path, class_name: str) -> list[ProviderInjecti
                 return [
                     ProviderInjectionSpec(
                         name=arg.arg,
-                        python_type=_annotation_name(arg.annotation),
+                        python_type=annotation_name(arg.annotation),
                     )
                     for arg in item.args.args[1:]
                 ]
@@ -313,32 +288,8 @@ def _merge_injections(
     return merged
 
 
-def _parse_python(path: Path) -> ast.Module | None:
-    if not path.exists():
-        return None
-    try:
-        return ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return None
-
-
-def _annotation_name(annotation: ast.expr | None) -> str:
-    if annotation is not None:
-        return ast.unparse(annotation)
-    return "object"
-
-
 def _normalize_identity(name: str) -> str:
     return name.lower().replace("_", "")
-
-
-def _base_type(type_name: str) -> str:
-    return re.split(r"[\[|.]", type_name, maxsplit=1)[0].strip()
-
-
-def _should_import_type(type_name: str) -> bool:
-    base = _base_type(type_name)
-    return bool(base and base not in _BUILTIN_TYPES and _IDENTIFIER_RE.match(base))
 
 
 def _str(value: object, *, default: str) -> str:

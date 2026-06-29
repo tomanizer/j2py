@@ -3,29 +3,17 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.wire.schema import WiringElement, WiringSidecar
-from j2py.wire.targets.common import GENERATED_HEADER
+from j2py.wire.targets.common import (
+    GENERATED_HEADER,
+    base_type,
+    should_import_type,
+    type_modules,
+)
 from j2py.wiring_contract import translate_field_name
-
-_BUILTIN_TYPES = {
-    "Any",
-    "bool",
-    "bytes",
-    "dict",
-    "float",
-    "int",
-    "list",
-    "None",
-    "object",
-    "set",
-    "str",
-    "tuple",
-}
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -176,22 +164,12 @@ def _imports_for_controller(
     sidecars: list[WiringSidecar],
     translated_root: Path,
 ) -> dict[str, set[str]]:
-    type_modules = _type_modules(sidecars, translated_root)
+    modules_by_type = type_modules(sidecars, translated_root)
     imports: dict[str, set[str]] = {controller.module: {controller.class_name}}
     for type_name in _referenced_types(controller):
-        module = type_modules.get(type_name, controller.module)
+        module = modules_by_type.get(type_name, controller.module)
         imports.setdefault(module, set()).add(type_name)
     return imports
-
-
-def _type_modules(sidecars: list[WiringSidecar], translated_root: Path) -> dict[str, str]:
-    modules: dict[str, str] = {}
-    for sidecar in sidecars:
-        module = sidecar.python_module(translated_root)
-        for element in sidecar.elements:
-            if element.kind == "class":
-                modules[element.python_name] = module
-    return modules
 
 
 def _referenced_types(controller: ControllerSpec) -> set[str]:
@@ -201,16 +179,7 @@ def _referenced_types(controller: ControllerSpec) -> set[str]:
             types.add(parameter.python_type)
         if route.request_body is not None:
             types.add(route.request_body.python_type)
-    return {_base_type(type_name) for type_name in types if _should_import_type(type_name)}
-
-
-def _base_type(type_name: str) -> str:
-    return re.split(r"[\[|.]", type_name, maxsplit=1)[0].strip()
-
-
-def _should_import_type(type_name: str) -> bool:
-    base = _base_type(type_name)
-    return bool(base and base not in _BUILTIN_TYPES and _IDENTIFIER_RE.match(base))
+    return {base_type(type_name) for type_name in types if should_import_type(type_name)}
 
 
 def _injections(elements: list[WiringElement]) -> list[InjectionSpec]:

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.wire.schema import WiringSidecar
-from j2py.wire.targets.common import GENERATED_HEADER
+from j2py.wire.targets.common import GENERATED_HEADER, list_of_dicts
 from j2py.wiring_contract import translate_field_name
 
 SETTINGS_FILENAME = "settings.py"
@@ -61,7 +61,7 @@ def settings_property_specs(sidecars: list[WiringSidecar]) -> list[SettingsPrope
                 default=translate_field_name(element.java_name),
             )
             line = _source_line(jdbc_bean)
-            for item in _list_of_dicts(jdbc_bean.get("properties")):
+            for item in list_of_dicts(jdbc_bean.get("properties")):
                 target = item.get("target")
                 key = item.get("key")
                 if not isinstance(target, str) or not isinstance(key, str) or not key:
@@ -300,12 +300,6 @@ def _literal_str_dict(node: ast.Dict) -> dict[str, str]:
         ):
             values[key_node.value] = value_node.value
     return values
-
-
-def _list_of_dicts(value: object) -> list[dict[str, object]]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, dict)]
 
 
 def _source_line(value: dict[str, object]) -> int | None:
