@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import re
+from typing import cast
 
 from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkTransformResult
@@ -251,6 +253,7 @@ def _translate_fields(
         *TYPE_DECLARATION_NODES,
     }
     body_children = body.named_children
+    deferred_static_fields: set[str] = set()
     for index, child in enumerate(body_children):
         if child.type == "field_declaration":
             for field in field_infos_from_declaration(child, cfg):
@@ -258,7 +261,13 @@ def _translate_fields(
                 transform_index += 1
                 if field.is_static:
                     static_lines.extend(
-                        _translate_static_field(field, static_ctx, diagnostics, transform)
+                        _translate_static_field(
+                            field,
+                            static_ctx,
+                            diagnostics,
+                            transform,
+                            deferred_static_fields,
+                        )
                     )
                 elif pydantic_model:
                     static_lines.extend(
@@ -589,6 +598,7 @@ def _translate_static_field(
     ctx: TranslationContext,
     diagnostics: TranslationDiagnostics,
     transform: FrameworkTransformResult,
+    deferred_static_fields: set[str],
 ) -> list[str]:
     value = spring_value_field(field)
     if not transform.handled:
@@ -630,18 +640,254 @@ def _translate_static_field(
         _emit_field_annotation_comments(lines, field, value, ctx.cfg, indent="    ")
     lines.extend(transform.prefix_lines)
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
-    if _initializer_references_enclosing_class(initializer, ctx):
+    if _initializer_must_defer(initializer, ctx, deferred_static_fields):
         # A static field whose initializer references the class being defined cannot run
         # in the class body (the class name is not yet bound). Defer it to a module-level
-        # assignment emitted after the class block. Local helpers, if any, stay in body.
+        # assignment emitted after the class block. Later fields that depend on this
+        # static field must also defer so source-order initialization is preserved.
+        # Local helpers, if any, stay in body.
+        initializer = _qualify_deferred_static_field_refs(
+            initializer,
+            ctx,
+            deferred_static_fields,
+        )
         diagnostics.deferred_module_lines.append(
             f"{ctx.containing_class_name}.{field.py_name} = {initializer}",
         )
+        deferred_static_fields.add(field.py_name)
         return lines
     lines.append(
         f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}",
     )
     return lines
+
+
+def _initializer_must_defer(
+    initializer: str,
+    ctx: TranslationContext,
+    deferred_static_fields: set[str],
+) -> bool:
+    if _initializer_references_enclosing_class(initializer, ctx):
+        return True
+    return _initializer_references_deferred_static_field(initializer, deferred_static_fields)
+
+
+def _initializer_references_deferred_static_field(
+    initializer: str,
+    deferred_static_fields: set[str],
+) -> bool:
+    if not deferred_static_fields:
+        return False
+    try:
+        expression = ast.parse(initializer, mode="eval")
+    except SyntaxError:
+        return any(
+            re.search(rf"\b{re.escape(field_name)}\b", initializer) is not None
+            for field_name in deferred_static_fields
+        )
+
+    class DeferredStaticFieldReferenceFinder(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.found = False
+            self._local_scopes: list[set[str]] = []
+
+        def _is_shadowed(self, name: str) -> bool:
+            return any(name in scope for scope in reversed(self._local_scopes))
+
+        def _visit_with_scope(self, names: set[str], node: ast.AST) -> None:
+            self._local_scopes.append(names)
+            try:
+                self.visit(node)
+            finally:
+                self._local_scopes.pop()
+
+        def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: N802
+            for default in [*node.args.defaults, *node.args.kw_defaults]:
+                if default is not None:
+                    self.visit(default)
+            self._visit_with_scope(_ast_argument_names(node.args), node.body)
+
+        def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: N802
+            self._visit_comprehension_expression(node.elt, node.generators)
+
+        def visit_SetComp(self, node: ast.SetComp) -> None:  # noqa: N802
+            self._visit_comprehension_expression(node.elt, node.generators)
+
+        def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:  # noqa: N802
+            self._visit_comprehension_expression(node.elt, node.generators)
+
+        def visit_DictComp(self, node: ast.DictComp) -> None:  # noqa: N802
+            self._visit_comprehension_expression(node.key, node.generators)
+            self._visit_with_scope(_comprehension_target_names(node.generators), node.value)
+
+        def _visit_comprehension_expression(
+            self,
+            element: ast.AST,
+            generators: list[ast.comprehension],
+        ) -> None:
+            for generator in generators:
+                self.visit(generator.iter)
+            local_names = _comprehension_target_names(generators)
+            self._local_scopes.append(local_names)
+            try:
+                for generator in generators:
+                    for condition in generator.ifs:
+                        self.visit(condition)
+                self.visit(element)
+            finally:
+                self._local_scopes.pop()
+
+        def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
+            if (
+                isinstance(node.ctx, ast.Load)
+                and node.id in deferred_static_fields
+                and not self._is_shadowed(node.id)
+            ):
+                self.found = True
+
+    finder = DeferredStaticFieldReferenceFinder()
+    finder.visit(expression)
+    return finder.found
+
+
+def _qualify_deferred_static_field_refs(
+    initializer: str,
+    ctx: TranslationContext,
+    deferred_static_fields: set[str],
+) -> str:
+    class_name = ctx.containing_class_name
+    if not class_name or not deferred_static_fields:
+        return initializer
+    resolved_class_name = class_name
+    try:
+        expression = ast.parse(initializer, mode="eval")
+    except SyntaxError:
+        return _qualify_deferred_static_field_refs_with_regex(
+            initializer,
+            resolved_class_name,
+            deferred_static_fields,
+        )
+
+    class QualifyDeferredStaticFields(ast.NodeTransformer):
+        def __init__(self) -> None:
+            self._local_scopes: list[set[str]] = []
+
+        def _is_shadowed(self, name: str) -> bool:
+            return any(name in scope for scope in reversed(self._local_scopes))
+
+        def _visit_with_scope(self, names: set[str], node: ast.AST) -> ast.AST:
+            self._local_scopes.append(names)
+            try:
+                return cast(ast.AST, self.visit(node))
+            finally:
+                self._local_scopes.pop()
+
+        def visit_Lambda(self, node: ast.Lambda) -> ast.AST:  # noqa: N802
+            node.args.defaults = [self.visit(default) for default in node.args.defaults]
+            node.args.kw_defaults = [
+                self.visit(default) if default is not None else None
+                for default in node.args.kw_defaults
+            ]
+            node.body = cast(
+                ast.expr,
+                self._visit_with_scope(_ast_argument_names(node.args), node.body),
+            )
+            return node
+
+        def visit_ListComp(self, node: ast.ListComp) -> ast.AST:  # noqa: N802
+            return self._visit_comprehension_expression(node, element_names=("elt",))
+
+        def visit_SetComp(self, node: ast.SetComp) -> ast.AST:  # noqa: N802
+            return self._visit_comprehension_expression(node, element_names=("elt",))
+
+        def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.AST:  # noqa: N802
+            return self._visit_comprehension_expression(node, element_names=("elt",))
+
+        def visit_DictComp(self, node: ast.DictComp) -> ast.AST:  # noqa: N802
+            return self._visit_comprehension_expression(node, element_names=("key", "value"))
+
+        def _visit_comprehension_expression(
+            self,
+            node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp,
+            *,
+            element_names: tuple[str, ...],
+        ) -> ast.AST:
+            for generator in node.generators:
+                generator.iter = self.visit(generator.iter)
+            local_names = _comprehension_target_names(node.generators)
+            self._local_scopes.append(local_names)
+            try:
+                for generator in node.generators:
+                    generator.ifs = [self.visit(condition) for condition in generator.ifs]
+                for element_name in element_names:
+                    setattr(node, element_name, self.visit(getattr(node, element_name)))
+            finally:
+                self._local_scopes.pop()
+            return node
+
+        def visit_Name(self, node: ast.Name) -> ast.AST:  # noqa: N802
+            if (
+                node.id not in deferred_static_fields
+                or self._is_shadowed(node.id)
+                or not isinstance(node.ctx, ast.Load)
+            ):
+                return node
+            return ast.copy_location(
+                ast.Attribute(
+                    value=ast.Name(id=resolved_class_name, ctx=ast.Load()),
+                    attr=node.id,
+                    ctx=node.ctx,
+                ),
+                node,
+            )
+
+    qualified = QualifyDeferredStaticFields().visit(expression)
+    ast.fix_missing_locations(qualified)
+    return ast.unparse(qualified)
+
+
+def _ast_argument_names(arguments: ast.arguments) -> set[str]:
+    names = {arg.arg for arg in arguments.posonlyargs}
+    names.update(arg.arg for arg in arguments.args)
+    names.update(arg.arg for arg in arguments.kwonlyargs)
+    if arguments.vararg is not None:
+        names.add(arguments.vararg.arg)
+    if arguments.kwarg is not None:
+        names.add(arguments.kwarg.arg)
+    return names
+
+
+def _comprehension_target_names(generators: list[ast.comprehension]) -> set[str]:
+    names: set[str] = set()
+    for generator in generators:
+        names.update(_ast_target_names(generator.target))
+    return names
+
+
+def _ast_target_names(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, (ast.Tuple, ast.List)):
+        names: set[str] = set()
+        for element in node.elts:
+            names.update(_ast_target_names(element))
+        return names
+    return set()
+
+
+def _qualify_deferred_static_field_refs_with_regex(
+    initializer: str,
+    class_name: str,
+    deferred_static_fields: set[str],
+) -> str:
+    qualified = initializer
+    for field_name in sorted(deferred_static_fields, key=len, reverse=True):
+        qualified = re.sub(
+            rf"(?<!\.)\b{re.escape(field_name)}\b",
+            f"{class_name}.{field_name}",
+            qualified,
+        )
+    return qualified
 
 
 def _initializer_references_enclosing_class(initializer: str, ctx: TranslationContext) -> bool:

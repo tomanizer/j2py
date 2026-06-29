@@ -109,6 +109,98 @@ def test_self_referential_static_field_is_deferred_after_class() -> None:
     assert_module_executes(python_source)
 
 
+def test_dependent_static_field_is_deferred_after_self_referential_field() -> None:
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        public class Node {
+            private static final Node ROOT = new Node();
+            private static final Node ROOT_COPY = ROOT.copy();
+
+            public Node copy() {
+                return this;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    class_body, _, deferred = python_source.partition("Node.ROOT = Node()")
+    assert "ROOT: Node = Node()" not in class_body
+    assert "ROOT_COPY: Node = ROOT.copy()" not in class_body
+    assert "Node.ROOT = Node()" in python_source
+    assert "Node.ROOT_COPY = Node.ROOT.copy()" in python_source
+    assert python_source.index("Node.ROOT = Node()") < python_source.index(
+        "Node.ROOT_COPY = Node.ROOT.copy()",
+    )
+    assert deferred.strip() == "Node.ROOT_COPY = Node.ROOT.copy()"
+    assert_module_executes(python_source)
+
+
+def test_method_reference_static_field_dependency_is_deferred_in_order() -> None:
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import java.util.Comparator;
+
+        public class Version {
+            public static final Comparator<Version> INCREMENT_ORDER =
+                    Version::compareToIgnoreBuildMetadata;
+            public static final Comparator<Version> PRECEDENCE_ORDER =
+                    INCREMENT_ORDER.reversed();
+
+            public int compareToIgnoreBuildMetadata(Version other) {
+                return 0;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    class_body, _, deferred = python_source.partition(
+        "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata",
+    )
+    assert "INCREMENT_ORDER: Comparator[Version]" not in class_body
+    assert "PRECEDENCE_ORDER: Comparator[Version]" not in class_body
+    assert "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata" in python_source
+    assert "Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()" in python_source
+    assert python_source.index(
+        "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata",
+    ) < python_source.index("Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()")
+    assert deferred.strip() == "Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()"
+    assert_valid_python(python_source)
+
+
+def test_deferred_static_field_qualification_respects_lambda_shadowing() -> None:
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import java.util.function.Function;
+
+        public class Shadowed {
+            private static final Shadowed x = new Shadowed();
+            private static final Function<Shadowed, Shadowed> mapper = x -> x.copy();
+
+            public Shadowed copy() {
+                return this;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "mapper: Function[Shadowed, Shadowed] = lambda x: x.copy()" in python_source
+    assert "lambda x: Shadowed.x.copy()" not in python_source
+    assert "Shadowed.x = Shadowed()" in python_source
+    assert python_source.index("lambda x: x.copy()") < python_source.index(
+        "Shadowed.x = Shadowed()",
+    )
+    assert_valid_python(python_source)
+
+
 def test_same_package_sibling_ref_in_method_body_is_local_import() -> None:
     # Issue #325: base↔derived circular import. Base.factory() references the derived
     # class (same package, no explicit Java import). That reference must become a
