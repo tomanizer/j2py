@@ -21,6 +21,7 @@ from j2py.doctor import (
     write_config_suggestions,
     write_doctor_diff_json,
 )
+from j2py.doctor_assessment import _file_risk_profile
 
 CFG = ConfigLoader().add_defaults().build()
 
@@ -75,6 +76,15 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert payload["summary"]["parse_failures"] == 1
     assert payload["summary"]["semantic_warnings"] >= 1
     assert payload["summary"]["unresolved_imports"] == 2
+    assert payload["summary"]["average_risk_score"] >= 0.0
+    assert payload["summary"]["max_risk_score"] >= payload["summary"]["min_risk_score"]
+    readiness = {
+        item["bucket"]: item["files"] for item in payload["summary"]["readiness_distribution"]
+    }
+    assert readiness["not_ready"] == 1
+    assert readiness["ready"] >= 1
+    assert readiness["requires_manual_fixes"] >= 0
+    assert [item["path"] for item in payload["summary"]["top_risk_files"]][:1] == ["Broken.java"]
     assert [item["name"] for item in payload["annotation_inventory"]] == ["RestController"]
 
     controller = next(item for item in payload["files"] if item["path"] == "Controller.java")
@@ -90,6 +100,10 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     broken = next(item for item in payload["files"] if item["path"] == "Broken.java")
     assert broken["parse_ok"] is False
     assert broken["parse_errors"]
+    assert broken["risk_score"] >= 80.0
+    assert broken["risk_band"] == "critical"
+    assert broken["readiness_bucket"] == "not_ready"
+    assert {reason["reason"] for reason in broken["risk_reasons"]} == {"parse_errors"}
 
     suggestions = payload["config_suggestions"]
     assert {item["annotation"] for item in suggestions["annotation_map"]} == {"RestController"}
@@ -98,7 +112,69 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
         "count": 1,
     }
     assert payload["hotspots"]["lowest_coverage_files"][0]["path"] == "Broken.java"
+    assert {item["reason"] for item in payload["hotspots"]["risk_reasons"]} >= {
+        "parse_errors",
+    }
     assert "j2py translate" in payload["recommended_next_commands"][0]
+
+
+def test_file_risk_profile_is_deterministic() -> None:
+    score, band, readiness, reasons = _file_risk_profile(
+        parse_ok=False,
+        parse_error_count=2,
+        rule_coverage=1.0,
+        semantic_warning_count=0,
+        unhandled_count=0,
+        todo_count=0,
+        unresolved_import_count=0,
+    )
+    assert score == 100.0
+    assert band == "critical"
+    assert readiness == "not_ready"
+    assert reasons == [
+        {"reason": "parse_errors", "count": 2, "weight": 100.0},
+    ]
+
+    score, band, readiness, reasons = _file_risk_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warning_count=0,
+        unhandled_count=0,
+        todo_count=0,
+        unresolved_import_count=0,
+    )
+    assert score == 0.0
+    assert band == "low"
+    assert readiness == "ready"
+    assert reasons == []
+
+    score, band, readiness, reasons = _file_risk_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warning_count=9,
+        unhandled_count=0,
+        todo_count=0,
+        unresolved_import_count=0,
+    )
+    assert band == "medium"
+    assert readiness == "requires_manual_fixes"
+    assert reasons[0]["reason"] == "semantic_warnings"
+
+    score, band, readiness, reasons = _file_risk_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=0.0,
+        semantic_warning_count=0,
+        unhandled_count=0,
+        todo_count=0,
+        unresolved_import_count=0,
+    )
+    assert band == "high"
+    assert readiness == "not_ready"
+    assert reasons[0]["reason"] == "low_rule_coverage"
+    assert score >= 55.0
 
 
 def test_doctor_config_suggestions_honor_full_name_annotation_map(tmp_path: Path) -> None:
@@ -185,12 +261,19 @@ def test_doctor_diff_reports_improvements(tmp_path: Path) -> None:
 
     diff = diff_assessments(before, after)
     text = render_doctor_diff_text(diff)
+    file_changes = diff.payload["file_changes"]["changed"]
+    assert len(file_changes) == 1
+    changed = file_changes[0]
 
     assert diff.payload["summary_delta"]["unresolved_imports"] == -1
     assert [item["import"] for item in diff.payload["unresolved_imports"]["removed"]] == [
         "com.external.PaymentClient"
     ]
+    assert changed["risk_score_delta"] < 0
+    assert changed["readiness_bucket_before"] in {"ready", "requires_manual_fixes", "not_ready"}
+    assert changed["readiness_bucket_after"] in {"ready", "requires_manual_fixes", "not_ready"}
     assert "Unresolved imports: 1 removed, 0 added" in text
+    assert f"risk {changed['risk_score_delta']:+.1f}" in text
 
 
 def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
@@ -202,5 +285,7 @@ def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
     assert "j2py doctor assessment" in html
     assert "Sample.java" in html
     assert "Hotspots" in html
+    assert "Risk" in html
+    assert "Ready files" in html
     assert "<script" not in html
     assert "https://" not in html

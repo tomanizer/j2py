@@ -1372,12 +1372,21 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     diff_json = tmp_path / "diff.json"
     before.write_text(
         json.dumps(
-            {
+        {
                 "source": "before-src",
                 "summary": {
                     "files": 1,
+                    "classes": 1,
                     "average_rule_coverage": 0.5,
                     "unresolved_imports": 1,
+                    "average_risk_score": 30.0,
+                    "max_risk_score": 30.0,
+                    "min_risk_score": 30.0,
+                    "readiness_distribution": [
+                        {"bucket": "ready", "files": 0},
+                        {"bucket": "requires_manual_fixes", "files": 1},
+                        {"bucket": "not_ready", "files": 0},
+                    ],
                 },
                 "unresolved_imports": [
                     {
@@ -1390,6 +1399,12 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
                     {
                         "path": "Controller.java",
                         "parse_ok": True,
+                        "risk_score": 30.0,
+                        "risk_band": "medium",
+                        "readiness_bucket": "requires_manual_fixes",
+                        "risk_reasons": [
+                            {"reason": "unresolved_imports", "count": 1, "weight": 1.0},
+                        ],
                         "unresolved_imports": [{"import": "com.external.PaymentClient"}],
                         "translation": {
                             "rule_coverage": 0.5,
@@ -1407,14 +1422,27 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
                 "source": "after-src",
                 "summary": {
                     "files": 1,
+                    "classes": 1,
                     "average_rule_coverage": 0.75,
                     "unresolved_imports": 0,
+                    "average_risk_score": 13.75,
+                    "max_risk_score": 13.75,
+                    "min_risk_score": 13.75,
+                    "readiness_distribution": [
+                        {"bucket": "ready", "files": 1},
+                        {"bucket": "requires_manual_fixes", "files": 0},
+                        {"bucket": "not_ready", "files": 0},
+                    ],
                 },
                 "unresolved_imports": [],
                 "files": [
                     {
                         "path": "Controller.java",
                         "parse_ok": True,
+                        "risk_score": 13.75,
+                        "risk_band": "low",
+                        "readiness_bucket": "ready",
+                        "risk_reasons": [],
                         "unresolved_imports": [],
                         "translation": {
                             "rule_coverage": 0.75,

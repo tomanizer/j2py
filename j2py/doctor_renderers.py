@@ -27,30 +27,19 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
         for command in payload["recommended_next_commands"]
     )
     hotspot_columns = "\n".join(
-        _hotspot_list(title, items, label_key)
-        for title, items, label_key in (
-            (
-                "Unhandled Node Types",
-                hotspots["unhandled_node_types"],
-                "node_type",
-            ),
-            (
-                "Warning Reasons",
-                hotspots["semantic_warning_reasons"],
-                "reason",
-            ),
-            (
-                "Import Packages",
-                hotspots["unresolved_import_packages"],
-                "package",
-            ),
-            (
-                "Lowest Coverage Files",
-                hotspots["lowest_coverage_files"],
-                "path",
-            ),
+        _hotspot_list(title, items, label_key, value_key)
+        for title, items, label_key, value_key in (
+            ("Unhandled Node Types", hotspots["unhandled_node_types"], "node_type", "count"),
+            ("Warning Reasons", hotspots["semantic_warning_reasons"], "reason", "count"),
+            ("Import Packages", hotspots["unresolved_import_packages"], "package", "count"),
+            ("Lowest Coverage Files", hotspots["lowest_coverage_files"], "path", "rule_coverage"),
+            ("Risk Reasons", hotspots["risk_reasons"], "reason", "count"),
+            ("Highest Risk Files", hotspots["highest_risk_files"], "path", "risk_score"),
         )
     )
+    readiness_summary = {
+        item["bucket"]: item["files"] for item in summary["readiness_distribution"]
+    }
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -71,9 +60,17 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Files", summary["files"])}
     {_metric("Parse failures", summary["parse_failures"])}
     {_metric("Avg coverage", f"{summary['average_rule_coverage']:.0%}")}
+    {_metric("Avg risk", f"{summary['average_risk_score']:.1f}/100")}
+    {_metric(
+        "Risk range",
+        f"{summary['min_risk_score']:.1f}-{summary['max_risk_score']:.1f}",
+    )}
     {_metric("Semantic warnings", summary["semantic_warnings"])}
     {_metric("Unhandled", summary["unhandled_diagnostics"])}
     {_metric("Unresolved imports", summary["unresolved_imports"])}
+    {_metric("Ready files", readiness_summary["ready"])}
+    {_metric("Manual-fix files", readiness_summary["requires_manual_fixes"])}
+    {_metric("Not-ready files", readiness_summary["not_ready"])}
   </section>
   <section>
     <h2>Files</h2>
@@ -84,6 +81,9 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
           <th>Package</th>
           <th>Parse</th>
           <th>Coverage</th>
+          <th>Risk</th>
+          <th>Band</th>
+          <th>Readiness</th>
           <th>Warnings</th>
           <th>Unhandled</th>
           <th>Unresolved Imports</th>
@@ -172,12 +172,25 @@ def render_doctor_diff_text(diff: DoctorDiff) -> str:
     if changed_files:
         lines.extend(["", "Changed files:"])
         for item in changed_files[:20]:
-            lines.append(
+            line = (
                 f"  {item['path']}: coverage {item['rule_coverage_delta']:+.3f}, "
                 f"warnings {item['semantic_warnings_delta']:+}, "
                 f"unhandled {item['unhandled_delta']:+}, "
-                f"unresolved imports {item['unresolved_imports_delta']:+}"
+                f"unresolved imports {item['unresolved_imports_delta']:+}, "
+                f"risk {item['risk_score_delta']:+.1f}, "
+                f"readiness {item['readiness_bucket_before']} -> {item['readiness_bucket_after']}"
             )
+            if (
+                item["risk_score_delta"] == 0.0
+                and item["readiness_bucket_before"] == item["readiness_bucket_after"]
+            ):
+                line = (
+                    f"  {item['path']}: coverage {item['rule_coverage_delta']:+.3f}, "
+                    f"warnings {item['semantic_warnings_delta']:+}, "
+                    f"unhandled {item['unhandled_delta']:+}, "
+                    f"unresolved imports {item['unresolved_imports_delta']:+}"
+                )
+            lines.append(line)
     return "\n".join(lines) + "\n"
 
 
@@ -197,16 +210,24 @@ def _file_row(item: dict[str, Any]) -> str:
   <td>{escape(item["package"])}</td>
   <td>{"pass" if item["parse_ok"] else "fail"}</td>
   <td>{translation["rule_coverage"]:.0%}</td>
+  <td>{item["risk_score"]:.1f}</td>
+  <td>{escape(item["risk_band"])}</td>
+  <td>{escape(item["readiness_bucket"])}</td>
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>
 </tr>"""
 
 
-def _hotspot_list(title: str, items: list[dict[str, Any]], label_key: str) -> str:
+def _hotspot_list(
+    title: str,
+    items: list[dict[str, Any]],
+    label_key: str,
+    value_key: str = "count",
+) -> str:
     rows = "\n".join(
         f"<li><code>{escape(str(item[label_key]))}</code>: "
-        f"{escape(str(item.get('count', _hotspot_value(item))))}</li>"
+        f"{escape(str(item.get(value_key, _hotspot_value(item))))}</li>"
         for item in items
     )
     return f"""
@@ -219,6 +240,10 @@ def _hotspot_list(title: str, items: list[dict[str, Any]], label_key: str) -> st
 def _hotspot_value(item: dict[str, Any]) -> str:
     if "rule_coverage" in item:
         return f"{item['rule_coverage']:.0%}"
+    if "risk_score" in item:
+        return f"{item['risk_score']:.1f}"
+    if "files" in item:
+        return str(item["files"])
     return ""
 
 

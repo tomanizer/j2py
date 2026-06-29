@@ -145,8 +145,18 @@ def _file_changes(
             - len(before["translation"]["unhandled"]),
             "unresolved_imports_delta": len(after["unresolved_imports"])
             - len(before["unresolved_imports"]),
+            "risk_score_delta": after["risk_score"] - before["risk_score"],
+            "readiness_bucket_before": before["readiness_bucket"],
+            "readiness_bucket_after": after["readiness_bucket"],
         }
-        if any(value for key, value in item.items() if key != "path"):
+        if any(
+            value
+            for key, value in item.items()
+            if key
+            not in {
+                "path",
+            }
+        ):
             changed.append(item)
     return {
         "added": [{"path": path} for path in added],

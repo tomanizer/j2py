@@ -128,12 +128,12 @@ keys are:
 
 | Key | Meaning |
 |---|---|
-| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, and unresolved-import counts. |
+| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, readiness, and unresolved-import counts. |
 | `dependency_graph` | Translation order and dependency graph warnings from existing analyzer output. |
 | `annotation_inventory` | Observed Java annotation names and counts. |
 | `unresolved_imports` | Imports not covered by defaults, user config, or project declarations. |
 | `config_suggestions` | Advisory `import_map`, `type_map`, and `annotation_map` candidates. |
-| `hotspots` | Ranked unhandled node types, warning reasons, import packages, annotations, and files. |
+| `hotspots` | Ranked unhandled node types, warning reasons, import packages, annotations, risk reasons, and files (coverage/risk). |
 | `recommended_next_commands` | Follow-up commands grounded in the assessed source path. |
 | `files` | Per-file parse, symbol, import, annotation, and rule-only translation diagnostics. |
 
@@ -144,6 +144,7 @@ Each entry under `files` includes:
 - raw Java `imports`;
 - observed `annotations`;
 - per-file `unresolved_imports`;
+- `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`.
 - `translation.rule_coverage` and surfaced `translation.confidence`;
 - `translation.semantic_warnings`, `translation.unhandled`, `translation.todos`;
 - `translation.validation` when validation was requested.
@@ -157,9 +158,9 @@ j2py doctor src/main/java --html j2py-assessment.html
 ```
 
 The report is static and self-contained, so it can be shared as a CI artifact or review
-attachment. It summarizes file count, parse failures, average rule coverage, semantic
-warnings, unhandled diagnostics, unresolved imports, per-file status, annotation names,
-hotspots, and recommended next commands.
+attachment. It summarizes file count, parse failures, average rule coverage, risk,
+readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
+status, annotation names, hotspots, and recommended next commands.
 
 ### Config Suggestions
 
@@ -183,7 +184,8 @@ j2py doctor diff before.json after.json
 ```
 
 Good changes should reduce parse failures, unresolved imports, semantic warnings,
-unhandled diagnostics, or low-coverage hotspots without hiding real framework policy.
+unhandled diagnostics, low-coverage hotspots, and migration risk without hiding real
+framework policy.
 
 ### SARIF
 
@@ -202,7 +204,7 @@ Start with these report areas:
 
 | Report area | How to use it |
 |---|---|
-| Summary | Check file count, parse failures, average coverage, semantic warnings, TODOs, and unresolved imports. |
+| Summary | Check file count, parse failures, average coverage, risk/readiness bands, semantic warnings, TODOs, and unresolved imports. |
 | Files | Find low-coverage or warning-heavy files before bulk translation. |
 | Annotation inventory | Decide which annotations are comments, drops, `annotation_map`, or framework plugins. |
 | Unresolved imports | Decide which imports need `import_map`, `type_map`, stubs, plugins, or manual porting. |
@@ -342,7 +344,6 @@ Current `doctor` does not:
 - generate a final project config file without review;
 - export SARIF directly from `translate` results;
 - generate stubs;
-- rank files by a formal risk score;
 - generate target-stack wiring;
 - replace corpus scoreboards, behavior tests, equivalence tests, or `make check`.
 
@@ -374,12 +375,13 @@ The current implementation provides:
 - dependency-graph translation order and graph warnings;
 - rule-only translation coverage, confidence, semantic warnings, TODOs, and unhandled
   diagnostics;
+- per-file risk scoring, readiness buckets, and top-risk hotspots;
 - annotation inventory;
 - unresolved import candidates;
 - conservative advisory config suggestions;
 - advisory config suggestion export via `--config-suggestions`;
-- hotspot aggregation for common unhandled nodes, warning reasons, import packages, and
-  low-coverage files;
+- hotspot aggregation for common unhandled nodes, warning reasons, import packages,
+  annotations, risk reasons, low-coverage files, and highest-risk files;
 - assessment diffs via `j2py doctor diff before.json after.json`;
 - standalone SARIF export via `j2py sarif j2py-assessment.json --output j2py.sarif`;
 - optional validation via `--include-validation`.
@@ -395,7 +397,7 @@ The current implementation provides:
 | D5 | Classify likely JDK, framework, third-party, project-internal, and annotation boundary work without deciding project policy. |
 | D6 | Provide conservative config suggestions through `--config-suggestions`. |
 | D7 | Support risk scoring and prioritization from observable evidence. |
-| D8 | Aggregate hotspots for unhandled nodes, warnings, imports, annotations, warning-heavy files, and low-coverage files. |
+| D8 | Aggregate hotspots for unhandled nodes, warnings, imports, annotations, risk reasons, warning-heavy files, low-coverage files, and highest-risk files. |
 | D9 | Detect common Java project structure such as Maven, Gradle, source roots, multi-module layouts, and Java language level when available. |
 | D10 | Feed the standalone SARIF exporter; future integrated command: `j2py doctor src/main/java --sarif j2py.sarif`. |
 | D11 | Support assessment diffs. |
