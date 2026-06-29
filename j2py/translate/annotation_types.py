@@ -32,6 +32,26 @@ def translate_type_annotation(java_type: str, ctx: TranslationContext) -> str:
     return bind_annotation_type_names(translate_type(java_type, ctx.cfg), ctx)
 
 
+def split_top_level_annotation(text: str, *, delimiter: str) -> list[str]:
+    """Split a Python annotation on a delimiter outside nested type groups."""
+
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in text:
+        if char in "[(":
+            depth += 1
+        elif char in "])":
+            depth -= 1
+        if char == delimiter and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current).strip())
+    return [part for part in parts if part]
+
+
 def bind_annotation_type_names(py_type: str, ctx: TranslationContext) -> str:
     """Qualify/import type names that would otherwise be undefined in annotations."""
 

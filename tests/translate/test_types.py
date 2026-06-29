@@ -3,6 +3,7 @@
 import pytest
 
 from j2py.config.loader import ConfigLoader
+from j2py.translate.annotation_types import split_top_level_annotation
 from j2py.translate.rules.types import (
     element_type_from_container,
     element_type_from_java_container,
@@ -47,6 +48,34 @@ cfg = ConfigLoader().add_defaults().build()
 )
 def test_translate_type(java: str, expected: str):
     assert translate_type(java, cfg) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "delimiter", "expected"),
+    [
+        (
+            "str | Callable[[int | None], str] | None",
+            "|",
+            ["str", "Callable[[int | None], str]", "None"],
+        ),
+        (
+            "K, Callable[[K], tuple[V, None]], dict[str, list[V]]",
+            ",",
+            ["K", "Callable[[K], tuple[V, None]]", "dict[str, list[V]]"],
+        ),
+        (
+            "tuple[(str, int), Callable[[str, int], None]], T",
+            ",",
+            ["tuple[(str, int), Callable[[str, int], None]]", "T"],
+        ),
+    ],
+)
+def test_split_top_level_annotation_respects_nested_type_groups(
+    text: str,
+    delimiter: str,
+    expected: list[str],
+) -> None:
+    assert split_top_level_annotation(text, delimiter=delimiter) == expected
 
 
 @pytest.mark.parametrize(
