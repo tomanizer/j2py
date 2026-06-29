@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable
 from typing import cast
 
 from j2py.config.loader import TranslationConfig
@@ -19,7 +20,7 @@ from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostic
 from j2py.translate.expressions import translate_expression
 from j2py.translate.framework_dispatch import resolve_field
 from j2py.translate.name_resolution import NameResolver
-from j2py.translate.node_utils import first_child_by_type
+from j2py.translate.node_utils import first_child_by_type, reindent_helper_lines
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import java_default_value, translate_type
 from j2py.translate.spring_settings import (
@@ -148,18 +149,23 @@ def _collect_declared_type_fields(
     class_node: JavaNode,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
-    return {
-        type_name: {name: field.py_type for name, field in fields.items()}
-        for type_name, fields in _collect_declared_type_field_maps(class_node, cfg).items()
-    }
+    return _collect_declared_type_field_values(class_node, cfg, lambda field: field.py_type)
 
 
 def _collect_declared_type_java_fields(
     class_node: JavaNode,
     cfg: TranslationConfig,
 ) -> dict[str, dict[str, str]]:
+    return _collect_declared_type_field_values(class_node, cfg, lambda field: field.java_type)
+
+
+def _collect_declared_type_field_values(
+    class_node: JavaNode,
+    cfg: TranslationConfig,
+    value: Callable[[FieldInfo], str],
+) -> dict[str, dict[str, str]]:
     return {
-        type_name: {name: field.java_type for name, field in fields.items()}
+        type_name: {name: value(field) for name, field in fields.items()}
         for type_name, fields in _collect_declared_type_field_maps(class_node, cfg).items()
     }
 
@@ -941,22 +947,8 @@ def _extend_with_local_helpers(
     for helper in ctx.pending_local_helpers:
         if lines and helper:
             lines.append("")
-        lines.extend(_reindent_local_helper_lines(helper, target_base_indent=base_indent))
+        lines.extend(reindent_helper_lines(helper, target_base_indent=base_indent))
     ctx.pending_local_helpers.clear()
-
-
-def _reindent_local_helper_lines(helper: list[str], *, target_base_indent: str) -> list[str]:
-    source_base_indent = "        "
-    indent_shift = len(target_base_indent) - len(source_base_indent)
-    reindented: list[str] = []
-    for line in helper:
-        if not line.strip():
-            reindented.append(line)
-            continue
-        leading_spaces = len(line) - len(line.lstrip(" "))
-        new_leading = max(0, leading_spaces + indent_shift)
-        reindented.append(" " * new_leading + line.lstrip(" "))
-    return reindented
 
 
 def _field_assignment(name: str, py_type: str, cfg: TranslationConfig) -> str:

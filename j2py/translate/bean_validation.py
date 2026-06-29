@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 from j2py.parse.java_ast import JavaNode
@@ -148,9 +148,7 @@ def _merge_lower_bound_from_annotation(
     key: str,
     value: str | None,
 ) -> None:
-    parsed = _parse_int(value)
-    if parsed is not None:
-        _merge_lower_bound(kwargs, key, parsed)
+    _merge_bound_from_annotation(kwargs, key, value, _merge_lower_bound)
 
 
 def _merge_upper_bound_from_annotation(
@@ -158,9 +156,18 @@ def _merge_upper_bound_from_annotation(
     key: str,
     value: str | None,
 ) -> None:
+    _merge_bound_from_annotation(kwargs, key, value, _merge_upper_bound)
+
+
+def _merge_bound_from_annotation(
+    kwargs: dict[str, int | str],
+    key: str,
+    value: str | None,
+    merge: Callable[[dict[str, int | str], str, int], None],
+) -> None:
     parsed = _parse_int(value)
     if parsed is not None:
-        _merge_upper_bound(kwargs, key, parsed)
+        merge(kwargs, key, parsed)
 
 
 def _merge_lower_bound(kwargs: dict[str, int | str], key: str, value: int) -> None:

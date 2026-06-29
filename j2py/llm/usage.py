@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from j2py.llm.env import enabled_env_flag
+
 SCHEMA_VERSION = "1"
 DEFAULT_HARVEST_DIR = Path(".j2py") / "harvest"
 USAGE_FILE_NAME = "usage.jsonl"
@@ -37,12 +39,7 @@ class UsageTotals:
 
 
 def llm_usage_logging_enabled() -> bool:
-    return os.environ.get("J2PY_LLM_USAGE", "1").strip().lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-    }
+    return enabled_env_flag("J2PY_LLM_USAGE")
 
 
 def usage_log_path(*, repo_root: Path | None = None) -> Path:

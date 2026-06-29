@@ -255,34 +255,32 @@ def _translate_preconditions_static_call(
     return _translate_preconditions_call(method_name, args)
 
 
-def _translate_len_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"len({receiver})"
-    return None
+def _simple_instance_translator(
+    template: str,
+    *,
+    arg_count: int | None = None,
+    require_args: bool = False,
+    require_no_args: bool = False,
+) -> InstanceCallTranslator:
+    def translate(
+        node: JavaNode,
+        receiver: str,
+        raw_receiver: str,
+        receiver_nodes: list[JavaNode],
+        arg_nodes: list[JavaNode],
+        arg_expressions: list[str],
+        args: str,
+        ctx: TranslationContext,
+    ) -> str | None:
+        if require_no_args and args:
+            return None
+        if require_args and not args:
+            return None
+        if arg_count is not None and len(arg_nodes) != arg_count:
+            return None
+        return template.format(receiver=receiver, args=args)
 
-
-def _translate_is_empty_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"not {receiver}"
-    return None
+    return translate
 
 
 def _translate_contains_call(
@@ -415,66 +413,6 @@ def _translate_equals_call(
     return None
 
 
-def _translate_equals_ignore_case_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if args and len(arg_nodes) == 1:
-        return f"{receiver}.lower() == {args}.lower()"
-    return None
-
-
-def _translate_to_string_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"str({receiver})"
-    return None
-
-
-def _translate_hash_code_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"hash({receiver})"
-    return None
-
-
-def _translate_char_at_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if args and len(arg_nodes) == 1:
-        return f"{receiver}[{args}]"
-    return None
-
-
 def _translate_code_point_at_call(
     node: JavaNode,
     receiver: str,
@@ -490,21 +428,6 @@ def _translate_code_point_at_call(
     # charAt, it indexes in code-point space rather than Java's UTF-16 code-unit space.
     if args and len(arg_nodes) == 1:
         return f"ord({receiver}[{args}])"
-    return None
-
-
-def _translate_starts_with_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if args:
-        return f"{receiver}.startswith({args})"
     return None
 
 
@@ -524,51 +447,6 @@ def _translate_substring_call(
         return f"{receiver}[{args}:]"
     if len(arg_nodes) == 2:
         return f"{receiver}[{arg_expressions[0]}:{arg_expressions[1]}]"
-    return None
-
-
-def _translate_ends_with_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if args:
-        return f"{receiver}.endswith({args})"
-    return None
-
-
-def _translate_trim_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"{receiver}.strip()"
-    return None
-
-
-def _translate_to_char_array_call(
-    node: JavaNode,
-    receiver: str,
-    raw_receiver: str,
-    receiver_nodes: list[JavaNode],
-    arg_nodes: list[JavaNode],
-    arg_expressions: list[str],
-    args: str,
-    ctx: TranslationContext,
-) -> str | None:
-    if not args:
-        return f"list({receiver})"
     return None
 
 
@@ -931,26 +809,32 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
 
 _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "charValue": _translate_char_value_call,
-    "charAt": _translate_char_at_call,
+    "charAt": _simple_instance_translator("{receiver}[{args}]", arg_count=1),
     "codePointAt": _translate_code_point_at_call,
     "clone": _translate_clone_call,
     "compareTo": _translate_compare_to_call,
     "contains": _translate_contains_call,
-    "endsWith": _translate_ends_with_call,
+    "endsWith": _simple_instance_translator("{receiver}.endswith({args})", require_args=True),
     "equals": _translate_equals_call,
-    "equalsIgnoreCase": _translate_equals_ignore_case_call,
-    "hashCode": _translate_hash_code_call,
+    "equalsIgnoreCase": _simple_instance_translator(
+        "{receiver}.lower() == ({args}).lower()",
+        arg_count=1,
+    ),
+    "hashCode": _simple_instance_translator("hash({receiver})", require_no_args=True),
     "indexOf": _translate_index_of_call,
-    "isEmpty": _translate_is_empty_call,
-    "length": _translate_len_call,
-    "size": _translate_len_call,
-    "startsWith": _translate_starts_with_call,
+    "isEmpty": _simple_instance_translator("not {receiver}", require_no_args=True),
+    "length": _simple_instance_translator("len({receiver})", require_no_args=True),
+    "size": _simple_instance_translator("len({receiver})", require_no_args=True),
+    "startsWith": _simple_instance_translator(
+        "{receiver}.startswith({args})",
+        require_args=True,
+    ),
     "test": _translate_predicate_test_call,
     "substring": _translate_substring_call,
     "toArray": _translate_to_array_call,
-    "toCharArray": _translate_to_char_array_call,
+    "toCharArray": _simple_instance_translator("list({receiver})", require_no_args=True),
     "toLowerCase": _translate_to_lower_case_call,
-    "toString": _translate_to_string_call,
+    "toString": _simple_instance_translator("str({receiver})", require_no_args=True),
     "toUpperCase": _translate_to_upper_case_call,
-    "trim": _translate_trim_call,
+    "trim": _simple_instance_translator("{receiver}.strip()", require_no_args=True),
 }

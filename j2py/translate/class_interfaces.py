@@ -712,6 +712,14 @@ def _is_optional_type_var(py_type: str, type_param: str) -> bool:
 
 
 def _split_python_union(text: str) -> list[str]:
+    return _split_top_level(text, delimiter="|")
+
+
+def _split_python_type_args(text: str) -> list[str]:
+    return _split_top_level(text, delimiter=",")
+
+
+def _split_top_level(text: str, *, delimiter: str) -> list[str]:
     parts: list[str] = []
     current: list[str] = []
     depth = 0
@@ -720,7 +728,7 @@ def _split_python_union(text: str) -> list[str]:
             depth += 1
         elif char == "]":
             depth -= 1
-        if char == "|" and depth == 0:
+        if char == delimiter and depth == 0:
             parts.append("".join(current).strip())
             current = []
         else:
@@ -869,25 +877,6 @@ def _interface_type_var_map(
     if len(args) != len(interface_type_params):
         return {}
     return dict(zip(interface_type_params, args, strict=True))
-
-
-def _split_python_type_args(text: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    depth = 0
-    for char in text:
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-        if char == "," and depth == 0:
-            parts.append("".join(current).strip())
-            current = []
-        else:
-            current.append(char)
-    if current:
-        parts.append("".join(current).strip())
-    return parts
 
 
 def _type_base(py_type: str) -> str:

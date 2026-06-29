@@ -13,7 +13,7 @@ from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_access import request_type_import
 from j2py.translate.expressions import translate_expression
 from j2py.translate.java_types import java_expression_type
-from j2py.translate.node_utils import first_child_by_type, unwrap_parens
+from j2py.translate.node_utils import first_child_by_type, reindent_helper_lines, unwrap_parens
 from j2py.translate.rules.naming import translate_class_name, translate_method_name
 from j2py.translate.rules.types import java_default_value
 
@@ -494,7 +494,7 @@ def _anonymous_helper_init_lines(
             nested_helpers = field_ctx.pending_local_helpers[start_index:]
             del field_ctx.pending_local_helpers[start_index:]
             for helper in nested_helpers:
-                lines.extend(_anonymous_reindent_helper(helper, target_base_indent=body_indent))
+                lines.extend(reindent_helper_lines(helper, target_base_indent=body_indent))
             lines.extend(body_lines)
             continue
 
@@ -547,27 +547,9 @@ def _anonymous_static_field_lines(
 
     lines: list[str] = []
     for helper in static_ctx.pending_local_helpers:
-        lines.extend(_anonymous_reindent_helper(helper, target_base_indent=indent))
+        lines.extend(reindent_helper_lines(helper, target_base_indent=indent))
     lines.append(f"{indent}{target} = {value}")
     return lines
-
-
-def _anonymous_reindent_helper(
-    helper_lines: list[str],
-    *,
-    target_base_indent: str,
-) -> list[str]:
-    source_base_indent = "        "
-    indent_shift = len(target_base_indent) - len(source_base_indent)
-    reindented: list[str] = []
-    for line in helper_lines:
-        if not line.strip():
-            reindented.append(line)
-            continue
-        leading_spaces = len(line) - len(line.lstrip(" "))
-        new_leading = max(0, leading_spaces + indent_shift)
-        reindented.append(" " * new_leading + line.lstrip(" "))
-    return reindented
 
 
 def _receiverless_method_invocation_names(

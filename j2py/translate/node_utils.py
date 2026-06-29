@@ -48,3 +48,21 @@ def class_body_needs_pass(lines: list[str]) -> bool:
     if not class_body_lines:
         return True
     return all(not line.strip() or line.lstrip().startswith("#") for line in class_body_lines)
+
+
+def reindent_helper_lines(
+    helper_lines: list[str],
+    *,
+    target_base_indent: str,
+    source_base_indent: str = "        ",
+) -> list[str]:
+    indent_shift = len(target_base_indent) - len(source_base_indent)
+    reindented: list[str] = []
+    for line in helper_lines:
+        if not line.strip():
+            reindented.append(line)
+            continue
+        leading_spaces = len(line) - len(line.lstrip(" "))
+        new_leading = max(0, leading_spaces + indent_shift)
+        reindented.append(" " * new_leading + line.lstrip(" "))
+    return reindented
