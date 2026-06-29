@@ -16,7 +16,7 @@ the logic from scratch.
 
 ## Status
 
-**Beta release** (`j2py-converter`, current published release `0.8.0`). The deterministic
+**Beta release** (`j2py-converter`, current published release `0.8.1`). The deterministic
 rule layer
 achieves near-complete **node coverage** on pinned multi-library dense samples (see
 [docs/CORPUS_SCOREBOARD.md](CORPUS_SCOREBOARD.md)), but **behavioral equivalence** at
