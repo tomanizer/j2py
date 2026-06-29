@@ -265,6 +265,10 @@ def _translate_anonymous_class(
                 extra_self_dispatch_methods=_receiverless_method_invocation_names(
                     init_members, ctx
                 ),
+                enclosing_field_names=enclosing_field_names,
+                enclosing_field_types=enclosing_field_types,
+                enclosing_field_java_types=enclosing_field_java_types,
+                outer_self_alias=outer_self_alias,
             ),
         )
         wrote_member = True
@@ -307,6 +311,10 @@ def _anonymous_helper_init_lines(
     *,
     init_members: list[FieldInfo | JavaNode] | None = None,
     extra_self_dispatch_methods: set[str] | None = None,
+    enclosing_field_names: set[str] | None = None,
+    enclosing_field_types: dict[str, str] | None = None,
+    enclosing_field_java_types: dict[str, str] | None = None,
+    outer_self_alias: str | None = None,
     def_indent: str = "            ",
     body_indent: str = "                ",
 ) -> list[str]:
@@ -328,6 +336,10 @@ def _anonymous_helper_init_lines(
         declared_type_java_fields=dict(ctx.declared_type_java_fields),
         name_resolver=ctx.name_resolver,
         in_instance_method=True,
+        outer_self_alias=outer_self_alias,
+        enclosing_class_fields=set(enclosing_field_names or set()),
+        enclosing_class_field_types=dict(enclosing_field_types or {}),
+        enclosing_class_field_java_types=dict(enclosing_field_java_types or {}),
         class_methods=set(ctx.class_methods) | set(extra_self_dispatch_methods or set()),
     )
     for member in init_members or fields:
