@@ -16,6 +16,7 @@ from j2py.translate.class_fields import (
     field_infos_from_declaration,
 )
 from j2py.translate.class_members import (
+    is_to_string_override,
     member_groups,
     member_method_names,
     member_static_method_names,
@@ -177,6 +178,8 @@ def translate_enum(
                     static_instance_static_zero_arg_names=set(static_zero),
                 ),
             )
+            if _group_has_to_string_override(group):
+                lines.extend(_to_string_dunder_wrapper(cfg))
             continue
         member = group[0]
         name_node = member.child_by_field("name")
@@ -201,6 +204,8 @@ def translate_enum(
                     bodies_map_name=bodies_map_name,
                 ),
             )
+            if _group_has_to_string_override(group):
+                lines.extend(_to_string_dunder_wrapper(cfg))
             continue
         ctx = TranslationContext(
             cfg=cfg,
@@ -223,7 +228,22 @@ def translate_enum(
             static_instance_static_zero_arg_names=set(static_zero),
         )
         lines.extend(translate_method(group[0], ctx))
+        if _group_has_to_string_override(group):
+            lines.extend(_to_string_dunder_wrapper(cfg))
     return module_prefix + lines
+
+
+def _group_has_to_string_override(group: list[JavaNode]) -> bool:
+    return any(is_to_string_override(member) for member in group)
+
+
+def _to_string_dunder_wrapper(cfg: TranslationConfig) -> list[str]:
+    method_name = translate_method_name("toString", snake_case=cfg.snake_case_methods)
+    return [
+        "",
+        "    def __str__(self) -> str:",
+        f"        return self.{method_name}()",
+    ]
 
 
 def _enum_interface_names(node: JavaNode) -> list[str]:

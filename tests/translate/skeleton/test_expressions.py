@@ -49,6 +49,82 @@ def test_comments_and_dropped_annotations_do_not_reduce_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_to_string_override_lowers_to_dunder_str_and_calls_use_str() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Label {
+            private String value;
+
+            public Label(String value) {
+                this.value = value;
+            }
+
+            @Override
+            public String toString() {
+                return this.value;
+            }
+
+            public String describe(Label other) {
+                return other.toString();
+            }
+
+            public String describeSelf() {
+                return this.toString();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def __str__(self) -> str:" in result.source
+    assert "def to_string(self) -> str:" in result.source
+    assert "return self.to_string()" in result.source
+    assert "return str(other)" in result.source
+    assert "return str(self)" in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    label = namespace["Label"]("v1")
+    other = namespace["Label"]("v2")
+    assert str(label) == "v1"
+    assert label.describe(other) == "v2"
+    assert label.describe_self() == "v1"
+
+
+def test_to_string_format_overload_and_static_utility_keep_regular_name() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Label {
+            private String value;
+
+            public Label(String value) {
+                this.value = value;
+            }
+
+            public String toString() {
+                return this.value;
+            }
+
+            public String toString(String prefix) {
+                return prefix + this.value;
+            }
+
+            public static String toString(int value) {
+                return Integer.toString(value);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def __str__(self) -> str:" in result.source
+    assert "def to_string(" in result.source
+    assert "return self.to_string()" in result.source
+    assert "def to_string_static(value: int) -> str:" in result.source
+    assert "return str(value)" in result.source
+    assert_valid_python(result.source)
+
+
 def test_unsupported_annotations_are_warnings_not_unhandled() -> None:
     result = translate_source_with_diagnostics(
         """
