@@ -85,12 +85,12 @@ added as sibling notes here rather than mixed into the general User Docs table.
 | [RELEASING.md](RELEASING.md) | Beta/pre-release checklist and publish verification workflow. |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history and user-visible changes. |
 | [releases/README.md](releases/README.md) | Release-record convention, canonical filenames, and per-version evidence layout. |
-| [releases/0.7.0/RELEASE_NOTES.md](releases/0.7.0/RELEASE_NOTES.md) | 0.7.0 release-note draft, user-facing scope, quality evidence, and known limits. |
-| [releases/0.7.0/CANDIDATE_EVIDENCE.md](releases/0.7.0/CANDIDATE_EVIDENCE.md) | 0.7.0 package build, clean install smoke, and pre-tag checklist evidence. |
-| [releases/0.7.0/DOCUMENTATION_AUDIT.md](releases/0.7.0/DOCUMENTATION_AUDIT.md) | 0.7.0 docs audit against live CLI help, config schema, fixtures, and generated output. |
-| [releases/0.7.0/TEST_EVIDENCE.md](releases/0.7.0/TEST_EVIDENCE.md) | Release-facing claim-to-evidence inventory for 0.7.0. |
-| [releases/0.7.0/PERFORMANCE_BASELINE.md](releases/0.7.0/PERFORMANCE_BASELINE.md) | Local translation, Spring smoke, and corpus reporting performance baseline for 0.7.0. |
-| [releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md](releases/0.7.0/DIAGNOSTICS_TODO_AUDIT.md) | Diagnostics and TODO wording audit for framework and platform boundaries. |
+| [releases/0.8.0/RELEASE_NOTES.md](releases/0.8.0/RELEASE_NOTES.md) | 0.8.0 release-note draft, user-facing scope, quality evidence, and known limits. |
+| [releases/0.8.0/CANDIDATE_EVIDENCE.md](releases/0.8.0/CANDIDATE_EVIDENCE.md) | 0.8.0 package build, clean install smoke, and pre-tag checklist evidence. |
+| [releases/0.8.0/DOCUMENTATION_AUDIT.md](releases/0.8.0/DOCUMENTATION_AUDIT.md) | 0.8.0 docs audit against live CLI help, config schema, fixtures, and generated output. |
+| [releases/0.8.0/TEST_EVIDENCE.md](releases/0.8.0/TEST_EVIDENCE.md) | Release-facing claim-to-evidence inventory for 0.8.0. |
+| [releases/0.8.0/PERFORMANCE_BASELINE.md](releases/0.8.0/PERFORMANCE_BASELINE.md) | Local translation, Spring smoke, and corpus reporting performance baseline for 0.8.0. |
+| [releases/0.8.0/DIAGNOSTICS_TODO_AUDIT.md](releases/0.8.0/DIAGNOSTICS_TODO_AUDIT.md) | Diagnostics and TODO wording audit for framework and platform boundaries. |
 | [decisions/](decisions/) | ADRs `0001` through `0025`; consult [Architecture](ARCHITECTURE.md#key-design-decisions) before changing settled policy. |
 | [decisions/AUDIT-2026-06-17.md](decisions/AUDIT-2026-06-17.md) | Latest dated maturity and gap audit snapshot. |
 | [decisions/AUDIT-2026-06-15.md](decisions/AUDIT-2026-06-15.md) | Prior maturity and gap audit snapshot. |
