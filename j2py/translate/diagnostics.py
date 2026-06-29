@@ -215,6 +215,7 @@ class TranslationContext:
     static_instance_static_zero_arg_names: set[str] = field(default_factory=set)
     local_names: set[str] = field(default_factory=set)
     param_names: set[str] = field(default_factory=set)
+    spread_param_names: set[str] = field(default_factory=set)
     variable_types: dict[str, str] = field(default_factory=dict)
     variable_java_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)

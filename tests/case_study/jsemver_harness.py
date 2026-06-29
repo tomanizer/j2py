@@ -86,14 +86,6 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         good="self.index: int = _outer_self.offset",
     ),
     ResidualGap(
-        gap_id="JSEMVER-4",
-        module="Stream",
-        summary="3-arg constructor 'new UEE(lookahead, offset, expected)' mistranslated: "
-        "the position arg and varargs were dropped and 'offset' became raise-from chaining",
-        bad="raise UnexpectedElementException(lookahead) from self.offset",
-        good="raise UnexpectedElementException(lookahead, self.offset, *expected)",
-    ),
-    ResidualGap(
         gap_id="JSEMVER-5",
         module="Stream",
         summary="java.util.Arrays.copyOfRange not lowered to a Python slice",

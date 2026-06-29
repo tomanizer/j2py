@@ -431,6 +431,41 @@ def test_try_catch_finally_and_throw_use_exception_map() -> None:
     assert_valid_python(python_source)
 
 
+def test_throw_constructor_preserves_non_cause_args_and_spread_parameter() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Stream<E> {
+            private int offset;
+
+            public void consume(Object lookahead, Object... expected) {
+                throw new UnexpectedElementException(lookahead, offset, expected);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "raise UnexpectedElementException(lookahead, self.offset, *expected)" in python_source
+    assert "raise UnexpectedElementException(lookahead) from self.offset" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_throw_constructor_still_uses_raise_from_for_typed_exception_cause() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Exceptions {
+            public void wrap(Exception ex) {
+                throw new IllegalStateException("Failed", ex);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert 'raise RuntimeError("Failed") from ex' in python_source
+    assert_valid_python(python_source)
+
+
 def test_multi_catch_exception_types_translate_to_tuple_handler() -> None:
     python_source, coverage = translate_source(
         """

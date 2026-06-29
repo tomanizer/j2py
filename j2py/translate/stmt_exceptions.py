@@ -5,6 +5,7 @@ from __future__ import annotations
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import java_expression_type, java_type_simple_name
 from j2py.translate.node_utils import direct_children_by_type, first_child_by_type
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
@@ -102,34 +103,55 @@ def _translate_catch(node: JavaNode, ctx: TranslationContext, *, indent: str) ->
     body = first_child_by_type(node, "block")
     exception_type = "Exception"
     exception_name = "exc"
+    exception_java_types: list[str] = []
+    raw_exception_name = "exc"
     if parameter is not None:
         exception_type = _catch_type(parameter, ctx)
+        exception_java_types = _catch_java_types(parameter)
         name_node = parameter.child_by_field("name") or first_child_by_type(parameter, "identifier")
         if name_node is not None:
+            raw_exception_name = name_node.text
             exception_name = translate_field_name(
                 name_node.text,
                 snake_case=ctx.cfg.snake_case_fields,
             )
     lines = [f"{indent}except {exception_type} as {exception_name}:"]
-    lines.extend(
-        translate_body(body, ctx, indent=f"{indent}    ")
-        if body is not None
-        else [f"{indent}    pass"],
-    )
+    previous_locals = set(ctx.local_names)
+    previous_types = dict(ctx.variable_types)
+    previous_java_types = dict(ctx.variable_java_types)
+    ctx.local_names.add(raw_exception_name)
+    ctx.variable_types[raw_exception_name] = exception_type
+    if exception_java_types:
+        ctx.variable_java_types[raw_exception_name] = " | ".join(exception_java_types)
+    try:
+        lines.extend(
+            translate_body(body, ctx, indent=f"{indent}    ")
+            if body is not None
+            else [f"{indent}    pass"],
+        )
+    finally:
+        ctx.local_names = previous_locals
+        ctx.variable_types = previous_types
+        ctx.variable_java_types = previous_java_types
     return lines
 
 
 def _catch_type(parameter: JavaNode, ctx: TranslationContext) -> str:
-    catch_type = first_child_by_type(parameter, "catch_type")
-    if catch_type is None:
+    types = _catch_java_types(parameter)
+    if not types:
         return "Exception"
-    types = [child.text for child in catch_type.named_children if child.type == "type_identifier"]
     mapped = [ctx.cfg.exception_map.get(java_type, java_type) for java_type in types]
-    if not mapped:
-        return ctx.cfg.exception_map.get(catch_type.text, catch_type.text)
     if len(mapped) == 1:
         return mapped[0]
     return f"({', '.join(mapped)})"
+
+
+def _catch_java_types(parameter: JavaNode) -> list[str]:
+    catch_type = first_child_by_type(parameter, "catch_type")
+    if catch_type is None:
+        return []
+    types = [child.text for child in catch_type.named_children if child.type == "type_identifier"]
+    return types or [catch_type.text]
 
 
 def _translate_throw(node: JavaNode, ctx: TranslationContext, *, indent: str) -> list[str]:
@@ -149,9 +171,39 @@ def _translate_exception_creation(node: JavaNode, ctx: TranslationContext) -> st
     raw_type = type_node.text if type_node is not None else "Exception"
     py_type = ctx.cfg.exception_map.get(raw_type, raw_type)
     args = list(args_node.named_children) if args_node is not None else []
-    if len(args) >= 2 and args[1].type == "identifier":
+    if len(args) == 2 and _is_exception_cause_argument(args[1], ctx):
         message = translate_expression(args[0], ctx)
         cause = translate_expression(args[1], ctx)
         return f"{py_type}({message}) from {cause}"
-    rendered_args = ", ".join(translate_expression(arg, ctx) for arg in args)
+    rendered_args = ", ".join(
+        _translate_exception_constructor_arg(arg, ctx, is_last=index == len(args) - 1)
+        for index, arg in enumerate(args)
+    )
     return f"{py_type}({rendered_args})"
+
+
+def _translate_exception_constructor_arg(
+    arg: JavaNode,
+    ctx: TranslationContext,
+    *,
+    is_last: bool,
+) -> str:
+    rendered = translate_expression(arg, ctx)
+    if is_last and arg.type == "identifier" and arg.text in ctx.spread_param_names:
+        return f"*{rendered}"
+    return rendered
+
+
+def _is_exception_cause_argument(arg: JavaNode, ctx: TranslationContext) -> bool:
+    java_type = java_expression_type(arg, ctx)
+    if java_type is None:
+        return False
+    for candidate in java_type.split("|"):
+        simple = java_type_simple_name(candidate.strip())
+        if simple == "Throwable":
+            return True
+        if simple in ctx.cfg.exception_map:
+            return True
+        if simple.endswith(("Exception", "Error")):
+            return True
+    return False
