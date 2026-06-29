@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 
 from j2py.config.loader import TranslationConfig
@@ -251,6 +252,7 @@ def _translate_fields(
         *TYPE_DECLARATION_NODES,
     }
     body_children = body.named_children
+    deferred_static_fields: set[str] = set()
     for index, child in enumerate(body_children):
         if child.type == "field_declaration":
             for field in field_infos_from_declaration(child, cfg):
@@ -258,7 +260,13 @@ def _translate_fields(
                 transform_index += 1
                 if field.is_static:
                     static_lines.extend(
-                        _translate_static_field(field, static_ctx, diagnostics, transform)
+                        _translate_static_field(
+                            field,
+                            static_ctx,
+                            diagnostics,
+                            transform,
+                            deferred_static_fields,
+                        )
                     )
                 elif pydantic_model:
                     static_lines.extend(
@@ -589,6 +597,7 @@ def _translate_static_field(
     ctx: TranslationContext,
     diagnostics: TranslationDiagnostics,
     transform: FrameworkTransformResult,
+    deferred_static_fields: set[str],
 ) -> list[str]:
     value = spring_value_field(field)
     if not transform.handled:
@@ -630,18 +639,90 @@ def _translate_static_field(
         _emit_field_annotation_comments(lines, field, value, ctx.cfg, indent="    ")
     lines.extend(transform.prefix_lines)
     _extend_with_local_helpers(lines, ctx, base_indent="    ")
-    if _initializer_references_enclosing_class(initializer, ctx):
+    if _initializer_must_defer(initializer, ctx, deferred_static_fields):
         # A static field whose initializer references the class being defined cannot run
         # in the class body (the class name is not yet bound). Defer it to a module-level
-        # assignment emitted after the class block. Local helpers, if any, stay in body.
+        # assignment emitted after the class block. Later fields that depend on this
+        # static field must also defer so source-order initialization is preserved.
+        # Local helpers, if any, stay in body.
+        initializer = _qualify_deferred_static_field_refs(
+            initializer,
+            ctx,
+            deferred_static_fields,
+        )
         diagnostics.deferred_module_lines.append(
             f"{ctx.containing_class_name}.{field.py_name} = {initializer}",
         )
+        deferred_static_fields.add(field.py_name)
         return lines
     lines.append(
         f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}",
     )
     return lines
+
+
+def _initializer_must_defer(
+    initializer: str,
+    ctx: TranslationContext,
+    deferred_static_fields: set[str],
+) -> bool:
+    if _initializer_references_enclosing_class(initializer, ctx):
+        return True
+    return any(
+        re.search(rf"\b{re.escape(field_name)}\b", initializer) is not None
+        for field_name in deferred_static_fields
+    )
+
+
+def _qualify_deferred_static_field_refs(
+    initializer: str,
+    ctx: TranslationContext,
+    deferred_static_fields: set[str],
+) -> str:
+    class_name = ctx.containing_class_name
+    if not class_name or not deferred_static_fields:
+        return initializer
+    resolved_class_name = class_name
+    try:
+        expression = ast.parse(initializer, mode="eval")
+    except SyntaxError:
+        return _qualify_deferred_static_field_refs_with_regex(
+            initializer,
+            resolved_class_name,
+            deferred_static_fields,
+        )
+
+    class QualifyDeferredStaticFields(ast.NodeTransformer):
+        def visit_Name(self, node: ast.Name) -> ast.AST:  # noqa: N802
+            if node.id not in deferred_static_fields or not isinstance(node.ctx, ast.Load):
+                return node
+            return ast.copy_location(
+                ast.Attribute(
+                    value=ast.Name(id=resolved_class_name, ctx=ast.Load()),
+                    attr=node.id,
+                    ctx=node.ctx,
+                ),
+                node,
+            )
+
+    qualified = QualifyDeferredStaticFields().visit(expression)
+    ast.fix_missing_locations(qualified)
+    return ast.unparse(qualified)
+
+
+def _qualify_deferred_static_field_refs_with_regex(
+    initializer: str,
+    class_name: str,
+    deferred_static_fields: set[str],
+) -> str:
+    qualified = initializer
+    for field_name in sorted(deferred_static_fields, key=len, reverse=True):
+        qualified = re.sub(
+            rf"(?<!\.)\b{re.escape(field_name)}\b",
+            f"{class_name}.{field_name}",
+            qualified,
+        )
+    return qualified
 
 
 def _initializer_references_enclosing_class(initializer: str, ctx: TranslationContext) -> bool:
