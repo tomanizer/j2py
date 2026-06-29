@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.class_members import references_enclosing_instance_fields, uses_qualified_this
 from j2py.translate.class_model import FieldInfo
@@ -9,6 +11,7 @@ from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_access import request_type_import
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import java_expression_type
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import translate_class_name, translate_method_name
 from j2py.translate.rules.types import java_default_value
@@ -85,6 +88,8 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         )
         if len(arg_nodes) == 1:
             value = translate_expression(arg_nodes[0], ctx)
+            if _is_char_array_expression(arg_nodes[0], ctx):
+                return f'"".join({value})'
             ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
             return f"_j2py_string_from_value({value})"
         if len(arg_nodes) == 2:
@@ -141,6 +146,37 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         return f"__j2py_todo__({node.text!r})"
 
     return f"{py_base_type}({args})"
+
+
+def _is_char_array_expression(node: JavaNode, ctx: TranslationContext) -> bool:
+    java_type = java_expression_type(node, ctx)
+    if java_type is not None:
+        return _is_char_array_type(java_type)
+    if node.type == "method_invocation":
+        name_node = node.child_by_field("name")
+        if name_node is not None:
+            return _return_type_includes_char_array(
+                ctx.class_method_return_types.get(name_node.text)
+            )
+    if node.type == "array_creation_expression":
+        type_node = node.child_by_field("type")
+        if type_node is None:
+            return False
+        return type_node.text == "char" and any(
+            child.type in {"dimensions", "dimensions_expr"} for child in node.named_children
+        )
+    return False
+
+
+def _is_char_array_type(java_type: str) -> bool:
+    stripped = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
+    return stripped.endswith("[]") and stripped[:-2].strip().rsplit(".", 1)[-1] == "char"
+
+
+def _return_type_includes_char_array(return_type: str | None) -> bool:
+    if return_type is None:
+        return False
+    return any(part.strip() == "list[str]" for part in return_type.split("|"))
 
 
 def _translate_anonymous_class(
