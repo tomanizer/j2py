@@ -85,6 +85,7 @@ Compare two assessments after changing config or rules:
 
 ```bash
 j2py doctor diff before.json after.json
+j2py doctor diff before.json after.json --fail-on-regression
 ```
 
 Generate migration recommendations for an assessment:
@@ -131,6 +132,7 @@ j2py doctor assess src/main/java --sample-limit 100 --html j2py-sample.html
 | Option | Meaning |
 |---|---|
 | `--json PATH` | Write machine-readable assessment JSON. Without `--json`, `--html`, or `--config-suggestions`, JSON is printed to stdout. With `doctor diff`, write diff JSON. |
+| `--fail-on-regression` | With `doctor diff`, exit non-zero when parse failures, diagnostics, validation failures, risk, readiness, or other file-level regressions are detected. |
 | `--html PATH` | Write a self-contained static HTML assessment report. |
 | `--config-suggestions PATH` | Write advisory YAML containing observed config suggestion candidates. |
 | `--config PATH`, `-c PATH` | Layer an explicit j2py config file on top of defaults. Repeatable. |
@@ -267,7 +269,8 @@ The report is static and self-contained, so it can be shared as a CI artifact or
 attachment. It summarizes file count, parse failures, average rule coverage, risk,
 readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
 status, project structure, annotation names, hotspots, recurring diagnostic clusters,
-high-risk methods, and recommended next commands.
+high-risk files and methods, action-plan preview, validation breakdown, and recommended
+next commands.
 
 ### Config Suggestions
 
@@ -323,9 +326,18 @@ Use diffs after config or rule changes:
 j2py doctor diff before.json after.json
 ```
 
-Good changes should reduce parse failures, unresolved imports, semantic warnings,
-unhandled diagnostics, low-coverage hotspots, and migration risk without hiding real
-framework policy.
+Diff payloads keep schema version `2` and add fields compatibly. They report summary
+deltas, migration-readiness bucket deltas, average/max/min risk deltas, top improved and
+regressed files, diagnostic cluster additions/removals/count changes, config suggestions
+resolved or added, and validation status changes. Good changes should reduce parse
+failures, unresolved imports, semantic warnings, unhandled diagnostics, low-coverage
+hotspots, and migration risk without hiding real framework policy.
+
+Use `--fail-on-regression` when CI should fail on newly visible regressions:
+
+```bash
+j2py doctor diff before.json after.json --fail-on-regression
+```
 
 ### SARIF
 
@@ -346,11 +358,14 @@ Start with these report areas:
 |---|---|
 | Summary | Check file count, parse failures, average coverage, risk/readiness bands, semantic warnings, TODOs, and unresolved imports. |
 | Files | Find low-coverage or warning-heavy files before bulk translation. |
+| Action Plan Preview | Start from the highest-risk files and their deterministic next action. |
+| Highest-Risk Files | Check whether risk is coming from parse/config/rule/boundary/manual-port evidence. |
 | High-Risk Methods | Find specific public APIs or method bodies that carry warnings, unhandled constructs, or TODO comments. |
 | Annotation inventory | Decide which annotations are comments, drops, `annotation_map`, or framework plugins. |
 | Unresolved imports | Decide which imports need `import_map`, `type_map`, stubs, plugins, or manual porting. |
 | Hotspots | Identify repeated rule gaps worth fixing once instead of reviewing file-by-file. |
 | Recommended commands | Use as next-step prompts, not as a migration plan. |
+| Validation Breakdown | When validation is included, identify generated-Python syntax, ruff, or mypy failures by file. |
 
 `rule_coverage` is the raw rule-layer node coverage. It measures handled Java syntax. It
 is not proof of runtime equivalence.
@@ -424,7 +439,8 @@ j2py doctor diff before.json after.json
 ```
 
 Use the diff output to confirm whether unresolved imports, semantic warnings, unhandled
-diagnostics, parse failures, and average rule coverage improved.
+diagnostics, parse failures, migration readiness, validation status, per-file risk, and
+average rule coverage improved.
 
 ### Export config suggestions
 

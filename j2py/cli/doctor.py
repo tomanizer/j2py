@@ -108,6 +108,7 @@ def assess(
         f"{summary['semantic_warnings']} semantic warnings, "
         f"{summary['unhandled_diagnostics']} unhandled diagnostics",
         f"risk={summary['average_risk_score']:.1f}, "
+        f"high_risk={_high_risk_file_count(assessment.payload)}, "
         f"ready={readiness['ready']}, manual={readiness['requires_manual_fixes']}, "
         f"not_ready={readiness['not_ready']}, "
         f"translate={migration_readiness['ready_to_translate']}, "
@@ -271,6 +272,14 @@ def diff(
         "--json",
         help="Write machine-readable doctor diff JSON.",
     ),
+    fail_on_regression: bool = typer.Option(
+        False,
+        "--fail-on-regression",
+        help=(
+            "Exit non-zero when the diff contains parse, diagnostic, risk, "
+            "or validation regressions."
+        ),
+    ),
 ) -> None:
     """Compare doctor assessment JSON files."""
     from j2py.doctor import (
@@ -299,6 +308,8 @@ def diff(
         write_doctor_diff_json(json_path, diff_result)
         console.print(f"[green]Doctor diff JSON:[/green] {json_path}")
     typer.echo(render_doctor_diff_text(diff_result), nl=False)
+    if fail_on_regression and not diff_result.payload["regression_summary"]["passed"]:
+        raise typer.Exit(code=1)
 
 
 @doctor_app.command()
@@ -431,6 +442,17 @@ def advise(
     else:
         _write_output(output, advice_markdown)
         console.print(f"[green]Doctor advice:[/green] {output}")
+
+
+def _high_risk_file_count(payload: dict[str, object]) -> int:
+    files = payload.get("files", [])
+    if not isinstance(files, list):
+        return 0
+    return sum(
+        1
+        for item in files
+        if isinstance(item, dict) and item.get("risk_band") in {"high", "critical"}
+    )
 
 
 def _write_output(path: Path, content: str) -> None:

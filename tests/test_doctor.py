@@ -48,18 +48,30 @@ def _minimal_doctor_file_payload(
     unresolved_import_count: int = 0,
     risk_score: float = 0.0,
     readiness_bucket: str = "ready",
+    migration_bucket: str = "ready_to_translate",
+    validation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "path": path,
         "parse_ok": parse_ok,
+        "unresolved_imports": [{}] * unresolved_import_count,
+        "migration_readiness": {
+            "bucket": migration_bucket,
+            "risk_score": risk_score,
+            "risk_band": "critical" if risk_score >= 80.0 else "low",
+            "reasons": [],
+            "next_action": "Translate with rule layer." if risk_score == 0.0 else "Review risk.",
+        },
+        "risk_score": risk_score,
+        "risk_band": "critical" if risk_score >= 80.0 else "low",
+        "readiness_bucket": readiness_bucket,
+        "risk_reasons": [],
         "translation": {
             "rule_coverage": rule_coverage,
             "semantic_warnings": [_synthetic_diagnostic() for _ in range(semantic_warning_count)],
             "unhandled": [_synthetic_diagnostic() for _ in range(unhandled_count)],
+            "validation": validation,
         },
-        "unresolved_imports": [{}] * unresolved_import_count,
-        "risk_score": risk_score,
-        "readiness_bucket": readiness_bucket,
     }
 
 
@@ -817,6 +829,131 @@ def test_doctor_diff_reports_improvements(tmp_path: Path) -> None:
     assert f"risk {changed['risk_score_delta']:+.1f}" in text
 
 
+def test_doctor_diff_reports_readiness_risk_clusters_and_regressions() -> None:
+    before = DoctorAssessment(
+        {
+            "schema_version": DOCTOR_SCHEMA_VERSION,
+            "source": "before",
+            "summary": {
+                "files": 2,
+                "average_rule_coverage": 0.85,
+                "average_risk_score": 27.5,
+                "max_risk_score": 50.0,
+                "min_risk_score": 5.0,
+                "unresolved_imports": 1,
+                "readiness_distribution": [
+                    {"bucket": "ready", "files": 1},
+                    {"bucket": "requires_manual_fixes", "files": 0},
+                    {"bucket": "not_ready", "files": 1},
+                ],
+                "migration_readiness_distribution": [
+                    {"bucket": "ready_to_translate", "files": 1},
+                    {"bucket": "needs_config", "files": 1},
+                ],
+            },
+            "config_suggestions": {
+                "import_map": [{"java_import": "com.external.PaymentClient"}],
+                "type_map": [{"java_type": "PaymentClient"}],
+                "annotation_map": [{"annotation": "RestController"}],
+            },
+            "diagnostic_clusters": [
+                {"cluster_id": "numeric-operators", "reason": "numeric", "count": 2},
+            ],
+            "unresolved_imports": [
+                {"import": "com.external.PaymentClient", "category": "external-import"},
+            ],
+            "files": [
+                _minimal_doctor_file_payload(
+                    "A.java",
+                    rule_coverage=0.80,
+                    unresolved_import_count=1,
+                    risk_score=50.0,
+                    readiness_bucket="not_ready",
+                    migration_bucket="needs_config",
+                    validation={"ok": False, "errors": ["syntax"]},
+                ),
+                _minimal_doctor_file_payload("B.java", rule_coverage=0.90, risk_score=5.0),
+            ],
+        }
+    )
+    after = DoctorAssessment(
+        {
+            "schema_version": DOCTOR_SCHEMA_VERSION,
+            "source": "after",
+            "summary": {
+                "files": 2,
+                "average_rule_coverage": 0.925,
+                "average_risk_score": 15.0,
+                "max_risk_score": 20.0,
+                "min_risk_score": 10.0,
+                "unresolved_imports": 0,
+                "readiness_distribution": [
+                    {"bucket": "ready", "files": 1},
+                    {"bucket": "requires_manual_fixes", "files": 1},
+                    {"bucket": "not_ready", "files": 0},
+                ],
+                "migration_readiness_distribution": [
+                    {"bucket": "ready_to_translate", "files": 1},
+                    {"bucket": "manual_port", "files": 1},
+                ],
+            },
+            "config_suggestions": {
+                "import_map": [],
+                "type_map": [],
+                "annotation_map": [],
+            },
+            "diagnostic_clusters": [
+                {"cluster_id": "numeric-operators", "reason": "numeric", "count": 1},
+                {"cluster_id": "new-warning", "reason": "new warning", "count": 2},
+            ],
+            "unresolved_imports": [],
+            "files": [
+                _minimal_doctor_file_payload(
+                    "A.java",
+                    rule_coverage=1.0,
+                    risk_score=10.0,
+                    readiness_bucket="ready",
+                    migration_bucket="ready_to_translate",
+                    validation={"ok": True, "errors": []},
+                ),
+                _minimal_doctor_file_payload(
+                    "B.java",
+                    rule_coverage=0.85,
+                    semantic_warning_count=1,
+                    risk_score=20.0,
+                    readiness_bucket="requires_manual_fixes",
+                    migration_bucket="manual_port",
+                ),
+            ],
+        }
+    )
+
+    diff = diff_assessments(before, after)
+    payload = diff.payload
+    text = render_doctor_diff_text(diff)
+
+    assert payload["readiness_delta"]["migration"] == [
+        {"bucket": "manual_port", "before": 0, "after": 1, "delta": 1},
+        {"bucket": "needs_config", "before": 1, "after": 0, "delta": -1},
+        {"bucket": "ready_to_translate", "before": 1, "after": 1, "delta": 0},
+    ]
+    assert payload["risk_delta"]["average_risk_score_delta"] == -12.5
+    assert [item["path"] for item in payload["improved_files"]] == ["A.java"]
+    assert [item["path"] for item in payload["regressed_files"]] == ["B.java"]
+    assert payload["config_suggestions"]["import_map"]["resolved"] == [
+        {"java_import": "com.external.PaymentClient"}
+    ]
+    assert payload["diagnostic_clusters"]["added"][0]["cluster_id"] == "new-warning"
+    assert payload["diagnostic_clusters"]["changed"][0]["count_delta"] == -1
+    assert payload["validation_status_changes"] == [
+        {"path": "A.java", "before": "failed", "after": "passed"}
+    ]
+    assert payload["regression_summary"]["passed"] is False
+    assert "Regression summary: fail" in text
+    assert "Top improved files:" in text
+    assert "Top regressed files:" in text
+
+
 def test_file_changes_omits_unchanged_files() -> None:
     before = DoctorAssessment(
         {
@@ -871,8 +1008,11 @@ def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
 
     assert "j2py doctor assessment" in html
     assert "Sample.java" in html
+    assert "Action Plan Preview" in html
+    assert "Highest-Risk Files" in html
     assert "Hotspots" in html
     assert "Diagnostic Clusters" in html
+    assert "Validation Breakdown" in html
     assert "Risk" in html
     assert "Ready files" in html
     assert "<script" not in html

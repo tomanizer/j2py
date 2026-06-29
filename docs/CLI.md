@@ -208,9 +208,13 @@ Compare two assessment JSON files:
 ```bash
 j2py doctor diff before.json after.json
 j2py doctor diff before.json after.json --json diff.json
+j2py doctor diff before.json after.json --fail-on-regression
 ```
 
-See [Doctor](DOCTOR.md) for the assessment layer guide, schema, and workflows.
+`--fail-on-regression` exits non-zero when the deterministic diff finds newly added
+parse failures, diagnostics, validation failures, risk/readiness regressions, or other
+file-level regressions. See [Doctor](DOCTOR.md) for the assessment layer guide, schema,
+and workflows.
 
 ## `j2py sarif`
 
