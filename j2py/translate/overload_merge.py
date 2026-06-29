@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
@@ -47,6 +48,13 @@ class _OverloadForward:
 class _MergedDefault:
     text: str
     is_literal: bool
+
+
+def _constant_python_name(name: str) -> Callable[[JavaNode], str]:
+    def python_name_for_member(_member: JavaNode) -> str:
+        return name
+
+    return python_name_for_member
 
 
 def _merged_constructor_overload(
@@ -527,6 +535,7 @@ def _merged_forwarding_method_overload(
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
+    python_name_override: str | None = None,
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -613,11 +622,20 @@ def _merged_forwarding_method_overload(
 
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
-    lines = _overload_stubs(members, cfg, diagnostics)
+    lines = _overload_stubs(
+        members,
+        cfg,
+        diagnostics,
+        python_name_for_member=(
+            _constant_python_name(python_name_override)
+            if python_name_override is not None
+            else None
+        ),
+    )
     if is_static:
         lines.append("    @staticmethod")
     signature = render_method_signature(
-        member_python_name(impl.member),
+        python_name_override or member_python_name(impl.member),
         signature_params,
         return_type=return_type,
         include_self=not is_static,
@@ -710,6 +728,8 @@ def _resolve_overload_defaults(
 
 def _resolve_pass_through_forwarding(forwards: list[_OverloadForward]) -> _OverloadForward | None:
     """Resolve same-arity forwarding overloads that pass every parameter through."""
+    if any(forward.member.type != "method_declaration" for forward in forwards):
+        return None
     implementations = [forward for forward in forwards if forward.forwarded is None]
     if len(implementations) != 1:
         return None
@@ -720,7 +740,11 @@ def _resolve_pass_through_forwarding(forwards: list[_OverloadForward]) -> _Overl
     for forward in forwards:
         if forward is impl:
             continue
-        if forward.forwarded is None or len(forward.forwarded) != len(impl.params):
+        if (
+            forward.forwarded is None
+            or len(forward.params) != len(impl.params)
+            or len(forward.forwarded) != len(impl.params)
+        ):
             return None
         own_names = {param.raw_name: index for index, param in enumerate(forward.params)}
         vector = _forward_entries(forward.forwarded, own_names)
@@ -906,6 +930,7 @@ def _merged_method_overload(
     docstring_lines: list[str] | None = None,
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
+    python_name_override: str | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -925,7 +950,7 @@ def _merged_method_overload(
     if any([param.raw_name for param in params] != raw_names for params in param_sets):
         return None
 
-    name = member_python_name(members[0])
+    name = python_name_override or member_python_name(members[0])
     is_static = "static" in _modifiers(members[0])
     if any(("static" in _modifiers(member)) != is_static for member in members):
         return None
@@ -972,7 +997,16 @@ def _merged_method_overload(
     for param in merged_params:
         register_param(ctx, param)
 
-    lines = _overload_stubs(members, cfg, diagnostics)
+    lines = _overload_stubs(
+        members,
+        cfg,
+        diagnostics,
+        python_name_for_member=(
+            _constant_python_name(python_name_override)
+            if python_name_override is not None
+            else None
+        ),
+    )
     if is_static:
         lines.append("    @staticmethod")
     signature = render_method_signature(
