@@ -101,14 +101,25 @@ layer. Each fix below removed its patch.
 | CT-2 | **Fixed** | `CaseUtils` | `String.toLowerCase(Locale.ROOT)` emitted a non-existent `str.to_lower_case(Locale.ROOT)` call and left `Locale` unbound. The single-`Locale` overload of `toLowerCase`/`toUpperCase` now lowers to `str.lower()`/`str.upper()`; ASCII-equivalent locales (`Locale.ROOT`/`ENGLISH`/`US`/…) are exact, others emit a locale-sensitivity warning. Fixed in `j2py/translate/expr_jdk_calls.py`; covered by `test_to_lower_upper_case_locale_overload_lowers_to_python_case` and `test_to_lower_case_locale_sensitive_locale_warns`. |
 | CT-3 | **Fixed** | `CaseUtils` | `String.codePointAt(int)` emitted a non-existent `str.code_point_at(index)` call. Now lowers to `ord(str[index])` (mirrors `charAt`'s code-point indexing). Fixed in `j2py/translate/expr_jdk_calls.py`; covered by `test_code_point_at_lowers_to_ord_subscript`. |
 
-A fourth observation is **not** a residual patch but a scoping exclusion:
+A fourth observation is **not** a residual patch but a known limitation:
 
-- **CT-4 (excluded, not patched):** name resolution misroutes `java.lang.Character` into
-  the translated package, emitting `from org.apache.commons.text.Character import
-  Character`. The harness handles this by import-stripping plus the `Character` stub, so
-  no output patch is needed — but the misrouting is a real defect worth a rule-layer fix.
-  Separately, the upstream surrogate-pair *delimiter* assertion
-  (`toCamelCase(..., '\uD800', '\uDF14')`) is excluded from the oracle: Java combines two
+- **CT-4 (known limitation, intentionally not patched):** an unmapped `java.lang.Character`
+  reference resolves through the **same-package type fallback**, emitting
+  `from org.apache.commons.text.Character import Character`. The case-study harness handles
+  it by import-stripping plus the `Character` stub. This initially looked like a simple
+  name-resolution bug, but a spike that routed all `JAVA_LANG_BUILTINS` to the implicit
+  no-import binding showed it is **load-bearing**: the equivalence gate
+  (`BooleanUtils`/`StringUtils`/`NumberUtils` fixtures in `tests/equivalence/`) deliberately
+  relies on the same-package fallback to inject stubs at the package path
+  (`org.apache.commons.lang3.Character`, `...Boolean`), so removing those imports breaks the
+  gate with `NameError`. A real fix would either (a) lower the specific `Character` static
+  methods — but `charCount` is entangled with the UTF-16-vs-code-point string model (the
+  stub deliberately returns `1` because the rest of the pipeline indexes in code-point
+  space), or (b) route `java.lang.Character` to a runtime/platform shim, which is an
+  `import_map`/ADR decision rather than a name-resolution change. CT-4 is therefore left as a
+  documented convention, not a defect to patch here.
+- **Surrogate-pair delimiter (excluded):** the upstream assertion
+  `toCamelCase(..., '\uD800', '\uDF14')` is excluded from the oracle: Java combines two
   lone surrogate `char`s in the delimiter array into the supplementary code point
   `U+10314`, which Python's code-point model cannot represent as a delimiter.
   `test_excluded_surrogate_delimiter_case_is_documented` keeps that exclusion explicit.
@@ -118,7 +129,9 @@ A fourth observation is **not** a residual patch but a scoping exclusion:
 1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done.**
 2. ~~CT-2 (locale-qualified `toLowerCase`/`toUpperCase`) and CT-3 (`String.codePointAt`).~~
    **Done** — `_RESIDUAL_GAP_PATCHES` is now empty.
-3. Fix the `java.lang.Character` name-resolution misrouting (CT-4) so the bogus
-   in-package import is not emitted.
+3. CT-4 is a documented convention, not a quick fix (see above). If pursued, it needs an
+   ADR-level decision: route `java.lang` wrapper types to a runtime shim or `import_map`
+   entry, and migrate the equivalence-gate fixtures off the same-package-stub mechanism in
+   the same change.
 4. Expand to `WordUtils` once the string/code-point primitives above are owned by the
    rule layer; defer `StringEscapeUtils` until the lookup machinery has a clear owner.
