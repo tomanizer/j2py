@@ -28,6 +28,7 @@ from j2py.translate.class_members import (
     direct_nested_type_names,
     docstring_for_group,
     enclosing_static_dispatch_for_nested_types,
+    group_has_to_string_override,
     inherited_static_dispatch,
     inherited_static_instance_static_aliases,
     inherited_static_instance_zero_arg_names,
@@ -43,6 +44,7 @@ from j2py.translate.class_members import (
     raw_member_name,
     static_instance_collision_static_aliases,
     static_instance_collision_zero_arg_names,
+    to_string_dunder_wrapper,
     type_metadata_comment_lines,
 )
 from j2py.translate.class_methods import (
@@ -458,6 +460,8 @@ def translate_class(
                     static_instance_static_zero_arg_names=static_instance_static_zero_arg,
                 ),
             )
+            if group_has_to_string_override(group):
+                lines.extend(to_string_dunder_wrapper(cfg))
             continue
 
         member = group[0]
@@ -513,6 +517,8 @@ def translate_class(
                 docstring_lines=member_docstring_map.get(node_key(member)),
             )
         )
+        if group_has_to_string_override(group):
+            lines.extend(to_string_dunder_wrapper(cfg))
 
     if class_body_needs_pass(lines):
         lines.append("    pass")
