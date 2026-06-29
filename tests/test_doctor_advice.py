@@ -81,9 +81,10 @@ def test_build_doctor_advice_context_clips_and_sorts() -> None:
     assert parsed["schema_version"] == 2
     assert parsed["summary"]["files"] == 2
     assert len(parsed["issue_slices"]["parse_failures"]) == 1
-    assert len(parsed["issue_slices"]["top_risk_files"]) == 1
     assert len(parsed["issue_slices"]["rule_gap_signal_files"]) == 1
     assert len(parsed["issue_slices"]["top_warning_reasons"]) == 1
+    assert "top_risk_files" not in parsed["issue_slices"]
+    assert "high_risk_files" not in parsed["issue_slices"]
 
 
 def test_render_doctor_advice_json_contains_envelope_fields() -> None:

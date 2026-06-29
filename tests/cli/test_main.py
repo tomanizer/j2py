@@ -2,8 +2,10 @@
 
 import json
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
+from tenacity import RetryError
 from typer.testing import CliRunner
 
 import j2py.pipeline as pipeline
@@ -1528,6 +1530,48 @@ def test_cli_doctor_advise_outputs_to_nested_path(
     assert output.is_file()
     payload = json.loads(output.read_text())
     assert payload["provider"] == "anthropic"
+
+
+def test_cli_doctor_advise_handles_retry_error_without_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "src",
+                "summary": {"files": 1},
+                "files": [],
+            },
+        )
+    )
+
+    attempt = Mock()
+    attempt.exception.return_value = RuntimeError("temporary failure")
+    monkeypatch.setattr(
+        "j2py.llm.client.advise_with_doctor_assessment",
+        lambda **_: (_ for _ in ()).throw(RetryError(attempt)),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: RetryError" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_doctor_advise_openai_requires_explicit_model(tmp_path: Path) -> None:

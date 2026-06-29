@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import typer
+from tenacity import RetryError
 
 from j2py.cli.config import load_config, resolve_llm_options
 from j2py.cli.output import console
@@ -20,7 +21,7 @@ def _load_assessment(path: Path) -> tuple[DoctorAssessment | None, int]:
         from j2py.doctor import load_assessment_json
 
         return load_assessment_json(path), 0
-    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         return None, 1
 
@@ -127,7 +128,8 @@ def diff(
     if code or after_code:
         raise typer.Exit(code=max(code, after_code))
 
-    assert before_result is not None and after_result is not None
+    if before_result is None or after_result is None:
+        raise typer.Exit(code=1)
     try:
         diff_result = diff_assessments(
             before_result,
@@ -209,7 +211,8 @@ def advise(
     assessment, code = _load_assessment(assessment_json)
     if code:
         raise typer.Exit(code=code)
-    assert assessment is not None
+    if assessment is None:
+        raise typer.Exit(code=code)
 
     auto_root = assessment_json.parent
     source_hint = assessment.payload.get("source")
@@ -246,7 +249,7 @@ def advise(
             use_cache=use_cache,
             max_evidence_items=max_evidence_items,
         )
-    except (RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError, RetryError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 

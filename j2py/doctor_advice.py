@@ -68,7 +68,6 @@ def build_doctor_advice_context(
         },
         "issue_slices": {
             "parse_failures": _take(parse_failure_files, max_evidence_items),
-            "top_risk_files": _take(top_risk_files, max_evidence_items),
             "unresolved_imports": {
                 "count": len(unresolved),
                 "top_packages": _take(
@@ -83,7 +82,6 @@ def build_doctor_advice_context(
                 hotspots.get("lowest_coverage_files", []),
                 max_evidence_items,
             ),
-            "high_risk_files": _take(hotspots.get("highest_risk_files", []), max_evidence_items),
             "top_warning_nodes": _take(
                 hotspots.get("unhandled_node_types", []), max_evidence_items
             ),
