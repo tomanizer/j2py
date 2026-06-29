@@ -846,6 +846,119 @@ def test_append_char_string_overload_uses_value_dispatcher() -> None:
     assert_valid_python(result.source)
 
 
+def test_array_and_string_overloads_use_distinct_value_guards() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ArrayDispatch {
+            public static String kind(String value) {
+                return "string";
+            }
+
+            public static String kind(char[] value) {
+                return "chars";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def kind(value: str) -> str: ..." in result.source
+    assert "def kind(value: list[str]) -> str: ..." in result.source
+    assert (
+        "if len(args) == 1 and isinstance(args[0], list) and all("
+        "isinstance(value, str) and len(value) == 1 for value in args[0]):"
+    ) in result.source
+    assert "if len(args) == 1 and isinstance(args[0], str):" in result.source
+    assert "len(args) == 1 and isinstance(args[0], str) and len(args[0]) == 1" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<array-dispatch>", "exec"), namespace)
+    array_dispatch = namespace["ArrayDispatch"]
+    assert array_dispatch.kind(["a"]) == "chars"  # type: ignore[attr-defined]
+    assert array_dispatch.kind("a") == "string"  # type: ignore[attr-defined]
+
+
+def test_char_and_byte_array_overloads_use_element_shape_guards() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ArrayDispatch {
+            public static String kind(char[] value) {
+                return "chars";
+            }
+
+            public static String kind(byte[] value) {
+                return "bytes";
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "overloaded method kind requires manual dispatch" not in result.source
+    char_array_guard = "all(isinstance(value, str) and len(value) == 1 for value in args[0])"
+    assert char_array_guard in result.source
+    assert (
+        "all(isinstance(value, int) and not isinstance(value, bool) for value in args[0])"
+        in result.source
+    )
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<array-dispatch>", "exec"), namespace)
+    array_dispatch = namespace["ArrayDispatch"]
+    assert array_dispatch.kind(["a"]) == "chars"  # type: ignore[attr-defined]
+    assert array_dispatch.kind([1]) == "bytes"  # type: ignore[attr-defined]
+
+
+def test_void_array_overload_branch_returns_after_delegation() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class ArrayDispatch {
+            private static char[] alphabet(boolean lower) {
+                return new char[] { 'a' };
+            }
+
+            public static void encode(
+                    byte[] data, int offset, int length, boolean lower, char[] out, int outOffset) {
+                encode(data, offset, length, alphabet(lower), out, outOffset);
+            }
+
+            public static char[] encode(
+                    byte[] data, int offset, int length, char[] alphabet,
+                    char[] out, int outOffset) {
+                out[outOffset] = alphabet[0];
+                return out;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "isinstance(args[3], bool) and isinstance(args[4], list)" in result.source
+    assert "isinstance(args[3], list)" in result.source
+    assert "isinstance(args[4], list)" in result.source
+    alphabet_guard = "all(isinstance(value, str) and len(value) == 1 for value in args[3])"
+    out_guard = "all(isinstance(value, str) and len(value) == 1 for value in args[4])"
+    assert alphabet_guard in result.source
+    assert out_guard in result.source
+    expected_call = (
+        "ArrayDispatch.encode("
+        "data, offset, length, ArrayDispatch.alphabet(lower), out, out_offset)\n"
+        "            return None"
+    )
+    assert expected_call in result.source
+    assert "isinstance(args[4], str) and len(args[4]) == 1" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<array-dispatch>", "exec"), namespace)
+    array_dispatch = namespace["ArrayDispatch"]
+    out = ["?"]
+    assert array_dispatch.encode([1], 0, 1, True, out, 0) is None  # type: ignore[attr-defined]
+    assert out == ["a"]
+
+
 def test_collection_shape_overloads_use_value_dispatcher() -> None:
     result = translate_source_with_diagnostics(
         """

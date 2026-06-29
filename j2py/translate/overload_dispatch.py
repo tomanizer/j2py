@@ -30,6 +30,7 @@ from j2py.translate.overload_equivalence import (
 from j2py.translate.overload_guards import (
     _dispatch_guard_for_parameter,
     _DispatchGuard,
+    _java_type_is_array,
     _member_dispatch_key,
     _value_dispatch_assignments,
     _value_dispatch_branch_order_key,
@@ -39,6 +40,7 @@ from j2py.translate.overload_guards import (
 from j2py.translate.overload_signatures import (
     _erased_overload_signature,
     _has_this_delegation,
+    _java_simple_type,
     _union_types,
 )
 from j2py.translate.statements import translate_body
@@ -165,7 +167,10 @@ def _value_dispatch_overload(
         ),
         key=lambda item: (*_value_dispatch_branch_order_key(item[1]), item[0]),
     )
+    ambiguous_null_arities = _ambiguous_null_dispatch_arities(branches.params_by_member)
     for _, (member, params, guards) in ordered:
+        if len(params) in ambiguous_null_arities:
+            continue
         null_condition = _value_dispatch_null_condition(guards, params)
         if null_condition is None:
             continue
@@ -266,6 +271,23 @@ def _value_dispatch_null_condition(
         return None
     parts.append("(" + " or ".join(none_checks) + ")")
     return " and ".join(parts)
+
+
+def _ambiguous_null_dispatch_arities(params_by_member: list[list[ParameterInfo]]) -> set[int]:
+    counts: dict[int, int] = {}
+    for params in params_by_member:
+        if any(param.is_spread for param in params):
+            continue
+        if not params or not all(_is_null_applicable_reference_param(param) for param in params):
+            continue
+        counts[len(params)] = counts.get(len(params), 0) + 1
+    return {arity for arity, count in counts.items() if count > 1}
+
+
+def _is_null_applicable_reference_param(param: ParameterInfo) -> bool:
+    if _java_type_is_array(param.java_type):
+        return True
+    return _java_simple_type(param.java_type) in {"Character", "Object", "String"}
 
 
 def _is_nullable_reference_param(param: ParameterInfo) -> bool:
@@ -691,7 +713,19 @@ def _translate_overload_member_body(
     ctx.in_method_body = True
     body_lines = translate_body(body, ctx, indent=indent) if body else [f"{indent}pass"]
     ctx.in_method_body = False
-    return _body_lines_with_local_context(ctx, body_lines, indent=indent)
+    lines = _body_lines_with_local_context(ctx, body_lines, indent=indent)
+    if method_return_type(member, cfg) == "None" and not _branch_exits(lines):
+        lines.append(f"{indent}return None")
+    return lines
+
+
+def _branch_exits(lines: list[str]) -> bool:
+    for line in reversed(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", '"""')):
+            continue
+        return stripped.startswith(("return", "raise"))
+    return False
 
 
 def _body_lines_with_local_context(

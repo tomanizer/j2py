@@ -1186,6 +1186,32 @@ def test_sized_array_creation_uses_java_default_values() -> None:
     assert_valid_python(python_source)
 
 
+def test_sized_array_creation_parenthesizes_non_atomic_sizes() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Arrays {
+            public byte[] decoded(byte[] data) {
+                return new byte[data.length >> 1];
+            }
+
+            public char[] doubled(int size) {
+                return new char[size << 1];
+            }
+
+            public int[] combined(int left, int right) {
+                return new int[left + right];
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return [0] * (len(data) >> 1)" in python_source
+    assert 'return ["\\0"] * (size << 1)' in python_source
+    assert "return [0] * (left + right)" in python_source
+    assert_valid_python(python_source)
+
+
 def test_multidimensional_array_creation_uses_nested_allocations() -> None:
     result = translate_source_with_diagnostics(
         """

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
@@ -191,10 +193,21 @@ def _array_creation_type_node(node: JavaNode) -> JavaNode | None:
 
 
 def _sized_array_allocation(default: str, sizes: list[str]) -> str:
-    allocation = f"[{default}] * {sizes[-1]}"
+    allocation = f"[{default}] * {_array_repeat_count(sizes[-1])}"
     for size in reversed(sizes[:-1]):
         allocation = f"[{allocation} for _ in range({size})]"
     return allocation
+
+
+def _array_repeat_count(size: str) -> str:
+    stripped = size.strip()
+    try:
+        expression = ast.parse(stripped, mode="eval").body
+    except SyntaxError:
+        return f"({stripped})"
+    if isinstance(expression, (ast.Name, ast.Constant, ast.Attribute, ast.Call, ast.Subscript)):
+        return stripped
+    return f"({stripped})"
 
 
 def _translate_class_literal(node: JavaNode, ctx: TranslationContext) -> str:
