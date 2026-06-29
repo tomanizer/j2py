@@ -87,6 +87,44 @@ def test_translate_with_llm_returns_cached_value(monkeypatch) -> None:
     assert result == "cached python"
 
 
+def test_advise_with_doctor_assessment_returns_cached_value(monkeypatch) -> None:
+    monkeypatch.setattr(client_mod, "_cache", FakeCache("cached advice"))
+
+    result = client_mod.advise_with_doctor_assessment(
+        evidence='{"files": []}',
+        evidence_fingerprint="abc",
+        output_format="markdown",
+        provider="anthropic",
+        model="claude-test",
+    )
+
+    assert result == "cached advice"
+
+
+def test_advise_with_doctor_assessment_calls_client_and_writes_cache(monkeypatch) -> None:
+    cache = FakeCache()
+
+    class Messages:
+        def stream(self, **kwargs: Any) -> FakeStream:
+            assert kwargs["model"] == "claude-test"
+            assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+            return FakeStream(_message("advice text"))
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    result = client_mod.advise_with_doctor_assessment(
+        evidence='{"files": []}',
+        evidence_fingerprint="abc",
+        output_format="markdown",
+        provider="anthropic",
+        model="claude-test",
+    )
+
+    assert result == "advice text"
+    assert list(cache.written.values()) == ["advice text"]
+
+
 def test_translate_with_llm_calls_client_and_writes_cache(monkeypatch) -> None:
     cache = FakeCache()
 
@@ -259,7 +297,39 @@ def test_translate_with_llm_cache_key_includes_config_fingerprint(monkeypatch) -
         model="claude-test",
     )
 
+
+def test_advise_with_doctor_assessment_cache_key_includes_output_format_and_evidence_fingerprint(
+    monkeypatch,
+) -> None:
+    cache = FakeCache()
+    calls: list[str] = []
+
+    class Messages:
+        def stream(self, **kwargs: Any) -> FakeStream:
+            calls.append(kwargs["messages"][0]["content"])
+            return FakeStream(_message("advice"))
+
+    monkeypatch.setattr(client_mod, "_cache", cache)
+    monkeypatch.setattr(client_mod, "get_client", lambda: SimpleNamespace(messages=Messages()))
+
+    client_mod.advise_with_doctor_assessment(
+        evidence='{"risk": 1}',
+        evidence_fingerprint="fp-1",
+        output_format="markdown",
+        provider="anthropic",
+        model="claude-test",
+    )
+    client_mod.advise_with_doctor_assessment(
+        evidence='{"risk": 1}',
+        evidence_fingerprint="fp-1",
+        output_format="json",
+        provider="anthropic",
+        model="claude-test",
+    )
+
     assert len(cache.written) == 2
+    assert len(calls) == 2
+    assert all('"risk": 1' in call for call in calls)
 
 
 def test_translate_with_llm_cache_key_includes_provider(monkeypatch) -> None:

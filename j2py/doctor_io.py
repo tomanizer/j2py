@@ -44,6 +44,12 @@ def _validate_doctor_schema(payload: dict[str, object], path: Path) -> None:
             f"{path} uses unsupported doctor schema_version {schema_version}; "
             f"expected {DOCTOR_SCHEMA_VERSION}"
         )
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        raise ValueError(f"{path} has invalid payload: expected 'summary' object")
+    files = payload.get("files")
+    if not isinstance(files, list):
+        raise ValueError(f"{path} has invalid payload: expected 'files' array")
 
 
 def write_doctor_diff_json(path: Path, diff: DoctorDiff) -> None:

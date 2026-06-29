@@ -150,9 +150,9 @@ directory translation writes.
 Assess Java sources before migration without live LLM calls.
 
 ```bash
-j2py doctor src/main/java
-j2py doctor src/main/java --json j2py-assessment.json --html j2py-assessment.html
-j2py doctor src/main/java --config-suggestions j2py.suggested.yaml
+j2py doctor assess src/main/java
+j2py doctor assess src/main/java --json j2py-assessment.json --html j2py-assessment.html
+j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
 ```
 
 Options:
@@ -165,6 +165,27 @@ Options:
 | `--config-suggestions PATH` | Write advisory config suggestions YAML. |
 | `--include-validation` | Run generated-Python validation during assessment. |
 | `--sample-limit N` | Assess only the first N Java files in deterministic path order. |
+
+Generate migration planning from an assessment JSON:
+
+```bash
+j2py doctor advise assessment.json
+j2py doctor advise assessment.json --provider anthropic --model claude-test
+j2py doctor advise assessment.json --output-format json --output j2py-advice.json
+```
+
+Options:
+
+| Option | Meaning |
+|--------|---------|
+| `--provider`, `--llm-provider` | `anthropic`, `gemini`, or `openai`; overrides configured defaults. |
+| `--model`, `-m` | LLM model ID. |
+| `--llm-base-url` | OpenAI-compatible base URL override. |
+| `--config`, `-c` | Extra config files, layered on top of auto-discovered config and CLI defaults. |
+| `--output`, `-o` | Write output to a file (default: stdout). |
+| `--output-format markdown|json` | Plain markdown (default) or JSON envelope. |
+| `--max-evidence-items N` | Cap per-section evidence examples included in the prompt. |
+| `--cache / --no-cache` | Enable or disable cached advice responses. |
 
 Compare two assessment JSON files:
 

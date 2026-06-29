@@ -1,6 +1,11 @@
 """Tests for LLM prompt construction."""
 
-from j2py.llm.prompts import PROMPT_VERSION, build_translation_prompt
+from j2py.llm.prompts import (
+    ADVICE_PROMPT_VERSION,
+    PROMPT_VERSION,
+    build_doctor_advice_prompt,
+    build_translation_prompt,
+)
 
 
 def test_build_translation_prompt_includes_context_source_and_partial() -> None:
@@ -70,3 +75,23 @@ def test_system_prompt_uses_j2py_monitor_for_non_this_synchronized_locks() -> No
 
 def test_prompt_version_bumped_for_synchronized_monitor_guidance() -> None:
     assert PROMPT_VERSION == "j2py-translation-v8"
+
+
+def test_build_doctor_advice_prompt_includes_evidence_and_sections() -> None:
+    system, messages = build_doctor_advice_prompt(evidence_json='{"summary":{"files":1}}')
+
+    assert len(system) == 1
+    assert system[0]["type"] == "text"
+    assert system[0]["cache_control"] == {"type": "ephemeral"}
+    assert "migration planner" in system[0]["text"]
+    content = messages[0]["content"]
+    assert "Use this evidence object only." in content
+    assert "<evidence>" in content
+    assert '{"summary":{"files":1}}' in content
+    assert "## Migration plan" in content
+    assert "## Issue slices" in content
+    assert "## Config and rule-work" in content
+
+
+def test_doctor_advice_prompt_version_is_stable() -> None:
+    assert ADVICE_PROMPT_VERSION == "j2py-doctor-advice-v1"

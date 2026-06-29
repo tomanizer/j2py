@@ -434,3 +434,30 @@ def test_load_assessment_json_rejects_non_integer_schema_version(tmp_path: Path)
 
     with pytest.raises(ValueError, match="invalid doctor schema_version"):
         load_assessment_json(path)
+
+
+def test_load_assessment_json_rejects_missing_summary(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text(
+        json.dumps({"schema_version": DOCTOR_SCHEMA_VERSION, "files": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid payload: expected 'summary'"):
+        load_assessment_json(path)
+
+
+def test_load_assessment_json_rejects_missing_files(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "summary": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid payload: expected 'files' array"):
+        load_assessment_json(path)

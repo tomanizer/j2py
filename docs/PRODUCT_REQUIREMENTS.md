@@ -97,7 +97,7 @@ j2py translate <file|dir> [--output <path>] [--no-llm]
 j2py analyze  <file|dir>          # inventory classes, print dependency graph
 j2py compare  <file>              # side-by-side Java/Python review (VS Code or paths)
 j2py dashboard <output-root>      # regenerate a directory translation dashboard
-j2py doctor   <file|dir> [--json <path>] [--html <path>] [--config-suggestions <path>]
+j2py doctor assess <file|dir> [--json <path>] [--html <path>] [--config-suggestions <path>]
 j2py doctor diff <before.json> <after.json>
 j2py sarif    <assessment.json> --output <path>  # export doctor diagnostics as SARIF
 j2py watch    <dir> [--output <path>]  # incremental re-translate on file changes

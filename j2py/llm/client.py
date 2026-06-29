@@ -19,7 +19,12 @@ from tenacity import (
 )
 
 from j2py.dotenv import load_repo_dotenv
-from j2py.llm.prompts import PROMPT_VERSION, REVIEW_PROMPT_VERSION, TextPromptBlock
+from j2py.llm.prompts import (
+    ADVICE_PROMPT_VERSION,
+    PROMPT_VERSION,
+    REVIEW_PROMPT_VERSION,
+    TextPromptBlock,
+)
 from j2py.llm.review import LlmReviewFinding, parse_review_findings
 
 _CACHE_DIR = Path.home() / ".cache" / "j2py" / "llm"
@@ -277,6 +282,36 @@ def _review_cache_key(
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+def _advice_cache_key(
+    *,
+    provider: LLMProvider,
+    model: str,
+    context: str,
+    context_fingerprint: str,
+    config_fingerprint: str,
+    output_format: str,
+    max_evidence_items: int,
+    system: str,
+    endpoint: str | None,
+) -> str:
+    payload = json.dumps(
+        {
+            "config_fingerprint": config_fingerprint,
+            "context": context,
+            "context_fingerprint": context_fingerprint,
+            "max_evidence_items": max_evidence_items,
+            "model": model,
+            "output_format": output_format,
+            "provider": provider,
+            "provider_endpoint": endpoint,
+            "prompt_version": ADVICE_PROMPT_VERSION,
+            "system": system,
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def _system_text(system: list[TextPromptBlock]) -> str:
     texts: list[str] = []
     for block in system:
@@ -380,6 +415,71 @@ def translate_with_llm(
     if use_cache:
         _cache[key] = result
 
+    return result
+
+
+def advise_with_doctor_assessment(
+    *,
+    evidence: str,
+    evidence_fingerprint: str,
+    output_format: str,
+    model: str | None = None,
+    provider: LLMProvider = "anthropic",
+    base_url: str | None = None,
+    use_cache: bool = True,
+    config_fingerprint: str = "",
+    max_evidence_items: int = 12,
+) -> str:
+    """Generate migration advice from deterministic doctor-assessment evidence."""
+    from j2py.llm.prompts import build_doctor_advice_prompt
+
+    if output_format not in {"markdown", "json"}:
+        raise ValueError("unsupported advice output format")
+
+    system, messages = build_doctor_advice_prompt(evidence_json=evidence)
+    resolved_model = resolve_model(provider, model)
+    endpoint = cache_endpoint_identity(provider, base_url)
+
+    key = _advice_cache_key(
+        provider=provider,
+        model=resolved_model,
+        context=evidence,
+        context_fingerprint=evidence_fingerprint,
+        config_fingerprint=config_fingerprint,
+        output_format=output_format,
+        max_evidence_items=max_evidence_items,
+        system=_system_text(system),
+        endpoint=endpoint,
+    )
+    if use_cache:
+        cached: str | None = _cache.get(key)
+        if cached is not None:
+            return cached
+
+    if provider == "anthropic":
+        result = _translate_with_anthropic(
+            model=resolved_model,
+            system=system,
+            messages=messages,
+        )
+    elif provider == "gemini":
+        result = _translate_with_gemini(
+            model=resolved_model,
+            system_text=_system_text(system),
+            contents=_message_text(messages),
+        )
+    elif provider == "openai":
+        result = _translate_with_openai(
+            model=resolved_model,
+            system_text=_system_text(system),
+            contents=_message_text(messages),
+            base_url=base_url,
+        )
+    else:  # pragma: no cover - Literal prevents this for typed callers
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    if use_cache:
+        _cache[key] = result
     return result
 
 
