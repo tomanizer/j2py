@@ -375,6 +375,29 @@ def _member_translated_python_name(member: JavaNode, cfg: TranslationConfig) -> 
     return translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
 
 
+def is_to_string_override(member: JavaNode) -> bool:
+    """Whether a Java method declaration is an Object.toString() override."""
+    return (
+        member.type == "method_declaration"
+        and raw_member_name(member) == "toString"
+        and "static" not in _modifiers(member)
+        and _member_java_parameter_count(member) == 0
+    )
+
+
+def group_has_to_string_override(group: list[JavaNode]) -> bool:
+    return any(is_to_string_override(member) for member in group)
+
+
+def to_string_dunder_wrapper(cfg: TranslationConfig) -> list[str]:
+    method_name = translate_method_name("toString", snake_case=cfg.snake_case_methods)
+    return [
+        "",
+        "    def __str__(self) -> str:",
+        f"        return self.{method_name}()",
+    ]
+
+
 def static_instance_collision_python_names(
     members: Iterable[JavaNode],
     cfg: TranslationConfig,
@@ -442,10 +465,7 @@ def static_instance_collision_zero_arg_names(
 
 
 def member_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
-    return {
-        translate_method_name(raw_member_name(member), snake_case=cfg.snake_case_methods)
-        for member in members
-    }
+    return {_member_translated_python_name(member, cfg) for member in members}
 
 
 def member_static_method_names(members: Iterable[JavaNode], cfg: TranslationConfig) -> set[str]:
