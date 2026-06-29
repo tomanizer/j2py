@@ -369,10 +369,10 @@ def test_graduated_issue_9_nested_types_target_fixture_translates() -> None:
     assert "name: str" in result.source
     assert "order: int" in result.source
     assert "class Builder:" in result.source
-    assert "def build(self, name: str) -> Entry:" in result.source
+    assert "def build(self, name: str) -> NestedTypes.Entry:" in result.source
     assert "return Entry(name, 1)" in result.source
-    assert "def anonymous_writer(self, prefix: str) -> Writer:" in result.source
-    assert "class _J2pyAnonymous1(Writer):" in result.source
+    assert "def anonymous_writer(self, prefix: str) -> NestedTypes.Writer:" in result.source
+    assert "class _J2pyAnonymous1(NestedTypes.Writer):" in result.source
     assert "def write(self, value: str) -> None:" in result.source
     assert "print(prefix + value)" in result.source
     assert "return _J2pyAnonymous1()" in result.source
@@ -423,7 +423,8 @@ def test_cast_expression_target_fixture_translates_with_warning() -> None:
 
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "from typing import cast" in result.source
+    assert "from typing import TYPE_CHECKING, cast" in result.source
+    assert "if TYPE_CHECKING:" in result.source
     assert (
         "return cast(TypeReference, value).get_canonical_name()  # cast: (TypeReference)"
         in result.source

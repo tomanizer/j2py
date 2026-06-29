@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_types import translate_type_annotation
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import PatternBinding, TranslationContext
 from j2py.translate.expressions import translate_expression
@@ -247,6 +248,10 @@ def _translate_static_field_access(node: JavaNode, ctx: TranslationContext) -> s
     if receiver == "Math" and field == "E":
         ctx.diagnostics.imports.need_math()
         return "math.e"
+    qualified_owner = ctx.name_resolver.bindings.file_type_paths.get(receiver)
+    if qualified_owner is not None and ctx.in_method:
+        py_field = translate_field_name(field, snake_case=ctx.cfg.snake_case_fields)
+        return f"{qualified_owner}.{py_field}"
     return None
 
 
@@ -306,7 +311,7 @@ def _translate_cast_expression(node: JavaNode, ctx: TranslationContext) -> str:
             return f"(({base} & 0xFFFF) ^ 0x8000) - 0x8000"
         return base
 
-    py_type = translate_type(type_node.text, ctx.cfg)
+    py_type = translate_type_annotation(type_node.text, ctx)
     cast_target = _runtime_safe_cast_target(type_node, py_type, ctx)
     ctx.diagnostics.imports.need_typing("cast")
     ctx.diagnostics.imports.need_type_annotation(py_type)

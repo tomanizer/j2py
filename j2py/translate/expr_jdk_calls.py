@@ -201,6 +201,7 @@ def _translate_enum_set_static_call(
         "allOf": "all_of",
         "noneOf": "none_of",
         "copyOf": "copy_of",
+        "complementOf": "complement_of",
         "range": "range",
     }
     py_method = runtime_methods.get(method_name)
@@ -227,6 +228,8 @@ def _translate_arrays_static_call(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
+    if method_name == "toString" and len(args) == 1:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_array_to_string")
     return _translate_arrays_call(method_name, args)
 
 
@@ -332,6 +335,33 @@ def _translate_clone_call(
 
 def _is_array_or_list_like_receiver(node: JavaNode, ctx: TranslationContext) -> bool:
     inferred_type = infer_expression_py_type(node, ctx)
+    if inferred_type is not None and is_list_like_type(inferred_type):
+        return True
+    return _is_list_like_passthrough_call(node, ctx)
+
+
+def _is_list_like_passthrough_call(node: JavaNode, ctx: TranslationContext) -> bool:
+    if node.type != "method_invocation":
+        return False
+    named = [child for child in node.named_children if child.type != "comment"]
+    if len(named) < 2:
+        return False
+    args_node = next((child for child in named if child.type == "argument_list"), None)
+    if args_node is None:
+        return False
+    args_index = named.index(args_node)
+    method_node = named[args_index - 1]
+    if method_node.text not in {
+        "checkNotNull",
+        "nonNull",
+        "nonNullOrThrow",
+        "requireNonNull",
+    }:
+        return False
+    first_arg = next(iter(args_node.named_children), None)
+    if first_arg is None:
+        return False
+    inferred_type = infer_expression_py_type(first_arg, ctx)
     return inferred_type is not None and is_list_like_type(inferred_type)
 
 
@@ -715,6 +745,8 @@ def _translate_collections_call(
 
 
 def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
+    if method_name == "toString" and len(args) == 1:
+        return f"_j2py_array_to_string({args[0]})"
     if method_name == "asList":
         return f"[{', '.join(args)}]"
     if method_name == "stream" and len(args) == 1:
@@ -788,6 +820,23 @@ def _translate_objects_call(
     return None
 
 
+def _translate_optional_static_call(
+    node: JavaNode,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if method_name == "empty" and not args:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import Optional")
+        return "Optional.empty()"
+    if method_name in {"of", "ofNullable"} and len(args) == 1:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import Optional")
+        py_method = "of_nullable" if method_name == "ofNullable" else "of"
+        return f"Optional.{py_method}({args[0]})"
+    return None
+
+
 def _translate_preconditions_call(method_name: str, args: list[str]) -> str | None:
     if method_name == "checkNotNull" and args:
         return args[0]
@@ -849,6 +898,7 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
     "Long": _translate_long_static_call,
     "Math": _translate_math_static_call,
     "Objects": _translate_objects_static_call,
+    "Optional": _translate_optional_static_call,
     "Preconditions": _translate_preconditions_static_call,
     "String": _translate_string_static_call,
     "System": _translate_system_static_call,

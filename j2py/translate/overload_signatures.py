@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_types import bind_annotation_type_names
 from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import method_body, parameter_infos
 from j2py.translate.class_methods import return_type as method_return_type
 from j2py.translate.class_methods import signature as render_method_signature
 from j2py.translate.class_model import _modifiers
 from j2py.translate.diagnostics import TranslationDiagnostics
+
+if TYPE_CHECKING:
+    from j2py.translate.diagnostics import TranslationContext
 
 
 def _java_simple_type(java_type: str) -> str:
@@ -98,6 +103,7 @@ def _overload_stubs(
     diagnostics: TranslationDiagnostics,
     *,
     python_name_for_member: Callable[[JavaNode], str] | None = None,
+    ctx: TranslationContext | None = None,
 ) -> list[str]:
     diagnostics.imports.need_typing("overload")
     lines: list[str] = []
@@ -110,6 +116,19 @@ def _overload_stubs(
         return_type = (
             "None" if member.type == "constructor_declaration" else method_return_type(member, cfg)
         )
+        if ctx is not None:
+            params = [
+                type(param)(
+                    raw_name=param.raw_name,
+                    py_name=param.py_name,
+                    py_type=bind_annotation_type_names(param.py_type, ctx),
+                    java_type=param.java_type,
+                    is_spread=param.is_spread,
+                    py_annotations=param.py_annotations,
+                )
+                for param in params
+            ]
+            return_type = bind_annotation_type_names(return_type, ctx)
         if cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(return_type)
             for param in params:
@@ -137,6 +156,7 @@ def _static_instance_overload_stubs(
     static_name: str,
     cfg: TranslationConfig,
     diagnostics: TranslationDiagnostics,
+    ctx: TranslationContext | None = None,
 ) -> list[str]:
     def python_name_for_member(member: JavaNode) -> str:
         if "static" in _modifiers(member):
@@ -148,4 +168,5 @@ def _static_instance_overload_stubs(
         cfg,
         diagnostics,
         python_name_for_member=python_name_for_member,
+        ctx=ctx,
     )

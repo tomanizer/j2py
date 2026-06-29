@@ -14,16 +14,27 @@ defects that had to be patched for the loop to close are asserted explicitly in
 
 from __future__ import annotations
 
+import importlib.util
+import subprocess
+import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.case_study.jsemver_harness import _RESIDUAL_GAP_PATCHES, link_util_namespace
+from tests.case_study.jsemver_harness import (
+    _RESIDUAL_GAP_PATCHES,
+    link_util_namespace,
+    link_version_core_namespace,
+    translate_version_core,
+)
 
 _NS = link_util_namespace()
 Stream = _NS.Stream
 UnexpectedElementException = _NS.UnexpectedElementException
+_VERSION_NS = link_version_core_namespace()
+Version = _VERSION_NS.Version
 
 
 def _et(predicate: Callable[[Any], bool]) -> Any:
@@ -154,13 +165,86 @@ def test_should_keep_track_of_current_offset() -> None:
     assert stream.current_offset() == 3
 
 
+def test_version_should_construct_and_render_core_version() -> None:
+    version = Version.of(1, 2, 3)
+
+    assert version.major_version() == 1
+    assert version.minor_version() == 2
+    assert version.patch_version() == 3
+    assert str(version) == "1.2.3"
+
+
+def test_version_should_parse_core_version() -> None:
+    version = Version.parse("1.2.3")
+
+    assert version.major_version() == 1
+    assert version.minor_version() == 2
+    assert version.patch_version() == 3
+    assert str(version) == "1.2.3"
+
+
+def test_version_should_parse_pre_release_and_build_metadata() -> None:
+    version = Version.parse("1.2.3-alpha.1+build.5")
+
+    assert str(version) == "1.2.3-alpha.1+build.5"
+
+
+def test_version_should_compare_numeric_precedence() -> None:
+    older = Version.of(1, 2, 3)
+    newer = Version.of(1, 2, 4)
+
+    assert older.compare_to(newer) < 0
+    assert newer.compare_to(older) > 0
+    assert older.compare_to(Version.of(1, 2, 3)) == 0
+
+
+def test_version_should_increment_patch_version() -> None:
+    version = Version.of(1, 2, 3)
+
+    assert str(version.next_patch_version()) == "1.2.4"
+
+
+def test_version_core_generated_output_has_no_f821(tmp_path: Path) -> None:
+    if importlib.util.find_spec("ruff") is None:
+        pytest.skip("ruff is not installed")
+
+    sources, _ = translate_version_core()
+    for name, source in sources.items():
+        (tmp_path / f"{name}.py").write_text(source)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "--select", "F821", str(tmp_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_version_core_translation_metrics() -> None:
+    metrics = _VERSION_NS.metrics
+
+    assert set(metrics) == {
+        "ParseException",
+        "UnexpectedElementException",
+        "Stream",
+        "UnexpectedCharacterException",
+        "Parser",
+        "VersionParser",
+        "Version",
+    }
+    assert all(metric.coverage == 1.0 for metric in metrics.values())
+    assert sum(metric.todos for metric in metrics.values()) == 0
+    assert sum(metric.semantic_warnings for metric in metrics.values()) == 315
+
+
 def test_residual_gap_inventory() -> None:
     """Lock the residual translator-defect list this case study reports.
 
     If a future rule-layer change fixes one of these gaps, drop the corresponding patch
     from ``jsemver_harness._RESIDUAL_GAP_PATCHES`` and update docs/CASE_STUDY_JSEMVER.md.
     """
-    applied = set(_NS.applied_gaps)
+    applied = set(_NS.applied_gaps) | set(_VERSION_NS.applied_gaps)
     declared = {gap.gap_id for gap in _RESIDUAL_GAP_PATCHES}
     # Every documented gap is a real defect that actually fired on the current output.
     assert applied == declared == set()

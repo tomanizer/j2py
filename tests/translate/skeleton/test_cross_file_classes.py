@@ -160,17 +160,25 @@ def test_method_reference_static_field_dependency_is_deferred_in_order() -> None
 
     assert coverage == 1.0
     class_body, _, deferred = python_source.partition(
-        "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata",
+        "Version.INCREMENT_ORDER = Comparator(Version.compare_to_ignore_build_metadata)",
     )
     assert "INCREMENT_ORDER: Comparator[Version]" not in class_body
     assert "PRECEDENCE_ORDER: Comparator[Version]" not in class_body
-    assert "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata" in python_source
+    assert (
+        "Version.INCREMENT_ORDER = Comparator(Version.compare_to_ignore_build_metadata)"
+        in python_source
+    )
     assert "Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()" in python_source
     assert python_source.index(
-        "Version.INCREMENT_ORDER = Version.compare_to_ignore_build_metadata",
+        "Version.INCREMENT_ORDER = Comparator(Version.compare_to_ignore_build_metadata)",
     ) < python_source.index("Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()")
     assert deferred.strip() == "Version.PRECEDENCE_ORDER = Version.INCREMENT_ORDER.reversed()"
-    assert_valid_python(python_source)
+    assert_module_executes(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<translated>", "exec"), namespace)
+    version = namespace["Version"]()
+    assert namespace["Version"].INCREMENT_ORDER.compare(version, version) == 0  # type: ignore[attr-defined]
+    assert namespace["Version"].PRECEDENCE_ORDER.compare(version, version) == 0  # type: ignore[attr-defined]
 
 
 def test_deferred_static_field_qualification_respects_lambda_shadowing() -> None:
@@ -192,7 +200,7 @@ def test_deferred_static_field_qualification_respects_lambda_shadowing() -> None
     )
 
     assert coverage == 1.0
-    assert "mapper: Function[Shadowed, Shadowed] = lambda x: x.copy()" in python_source
+    assert "mapper: Callable[Shadowed, Shadowed] = lambda x: x.copy()" in python_source
     assert "lambda x: Shadowed.x.copy()" not in python_source
     assert "Shadowed.x = Shadowed()" in python_source
     assert python_source.index("lambda x: x.copy()") < python_source.index(

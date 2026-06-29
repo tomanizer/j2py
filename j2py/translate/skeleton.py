@@ -271,9 +271,8 @@ def _import_lines(
                     facts={"java_import": imported_name},
                 )
 
-    imports.update(diagnostics.imports.render())
     imports.update(static_import_todos or [])
-    return sorted(imports)
+    return sorted(imports) + diagnostics.imports.render()
 
 
 def _static_import_info(

@@ -10,6 +10,7 @@ from j2py.translate.annotation_emit import (
     annotation_comment_lines,
     record_annotation_diagnostics,
 )
+from j2py.translate.annotation_types import bind_annotation_type_names, translate_type_annotation
 from j2py.translate.class_members import raw_member_name
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, ParameterInfo, _modifiers
 from j2py.translate.comments import is_comment
@@ -160,12 +161,38 @@ def translate_method(
     ctx.in_instance_method = not is_static
     ctx.in_method = True
     try:
-        method_return_type = "None" if is_constructor else return_type(node, ctx.cfg)
+        method_return_type = (
+            "None" if is_constructor else translate_type_annotation(_return_type_text(node), ctx)
+        )
         if type_var_map:
             method_return_type = _map_type_vars(method_return_type, type_var_map)
         if ctx.cfg.emit_type_hints:
             ctx.diagnostics.imports.need_type_annotation(method_return_type)
-        params = params_for_method(node, ctx, type_var_map=type_var_map)
+        method_params = parameter_infos(node, ctx.cfg, ctx.diagnostics)
+        method_params = [
+            ParameterInfo(
+                raw_name=param.raw_name,
+                py_name=param.py_name,
+                py_type=bind_annotation_type_names(param.py_type, ctx),
+                java_type=param.java_type,
+                is_spread=param.is_spread,
+                py_annotations=param.py_annotations,
+            )
+            for param in method_params
+        ]
+        if type_var_map:
+            method_params = [
+                ParameterInfo(
+                    raw_name=param.raw_name,
+                    py_name=param.py_name,
+                    py_type=_map_type_vars(param.py_type, type_var_map),
+                    java_type=param.java_type,
+                    is_spread=param.is_spread,
+                    py_annotations=param.py_annotations,
+                )
+                for param in method_params
+            ]
+        params = _render_params(ctx, method_params)
         injected_params = _render_extra_params(ctx, extra_params or [])
         params = injected_params + params
         if not is_static:
@@ -217,6 +244,7 @@ def translate_method(
             lines.append("")
 
         lines.extend(pre_body_lines or [])
+        lines.extend(_varargs_normalization_lines(method_params, indent="        "))
 
         if ctx.pending_local_helpers:
             for helper in ctx.pending_local_helpers:
@@ -266,6 +294,11 @@ def return_type(node: JavaNode, cfg: TranslationConfig) -> str:
     if type_node is None:
         return "None"
     return translate_type(type_node.text, cfg)
+
+
+def _return_type_text(node: JavaNode) -> str:
+    type_node = node.child_by_field("type")
+    return type_node.text if type_node is not None else "void"
 
 
 def parameter_infos(
@@ -374,6 +407,35 @@ def params_for_method(
         else:
             params.append(f"{prefix}{param.py_name}")
     return params
+
+
+def _render_params(ctx: TranslationContext, params: list[ParameterInfo]) -> list[str]:
+    rendered: list[str] = []
+    for param in params:
+        register_param(ctx, param)
+        prefix = "*" if param.is_spread else ""
+        py_type = _render_parameter_type(param, ctx)
+        if ctx.cfg.emit_type_hints:
+            ctx.diagnostics.imports.need_type_annotation(py_type)
+            rendered.append(f"{prefix}{param.py_name}: {py_type}")
+        else:
+            rendered.append(f"{prefix}{param.py_name}")
+    return rendered
+
+
+def _varargs_normalization_lines(params: list[ParameterInfo], *, indent: str) -> list[str]:
+    lines: list[str] = []
+    for param in params:
+        if not param.is_spread:
+            continue
+        lines.extend(
+            [
+                f"{indent}if len({param.py_name}) == 1 and "
+                f"isinstance({param.py_name}[0], (list, tuple)):",
+                f"{indent}    {param.py_name} = tuple({param.py_name}[0])",
+            ]
+        )
+    return lines
 
 
 def register_param(ctx: TranslationContext, param: ParameterInfo) -> None:

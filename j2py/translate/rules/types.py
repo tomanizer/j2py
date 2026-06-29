@@ -45,6 +45,10 @@ def translate_type(java_type: str, cfg: TranslationConfig) -> str:
             inner = translate_type(params[0], cfg)
             return f"{inner} | None"
 
+        if raw == "Predicate" and len(params) == 1:
+            inner = translate_type(params[0], cfg)
+            return f"Callable[[{inner}], bool]"
+
         py_raw = cfg.collection_map.get(raw) or cfg.type_map.get(raw) or raw
         py_params = [translate_type(p, cfg) for p in params]
 

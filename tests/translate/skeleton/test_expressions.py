@@ -1783,6 +1783,33 @@ def test_array_clone_on_method_result_lowers_to_list_copy() -> None:
     assert copy is not source
 
 
+def test_array_clone_on_generic_static_helper_result_lowers_to_list_copy() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Copies {
+            private static <T> T nonNull(T value, String name) {
+                return value;
+            }
+
+            public String[] copy(String[] values) {
+                return nonNull(values, "values").clone();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert 'return list(Copies.non_null(values, "values"))' in result.source
+    assert ".clone(" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    source = ["a", "b"]
+    copy = namespace["Copies"]().copy(source)
+    assert copy == source
+    assert copy is not source
+
+
 def test_unknown_object_clone_is_not_rewritten_as_list_copy() -> None:
     python_source, coverage = translate_source(
         """
@@ -2110,6 +2137,39 @@ def test_anonymous_java_iterator_implements_python_iterator_protocol() -> None:
     assert next(iterator) == 1
     with pytest.raises(StopIteration):
         next(iterator)
+
+
+def test_java_iterable_class_uses_iterator_for_python_iteration() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Iterator;
+
+        final class Bag implements Iterable<Integer> {
+            public Iterator<Integer> iterator() {
+                return new Iterator<Integer>() {
+                    private int index = 0;
+
+                    public boolean hasNext() {
+                        return index < 2;
+                    }
+
+                    public Integer next() {
+                        index++;
+                        return index;
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def __iter__(self):" in result.source
+    assert "return self.iterator()" in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated-iterable>", "exec"), namespace)
+    assert list(namespace["Bag"]()) == [1, 2]
 
 
 def test_anonymous_java_iterator_bridge_uses_configured_method_names() -> None:

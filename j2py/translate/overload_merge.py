@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
+from j2py.translate.annotation_types import bind_annotation_type_names
 from j2py.translate.class_members import member_python_name
 from j2py.translate.class_methods import (
     _IMMUTABLE_LITERAL_NODES,
@@ -48,6 +49,23 @@ class _OverloadForward:
 class _MergedDefault:
     text: str
     is_literal: bool
+
+
+def _bind_param_annotations(
+    params: list[ParameterInfo],
+    ctx: TranslationContext,
+) -> list[ParameterInfo]:
+    return [
+        ParameterInfo(
+            raw_name=param.raw_name,
+            py_name=param.py_name,
+            py_type=bind_annotation_type_names(param.py_type, ctx),
+            java_type=param.java_type,
+            is_spread=param.is_spread,
+            py_annotations=param.py_annotations,
+        )
+        for param in params
+    ]
 
 
 def _constant_python_name(name: str) -> Callable[[JavaNode], str]:
@@ -192,6 +210,7 @@ def _merged_constructor_overload(
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = True
+    ctx.in_method = True
     for param in extra_params:
         register_param(ctx, param)
     for param in impl.params:
@@ -212,7 +231,8 @@ def _merged_constructor_overload(
 
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
-    lines = _overload_stubs(members, cfg, diagnostics)
+    signature_params = _bind_param_annotations(signature_params, ctx)
+    lines = _overload_stubs(members, cfg, diagnostics, ctx=ctx)
     signature = render_method_signature(
         "__init__",
         signature_params,
@@ -475,6 +495,7 @@ def _emit_merged_constructor(
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = True
+    ctx.in_method = True
     for param in extra_params:
         register_param(ctx, param)
     for param in signature_params:
@@ -489,7 +510,8 @@ def _emit_merged_constructor(
         for param in signature_params:
             diagnostics.imports.need_type_annotation(param.py_type)
 
-    lines = _overload_stubs(members, cfg, diagnostics)
+    signature_params = _bind_param_annotations(signature_params, ctx)
+    lines = _overload_stubs(members, cfg, diagnostics, ctx=ctx)
     signature = render_method_signature(
         "__init__",
         signature_params,
@@ -536,6 +558,7 @@ def _merged_forwarding_method_overload(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     python_name_override: str | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str] | None:
     """Merge builder-style overloads where shorter ones forward to the longest one."""
     if any(member.type != "method_declaration" for member in members):
@@ -604,6 +627,7 @@ def _merged_forwarding_method_overload(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         containing_class_name=containing_class_name,
         nested_class_names=nested_class_names or set(),
+        module_static_instance_static_aliases=dict(module_static_instance_static_aliases or {}),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -611,6 +635,7 @@ def _merged_forwarding_method_overload(
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
     for param in impl.params:
         register_param(ctx, param)
 
@@ -618,7 +643,11 @@ def _merged_forwarding_method_overload(
         impl.params,
         defaults_by_position,
     )
-    return_type = _union_types(method_return_type(member, cfg) for member in members)
+    signature_params = _bind_param_annotations(signature_params, ctx)
+    return_type = bind_annotation_type_names(
+        _union_types(method_return_type(member, cfg) for member in members),
+        ctx,
+    )
 
     diagnostics.imports.update(throwaway_diagnostics.imports)
 
@@ -631,6 +660,7 @@ def _merged_forwarding_method_overload(
             if python_name_override is not None
             else None
         ),
+        ctx=ctx,
     )
     if is_static:
         lines.append("    @staticmethod")
@@ -931,6 +961,7 @@ def _merged_method_overload(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     python_name_override: str | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str] | None:
     if any(member.type != "method_declaration" for member in members):
         return None
@@ -987,6 +1018,7 @@ def _merged_method_overload(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer or set(),
         containing_class_name=containing_class_name,
         nested_class_names=nested_class_names or set(),
+        module_static_instance_static_aliases=dict(module_static_instance_static_aliases or {}),
     )
     ctx.class_field_types = dict(class_field_types)
     ctx.class_field_java_types = dict(class_field_java_types)
@@ -994,9 +1026,12 @@ def _merged_method_overload(
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
     for param in merged_params:
         register_param(ctx, param)
 
+    return_type = bind_annotation_type_names(return_type, ctx)
+    merged_params = _bind_param_annotations(merged_params, ctx)
     lines = _overload_stubs(
         members,
         cfg,
@@ -1006,6 +1041,7 @@ def _merged_method_overload(
             if python_name_override is not None
             else None
         ),
+        ctx=ctx,
     )
     if is_static:
         lines.append("    @staticmethod")

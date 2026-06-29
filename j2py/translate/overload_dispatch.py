@@ -78,6 +78,7 @@ def _value_dispatch_overload(
     nested_class_names: set[str] | None = None,
     python_name_override: str | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str] | None:
     """Emit ``@overload`` stubs plus one runtime value dispatcher.
 
@@ -201,6 +202,7 @@ def _value_dispatch_overload(
             nested_class_names=nested_class_names or set(),
             indent="            ",
             static_instance_static_aliases=static_instance_static_aliases or {},
+            module_static_instance_static_aliases=module_static_instance_static_aliases or {},
         )
         lines.extend(branch_lines)
 
@@ -233,6 +235,7 @@ def _value_dispatch_overload(
             nested_class_names=nested_class_names or set(),
             indent="            ",
             static_instance_static_aliases=static_instance_static_aliases or {},
+            module_static_instance_static_aliases=module_static_instance_static_aliases or {},
         )
         lines.extend(branch_lines)
 
@@ -561,6 +564,7 @@ def _translate_static_overload_branch_body(
     nested_class_names: set[str],
     indent: str,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
     name_node = member.child_by_field("name")
     java_name = name_node.text if name_node is not None else ""
@@ -587,6 +591,7 @@ def _translate_static_overload_branch_body(
         java_name=java_name,
         is_static=True,
         static_instance_static_aliases=static_instance_static_aliases,
+        module_static_instance_static_aliases=module_static_instance_static_aliases,
     )
     return _translate_overload_member_body(member, cfg=cfg, ctx=ctx, indent=indent)
 
@@ -615,6 +620,7 @@ def _translate_overload_branch_body(
     nested_class_names: set[str],
     indent: str,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
     name_node = member.child_by_field("name")
     java_name = name_node.text if name_node is not None else ""
@@ -641,6 +647,7 @@ def _translate_overload_branch_body(
         java_name=java_name,
         is_static=False,
         static_instance_static_aliases=static_instance_static_aliases,
+        module_static_instance_static_aliases=module_static_instance_static_aliases,
     )
     return _translate_overload_member_body(member, cfg=cfg, ctx=ctx, indent=indent)
 
@@ -669,6 +676,7 @@ def _overload_member_context(
     java_name: str,
     is_static: bool,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> TranslationContext:
     ctx = TranslationContext(
         cfg=cfg,
@@ -695,8 +703,10 @@ def _overload_member_context(
         containing_class_name=containing_class_name,
         nested_class_names=nested_class_names,
         static_instance_static_aliases=dict(static_instance_static_aliases or {}),
+        module_static_instance_static_aliases=dict(module_static_instance_static_aliases or {}),
     )
     ctx.in_instance_method = not is_static
+    ctx.in_method = True
     return ctx
 
 
@@ -781,6 +791,7 @@ def _dispatch_overload_members(
     nested_class_names: set[str] | None = None,
     python_name_override: str | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str] | None:
     """Emit each overload as a same-named def behind the vendored @overloaded dispatcher.
 
@@ -853,6 +864,7 @@ def _dispatch_overload_members(
             containing_class_name=containing_class_name,
             nested_class_names=nested_class_names or set(),
             static_instance_static_aliases=dict(static_instance_static_aliases or {}),
+            module_static_instance_static_aliases=dict(module_static_instance_static_aliases or {}),
         )
         member_pre_body = (
             pre_body_lines if is_constructor and not _has_this_delegation(member) else []

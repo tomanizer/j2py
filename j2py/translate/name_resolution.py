@@ -280,8 +280,7 @@ class NameResolver:
             reason="value-name fallback",
         )
 
-    @staticmethod
-    def _field_python_name(raw_name: str, py_name: str, scope: NameScope) -> str:
+    def _field_python_name(self, raw_name: str, py_name: str, scope: NameScope) -> str:
         if scope.in_instance_method and raw_name in scope.class_fields:
             return f"self.{py_name}"
         if (
@@ -289,7 +288,11 @@ class NameResolver:
             and raw_name not in scope.class_fields
             and scope.containing_class_name is not None
         ):
-            return f"{scope.containing_class_name}.{py_name}"
+            containing = self.bindings.file_type_paths.get(
+                scope.containing_class_name,
+                scope.containing_class_name,
+            )
+            return f"{containing}.{py_name}"
         return py_name
 
 
@@ -510,6 +513,15 @@ def imported_type_bindings(
             continue
         py_name = translate_class_name(raw_name)
         package, _, _ = imported_name.rpartition(".")
+        owner_package, _, owner_name = package.rpartition(".")
+        if owner_package and owner_name[:1].isupper():
+            owner_py_name = translate_class_name(owner_name)
+            bindings[raw_name] = TypeBinding(
+                raw_name=raw_name,
+                python_name=f"{owner_py_name}.{py_name}",
+                import_line=f"from {owner_package}.{owner_py_name} import {owner_py_name}",
+            )
+            continue
         bindings[raw_name] = TypeBinding(
             raw_name=raw_name,
             python_name=py_name,

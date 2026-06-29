@@ -30,19 +30,23 @@ import inspect
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Iterator, MutableSet
-from typing import Any, ClassVar, NoReturn, Protocol, TypeVar
+from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar, cast
 
 _T_contra = TypeVar("_T_contra", contravariant=True)
+_T = TypeVar("_T")
 
 __all__ = [
     "Comparator",
     "Consumer",
     "EnumSet",
+    "InvalidObjectException",
     "MalformedObjectNameException",
     "ObjectName",
+    "Optional",
     "RuntimeException",
     "StringBuilder",
     "__j2py_todo__",
+    "_j2py_array_to_string",
     "_j2py_arraycopy",
     "_j2py_decode_int",
     "_j2py_idiv",
@@ -72,10 +76,17 @@ __all__ = [
 ]
 
 
-class Comparator(Protocol[_T_contra]):
-    """Protocol placeholder for ``java.util.Comparator``."""
+class Comparator(Generic[_T_contra]):
+    """Runtime wrapper for ``java.util.Comparator`` method references."""
 
-    def compare(self, left: _T_contra, right: _T_contra) -> int: ...
+    def __init__(self, compare_func: Callable[[_T_contra, _T_contra], int]) -> None:
+        self._compare_func = compare_func
+
+    def compare(self, left: _T_contra, right: _T_contra) -> int:
+        return self._compare_func(left, right)
+
+    def reversed(self) -> Comparator[_T_contra]:
+        return Comparator(lambda left, right: -self.compare(left, right))
 
 
 class Consumer(Protocol[_T_contra]):
@@ -84,11 +95,52 @@ class Consumer(Protocol[_T_contra]):
     def accept(self, value: _T_contra) -> None: ...
 
 
+class Optional(Generic[_T]):
+    """Small stand-in for common ``java.util.Optional`` value operations."""
+
+    def __init__(self, value: _T | None) -> None:
+        self._value = value
+
+    @staticmethod
+    def empty() -> Optional[Any]:
+        return Optional(None)
+
+    @staticmethod
+    def of(value: _T) -> Optional[_T]:
+        if value is None:
+            raise ValueError("Optional.of() value must not be None")
+        return Optional(value)
+
+    @staticmethod
+    def of_nullable(value: _T | None) -> Optional[_T]:
+        return Optional(value)
+
+    def if_present(self, consumer: Callable[[_T], Any]) -> None:
+        if self._value is not None:
+            consumer(self._value)
+
+
 class RuntimeException(Exception):
     """Runtime stand-in for ``java.lang.RuntimeException`` / ``Throwable`` basics."""
 
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+        self._j2py_cause: BaseException | None = None
+
     def get_message(self) -> str:
         return str(self.args[0]) if self.args else ""
+
+    def init_cause(self, cause: BaseException) -> RuntimeException:
+        self._j2py_cause = cause
+        self.__cause__ = cause
+        return self
+
+    def get_cause(self) -> BaseException | None:
+        return self._j2py_cause
+
+
+class InvalidObjectException(RuntimeException):
+    """Runtime stand-in for ``java.io.InvalidObjectException``."""
 
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/
@@ -255,7 +307,7 @@ class EnumSet(MutableSet[Any]):
 
     @classmethod
     def all_of(cls, enum_cls: Any) -> EnumSet:
-        return cls(enum_cls=enum_cls, initial=list(enum_cls))
+        return cls(enum_cls=enum_cls, initial=list(cast(Any, enum_cls).__members__.values()))
 
     @classmethod
     def none_of(cls, enum_cls: Any) -> EnumSet:
@@ -265,6 +317,26 @@ class EnumSet(MutableSet[Any]):
     def copy_of(cls, other: Iterable[Any]) -> EnumSet:
         enum_cls = other._enum_cls if isinstance(other, EnumSet) else None
         return cls(enum_cls=enum_cls, initial=other)
+
+    @classmethod
+    def complement_of(cls, other: Iterable[Any]) -> EnumSet:
+        enum_cls = other._enum_cls if isinstance(other, EnumSet) else None
+        if enum_cls is None:
+            members = list(other)
+            if not members:
+                raise ValueError("Cannot infer EnumSet element type from an empty collection")
+            enum_cls = type(members[0])
+            excluded = set(members)
+        else:
+            excluded = set(other)
+        return cls(
+            enum_cls=enum_cls,
+            initial=[
+                member
+                for member in cast(Any, enum_cls).__members__.values()
+                if member not in excluded
+            ],
+        )
 
     @classmethod
     def range(cls, from_member: Any, to_member: Any) -> EnumSet:
@@ -326,6 +398,13 @@ def _j2py_arraycopy(src: Any, src_pos: int, dest: Any, dest_pos: int, length: in
     dest[dest_pos : dest_pos + length] = segment
 
 
+def _j2py_array_to_string(values: Any) -> str:
+    """Return Java ``Arrays.toString``-style text for one-dimensional arrays."""
+    if values is None:
+        return "null"
+    return f"[{', '.join(str(value) for value in values)}]"
+
+
 def _j2py_string_from_value(value: Any, charset: Any | None = None) -> str:
     """Return Java ``new String(...)`` behavior for common translated array shapes."""
     if isinstance(value, list):
@@ -340,6 +419,12 @@ def _j2py_string_join(delimiter: str, elements: Any) -> str:
     """Return Java ``String.join(delimiter, elements)`` for iterable or single strings."""
     if isinstance(elements, str):
         return delimiter.join([elements])
+    if (
+        isinstance(elements, (list, tuple))
+        and len(elements) == 1
+        and isinstance(elements[0], (list, tuple))
+    ):
+        elements = elements[0]
     return delimiter.join(elements)
 
 

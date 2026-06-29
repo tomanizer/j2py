@@ -10,6 +10,7 @@ from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkTransformResult
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.annotation_emit import annotation_comment_lines, record_annotation_diagnostics
+from j2py.translate.annotation_types import bind_annotation_type_names
 from j2py.translate.bean_validation import bean_validation_field, is_required_field
 from j2py.translate.class_members import iter_type_declarations
 from j2py.translate.class_model import TYPE_DECLARATION_NODES, FieldInfo, _modifiers
@@ -445,6 +446,10 @@ def _nullable_annotation(py_type: str) -> str:
     return f"{py_type} | None"
 
 
+def _field_annotation(field: FieldInfo, ctx: TranslationContext) -> str:
+    return bind_annotation_type_names(field.py_type, ctx)
+
+
 def _translate_instance_field(
     field: FieldInfo,
     assigned_fields: set[str],
@@ -482,9 +487,10 @@ def _translate_instance_field(
                 else "translated annotation-mapped constructor injection field"
             ),
         )
+        annotation = _field_annotation(field, ctx)
         if ctx.cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(field.py_type)
-        target = _field_assignment(f"self.{field.py_name}", field.py_type, ctx.cfg)
+            diagnostics.imports.need_type_annotation(annotation)
+        target = _field_assignment(f"self.{field.py_name}", annotation, ctx.cfg)
         injection_lines: list[str] = []
         if not transform.handled:
             _emit_field_annotation_comments(
@@ -500,8 +506,9 @@ def _translate_instance_field(
             supported=True,
             reason="translated instance field initializer",
         )
+        annotation = _field_annotation(field, ctx)
         if ctx.cfg.emit_type_hints:
-            diagnostics.imports.need_type_annotation(field.py_type)
+            diagnostics.imports.need_type_annotation(annotation)
         initializer = translate_expression(field.initializer, ctx)
         initializer_lines: list[str] = []
         _extend_with_local_helpers(initializer_lines, ctx, base_indent="        ")
@@ -513,7 +520,7 @@ def _translate_instance_field(
             )
         initializer_lines.extend(transform.prefix_lines)
         initializer_lines.append(
-            f"        {_field_assignment(f'self.{field.py_name}', field.py_type, ctx.cfg)} = "
+            f"        {_field_assignment(f'self.{field.py_name}', annotation, ctx.cfg)} = "
             f"{initializer}",
         )
         return initializer_lines
@@ -534,7 +541,8 @@ def _translate_instance_field(
     default_value = (
         value.default_value if value is not None else java_default_value(field.java_type)
     )
-    annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+    field_annotation = _field_annotation(field, ctx)
+    annotation = field_annotation if default_value != "None" else f"{field_annotation} | None"
     if ctx.cfg.emit_type_hints:
         diagnostics.imports.need_type_annotation(annotation)
     target = _field_assignment(f"self.{field.py_name}", annotation, ctx.cfg)
@@ -619,7 +627,8 @@ def _translate_static_field(
         default_value = (
             value.default_value if value is not None else java_default_value(field.java_type)
         )
-        annotation = field.py_type if default_value != "None" else f"{field.py_type} | None"
+        field_annotation = _field_annotation(field, ctx)
+        annotation = field_annotation if default_value != "None" else f"{field_annotation} | None"
         if ctx.cfg.emit_type_hints:
             diagnostics.imports.need_type_annotation(annotation)
         default_lines: list[str] = []
@@ -632,9 +641,11 @@ def _translate_static_field(
         return default_lines
 
     diagnostics.record(field.node, supported=True, reason="translated static field declaration")
+    annotation = _field_annotation(field, ctx)
     if ctx.cfg.emit_type_hints:
-        diagnostics.imports.need_type_annotation(field.py_type)
+        diagnostics.imports.need_type_annotation(annotation)
     initializer = translate_expression(field.initializer, ctx)
+    initializer = _wrap_static_field_initializer(field, initializer)
     lines: list[str] = []
     if not transform.handled:
         _emit_field_annotation_comments(lines, field, value, ctx.cfg, indent="    ")
@@ -657,9 +668,25 @@ def _translate_static_field(
         deferred_static_fields.add(field.py_name)
         return lines
     lines.append(
-        f"    {_field_assignment(field.py_name, field.py_type, ctx.cfg)} = {initializer}",
+        f"    {_field_assignment(field.py_name, annotation, ctx.cfg)} = {initializer}",
     )
     return lines
+
+
+def _wrap_static_field_initializer(field: FieldInfo, initializer: str) -> str:
+    if field.initializer is None:
+        return initializer
+    if field.initializer.type != "method_reference":
+        return initializer
+    if _raw_java_type(field.java_type) != "Comparator":
+        return initializer
+    # Narrowly wrap java.util.Comparator static fields initialized from method references,
+    # such as Comparator.comparing(...), so later .compare/.reversed calls have state.
+    return f"Comparator({initializer})"
+
+
+def _raw_java_type(java_type: str) -> str:
+    return java_type.split("<", 1)[0].rsplit(".", 1)[-1].strip()
 
 
 def _initializer_must_defer(

@@ -58,6 +58,23 @@ def test_import_set_combines_explicit_and_inferred_from_imports() -> None:
     imports.need_typing("Iterator")
 
     assert imports.render() == [
-        "from j2py_runtime import get_mapping, rest_controller",
         "from typing import IO, Iterator",
+        "",
+        "from j2py_runtime import get_mapping, rest_controller",
+    ]
+
+
+def test_import_set_groups_standard_library_imports_before_project_imports() -> None:
+    imports = ImportSet()
+    imports.need_line("import os")
+    imports.need_line("import re")
+    imports.need_line("import sys")
+    imports.need_line("from j2py_runtime import Optional")
+
+    assert imports.render() == [
+        "import os",
+        "import re",
+        "import sys",
+        "",
+        "from j2py_runtime import Optional",
     ]

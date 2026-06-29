@@ -106,6 +106,7 @@ def _emit_static_instance_collision_split(
     inner_class_names_requiring_outer: set[str],
     nested_class_names: set[str],
     static_instance_static_aliases: dict[str, str],
+    module_static_instance_static_aliases: dict[str, dict[str, str]],
     static_instance_instance_zero_arg_names: set[str] | None = None,
     static_instance_static_zero_arg_names: set[str] | None = None,
 ) -> list[str]:
@@ -160,6 +161,7 @@ def _emit_static_instance_collision_split(
             containing_class_name=containing_class_name,
             nested_class_names=nested_class_names,
             static_instance_static_aliases=dict(static_instance_static_aliases),
+            module_static_instance_static_aliases=dict(module_static_instance_static_aliases),
             static_instance_instance_zero_arg_names=instance_zero_arg,
             static_instance_static_zero_arg_names=static_zero_arg,
         )
@@ -289,6 +291,7 @@ def translate_overloaded_members(
     inner_class_names_requiring_outer: set[str] | None = None,
     nested_class_names: set[str] | None = None,
     static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
     static_instance_instance_zero_arg_names: set[str] | None = None,
     static_instance_static_zero_arg_names: set[str] | None = None,
     python_name_override: str | None = None,
@@ -320,6 +323,7 @@ def translate_overloaded_members(
     method_return_types = dict(class_method_return_types or {})
     injected_params = extra_params or []
     collision_aliases = dict(static_instance_static_aliases or {})
+    module_collision_aliases = dict(module_static_instance_static_aliases or {})
     instance_zero_arg = set(static_instance_instance_zero_arg_names or ())
     static_zero_arg = set(static_instance_static_zero_arg_names or ())
 
@@ -353,6 +357,7 @@ def translate_overloaded_members(
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
             static_instance_static_aliases=collision_aliases,
+            module_static_instance_static_aliases=module_collision_aliases,
             static_instance_instance_zero_arg_names=instance_zero_arg,
             static_instance_static_zero_arg_names=static_zero_arg,
         )
@@ -411,6 +416,7 @@ def translate_overloaded_members(
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
             python_name_override=python_name_override,
+            module_static_instance_static_aliases=module_collision_aliases,
         )
         if merged_method is not None:
             return merged_method
@@ -437,6 +443,7 @@ def translate_overloaded_members(
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
             python_name_override=python_name_override,
+            module_static_instance_static_aliases=module_collision_aliases,
         )
         if forwarded_method is not None:
             return forwarded_method
@@ -468,6 +475,7 @@ def translate_overloaded_members(
             nested_class_names=direct_nested_names,
             python_name_override=python_name_override,
             static_instance_static_aliases=collision_aliases,
+            module_static_instance_static_aliases=module_collision_aliases,
         )
         if value_dispatch is not None:
             return value_dispatch
@@ -501,6 +509,7 @@ def translate_overloaded_members(
         enclosing_static_dispatch=enclosing_dispatch,
         python_name_override=python_name_override,
         static_instance_static_aliases=collision_aliases,
+        module_static_instance_static_aliases=module_collision_aliases,
     )
     if dispatched is not None:
         if deduped_members is not None:

@@ -63,6 +63,7 @@ def test_enum_set_runtime_helper_preserves_ordinal_order_and_java_repr() -> None
 
     assert str(EnumSet.all_of(Color)) == "[RED, GREEN, BLUE]"
     assert str(EnumSet.none_of(Color)) == "[]"
+    assert str(EnumSet.complement_of(EnumSet.of(Color.GREEN))) == "[RED, BLUE]"
     assert str(EnumSet.range(Color.RED, Color.GREEN)) == "[RED, GREEN]"
     assert str(EnumSet.copy_of([Color.BLUE, Color.RED])) == "[RED, BLUE]"
 
@@ -129,6 +130,7 @@ def test_string_from_value_runtime_helper_handles_common_constructors() -> None:
 def test_string_join_runtime_helper_treats_single_string_as_one_element() -> None:
     assert _j2py_string_join("-", "abc") == "abc"
     assert _j2py_string_join("-", ["a", "b", "c"]) == "a-b-c"
+    assert _j2py_string_join("-", (["a", "b", "c"],)) == "a-b-c"
 
 
 def test_runtime_exception_exposes_throwable_get_message() -> None:
