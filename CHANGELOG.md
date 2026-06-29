@@ -5,6 +5,57 @@ All notable changes to j2py will be documented in this file.
 The format follows the repository commit types: `feat`, `fix`, `refactor`, `test`,
 `docs`, `chore`, and `adr`.
 
+## 0.8.0 - 2026-06-29
+
+0.8.0 is a minor beta release after 0.7.0. The release focus is deeper
+project-assembly evidence: more `j2py-wire` targets, broader Spring bean metadata,
+Spring XML ingestion, external case-study expansion, and a wave of deterministic
+translation fixes found while exercising real library slices. See
+[docs/releases/0.8.0/RELEASE_NOTES.md](docs/releases/0.8.0/RELEASE_NOTES.md) for release
+notes, evidence, and known limits.
+
+### Added
+- `j2py-wire` now includes additional target generators for plain provider modules,
+  SQLAlchemy persistence wiring, and Pydantic Settings configuration wiring, extending
+  the sidecar-driven application assembly path without moving runtime policy into core
+  translation (#633, #634, #637).
+- Spring XML bean definition ingestion captures opt-in bean metadata alongside annotation
+  metadata so legacy Spring projects can preserve reviewable wiring facts in sidecars
+  (#632).
+- The Commons Codec `Hex` external case study joins the existing external case-study
+  set, with focused upstream assertions and ByteBuffer coverage expanded during release
+  prep (#662, #685, #692).
+- The java-semver case study records the first external end-to-end translation and
+  upstream-test validation slice (#640).
+
+### Changed
+- Release evidence records now use fixed filenames under `docs/releases/<version>/`,
+  and docs streamlining reduced duplicated user, developer, and release guidance while
+  keeping release snapshots discoverable (#625, #626, #627, #629).
+- Core, framework-plugin, and wiring import boundaries are formalized so optional wiring
+  work stays outside default translation imports (#630).
+- Spring bean metadata now captures broader constructor, field, and bean topology facts
+  for downstream target generators (#592).
+- Equivalence reporting now includes the pinned library-wide public-method denominator,
+  and branch coverage remains an enforced ratchet in the Python 3.11 CI leg (#638,
+  #639).
+
+### Fixed
+- JDK and library lowering now covers additional real-world patterns including
+  `Arrays.copyOf`, `Arrays.copyOfRange`, `Arrays.hashCode`, array-returning clone calls,
+  `String(char[])` constructors, decimal grouping formats, `toString` overrides, and
+  Java array/list overload guard handling (#652, #653, #670, #683, #680, #682, #684,
+  #671).
+- Static, nested-member, and overload resolution now handles wildcard static imports in
+  overloaded bodies, static-instance overload collisions, deferred static-field
+  dependency ordering, and bare nested-member references through enclosing types (#669,
+  #681, #679, #661).
+- Translation of exception and anonymous-helper shapes now preserves throw-constructor
+  varargs, anonymous initializer outer-field capture, anonymous Java iterator bridges,
+  and `RuntimeException` superclass binding (#648, #649, #650, #651).
+- Corpus and case-study fixes lower ambiguous `List.get` calls inside anonymous classes
+  and improve JDK import lowering for java-semver slices (#635, #678).
+
 ## 0.7.0 - 2026-06-19
 
 0.7.0 is the first release intended for real migration trials outside the project. The

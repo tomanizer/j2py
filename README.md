@@ -131,8 +131,8 @@ For a full user walkthrough, start with [docs/GETTING_STARTED.md](docs/GETTING_S
 For install variants and troubleshooting, see [docs/INSTALL.md](docs/INSTALL.md). For
 command details, see [docs/CLI.md](docs/CLI.md). For the full docs map by audience, use
 [docs/README.md](docs/README.md), which separates User Docs, Java enterprise framework
-guides, Developer Docs, and Repo Hygiene records. For the 0.7.0 release story and current
-known limits, see [docs/releases/0.7.0/RELEASE_NOTES.md](docs/releases/0.7.0/RELEASE_NOTES.md).
+guides, Developer Docs, and Repo Hygiene records. For the 0.8.0 release story and current
+known limits, see [docs/releases/0.8.0/RELEASE_NOTES.md](docs/releases/0.8.0/RELEASE_NOTES.md).
 
 First installed-package smoke:
 
@@ -369,7 +369,7 @@ Material translation policy changes should get an ADR under `docs/decisions/`.
 `j2py-converter` is published as a beta package. Expect incomplete construct
 coverage, diagnostics for unsupported regions, known multi-file import limitations,
 and manual review on production-scale codebases. See
-[docs/releases/0.7.0/RELEASE_NOTES.md](docs/releases/0.7.0/RELEASE_NOTES.md) for the current release notes,
+[docs/releases/0.8.0/RELEASE_NOTES.md](docs/releases/0.8.0/RELEASE_NOTES.md) for the current release notes,
 [docs/RELEASING.md](docs/RELEASING.md) for the release checklist, and
 [CHANGELOG.md](CHANGELOG.md) for version history.
 

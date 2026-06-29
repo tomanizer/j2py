@@ -26,8 +26,8 @@ def test_release_candidate_checklist_records_clean_install_evidence() -> None:
 
     required = [
         "make release-check",
-        "j2py_converter-0.7.0-py3-none-any.whl",
-        "j2py_converter-0.7.0.tar.gz",
+        f"j2py_converter-{RELEASE_VERSION}-py3-none-any.whl",
+        f"j2py_converter-{RELEASE_VERSION}.tar.gz",
         "Clean core install smoke",
         "Clean Spring extra install smoke",
         "j2py --help",
