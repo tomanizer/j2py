@@ -114,8 +114,9 @@ sidecars. j2py writes that metadata to sidecars. `j2py-wire` uses sidecars to ge
 target-stack wiring. These sidecars are review artifacts, not a second translated module
 and not executable runtime behavior by themselves.
 
-`j2py-wire` is the sibling CLI for generating or validating target-stack scaffolding. The
-current implemented target is FastAPI wiring from Spring metadata.
+`j2py-wire` is the sibling CLI for generating or validating target-stack scaffolding.
+Implemented targets include FastAPI wiring, plain providers, Pydantic Settings
+scaffolding, and SQLAlchemy persistence scaffolding from Spring metadata.
 
 This still does not make core j2py a Spring, FastAPI, SQLAlchemy, or dependency-injection
 runtime. Generated wiring is migration scaffolding. Production runtime policy such as

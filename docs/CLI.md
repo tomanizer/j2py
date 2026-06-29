@@ -189,7 +189,8 @@ See [SARIF export](SARIF.md).
 
 `j2py-wire` is the sibling CLI for post-translation framework wiring. It reads
 `*.wiring.json` sidecars emitted by `j2py translate` and generates or validates target
-wiring. Supported targets are `fastapi`, `providers`, and `sqlalchemy`.
+wiring. Supported targets are `fastapi`, `providers`, `pydantic-settings`, and
+`sqlalchemy`.
 
 List sidecars:
 
@@ -213,6 +214,14 @@ j2py-wire generate translated_py \
   --output translated_py/wiring
 ```
 
+Generate Pydantic Settings scaffolding:
+
+```bash
+j2py-wire generate translated_py \
+  --target pydantic-settings \
+  --output translated_py/wiring
+```
+
 Generate SQLAlchemy persistence scaffolding:
 
 ```bash
@@ -230,6 +239,7 @@ j2py-wire validate translated_py \
 ```
 
 Use `--target providers` to validate `translated_py/wiring/providers.py` instead. Use
+`--target pydantic-settings` to validate `translated_py/wiring/settings.py`. Use
 `--target sqlalchemy` to validate `translated_py/wiring/db.py` and
 `translated_py/wiring/persistence.py`.
 
@@ -252,6 +262,12 @@ engine/session hooks, and binds translated JDBC placeholders such as
 `self.jdbc_template_connection` to caller-supplied SQLAlchemy connections. It still does
 not own production database lifecycle, credentials, pool settings, migrations, or
 transaction semantics.
+
+For Spring configuration migrations, `--target pydantic-settings` converts visible
+property keys from sidecars into a reviewable `settings.py` scaffold. It preserves source
+keys with `Field(validation_alias=...)` and `SOURCE_PROPERTY_KEYS`, but it does not choose
+production environment variable names, defaults, secrets storage, or deployment config
+policy.
 
 For the wiring layer guide, see [Wiring](WIRING.md). For the Spring-specific workflow, see
 [Spring conversion](SPRING_CONVERSION.md).
