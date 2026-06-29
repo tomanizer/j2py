@@ -81,7 +81,7 @@ class RuntimeException(Exception):
     """Runtime stand-in for ``java.lang.RuntimeException`` / ``Throwable`` basics."""
 
     def get_message(self) -> str:
-        return str(self)
+        return str(self.args[0]) if self.args else ""
 
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/

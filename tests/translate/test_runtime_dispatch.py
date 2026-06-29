@@ -37,6 +37,8 @@ def test_runtime_exception_exposes_throwable_get_message() -> None:
 
     assert isinstance(exc, Exception)
     assert exc.get_message() == "boom"
+    assert RuntimeException().get_message() == ""
+    assert RuntimeException("message", ValueError("cause")).get_message() == "message"
 
 
 class TypeReference:

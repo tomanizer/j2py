@@ -330,11 +330,20 @@ def _superclass_binding(
     ``translate_class_name`` fallback keeps a class name when no binding source resolves.
     """
     simple = raw_name.rsplit(".", 1)[-1]
-    if simple == "RuntimeException":
+    if raw_name in {"RuntimeException", "java.lang.RuntimeException"}:
+        configured = cfg.exception_map.get(simple) if cfg is not None else None
+        # The default RuntimeException -> Exception map is for catch/throw lowering.
+        # Superclass binding uses the runtime shim so Throwable.getMessage survives.
+        if configured is not None and configured != "Exception":
+            return configured
         if diagnostics is not None:
             diagnostics.imports.need_line("from j2py_runtime import RuntimeException")
         return "RuntimeException"
-    if cfg is not None and simple in cfg.exception_map:
+    if (
+        cfg is not None
+        and simple in cfg.exception_map
+        and (raw_name == simple or raw_name.startswith("java."))
+    ):
         return cfg.exception_map[simple]
     if resolver is None or scope is None:
         return translate_class_name(simple)
