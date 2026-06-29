@@ -7,7 +7,11 @@ from typing import TypeAlias
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
-from j2py.translate.java_types import java_expression_type, java_type_simple_name
+from j2py.translate.java_types import (
+    java_expression_type,
+    java_type_simple_name,
+    java_type_strip_one_array_dimension,
+)
 from j2py.translate.rules.naming import _receiver_simple_name
 
 StaticCallTranslator: TypeAlias = Callable[
@@ -253,6 +257,26 @@ def _translate_to_array_call(
     args: str,
     ctx: TranslationContext,
 ) -> str | None:
+    return f"list({receiver})"
+
+
+def _translate_clone_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if args or not receiver_nodes:
+        return None
+    receiver_type = java_expression_type(receiver_nodes[0], ctx)
+    if receiver_type is None:
+        return None
+    if java_type_strip_one_array_dimension(receiver_type) is None:
+        return None
     return f"list({receiver})"
 
 
@@ -654,6 +678,7 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
 _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "charValue": _translate_char_value_call,
     "charAt": _translate_char_at_call,
+    "clone": _translate_clone_call,
     "compareTo": _translate_compare_to_call,
     "contains": _translate_contains_call,
     "endsWith": _translate_ends_with_call,

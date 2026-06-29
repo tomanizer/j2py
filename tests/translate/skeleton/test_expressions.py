@@ -1315,6 +1315,28 @@ def test_to_char_array_lowers_to_list() -> None:
     assert_valid_python(python_source)
 
 
+def test_array_clone_lowers_to_list_copy() -> None:
+    """Java array clone() lowers to a Python shallow list copy."""
+    python_source, coverage = translate_source("""
+    public class Copies {
+        private String[] elements;
+
+        public Copies(String[] elements) {
+            this.elements = elements.clone();
+        }
+
+        public int[] values(int[] values) {
+            return values.clone();
+        }
+    }
+    """)
+    assert coverage == 1.0
+    assert "self.elements = list(elements)" in python_source
+    assert "return list(values)" in python_source
+    assert ".clone(" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_index_of_lowers_to_find() -> None:
     """String.indexOf(sub) and indexOf(sub, from) lower to str.find()."""
     python_source, coverage = translate_source("""
