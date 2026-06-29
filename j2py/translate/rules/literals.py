@@ -53,7 +53,7 @@ def translate_string_literal(token: str) -> str:
 
 
 _JAVA_DECIMAL_GROUPING_FORMAT_RE = re.compile(
-    r"%(?!%)(?P<prefix>(?:\d+\$)?[-#+ 0(]*),(?P<suffix>\d*d)"
+    r"%(?!%)(?P<prefix>(?:\d+\$)?[-#+ 0(]*),(?P<suffix>\d*(?:\.\d+)?[defgEFG])"
 )
 
 
@@ -67,7 +67,9 @@ def normalize_java_format_literal_expr(format_arg: str) -> str:
     normalized = _normalize_java_format_value(value)
     if normalized == value:
         return format_arg
-    return json.dumps(normalized)
+    if format_arg.startswith(('"""', "'''")):
+        return _python_triple_quoted_string(normalized)
+    return json.dumps(normalized, ensure_ascii=False)
 
 
 def _normalize_java_format_value(value: str) -> str:
