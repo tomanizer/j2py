@@ -64,13 +64,6 @@ class ResidualGap:
 # rewrite. See docs/CASE_STUDY_JSEMVER.md for the analysis behind each gap id.
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
     ResidualGap(
-        gap_id="JSEMVER-2",
-        module="Stream",
-        summary="Java array .clone() not lowered to a Python copy",
-        bad="self.elements = elements.clone()",
-        good="self.elements = list(elements)",
-    ),
-    ResidualGap(
         gap_id="JSEMVER-5",
         module="Stream",
         summary="java.util.Arrays.copyOfRange not lowered to a Python slice",

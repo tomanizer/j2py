@@ -89,7 +89,6 @@ where the current rule layer emits Python that does not preserve the Java.
 
 | Gap id | Module | Defect |
 |---|---|---|
-| `JSEMVER-2` | `Stream` | Java array `.clone()` not lowered to a Python copy (`elements.clone()` → `AttributeError`). |
 | `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(...)` not lowered to a Python slice. |
 
 `JSEMVER-1`, which emitted Java `RuntimeException` as a same-package import instead of a
@@ -101,7 +100,10 @@ tracked in issue #643. `JSEMVER-3`, which emitted a bare enclosing-field referen
 anonymous-class field initializer, was removed from the residual list by the deterministic
 anonymous-capture fix tracked in issue #642. `JSEMVER-4`, which had turned a constructor
 argument into control-flow (exception chaining), was removed from the residual list by the
-deterministic throw-constructor fix tracked in issue #641.
+deterministic throw-constructor fix tracked in issue #641. `JSEMVER-2`, which emitted
+Java array `.clone()` as a Python method call instead of a shallow list copy, was removed
+from the residual list by the deterministic array-copy lowering fix tracked in issue
+#645.
 
 ## Honest scope and conclusion
 
@@ -109,14 +111,14 @@ deterministic throw-constructor fix tracked in issue #641.
   against j2py output in-repo, hermetically, in `make check`.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
-- **Correctness has a measured, enumerated gap:** 2 concrete translator defects still block a
+- **Correctness has a measured, enumerated gap:** 1 concrete translator defect still blocks a
   ~400-LOC, 14-test package from running as-translated. Extrapolated across the 139 `F821`
   findings on the full tree, the larger `Version` / `expr` / parser surface will surface
   more of the same categories (sibling static refs, inner-class binding, JDK lowering).
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Promote the remaining two `JSEMVER-*` defects into deterministic rule-layer fixes with
+1. Promote the remaining `JSEMVER-*` defect into a deterministic rule-layer fix with
    fixtures, then drop the corresponding harness patches.
 2. Extend the closed loop to the `Version` value class (parse / compare / increment /
    `toString`) — the library's core and the bulk of `VersionTest`.
