@@ -1,0 +1,6 @@
+{
+  "branch_percent": 81.0,
+  "description": "Ratcheting coverage floor for the Python test suite. Raise line_percent and branch_percent together after coverage-improving changes.",
+  "line_percent": 90.0,
+  "schema_version": 1
+}
