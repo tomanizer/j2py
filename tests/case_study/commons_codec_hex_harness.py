@@ -88,7 +88,93 @@ class _Charset:
 
 
 class _ByteBuffer:
-    pass
+    """Small case-study stub for the ByteBuffer paths exercised by Hex."""
+
+    def __init__(
+        self,
+        data: list[int] | bytes | bytearray | None = None,
+        *,
+        capacity: int | None = None,
+        expose_array: bool = True,
+    ) -> None:
+        if data is None:
+            self._data = [0] * (capacity or 0)
+            self._limit = capacity or 0
+        else:
+            self._data = list(data)
+            self._limit = len(self._data)
+        self._position = 0
+        self._expose_array = expose_array
+
+    @classmethod
+    def wrap(
+        cls,
+        data: list[int] | bytes | bytearray,
+        *,
+        expose_array: bool = True,
+    ) -> _ByteBuffer:
+        return cls(data, expose_array=expose_array)
+
+    @classmethod
+    def allocate(cls, capacity: int) -> _ByteBuffer:
+        return cls(capacity=capacity)
+
+    def remaining(self) -> int:
+        return self._limit - self._position
+
+    def position(self, new_position: int | None = None) -> int | _ByteBuffer:
+        if new_position is None:
+            return self._position
+        if not 0 <= new_position <= self._limit:
+            raise IndexError("ByteBuffer position out of range")
+        self._position = new_position
+        return self
+
+    def limit(self, new_limit: int | None = None) -> int | _ByteBuffer:
+        if new_limit is None:
+            return self._limit
+        if not 0 <= new_limit <= len(self._data):
+            raise IndexError("ByteBuffer limit out of range")
+        self._limit = new_limit
+        if self._position > self._limit:
+            self._position = self._limit
+        return self
+
+    def flip(self) -> _ByteBuffer:
+        self._limit = self._position
+        self._position = 0
+        return self
+
+    def put(self, value: int | list[int] | bytes | bytearray) -> _ByteBuffer:
+        values = list(value) if isinstance(value, (list, bytes, bytearray)) else [value]
+        if self._position + len(values) > len(self._data):
+            raise IndexError("ByteBuffer overflow")
+        for item in values:
+            self._data[self._position] = item
+            self._position += 1
+        return self
+
+    def get(self, out: list[int] | None = None) -> int | _ByteBuffer:
+        if out is None:
+            if self.remaining() <= 0:
+                raise IndexError("ByteBuffer underflow")
+            value = self._data[self._position]
+            self._position += 1
+            return value
+        if len(out) > self.remaining():
+            raise IndexError("ByteBuffer underflow")
+        for index in range(len(out)):
+            out[index] = self._data[self._position]
+            self._position += 1
+        return self
+
+    def has_array(self) -> bool:
+        return self._expose_array
+
+    def array(self) -> list[int]:
+        if not self._expose_array:
+            raise TypeError("ByteBuffer does not expose an array")
+        return self._data
 
 
 class _Character:
@@ -170,6 +256,7 @@ def link_commons_codec_hex_namespace() -> types.SimpleNamespace:
     return types.SimpleNamespace(
         BinaryDecoder=shared["BinaryDecoder"],
         BinaryEncoder=shared["BinaryEncoder"],
+        ByteBuffer=shared["ByteBuffer"],
         DecoderException=shared["DecoderException"],
         EncoderException=shared["EncoderException"],
         Hex=shared["Hex"],
