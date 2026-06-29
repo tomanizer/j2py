@@ -238,8 +238,7 @@ def _hotspot_list(
         return str(item.get(value_key, _hotspot_value(item)))
 
     rows = "\n".join(
-        f"<li><code>{escape(str(item[label_key]))}</code>: "
-        f"{escape(_resolve_value(item))}</li>"
+        f"<li><code>{escape(str(item[label_key]))}</code>: {escape(_resolve_value(item))}</li>"
         for item in items
     )
     return f"""

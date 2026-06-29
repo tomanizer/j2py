@@ -165,25 +165,29 @@ def _assess_file(
     unresolved = _unresolved_import_candidates(symbols, cfg, import_owner)
     parse_ok = not parsed.has_errors
     parse_errors = [_node_payload(item, reason="Java parse error") for item in parsed.errors]
+    rule_coverage = diagnostics.coverage if diagnostics is not None else 0.0
+    semantic_warnings = (
+        [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.warnings]
+    )
+    unhandled = (
+        [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.unhandled]
+    )
+    todos = todo_lines(result.python_source)
     translation = {
-        "rule_coverage": diagnostics.coverage if diagnostics is not None else 0.0,
+        "rule_coverage": rule_coverage,
         "confidence": result.confidence,
-        "semantic_warnings": []
-        if diagnostics is None
-        else [diagnostic_payload(item) for item in diagnostics.warnings],
-        "unhandled": []
-        if diagnostics is None
-        else [diagnostic_payload(item) for item in diagnostics.unhandled],
-        "todos": todo_lines(result.python_source),
+        "semantic_warnings": semantic_warnings,
+        "unhandled": unhandled,
+        "todos": todos,
         "validation": _validation_payload(result.validation),
     }
     risk_score, risk_band, readiness_bucket, risk_reasons = _file_risk_profile(
         parse_ok=parse_ok,
         parse_error_count=len(parse_errors),
-        rule_coverage=translation["rule_coverage"],
-        semantic_warning_count=len(translation["semantic_warnings"]),
-        unhandled_count=len(translation["unhandled"]),
-        todo_count=len(translation["todos"]),
+        rule_coverage=rule_coverage,
+        semantic_warning_count=len(semantic_warnings),
+        unhandled_count=len(unhandled),
+        todo_count=len(todos),
         unresolved_import_count=len(unresolved),
     )
     return {

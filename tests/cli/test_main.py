@@ -1373,10 +1373,10 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     diff_json = tmp_path / "diff.json"
     before.write_text(
         json.dumps(
-        {
-            "schema_version": DOCTOR_SCHEMA_VERSION,
-            "source": "before-src",
-            "summary": {
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "before-src",
+                "summary": {
                     "files": 1,
                     "classes": 1,
                     "average_rule_coverage": 0.5,

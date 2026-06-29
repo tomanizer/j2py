@@ -45,9 +45,7 @@ def _minimal_doctor_file_payload(
         "parse_ok": parse_ok,
         "translation": {
             "rule_coverage": rule_coverage,
-            "semantic_warnings": [
-                _synthetic_diagnostic() for _ in range(semantic_warning_count)
-            ],
+            "semantic_warnings": [_synthetic_diagnostic() for _ in range(semantic_warning_count)],
             "unhandled": [_synthetic_diagnostic() for _ in range(unhandled_count)],
         },
         "unresolved_imports": [{}] * unresolved_import_count,
