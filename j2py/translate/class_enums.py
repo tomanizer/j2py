@@ -494,5 +494,6 @@ def _enum_fields(enum_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]
     fields: list[FieldInfo] = []
     for declaration in body.children_by_type("enum_body_declarations"):
         for child in declaration.named_children:
-            fields.extend(field_infos_from_declaration(child, cfg))
+            if child.type == "field_declaration":
+                fields.extend(field_infos_from_declaration(child, cfg))
     return fields

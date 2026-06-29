@@ -39,7 +39,8 @@ def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInf
 
     fields: list[FieldInfo] = []
     for child in body.named_children:
-        fields.extend(field_infos_from_declaration(child, cfg))
+        if child.type == "field_declaration":
+            fields.extend(field_infos_from_declaration(child, cfg))
     return fields
 
 
