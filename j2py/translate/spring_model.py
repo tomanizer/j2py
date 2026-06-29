@@ -6,8 +6,7 @@ import re
 
 from j2py.config.loader import TranslationConfig
 from j2py.parse.java_ast import JavaNode
-from j2py.translate.annotation_emit import annotation_nodes
-from j2py.translate.framework_annotations import annotation_simple_name
+from j2py.translate.framework_annotations import has_annotation
 from j2py.translate.java_types import java_type_simple_name
 
 _JACKSON_MODEL_ANNOTATIONS = frozenset({"JsonDeserialize", "JsonSerialize"})
@@ -29,7 +28,7 @@ def collect_pydantic_model_class_names(root: JavaNode, cfg: TranslationConfig) -
             name = _class_name(node)
             if name is None:
                 continue
-            if _has_annotation(node, _JACKSON_MODEL_ANNOTATIONS) or _extends_dto_base(node):
+            if has_annotation(node, _JACKSON_MODEL_ANNOTATIONS) or _extends_dto_base(node):
                 model_names.add(name)
             continue
         if node.type != "method_declaration":
@@ -54,10 +53,6 @@ def _class_name(node: JavaNode) -> str | None:
     return name_node.text if name_node is not None else None
 
 
-def _has_annotation(node: JavaNode, names: frozenset[str]) -> bool:
-    return any(annotation_simple_name(annotation) in names for annotation in annotation_nodes(node))
-
-
 def _extends_dto_base(node: JavaNode) -> bool:
     superclass = node.child_by_field("superclass")
     if superclass is None:
@@ -73,7 +68,7 @@ def _request_body_parameter_types(node: JavaNode, declared_names: set[str]) -> s
     for param in params.named_children:
         if param.type not in {"formal_parameter", "spread_parameter"}:
             continue
-        if not _has_annotation(param, _REQUEST_BODY_ANNOTATIONS):
+        if not has_annotation(param, _REQUEST_BODY_ANNOTATIONS):
             continue
         type_node = param.child_by_field("type")
         if type_node is None:
@@ -91,12 +86,9 @@ def _response_body_return_types(
     declared_names: set[str],
     cfg: TranslationConfig,
 ) -> set[str]:
-    if not _has_annotation(node, _RESPONSE_MAPPING_ANNOTATIONS):
+    if not has_annotation(node, _RESPONSE_MAPPING_ANNOTATIONS):
         return set()
-    if any(
-        annotation_simple_name(annotation) in cfg.annotation_map
-        for annotation in annotation_nodes(node)
-    ):
+    if has_annotation(node, cfg.annotation_map):
         return set()
     type_node = node.child_by_field("type")
     if type_node is None:

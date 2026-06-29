@@ -11,6 +11,8 @@ from j2py.translate.class_model import FieldInfo
 from j2py.translate.framework_annotations import (
     annotation_simple_name,
     annotation_template_values,
+    has_annotation,
+    parse_annotation_int,
 )
 
 
@@ -130,17 +132,9 @@ def should_promote_to_pydantic_model(node: JavaNode, fields: Iterable[FieldInfo]
 
     if not has_bean_validation_fields(fields):
         return False
-    if _has_annotation(node, _JPA_ENTITY_ANNOTATIONS):
+    if has_annotation(node, _JPA_ENTITY_ANNOTATIONS):
         return False
     return node.child_by_field("superclass") is None
-
-
-def _has_annotation(node: JavaNode, names: frozenset[str]) -> bool:
-    for annotation in annotation_nodes(node):
-        name = annotation_simple_name(annotation)
-        if name in names:
-            return True
-    return False
 
 
 def _merge_lower_bound_from_annotation(
@@ -165,7 +159,7 @@ def _merge_bound_from_annotation(
     value: str | None,
     merge: Callable[[dict[str, int | str], str, int], None],
 ) -> None:
-    parsed = _parse_int(value)
+    parsed = parse_annotation_int(value)
     if parsed is not None:
         merge(kwargs, key, parsed)
 
@@ -178,24 +172,6 @@ def _merge_lower_bound(kwargs: dict[str, int | str], key: str, value: int) -> No
 def _merge_upper_bound(kwargs: dict[str, int | str], key: str, value: int) -> None:
     existing = kwargs.get(key)
     kwargs[key] = min(existing, value) if isinstance(existing, int) else value
-
-
-def _parse_int(value: str | None) -> int | None:
-    if value is None:
-        return None
-    literal = value.replace("_", "").rstrip("Ll")
-    sign = ""
-    if literal.startswith(("+", "-")):
-        sign = literal[0]
-        literal = literal[1:]
-    try:
-        if literal.startswith(("0x", "0X")):
-            return int(f"{sign}{literal}", 16)
-        if literal.startswith(("0b", "0B")):
-            return int(f"{sign}{literal}", 2)
-        return int(f"{sign}{literal}")
-    except ValueError:
-        return None
 
 
 def _render_value(value: int | str) -> str:
