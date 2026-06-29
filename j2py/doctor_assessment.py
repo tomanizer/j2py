@@ -167,14 +167,10 @@ def _assess_file(
     parse_errors = [_node_payload(item, reason="Java parse error") for item in parsed.errors]
     rule_coverage: float = diagnostics.coverage if diagnostics is not None else 0.0
     semantic_warnings = (
-        []
-        if diagnostics is None
-        else [diagnostic_payload(item) for item in diagnostics.warnings]
+        [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.warnings]
     )
     unhandled = (
-        []
-        if diagnostics is None
-        else [diagnostic_payload(item) for item in diagnostics.unhandled]
+        [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.unhandled]
     )
     todos = todo_lines(result.python_source)
     translation = {
