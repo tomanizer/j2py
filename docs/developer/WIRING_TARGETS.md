@@ -16,12 +16,13 @@ generate target-stack wiring.
 | Validation framework | `j2py/wire/validation.py` |
 | FastAPI target | `j2py/wire/targets/fastapi.py` |
 | Plain provider target | `j2py/wire/targets/providers.py` |
+| Pydantic Settings target | `j2py/wire/targets/pydantic_settings.py` |
 | SQLAlchemy persistence target | `j2py/wire/targets/sqlalchemy.py` |
 | Tests | `tests/wire/` |
 
-The current CLI target type is `Literal["fastapi", "providers", "sqlalchemy"]`. A new
-target must be added to the CLI option, generator dispatch, and validation dispatch
-deliberately.
+The current CLI target type is
+`Literal["fastapi", "providers", "pydantic-settings", "sqlalchemy"]`. A new target must
+be added to the CLI option, generator dispatch, and validation dispatch deliberately.
 
 ## Target Contract
 
@@ -80,6 +81,13 @@ JDBC-typed constructor parameters in a repository receive the same `Connection`.
 with multiple distinct `DataSource` beans that need separate engine, session, or connection
 policies are not yet supported; generated provider signatures will collapse them to one
 connection. Tracked in [#636](https://github.com/tomanizer/j2py/issues/636).
+
+The Pydantic Settings target uses checks for:
+
+- missing generated `settings.py`;
+- unresolved generated imports;
+- duplicate Spring property keys in sidecar metadata;
+- distinct source property keys that normalize to the same generated Python field name.
 
 New targets should follow the same pattern: findings need a stable code, severity,
 location, message, and fix. Use `ValidationFinding` in `j2py/wire/validation.py`.

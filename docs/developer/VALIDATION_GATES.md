@@ -8,7 +8,7 @@ some changes need narrower or stronger evidence.
 | Command | What it proves | Use when |
 |---------|----------------|----------|
 | `make check` | Ruff format/lint, mypy, normal pytest suite without behavior/live LLM/target xfail tests. | Most code and docs changes before commit. |
-| `make ci-local-pr` | Local approximation of required PR CI, including Python 3.11 test leg and equivalence floor. | Before pushing a normal PR. |
+| `make ci-local-pr` | Local approximation of required PR CI, including Python 3.11 line/branch coverage floors and equivalence floor. | Before pushing a normal PR. |
 | `make ci-local-pr-full` | Local PR gate plus Python 3.12 leg. | Before larger PRs or compatibility-sensitive changes. |
 | `make release-check` | Release tests plus package build and distribution checks. | Release or packaging changes. |
 
@@ -27,6 +27,7 @@ some changes need narrower or stronger evidence.
 | Packaging metadata | `pytest tests/packaging -q` |
 | Docs links and anchors | `pytest tests/test_docs_links.py -q` |
 | Docs release inventory | `pytest tests/test_release_coverage_inventory.py tests/test_release_candidate_checklist.py tests/test_release_diagnostics_todo_audit.py tests/test_release_performance_baseline.py tests/packaging/test_check_sdist_hygiene.py -q` |
+| Coverage floor checker | `pytest tests/packaging/test_check_coverage_floor.py -q` |
 
 ## Semantic Gates
 
@@ -58,6 +59,28 @@ hotspot reports. They are useful when a change can affect many real Java files.
 
 In worktrees, set `J2PY_CORPUS_ROOT` to the main checkout if corpus clones live there.
 Do not update baselines unless the diff has been reviewed as intentional.
+
+## Coverage Floors
+
+The Python 3.11 CI leg and `make test-cov` both collect line and branch coverage and run
+`scripts/packaging/check_coverage_floor.py` against the committed ratchet at
+`tests/fixtures/coverage/coverage-floor.json`.
+
+Current floors:
+
+| Metric | Floor |
+|---|---:|
+| Line coverage | 90.0% |
+| Branch coverage | 81.0% |
+
+Raise these floors only after a coverage-improving change has landed locally and the new
+`coverage.xml` proves the higher value. Update both the JSON floor and any release notes
+that quote the floor, then run:
+
+```bash
+make test-cov
+pytest tests/packaging/test_check_coverage_floor.py -q
+```
 
 ## Live And Optional Gates
 

@@ -15,6 +15,14 @@ from j2py.wire.targets.providers import (
     provider_cycles,
     provider_name_collisions,
 )
+from j2py.wire.targets.pydantic_settings import (
+    SETTINGS_FILENAME,
+    SettingsPropertySpec,
+    duplicate_property_keys,
+    field_name_collisions,
+    has_pydantic_settings_facts,
+    missing_settings_property_bindings,
+)
 from j2py.wire.targets.sqlalchemy import (
     DB_FILENAME,
     PERSISTENCE_FILENAME,
@@ -34,6 +42,10 @@ _SQLALCHEMY_ALLOWED_IMPORT_MODULES = _DEFAULT_ALLOWED_IMPORT_MODULES | {
     "contextlib",
     "sqlalchemy",
     "sqlalchemy.engine",
+}
+_PYDANTIC_SETTINGS_ALLOWED_IMPORT_MODULES = _DEFAULT_ALLOWED_IMPORT_MODULES | {
+    "pydantic",
+    "pydantic_settings",
 }
 
 
@@ -194,16 +206,24 @@ class MissingProviderCheck:
 class UnresolvedImportCheck:
     code = "unresolved-import"
 
-    def __init__(self, allowed_import_modules: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        allowed_import_modules: set[str] | None = None,
+        *,
+        file_names: set[str] | None = None,
+    ) -> None:
         self.allowed_import_modules = (
             allowed_import_modules
             if allowed_import_modules is not None
             else _DEFAULT_ALLOWED_IMPORT_MODULES
         )
+        self.file_names = file_names
 
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         findings: list[ValidationFinding] = []
         for path in _wiring_files(context.wiring_dir):
+            if self.file_names is not None and path.name not in self.file_names:
+                continue
             tree = _parse_python(path)
             if tree is None:
                 continue
@@ -540,6 +560,86 @@ class SQLAlchemyTransactionPolicyCheck:
         ]
 
 
+class OrphanPydanticSettingsCheck:
+    code = "orphan-pydantic-settings"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if not has_pydantic_settings_facts(context.sidecars):
+            return []
+        path = context.wiring_dir / SETTINGS_FILENAME
+        if path.exists():
+            return []
+        return [
+            _finding(
+                self.code,
+                str(path),
+                f"Generated Pydantic Settings file '{SETTINGS_FILENAME}' is missing",
+                "Run j2py-wire generate --target pydantic-settings",
+                severity="error",
+            ),
+        ]
+
+
+class PydanticSettingsPropertyConflictCheck:
+    code = "pydantic-settings-property-conflict"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        findings: list[ValidationFinding] = []
+        for key, specs in sorted(duplicate_property_keys(context.sidecars).items()):
+            locations = ", ".join(_settings_property_location(spec) for spec in specs)
+            findings.append(
+                _finding(
+                    self.code,
+                    specs[0].source,
+                    f"Spring property key '{key}' is recorded multiple times: {locations}",
+                    "Deduplicate sidecar metadata or choose one project-owned settings field",
+                    severity="error",
+                    line=specs[0].line,
+                ),
+            )
+        for field_name, specs in sorted(field_name_collisions(context.sidecars).items()):
+            keys = ", ".join(sorted({spec.key for spec in specs}))
+            findings.append(
+                _finding(
+                    self.code,
+                    specs[0].source,
+                    f"Settings field '{field_name}' maps multiple Spring property keys: {keys}",
+                    "Rename or map one property manually before relying on generated settings",
+                    severity="error",
+                    line=specs[0].line,
+                ),
+            )
+        return findings
+
+
+class PydanticSettingsBindingCheck:
+    code = "pydantic-settings-binding"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if duplicate_property_keys(context.sidecars) or field_name_collisions(context.sidecars):
+            return []
+        path = context.wiring_dir / SETTINGS_FILENAME
+        source = _read_text(path)
+        if not source:
+            return []
+        findings: list[ValidationFinding] = []
+        for spec in missing_settings_property_bindings(context.sidecars, source):
+            findings.append(
+                _finding(
+                    self.code,
+                    str(path),
+                    (
+                        f"Generated settings are missing property '{spec.key}' "
+                        f"as field '{spec.field_name}'"
+                    ),
+                    "Re-run j2py-wire generate --target pydantic-settings from current sidecars",
+                    severity="error",
+                    line=spec.line,
+                ),
+            )
+        return findings
+
+
 FASTAPI_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
@@ -560,6 +660,18 @@ PROVIDERS_CHECKS: list[ValidationCheck] = [
     ProviderNameCollisionCheck(),
     ProviderDependencyCheck(),
     ProviderCycleCheck(),
+]
+
+PYDANTIC_SETTINGS_CHECKS: list[ValidationCheck] = [
+    SpringProfileCheck(),
+    SpringBeanDefinitionCheck(),
+    OrphanPydanticSettingsCheck(),
+    UnresolvedImportCheck(
+        _PYDANTIC_SETTINGS_ALLOWED_IMPORT_MODULES,
+        file_names={SETTINGS_FILENAME},
+    ),
+    PydanticSettingsPropertyConflictCheck(),
+    PydanticSettingsBindingCheck(),
 ]
 
 SQLALCHEMY_CHECKS: list[ValidationCheck] = [
@@ -583,6 +695,13 @@ def validate_fastapi_wiring(context: ValidationContext) -> list[ValidationFindin
 def validate_providers_wiring(context: ValidationContext) -> list[ValidationFinding]:
     findings: list[ValidationFinding] = []
     for check in PROVIDERS_CHECKS:
+        findings.extend(check.run(context))
+    return findings
+
+
+def validate_pydantic_settings_wiring(context: ValidationContext) -> list[ValidationFinding]:
+    findings: list[ValidationFinding] = []
+    for check in PYDANTIC_SETTINGS_CHECKS:
         findings.extend(check.run(context))
     return findings
 
@@ -826,6 +945,10 @@ def _unresolved_import(path: Path, line: int, module: str, kind: str) -> Validat
         severity="error",
         line=line,
     )
+
+
+def _settings_property_location(spec: SettingsPropertySpec) -> str:
+    return f"{spec.bean_name}.{spec.target}"
 
 
 def _class_methods(path: Path, class_name: str) -> set[str]:

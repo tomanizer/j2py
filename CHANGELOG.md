@@ -48,6 +48,9 @@ limitations.
   `Strings`, raising the verified fixture surface to **120/152 public methods** while
   also reporting the pinned library-wide denominator, currently **118/11057 public
   methods** across the Commons Lang and Guava source roots (#514, #614).
+- Branch coverage is now an enforced ratchet alongside line coverage: the Python 3.11 CI
+  leg and `make test-cov` read the committed coverage floor from
+  `tests/fixtures/coverage/coverage-floor.json` (#615).
 
 ## 0.6.0b1 - 2026-06-18
 
