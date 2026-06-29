@@ -11,6 +11,7 @@ from typing import Any
 from j2py.analyze.graph import build_dependency_graph, translation_order
 from j2py.analyze.symbols import ClassSymbol, FileSymbols, class_kind, extract_symbols
 from j2py.config.loader import TranslationConfig
+from j2py.doctor_method_signals import class_method_signal_index
 from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment
 from j2py.doctor_project_structure import detect_project_structure, file_project_structure
 from j2py.doctor_readiness import (
@@ -198,12 +199,17 @@ def _assess_file(
         str(migration_readiness["bucket"]),
         str(migration_readiness["risk_band"]),
     )
+    class_signals = class_method_signal_index(
+        parsed.root,
+        translation=translation,
+        parse_ok=parse_ok,
+    )
     return {
         "path": _relative_path(path, source_root),
         "package": symbols.package,
         "parse_ok": parse_ok,
         "parse_errors": parse_errors,
-        "classes": [_class_payload(item) for item in symbols.classes],
+        "classes": [_class_payload(item, class_signals) for item in symbols.classes],
         "imports": symbols.imports,
         "project_structure": file_project_structure(
             path,
@@ -239,9 +245,15 @@ def _summary(files: list[dict[str, Any]], graph_warnings: list[str]) -> dict[str
     risk_scores = [item["risk_score"] for item in files]
     readiness_distribution = _readiness_bucket_counts(files)
     migration_readiness_distribution = _migration_readiness_bucket_counts(files)
+    methods = list(_iter_methods(files))
     return {
         "files": len(files),
         "classes": sum(len(item["classes"]) for item in files),
+        "methods": len(methods),
+        "risky_methods": sum(1 for item in methods if float(item.get("risk_score", 0.0)) > 0.0),
+        "equivalence_candidate_methods": sum(
+            1 for item in methods if item.get("equivalence_candidate") is True
+        ),
         "parse_failures": sum(1 for item in files if not item["parse_ok"]),
         "graph_warnings": len(graph_warnings),
         "average_rule_coverage": sum(coverages) / len(coverages) if coverages else 0.0,
@@ -357,6 +369,7 @@ def _hotspots(files: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         ),
         "lowest_coverage_files": _lowest_coverage_files(files),
         "highest_risk_files": _top_risk_files(files),
+        "highest_risk_methods": _top_risk_methods(files),
     }
 
 
@@ -501,6 +514,68 @@ def _top_risk_files(
     ]
 
 
+def _top_risk_methods(
+    files: list[dict[str, Any]], *, limit: int = _RISK_TOP_READINESS_FILES
+) -> list[dict[str, Any]]:
+    methods = sorted(
+        _iter_methods(files),
+        key=lambda item: (
+            float(item.get("risk_score", 0.0)),
+            str(item.get("path", "")),
+            str(item.get("signature", "")),
+        ),
+        reverse=True,
+    )
+    output: list[dict[str, Any]] = []
+    for item in methods:
+        if len(output) >= limit:
+            break
+        risk_score = float(item.get("risk_score", 0.0))
+        if risk_score <= 0.0:
+            continue
+        diagnostics = item.get("diagnostics", {})
+        output.append(
+            {
+                "path": item["path"],
+                "class": item["class"],
+                "method": item["name"],
+                "signature": item["signature"],
+                "line": item["line"],
+                "risk_score": risk_score,
+                "risk_band": item.get("risk_band", "low"),
+                "readiness_bucket": item.get("readiness_bucket", "ready_to_translate"),
+                "semantic_warnings": diagnostics.get("semantic_warnings", 0),
+                "unhandled": diagnostics.get("unhandled", 0),
+                "todos": diagnostics.get("todos", 0),
+                "equivalence_candidate": item.get("equivalence_candidate", False),
+            }
+        )
+    return output
+
+
+def _iter_methods(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    methods: list[dict[str, Any]] = []
+    for file_payload in files:
+        for class_payload in _iter_classes(file_payload["classes"]):
+            for method in class_payload.get("methods", []):
+                methods.append(
+                    {
+                        **method,
+                        "path": file_payload["path"],
+                        "class": class_payload["qualified_name"],
+                    }
+                )
+    return methods
+
+
+def _iter_classes(classes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for item in classes:
+        output.append(item)
+        output.extend(_iter_classes(item.get("inner_classes", [])))
+    return output
+
+
 def _readiness_bucket_counts(files: list[dict[str, Any]]) -> dict[str, int]:
     counts: Counter[str] = Counter()
     for item in files:
@@ -587,9 +662,17 @@ def _recommended_next_commands(source: Path) -> list[str]:
     ]
 
 
-def _class_payload(cls: ClassSymbol) -> dict[str, Any]:
-    return {
+def _class_payload(
+    cls: ClassSymbol,
+    signals: dict[str, dict[str, Any]],
+    *,
+    parent_class_name: str | None = None,
+) -> dict[str, Any]:
+    qualified_name = f"{parent_class_name}.{cls.name}" if parent_class_name else cls.name
+    signal = signals.get(qualified_name, {})
+    payload = {
         "name": cls.name,
+        "qualified_name": qualified_name,
         "line": cls.line,
         "kind": class_kind(cls),
         "fields": [
@@ -601,17 +684,47 @@ def _class_payload(cls: ClassSymbol) -> dict[str, Any]:
             }
             for field in cls.fields
         ],
-        "methods": [
-            {
-                "name": method.name,
-                "return_type": method.return_type,
-                "line": method.line,
-                "static": method.is_static,
-            }
-            for method in cls.methods
+        "methods": _method_payloads(cls, signal),
+        "inner_classes": [
+            _class_payload(inner, signals, parent_class_name=qualified_name)
+            for inner in cls.inner_classes
         ],
-        "inner_classes": [_class_payload(inner) for inner in cls.inner_classes],
     }
+    for key in ("end_line", "range_source", "diagnostics", "migration_readiness"):
+        if key in signal:
+            payload[key] = signal[key]
+    if "risk_score" in signal:
+        payload["risk_score"] = signal["risk_score"]
+        payload["risk_band"] = signal["risk_band"]
+    return payload
+
+
+def _method_payloads(cls: ClassSymbol, signal: dict[str, Any]) -> list[dict[str, Any]]:
+    signal_methods = list(signal.get("methods", []))
+    signal_by_line_name = {
+        (method.get("line"), method.get("name")): method for method in signal_methods
+    }
+    used_signals: set[int] = set()
+    output: list[dict[str, Any]] = []
+    for method in cls.methods:
+        base = {
+            "name": method.name,
+            "return_type": method.return_type,
+            "line": method.line,
+            "static": method.is_static,
+            "param_types": method.param_types,
+            "param_names": method.param_names,
+        }
+        signal_method = signal_by_line_name.get((method.line, method.name))
+        if signal_method is not None:
+            used_signals.add(id(signal_method))
+            output.append({**base, **signal_method})
+        else:
+            output.append(base)
+    for method in signal_methods:
+        if id(method) not in used_signals:
+            output.append(method)
+    return sorted(output, key=lambda item: (item["line"], item["name"]))
 
 
 def _annotations(root: JavaNode, imports: list[str]) -> list[dict[str, Any]]:
