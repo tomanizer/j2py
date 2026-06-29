@@ -594,7 +594,24 @@ def _translate_arrays_call(method_name: str, args: list[str]) -> str | None:
         return f"{args[0]} == {args[1]}"
     if method_name == "copyOfRange" and len(args) == 3:
         return _translate_arrays_copy_of_range(args)
+    if method_name == "copyOf" and len(args) == 2:
+        return _translate_arrays_copy_of(args)
+    if method_name == "hashCode" and len(args) == 1:
+        return f"hash(tuple({args[0]}))"
     return None
+
+
+def _translate_arrays_copy_of(args: list[str]) -> str:
+    source, new_length = args
+    source_expr = _slice_source_expression(source)
+    use_source_walrus = "(" in source
+    use_len_walrus = "(" in new_length
+    arr_var = "_j2py_arr" if use_source_walrus else source_expr
+    len_var = "_j2py_len" if use_len_walrus else new_length
+    slice_expr = f"({arr_var} := {source_expr})" if use_source_walrus else arr_var
+    len_expr = f"({len_var} := {new_length})" if use_len_walrus else len_var
+    result = f"{slice_expr}[:{len_expr}] + [None] * ({len_var} - len({arr_var}))"
+    return f"({result})" if (use_source_walrus or use_len_walrus) else result
 
 
 def _translate_arrays_copy_of_range(args: list[str]) -> str:
