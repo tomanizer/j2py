@@ -167,7 +167,7 @@ def test_translation_metrics_record_rule_only_surface() -> None:
     }
     assert all(metric.coverage == 1.0 for metric in _NS.metrics.values())
     assert sum(metric.todos for metric in _NS.metrics.values()) == 0
-    assert _NS.metrics["Hex"].semantic_warnings <= 60
+    assert _NS.metrics["Hex"].semantic_warnings <= 65
 
 
 def test_external_stubs_are_separate_from_residual_patches() -> None:

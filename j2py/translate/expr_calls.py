@@ -34,6 +34,7 @@ class _MethodInvocationParts:
     arg_nodes: list[JavaNode]
     arg_expressions: list[str]
     args: str
+    forwarded_varargs: tuple[int, str] | None
     method_name: str
     receiver_nodes: list[JavaNode]
     raw_receiver: str
@@ -100,6 +101,12 @@ def _method_invocation_parts(
 
     arg_nodes = _argument_nodes(args_node)
     arg_expressions = [_translate_argument(child, ctx) for child in arg_nodes]
+    arg_expressions, forwarded_varargs = _spread_forwarded_varargs(
+        node,
+        arg_nodes,
+        arg_expressions,
+        ctx,
+    )
     args = ", ".join(arg_expressions)
 
     args_index = named.index(args_node)
@@ -112,10 +119,75 @@ def _method_invocation_parts(
         arg_nodes=arg_nodes,
         arg_expressions=arg_expressions,
         args=args,
+        forwarded_varargs=forwarded_varargs,
         method_name=method_name,
         receiver_nodes=receiver_nodes,
         raw_receiver=raw_receiver,
     )
+
+
+def _spread_forwarded_varargs(
+    node: JavaNode,
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    ctx: TranslationContext,
+) -> tuple[list[str], tuple[int, str] | None]:
+    """Preserve Java varargs forwarding when one varargs parameter is passed through.
+
+    A Java body like ``target(value, delimiters)`` inside ``source(..., char... delimiters)``
+    forwards the individual varargs elements to another varargs call. The translated
+    Python method receives ``delimiters`` as a tuple, so the call site must use
+    ``*delimiters`` unless the normalized value is ``None`` for an omitted Java varargs
+    default.
+    """
+    if not ctx.spread_param_names or not arg_nodes:
+        return arg_expressions, None
+
+    method_name = node.child_by_field("name")
+    target_name = method_name.text if method_name is not None else ""
+    target_signatures = ctx.class_method_params.get(target_name, ())
+    if not target_signatures or not any(
+        any(param.is_spread for param in signature) for signature in target_signatures
+    ):
+        return arg_expressions, None
+
+    forwarded = list(arg_expressions)
+    forwarded_varargs: tuple[int, str] | None = None
+    for index, (arg_node, arg_expression) in enumerate(
+        zip(arg_nodes, arg_expressions, strict=True),
+    ):
+        inner = unwrap_parens(arg_node)
+        if inner.type != "identifier" or inner.text not in ctx.spread_param_names:
+            continue
+        if not _argument_targets_spread_parameter(arg_node, index, target_signatures, ctx):
+            continue
+        forwarded[index] = arg_expression
+        forwarded_varargs = (index, arg_expression)
+    return forwarded, forwarded_varargs
+
+
+def _argument_targets_spread_parameter(
+    arg_node: JavaNode,
+    index: int,
+    target_signatures: tuple[tuple[object, ...], ...],
+    ctx: TranslationContext,
+) -> bool:
+    from j2py.translate.class_model import ParameterInfo
+    from j2py.translate.java_types import java_expression_type
+
+    inner = unwrap_parens(arg_node)
+    arg_type = java_expression_type(arg_node, ctx) or ctx.variable_java_types.get(inner.text)
+    for signature in target_signatures:
+        params = [param for param in signature if isinstance(param, ParameterInfo)]
+        spread_index = next((i for i, param in enumerate(params) if param.is_spread), None)
+        if spread_index is None or index < spread_index:
+            continue
+        if index > spread_index:
+            return True
+        spread_type = params[spread_index].java_type
+        if arg_type is None or arg_type == spread_type:
+            return True
+    return False
 
 
 def _translate_static_or_platform_method_invocation(
@@ -369,10 +441,36 @@ def _translate_generic_method_invocation(
         py_method = _translate_receiver_method_name(parts, ctx)
 
     if receiver:
+        forwarded = _render_forwarded_varargs_call(f"{receiver}.{py_method}", parts)
+        if forwarded is not None:
+            return forwarded
         return f"{receiver}.{py_method}({parts.args})"
     if ctx.in_instance_method and py_method in ctx.class_methods:
+        forwarded = _render_forwarded_varargs_call(f"self.{py_method}", parts)
+        if forwarded is not None:
+            return forwarded
         return f"self.{py_method}({parts.args})"
+    forwarded = _render_forwarded_varargs_call(py_method, parts)
+    if forwarded is not None:
+        return forwarded
     return f"{py_method}({parts.args})"
+
+
+def _render_forwarded_varargs_call(
+    callable_expr: str,
+    parts: _MethodInvocationParts,
+) -> str | None:
+    if parts.forwarded_varargs is None:
+        return None
+    index, arg_expression = parts.forwarded_varargs
+    if index != len(parts.arg_expressions) - 1:
+        return None
+    prefix = ", ".join(parts.arg_expressions[:index])
+    without_forward = f"{callable_expr}({prefix})" if prefix else f"{callable_expr}()"
+    with_forward_args = f"{prefix}, {arg_expression}" if prefix else arg_expression
+    return (
+        f"({without_forward} if {arg_expression} is None else {callable_expr}({with_forward_args}))"
+    )
 
 
 def _translate_unqualified_dispatch(
@@ -426,7 +524,11 @@ def _translate_unqualified_dispatch(
                 binding.python_owner,
                 binding.python_owner,
             )
-            return f"{owner}.{binding.python_member}({parts.args})"
+            callable_expr = f"{owner}.{binding.python_member}"
+            forwarded = _render_forwarded_varargs_call(callable_expr, parts)
+            if forwarded is not None:
+                return forwarded
+            return f"{callable_expr}({parts.args})"
         return static_import_method_fallback(binding, parts.arg_expressions, ctx.cfg)
 
     return None

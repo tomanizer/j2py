@@ -10,6 +10,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.java_types import (
+    is_integral_java_type,
     java_expression_type,
     java_type_simple_name,
 )
@@ -119,8 +120,9 @@ def _translate_character_static_call(
         return args[0]
     if method_name == "toString" and len(args) == 1:
         return f"str({args[0]})"
-    if method_name == "toLowerCase" and len(args) == 1:
-        return f"ord(chr({args[0]}).lower())"
+    case_conversion = _translate_character_case_conversion(method_name, arg_nodes, args, ctx)
+    if case_conversion is not None:
+        return case_conversion
     return _translate_character_char_predicate(node, method_name, arg_nodes, args, ctx)
 
 
@@ -757,7 +759,35 @@ _CHARACTER_CHAR_PREDICATES: dict[str, str] = {
     "isLowerCase": "islower",
     "isUpperCase": "isupper",
     "isWhitespace": "isspace",
+    "isTitleCase": "istitle",
 }
+
+
+_CHARACTER_CASE_CONVERSIONS: dict[str, str] = {
+    "toLowerCase": "lower",
+    "toUpperCase": "upper",
+    "toTitleCase": "title",
+}
+
+
+def _translate_character_case_conversion(
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if len(args) != 1:
+        return None
+    conversion = _CHARACTER_CASE_CONVERSIONS.get(method_name)
+    if conversion is None:
+        return None
+    arg = args[0]
+    if _character_arg_is_code_point(arg_nodes, ctx):
+        converted = f"chr({arg}).{conversion}()"
+        if conversion == "title":
+            converted = f"{converted}[0]"
+        return f"ord({converted})"
+    return f"{arg}.{conversion}()"
 
 
 def _translate_character_char_predicate(
@@ -773,6 +803,10 @@ def _translate_character_char_predicate(
     if predicate is None:
         return None
     arg = args[0]
+    if _character_arg_is_code_point(arg_nodes, ctx):
+        if method_name == "isTitleCase":
+            return f"(chr({arg}).istitle() and not chr({arg}).isupper())"
+        return f"chr({arg}).{predicate}()"
     simple_arg_nodes = {"identifier", "field_access", "character_literal", "string_literal"}
     if arg_nodes and arg_nodes[0].type not in simple_arg_nodes:
         ctx.diagnostics.warn(
@@ -783,6 +817,15 @@ def _translate_character_char_predicate(
             ),
         )
     return f"(len({arg}) == 1 and {arg}.{predicate}())"
+
+
+def _character_arg_is_code_point(arg_nodes: list[JavaNode], ctx: TranslationContext) -> bool:
+    if len(arg_nodes) != 1:
+        return False
+    java_type = java_expression_type(arg_nodes[0], ctx)
+    if java_type is None or not is_integral_java_type(java_type):
+        return False
+    return java_type_simple_name(java_type) not in {"char", "Character"}
 
 
 def _is_locale_argument(node: JavaNode) -> bool:

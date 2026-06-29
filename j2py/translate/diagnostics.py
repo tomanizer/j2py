@@ -19,6 +19,7 @@ from j2py.translate.runtime import (
 )
 
 if TYPE_CHECKING:
+    from j2py.translate.class_model import ParameterInfo
     from j2py.translate.member_resolution import JavaMemberBinding, JavaOverloadCallTarget
 
 
@@ -283,6 +284,10 @@ class TranslationContext:
 
     # Java method name -> translated return type for the enclosing class.
     class_method_return_types: dict[str, str] = field(default_factory=dict)
+    # Java method name -> translated parameter signatures for the enclosing class.
+    class_method_params: dict[str, tuple[tuple[ParameterInfo, ...], ...]] = field(
+        default_factory=dict,
+    )
 
     # Java static method names that must dispatch through the containing class
     # when called without a receiver (used for static @overloaded groups; see

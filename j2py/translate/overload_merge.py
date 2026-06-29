@@ -550,6 +550,7 @@ def _merged_forwarding_method_overload(
     class_static_methods: set[str],
     enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
+    class_method_params: dict[str, tuple[tuple[ParameterInfo, ...], ...]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     static_member_bindings: dict[str, JavaMemberBinding] | None,
@@ -634,6 +635,7 @@ def _merged_forwarding_method_overload(
     ctx.declared_type_fields = dict(declared_type_fields)
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
+    ctx.class_method_params = dict(class_method_params)
     ctx.in_instance_method = not is_static
     ctx.in_method = True
     for param in impl.params:
@@ -921,7 +923,11 @@ def _defaulted_parameters(
             omitted_name = f"_j2py_{param.py_name}_omitted"
             sentinel_lines.append(f"        {omitted_name} = len({param.py_name}) == 0")
             sentinel_lines.append(
-                f"        if len({param.py_name}) == 1 and "
+                f"        if len({param.py_name}) == 1 and {param.py_name}[0] is None:"
+            )
+            sentinel_lines.append(f"            {param.py_name} = None")
+            sentinel_lines.append(
+                f"        elif len({param.py_name}) == 1 and "
                 f"isinstance({param.py_name}[0], (list, tuple)):"
             )
             sentinel_lines.append(f"            {param.py_name} = tuple({param.py_name}[0])")
@@ -964,6 +970,7 @@ def _merged_method_overload(
     class_static_methods: set[str],
     enclosing_static_dispatch: dict[str, str],
     class_method_return_types: dict[str, str],
+    class_method_params: dict[str, tuple[tuple[ParameterInfo, ...], ...]],
     static_field_aliases: dict[str, str],
     static_method_imports: dict[str, str],
     static_member_bindings: dict[str, JavaMemberBinding] | None,
@@ -1037,6 +1044,7 @@ def _merged_method_overload(
     ctx.declared_type_fields = dict(declared_type_fields)
     ctx.declared_type_java_fields = dict(declared_type_java_fields)
     ctx.class_method_return_types = dict(class_method_return_types)
+    ctx.class_method_params = dict(class_method_params)
     ctx.in_instance_method = not is_static
     ctx.in_method = True
     for param in merged_params:

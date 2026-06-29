@@ -48,6 +48,7 @@ from j2py.translate.class_members import (
     type_metadata_comment_lines,
 )
 from j2py.translate.class_methods import (
+    class_method_params,
     class_method_return_types,
     collect_declared_type_method_return_types,
     parameter_infos,
@@ -231,6 +232,7 @@ def translate_class(
     static_instance_instance_zero_arg = set(own_instance_zero) | set(inherited_instance_zero)
     static_instance_static_zero_arg = set(own_static_zero) | set(inherited_static_zero)
     method_return_types = class_method_return_types(members, cfg)
+    method_params_by_name = class_method_params(members, cfg)
     overload_call_targets = _overload_call_targets_for_members(members, cfg)
     enclosing_dispatch = dict(env.enclosing_static_dispatch)
     enclosing_dispatch.update(
@@ -436,6 +438,7 @@ def translate_class(
                     class_methods=class_method_names,
                     class_static_methods=class_static_method_names,
                     class_method_return_types=method_return_types,
+                    class_method_params=method_params_by_name,
                     static_field_aliases=env.static_field_aliases,
                     static_method_imports=env.static_method_imports,
                     static_member_bindings=env.static_member_bindings,
@@ -478,6 +481,7 @@ def translate_class(
             class_methods=class_method_names,
             class_static_methods=class_static_method_names,
             class_method_return_types=method_return_types,
+            class_method_params=method_params_by_name,
             static_field_aliases=env.static_field_aliases,
             static_method_imports=env.static_method_imports,
             static_member_bindings=env.static_member_bindings,
@@ -808,6 +812,7 @@ def translate_overloaded_members(
     class_static_methods: set[str] | None = None,
     enclosing_static_dispatch: dict[str, str] | None = None,
     class_method_return_types: dict[str, str] | None = None,
+    class_method_params: dict[str, tuple[tuple[ParameterInfo, ...], ...]] | None = None,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
     static_member_bindings: dict[str, JavaMemberBinding] | None = None,
@@ -840,6 +845,7 @@ def translate_overloaded_members(
         class_static_methods=class_static_methods,
         enclosing_static_dispatch=enclosing_static_dispatch,
         class_method_return_types=class_method_return_types,
+        class_method_params=class_method_params,
         static_field_aliases=static_field_aliases,
         static_method_imports=static_method_imports,
         static_member_bindings=static_member_bindings,
