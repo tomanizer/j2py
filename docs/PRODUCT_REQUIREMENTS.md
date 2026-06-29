@@ -123,6 +123,9 @@ presence plus declaration order. Structural failures feed a single LLM repair re
 Provide measurable quality signal without live LLM in normal CI:
 
 - **Graduated fixtures** — Java/Python pairs and graduated roadmap targets in `make check`
+- **Coverage floors** — enforced line and branch coverage ratchets in
+  `tests/fixtures/coverage/coverage-floor.json` (`make test-cov`, required Python 3.11
+  CI leg)
 - **Equivalence gate** — literal-oracle differential tests on harvested library code
   (`tests/equivalence/`, current verified fixture surface **120/152 public signatures**;
   paired library-wide denominator **118/11057 public signatures** across pinned Commons

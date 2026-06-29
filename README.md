@@ -281,6 +281,7 @@ supported imports and result models are listed in
 
 ```bash
 make check         # ruff + mypy strict + pytest (excludes behavior, live_llm, target_translation)
+make test-cov      # pytest with enforced line and branch coverage floors
 make test-behavior # Java/Python stdout/stderr/exit-code equivalence (requires JDK)
 make equivalence-report # verified fixture surface + library-wide denominator report
 make test-targets  # future strict-xfail roadmap targets

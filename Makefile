@@ -161,13 +161,13 @@ harvest-pipeline:  ## Run harvest preset, triage report, and FUTURE_TARGETS draf
 	$(MAKE) harvest-prune
 
 test-cov:  ## Run tests with coverage report
-	uv run --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
-	uv run python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
+	uv run --extra test pytest --cov=j2py --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run python scripts/packaging/check_coverage_floor.py coverage.xml
 
 test-ci-py311:  ## Run the Python 3.11 CI test leg: tests, coverage floors, and equivalence surface floor
 	mkdir -p corpus-reports
-	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --python 3.11 --extra test pytest --cov=j2py --cov-report=term-missing --cov-report=xml --cov-fail-under=0
-	uv run --python 3.11 python scripts/packaging/check_coverage_floor.py coverage.xml --min-line 90 --min-branch 81
+	J2PY_EQUIVALENCE_SURFACE_JSON=corpus-reports/equivalence-surface.json uv run --python 3.11 --extra test pytest --cov=j2py --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=0
+	uv run --python 3.11 python scripts/packaging/check_coverage_floor.py coverage.xml
 	uv run --python 3.11 python scripts/equivalence/surface_report.py corpus-reports/equivalence-surface.json
 	uv run --python 3.11 python scripts/equivalence/check_surface_floor.py corpus-reports/equivalence-surface.json
 
