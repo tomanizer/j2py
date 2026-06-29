@@ -1,16 +1,16 @@
-# Case study - translating Apache Commons Text CaseUtils end-to-end
+# Case study - translating Apache Commons Text CaseUtils and WordUtils end-to-end
 
 Status: **Active** (issue [#657](https://github.com/tomanizer/j2py/issues/657), child
 of external-library epic [#655](https://github.com/tomanizer/j2py/issues/655)).
 
 This case study is the third external-library closed loop after
 [`java-semver`](CASE_STUDY_JSEMVER.md) and
-[Apache Commons Codec `Hex`](CASE_STUDY_COMMONS_CODEC_HEX.md). It translates a focused
-Apache Commons Text `CaseUtils` slice with the deterministic rule layer only, links the
-translated class in a test harness, and runs upstream-derived pytest assertions against
-the translated Python.
+[Apache Commons Codec `Hex`](CASE_STUDY_COMMONS_CODEC_HEX.md). It translates focused
+Apache Commons Text `CaseUtils` and `WordUtils` slices with the deterministic rule layer
+only, links the translated classes in test harnesses, and runs upstream-derived pytest
+assertions against the translated Python.
 
-## Why this slice
+## Why these slices
 
 The two prior external case studies bias toward byte/array and stream/util constructs.
 `CaseUtils.toCamelCase` is the first slice that stresses **string casing, Unicode
@@ -19,10 +19,15 @@ It has a tiny dependency closure (`StringUtils.isEmpty`, `ArrayUtils.isEmpty`, a
 `java.lang.Character` statics) and a focused upstream test with literal expected values,
 which is exactly the profile epic #655 asks for.
 
-It was chosen over the heavier Commons Text surfaces named in #657:
+`WordUtils` is the next step for #657. Its non-regex word/case/initials surface reuses the
+string/code-point primitives from `CaseUtils` but adds Java `Predicate<Integer>` method
+references, overload/varargs forwarding, deprecated overload dispatch, `Strings.CS`, and
+`Validate`. The first expansion intentionally excludes its regex-heavy `containsAllWords`
+and `wrap` methods so the oracle can isolate translator defects before introducing a
+`Pattern`/`Matcher` shim.
 
-- `WordUtils` (~825 lines, 14 methods) pulls in `Pattern`/`Matcher`, `Validate`, and
-  `Strings.CS` — a much wider closure, better as a follow-on.
+The remaining heavier Commons Text surface is still deferred:
+
 - `StringEscapeUtils` drags in the translator/lookup machinery and is explicitly
   deferred.
 
@@ -40,7 +45,8 @@ The hermetic fixture under
 contains only the scoped production source plus the upstream assertion source:
 
 - `org.apache.commons.text.CaseUtils`
-- `CaseUtilsTest.java` for the focused pytest port
+- `org.apache.commons.text.WordUtils`
+- `CaseUtilsTest.java` and `WordUtilsTest.java` for the focused pytest ports
 
 ## Rule-layer translation metrics
 
@@ -49,6 +55,7 @@ Rule layer only, no LLM (`translate_file(..., use_llm=False, validate=False)`):
 | File | Node coverage | `# TODO(j2py)` | Confidence | Semantic warnings |
 |---|---:|---:|---:|---:|
 | `CaseUtils.java` | 100% | 0 | 0.99 | 6 |
+| `WordUtils.java` | 100% | 0 | 0.99 | 42 |
 
 This slice was the sharpest evidence yet that **node coverage and confidence do not prove
 executable behavior**: at 100% coverage / 0.99 confidence, the *first* translation of
@@ -58,9 +65,14 @@ defects below — coverage and confidence were blind to them. The three executio
 (CT-1, CT-2, CT-3) have since been fixed at the rule layer, so the oracle now runs against
 the linked translation with **no residual patches at all**.
 
+`WordUtils` repeats the same lesson: the file translates at 100% node coverage with zero
+TODOs, but the first executable expansion needed six residual generated-output patches
+before the non-regex oracle could run. WU-1 has since graduated to the rule layer; the
+remaining active `WU-*` gaps are locked in the harness until they are fixed there too.
+
 ## Closed loop
 
-The pytest oracle is
+The `CaseUtils` pytest oracle is
 [`tests/case_study/test_commons_text_caseutils_case_study.py`](../tests/case_study/test_commons_text_caseutils_case_study.py),
 backed by
 [`tests/case_study/commons_text_caseutils_harness.py`](../tests/case_study/commons_text_caseutils_harness.py).
@@ -78,6 +90,29 @@ Covered surface:
 - supplementary (astral) code points under the default whitespace delimiter;
 - locale-independent casing (`Locale.ROOT` parity via Python `str.lower()`).
 
+The `WordUtils` expansion is
+[`tests/case_study/test_commons_text_wordutils_case_study.py`](../tests/case_study/test_commons_text_wordutils_case_study.py),
+using the same harness.
+
+Result: **56 / 56 focused tests pass** against the patched linked rule-layer translation
+for the non-regex `WordUtils` surface.
+
+Covered surface:
+
+- `abbreviate` lower/upper bounds and appended suffix behavior;
+- `capitalize`, `capitalizeFully`, and `uncapitalize` with default whitespace,
+  explicit delimiter lists, and explicit empty `char[]`;
+- `initials` with whitespace, custom delimiters, and explicit empty delimiter arrays;
+- deprecated `isDelimiter(char, char[])` and `isDelimiter(int, char[])` behavior;
+- `swapCase` for upper/lower/title-style word transitions.
+
+Excluded for this phase:
+
+- `containsAllWords`, because it depends on `Pattern.quote`, `Pattern.DOTALL`, matcher
+  objects, and Java word-boundary semantics;
+- `wrap`, because it depends on iterative regex matching, zero-width matches, system line
+  separators, and surrogate-pair hard-wrap behavior.
+
 ## External-dependency stubs
 
 These are JDK / commons-lang3 symbols outside the tested `CaseUtils` logic. They are
@@ -88,6 +123,8 @@ scaffolding, not residual translator patches:
   Python `str` is already a sequence of code points (Java models text as UTF-16 code
   units), the stub's `charCount` is always `1`, so the delimiter scan advances in
   code-point space and the algorithm matches.
+- `WordUtils` additionally stubs scoped `StringUtils.isBlank`, `StringUtils.defaultString`,
+  `Strings.CS.indexOf`, and `Validate.isTrue`.
 
 ## Translator defects
 
@@ -124,6 +161,22 @@ A fourth observation is **not** a residual patch but a known limitation:
   `U+10314`, which Python's code-point model cannot represent as a delimiter.
   `test_excluded_surrogate_delimiter_case_is_documented` keeps that exclusion explicit.
 
+`WordUtils` active residual patches:
+
+| Gap id | Status | Module | Defect |
+|---|---|---|---|
+| WU-2 | **Active** | `WordUtils` | Internal forwarding from `capitalizeFully(String, char...)` passes the varargs tuple as one delimiter instead of spreading it. |
+| WU-3 | **Active** | `WordUtils` | Merged no-arg/varargs overloads treat omitted delimiters as an explicit empty `char[]`; Java's no-arg overload forwards `null` to mean whitespace. |
+| WU-4 | **Active** | `WordUtils` | `Character` case predicates and conversions on int code points lower to Python string APIs on integers, including no-argument `Character.lower()` / `upper()` calls. |
+| WU-5 | **Active** | `WordUtils` | `Character.toLowerCase(codePoint)` lowers to a no-argument `Character.lower()` call in `uncapitalize`. |
+| WU-6 | **Active** | `WordUtils` | The collapsed `isDelimiter` overload dispatcher rejects null delimiter arrays and uses string-only APIs on int code points. |
+
+Graduated `WordUtils` patches:
+
+| Gap id | Status | Module | Defect |
+|---|---|---|---|
+| WU-1 | **Done** | `WordUtils` | `Predicate<Integer>.test(...)` now lowers to direct callable invocation for typed predicate locals, and collection `::contains` method references lower to Python membership predicates. |
+
 ## Follow-ups
 
 1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done.**
@@ -133,5 +186,7 @@ A fourth observation is **not** a residual patch but a known limitation:
    ADR-level decision: route `java.lang` wrapper types to a runtime shim or `import_map`
    entry, and migrate the equivalence-gate fixtures off the same-package-stub mechanism in
    the same change.
-4. Expand to `WordUtils` once the string/code-point primitives above are owned by the
-   rule layer; defer `StringEscapeUtils` until the lookup machinery has a clear owner.
+4. Fix WU-2 through WU-6 in the rule layer, removing each harness patch as it graduates.
+5. Add a bounded regex/matcher shim or targeted JDK lowering before expanding to
+   `containsAllWords` and `wrap`.
+6. Defer `StringEscapeUtils` until the lookup machinery has a clear owner.

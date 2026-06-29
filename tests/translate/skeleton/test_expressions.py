@@ -2993,6 +2993,34 @@ def test_expression_lambdas_and_method_references_translate() -> None:
     assert_valid_python(python_source)
 
 
+def test_predicate_test_and_collection_contains_method_reference_translate() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.HashSet;
+        import java.util.Set;
+        import java.util.function.Predicate;
+
+        public class PredicateCallbacks {
+            public boolean containsKnown(int value) {
+                Set<Integer> values = new HashSet<>();
+                values.add(1);
+                Predicate<Integer> hasValue = values::contains;
+                Predicate<Integer> never = candidate -> false;
+                return hasValue.test(value) && !never.test(value);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "has_value = values.__contains__" in python_source
+    assert "never = lambda candidate: False" in python_source
+    assert "return has_value(value) and not never(value)" in python_source
+    assert ".test(" not in python_source
+    assert ".contains" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_block_lambda_translates_to_local_helper() -> None:
     """Block lambdas are now supported via a local helper function (no more forced TODO/LLM)."""
     result = translate_source_with_diagnostics(

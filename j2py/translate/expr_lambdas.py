@@ -6,6 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.comments import is_comment
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
+from j2py.translate.java_types import java_expression_type, java_type_simple_name
 from j2py.translate.node_utils import first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import (
     translate_class_name,
@@ -321,6 +322,8 @@ def _translate_method_reference(node: JavaNode, ctx: TranslationContext) -> str:
         if predicate is not None:
             return f"lambda value: value is not None and len(value) == 1 and value.{predicate}()"
     method_name = translate_method_name(method_node.text, snake_case=ctx.cfg.snake_case_methods)
+    if method_node.text == "contains" and _is_collection_method_reference_target(named[0], ctx):
+        return f"{target}.__contains__"
     return f"{target}.{method_name}"
 
 
@@ -333,3 +336,25 @@ def _method_reference_target(node: JavaNode, ctx: TranslationContext) -> str:
     if target_text[:1].isupper():
         return translate_class_name(target_text)
     return translate_expression(node, ctx)
+
+
+def _is_collection_method_reference_target(node: JavaNode, ctx: TranslationContext) -> bool:
+    java_type = java_expression_type(node, ctx)
+    if java_type is None:
+        return False
+    simple = java_type_simple_name(java_type)
+    if simple in {
+        "Collection",
+        "Deque",
+        "HashSet",
+        "LinkedHashSet",
+        "List",
+        "Queue",
+        "Set",
+        "SortedSet",
+        "TreeSet",
+    }:
+        return True
+    return simple.endswith(("Collection", "List", "Queue", "Set")) and not simple.endswith(
+        "Multiset",
+    )
