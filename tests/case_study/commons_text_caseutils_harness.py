@@ -93,7 +93,7 @@ class _StringUtils:
 
     @staticmethod
     def is_empty(value: str | None) -> bool:
-        return value is None or len(value) == 0
+        return not value
 
 
 class _ArrayUtils:
@@ -119,8 +119,7 @@ class _Character:
 
     @staticmethod
     def to_title_case(code_point: int) -> int:
-        titled = chr(code_point).title()
-        return ord(titled[0]) if titled else code_point
+        return ord(chr(code_point).title()[0])
 
     @staticmethod
     def code_point_at(seq: Any, index: int) -> int:
