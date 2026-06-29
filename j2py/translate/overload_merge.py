@@ -728,6 +728,8 @@ def _resolve_overload_defaults(
 
 def _resolve_pass_through_forwarding(forwards: list[_OverloadForward]) -> _OverloadForward | None:
     """Resolve same-arity forwarding overloads that pass every parameter through."""
+    if any(forward.member.type != "method_declaration" for forward in forwards):
+        return None
     implementations = [forward for forward in forwards if forward.forwarded is None]
     if len(implementations) != 1:
         return None
