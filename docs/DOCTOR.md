@@ -156,7 +156,7 @@ keys are:
 
 | Key | Meaning |
 |---|---|
-| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, readiness, and unresolved-import counts. |
+| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, legacy readiness, migration-readiness, and unresolved-import counts. |
 | `dependency_graph` | Translation order and dependency graph warnings from existing analyzer output. |
 | `project_structure` | Detected Maven/Gradle build files, source roots, test roots, generated-source roots, modules, and Java language level when declared. |
 | `annotation_inventory` | Observed Java annotation names and counts. |
@@ -175,10 +175,22 @@ Each entry under `files` includes:
 - `project_structure` with the detected module, source root, and source-set classification;
 - observed `annotations`;
 - per-file `unresolved_imports`;
-- `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`.
+- `migration_readiness.bucket`, `risk_score`, `risk_band`, `reasons`, and `next_action`;
+- legacy mirror fields: `risk_score`, `risk_band`, `readiness_bucket`, and `risk_reasons`;
 - `translation.rule_coverage` and surfaced `translation.confidence`;
 - `translation.semantic_warnings`, `translation.unhandled`, `translation.todos`;
 - `translation.validation` when validation was requested.
+
+`migration_readiness.bucket` uses these deterministic values:
+
+| Bucket | Meaning |
+|---|---|
+| `ready_to_translate` | No parse, rule, config, boundary, warning, TODO, or validation blockers were observed. |
+| `needs_config` | Unresolved project or third-party imports need reviewed config mapping, stubs, or project-owned handling. |
+| `needs_rule_work` | Rule coverage, unhandled diagnostics, or requested validation failures indicate translator work is needed before bulk migration. |
+| `framework_boundary` | Framework/platform imports or annotations require explicit target-stack policy. |
+| `manual_port` | Semantic warnings or TODOs require human review, but no stronger blocker was observed. |
+| `parse_blocked` | Java parse errors prevent reliable migration assessment for the file. |
 
 ### HTML
 
@@ -409,7 +421,8 @@ The current implementation provides:
   detection without invoking external build tools;
 - rule-only translation coverage, confidence, semantic warnings, TODOs, and unhandled
   diagnostics;
-- per-file risk scoring, readiness buckets, and top-risk hotspots;
+- per-file `migration_readiness` scoring, six actionable readiness buckets, legacy
+  readiness mirrors, and top-risk hotspots;
 - annotation inventory;
 - unresolved import candidates;
 - conservative advisory config suggestions;

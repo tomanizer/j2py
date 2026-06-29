@@ -25,6 +25,7 @@ from j2py.doctor import (
     write_doctor_diff_json,
 )
 from j2py.doctor_assessment import _file_risk_profile
+from j2py.doctor_readiness import migration_readiness_profile
 
 CFG = ConfigLoader().add_defaults().build()
 
@@ -100,11 +101,12 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
         """,
     )
     (source / "Broken.java").write_text("public class Broken { public void broken( }")
+    (source / "Ready.java").write_text("package com.example; public class Ready {}")
 
     payload = assess_project(source, cfg=CFG).payload
 
     assert payload["schema_version"] == DOCTOR_SCHEMA_VERSION
-    assert payload["summary"]["files"] == 3
+    assert payload["summary"]["files"] == 4
     assert payload["summary"]["parse_failures"] == 1
     assert payload["summary"]["semantic_warnings"] >= 1
     assert payload["summary"]["unresolved_imports"] == 2
@@ -116,6 +118,14 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert readiness["not_ready"] == 1
     assert readiness["ready"] >= 1
     assert readiness["requires_manual_fixes"] >= 0
+    migration_readiness = {
+        item["bucket"]: item["files"]
+        for item in payload["summary"]["migration_readiness_distribution"]
+    }
+    assert migration_readiness["parse_blocked"] == 1
+    assert migration_readiness["framework_boundary"] == 1
+    assert migration_readiness["ready_to_translate"] >= 1
+    assert all("migration_readiness" in item for item in payload["files"])
     assert [item["path"] for item in payload["summary"]["top_risk_files"]][:1] == ["Broken.java"]
     assert [item["name"] for item in payload["annotation_inventory"]] == ["RestController"]
 
@@ -135,7 +145,12 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert broken["risk_score"] >= 80.0
     assert broken["risk_band"] == "critical"
     assert broken["readiness_bucket"] == "not_ready"
+    assert broken["migration_readiness"]["bucket"] == "parse_blocked"
+    assert broken["migration_readiness"]["next_action"]
     assert {reason["reason"] for reason in broken["risk_reasons"]} == {"parse_errors"}
+
+    assert controller["migration_readiness"]["bucket"] == "framework_boundary"
+    assert controller["migration_readiness"]["next_action"].startswith("Decide target-stack")
 
     suggestions = payload["config_suggestions"]
     assert {item["annotation"] for item in suggestions["annotation_map"]} == {"RestController"}
@@ -291,6 +306,97 @@ def test_doctor_assessment_reports_source_only_project_structure(tmp_path: Path)
     assert payload["files"][0]["project_structure"]["source_root"] == "."
 
 
+def test_migration_readiness_profile_buckets_are_deterministic() -> None:
+    ready = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert ready["bucket"] == "ready_to_translate"
+    assert ready["risk_score"] == 0.0
+
+    parse_blocked = migration_readiness_profile(
+        parse_ok=False,
+        parse_error_count=2,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert parse_blocked["bucket"] == "parse_blocked"
+    assert parse_blocked["risk_score"] == 100.0
+
+    needs_rule_work = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=0.5,
+        semantic_warnings=[],
+        unhandled=[{"reason": "unsupported"}],
+        todo_count=0,
+        unresolved_imports=[],
+        annotations=[],
+        validation={"ok": False, "errors": ["syntax"]},
+    )
+    assert needs_rule_work["bucket"] == "needs_rule_work"
+    assert {reason["reason"] for reason in needs_rule_work["reasons"]} >= {
+        "low_rule_coverage",
+        "unhandled_nodes",
+        "validation_failures",
+    }
+
+    framework_boundary = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[
+            {"import": "org.springframework.stereotype.Service", "category": "framework-boundary"}
+        ],
+        annotations=[{"framework_candidate": True}],
+        validation=None,
+    )
+    assert framework_boundary["bucket"] == "framework_boundary"
+
+    needs_config = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[],
+        unhandled=[],
+        todo_count=0,
+        unresolved_imports=[
+            {"import": "com.external.PaymentClient", "category": "external-import"}
+        ],
+        annotations=[],
+        validation=None,
+    )
+    assert needs_config["bucket"] == "needs_config"
+
+    manual_port = migration_readiness_profile(
+        parse_ok=True,
+        parse_error_count=0,
+        rule_coverage=1.0,
+        semantic_warnings=[{"reason": "verify"}],
+        unhandled=[],
+        todo_count=1,
+        unresolved_imports=[],
+        annotations=[],
+        validation=None,
+    )
+    assert manual_port["bucket"] == "manual_port"
+
+
 def test_file_risk_profile_is_deterministic() -> None:
     score, band, readiness, reasons = _file_risk_profile(
         parse_ok=False,
@@ -304,9 +410,9 @@ def test_file_risk_profile_is_deterministic() -> None:
     assert score == 100.0
     assert band == "critical"
     assert readiness == "not_ready"
-    assert reasons == [
-        {"reason": "parse_errors", "count": 2, "weight": 100.0},
-    ]
+    assert reasons[0]["reason"] == "parse_errors"
+    assert reasons[0]["count"] == 2
+    assert reasons[0]["weight"] == 100.0
 
     score, band, readiness, reasons = _file_risk_profile(
         parse_ok=True,

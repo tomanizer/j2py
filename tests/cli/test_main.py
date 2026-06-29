@@ -1337,7 +1337,9 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
     assert payload["summary"]["files"] == 1
     assert payload["files"][0]["classes"][0]["name"] == "Sample"
     assert payload["project_structure"]["build_systems"] == ["maven"]
+    assert payload["files"][0]["migration_readiness"]["bucket"] == "ready_to_translate"
     assert "Doctor assessment" in result.output
+    assert "translate=1" in result.output
     assert "build=maven" in result.output
     html = html_path.read_text()
     assert "j2py doctor assessment" in html
