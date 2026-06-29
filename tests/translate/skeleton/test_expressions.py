@@ -1558,6 +1558,34 @@ def test_anonymous_class_local_parameter_shadows_outer_list_field() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_field_initializer_captures_outer_field() -> None:
+    """Anonymous class field initializers bind enclosing instance fields explicitly."""
+    result = translate_source_with_diagnostics(
+        """
+        final class Stream {
+            private int offset;
+
+            public Object iterator() {
+                return new Object() {
+                    private int index = offset;
+
+                    public int current() {
+                        return index;
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "self.index: int = _outer_self.offset" in result.source
+    assert "self.index: int = offset" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() -> None:
     """Qualified same-name fields do not hide separate simple outer-field reads."""
     result = translate_source_with_diagnostics(

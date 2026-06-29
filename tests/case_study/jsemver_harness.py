@@ -78,14 +78,6 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         good="self.elements = list(elements)",
     ),
     ResidualGap(
-        gap_id="JSEMVER-3",
-        module="Stream",
-        summary="anonymous-class body reads enclosing field 'offset' as a bare name "
-        "instead of capturing it from the enclosing instance",
-        bad="self.index: int = offset",
-        good="self.index: int = _outer_self.offset",
-    ),
-    ResidualGap(
         gap_id="JSEMVER-5",
         module="Stream",
         summary="java.util.Arrays.copyOfRange not lowered to a Python slice",
