@@ -566,9 +566,8 @@ def _translate_static_overload_branch_body(
     static_instance_static_aliases: dict[str, str] | None = None,
     module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
-    name_node = member.child_by_field("name")
-    java_name = name_node.text if name_node is not None else ""
-    ctx = _overload_member_context(
+    return _translate_overload_branch_body_for_static_state(
+        member,
         cfg=cfg,
         diagnostics=diagnostics,
         containing_class_name=containing_class_name,
@@ -588,12 +587,11 @@ def _translate_static_overload_branch_body(
         class_state=class_state,
         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
         nested_class_names=nested_class_names,
-        java_name=java_name,
+        indent=indent,
         is_static=True,
         static_instance_static_aliases=static_instance_static_aliases,
         module_static_instance_static_aliases=module_static_instance_static_aliases,
     )
-    return _translate_overload_member_body(member, cfg=cfg, ctx=ctx, indent=indent)
 
 
 def _translate_overload_branch_body(
@@ -622,6 +620,61 @@ def _translate_overload_branch_body(
     static_instance_static_aliases: dict[str, str] | None = None,
     module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
+    return _translate_overload_branch_body_for_static_state(
+        member,
+        cfg=cfg,
+        diagnostics=diagnostics,
+        containing_class_name=containing_class_name,
+        class_fields=class_fields,
+        class_field_types=class_field_types,
+        class_field_java_types=class_field_java_types,
+        declared_type_fields=declared_type_fields,
+        declared_type_java_fields=declared_type_java_fields,
+        class_methods=class_methods,
+        class_static_methods=class_static_methods,
+        enclosing_static_dispatch=enclosing_static_dispatch,
+        class_method_return_types=class_method_return_types,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        static_member_bindings=static_member_bindings,
+        name_resolver=name_resolver,
+        class_state=class_state,
+        inner_class_names_requiring_outer=inner_class_names_requiring_outer,
+        nested_class_names=nested_class_names,
+        indent=indent,
+        is_static=False,
+        static_instance_static_aliases=static_instance_static_aliases,
+        module_static_instance_static_aliases=module_static_instance_static_aliases,
+    )
+
+
+def _translate_overload_branch_body_for_static_state(
+    member: JavaNode,
+    *,
+    cfg: TranslationConfig,
+    diagnostics: TranslationDiagnostics,
+    containing_class_name: str,
+    class_fields: set[str],
+    class_field_types: dict[str, str],
+    class_field_java_types: dict[str, str],
+    declared_type_fields: dict[str, dict[str, str]],
+    declared_type_java_fields: dict[str, dict[str, str]],
+    class_methods: set[str],
+    class_static_methods: set[str],
+    enclosing_static_dispatch: dict[str, str],
+    class_method_return_types: dict[str, str],
+    static_field_aliases: dict[str, str],
+    static_method_imports: dict[str, str],
+    static_member_bindings: dict[str, JavaMemberBinding] | None,
+    name_resolver: NameResolver,
+    class_state: ClassTranslationState | None,
+    inner_class_names_requiring_outer: set[str],
+    nested_class_names: set[str],
+    indent: str,
+    is_static: bool,
+    static_instance_static_aliases: dict[str, str] | None = None,
+    module_static_instance_static_aliases: dict[str, dict[str, str]] | None = None,
+) -> list[str]:
     name_node = member.child_by_field("name")
     java_name = name_node.text if name_node is not None else ""
     ctx = _overload_member_context(
@@ -645,7 +698,7 @@ def _translate_overload_branch_body(
         inner_class_names_requiring_outer=inner_class_names_requiring_outer,
         nested_class_names=nested_class_names,
         java_name=java_name,
-        is_static=False,
+        is_static=is_static,
         static_instance_static_aliases=static_instance_static_aliases,
         module_static_instance_static_aliases=module_static_instance_static_aliases,
     )
