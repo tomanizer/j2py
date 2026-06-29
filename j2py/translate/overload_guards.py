@@ -114,7 +114,7 @@ def _value_dispatch_assignments(
 
 def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None:
     if _java_type_is_array(param.java_type):
-        return _PY_TYPE_GUARDS["list"]
+        return _array_dispatch_guard(param.java_type)
 
     simple = _java_simple_type(param.java_type)
     simple_guard = _JAVA_SIMPLE_GUARDS.get(simple)
@@ -130,8 +130,24 @@ def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None
 
 
 def _java_type_is_array(java_type: str) -> bool:
-    stripped = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
+    stripped = _strip_java_type_annotations(java_type)
     return stripped.endswith("[]")
+
+
+def _array_dispatch_guard(java_type: str) -> _DispatchGuard:
+    element = _java_array_element_simple_type(java_type)
+    return _JAVA_ARRAY_ELEMENT_GUARDS.get(element, _PY_TYPE_GUARDS["list"])
+
+
+def _java_array_element_simple_type(java_type: str) -> str:
+    stripped = _strip_java_type_annotations(java_type)
+    while stripped.endswith("[]"):
+        stripped = stripped[:-2].strip()
+    return stripped.rsplit(".", 1)[-1]
+
+
+def _strip_java_type_annotations(java_type: str) -> str:
+    return re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
 
 
 _CHAR_GUARD = _DispatchGuard(
@@ -145,6 +161,30 @@ _JAVA_SIMPLE_GUARDS: dict[str, _DispatchGuard] = {
     "CharSequence": _DispatchGuard("str", 40, "isinstance({arg}, str)"),
     "String": _DispatchGuard("str", 40, "isinstance({arg}, str)"),
     "char": _CHAR_GUARD,
+}
+
+_JAVA_ARRAY_ELEMENT_GUARDS: dict[str, _DispatchGuard] = {
+    "byte": _DispatchGuard(
+        "list:byte",
+        40,
+        (
+            "isinstance({arg}, list) and "
+            "all(isinstance(value, int) and not isinstance(value, bool) for value in {arg})"
+        ),
+    ),
+    "char": _DispatchGuard(
+        "list:char",
+        41,
+        (
+            "isinstance({arg}, list) and "
+            "all(isinstance(value, str) and len(value) == 1 for value in {arg})"
+        ),
+    ),
+    "String": _DispatchGuard(
+        "list:str",
+        39,
+        "isinstance({arg}, list) and all(isinstance(value, str) for value in {arg})",
+    ),
 }
 
 _PY_TYPE_GUARDS: dict[str, _DispatchGuard] = {
