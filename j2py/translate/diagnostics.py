@@ -281,6 +281,7 @@ class TranslationContext:
     # *before* the enclosing statement.  Cleared by _flush_hoisted_pre_stmts
     # after each statement-root translate_expression call.
     hoisted_pre_stmts: list[str] = field(default_factory=list)
+    temporary_counter: int = 0
 
     # Java method name -> translated return type for the enclosing class.
     class_method_return_types: dict[str, str] = field(default_factory=dict)

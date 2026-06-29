@@ -235,7 +235,7 @@ def test_version_core_translation_metrics() -> None:
     }
     assert all(metric.coverage == 1.0 for metric in metrics.values())
     assert sum(metric.todos for metric in metrics.values()) == 0
-    assert sum(metric.semantic_warnings for metric in metrics.values()) == 315
+    assert sum(metric.semantic_warnings for metric in metrics.values()) == 313
 
 
 def test_residual_gap_inventory() -> None:

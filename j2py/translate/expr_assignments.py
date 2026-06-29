@@ -12,6 +12,11 @@ from j2py.translate.rules.naming import translate_field_name
 _ASSIGN_OR_UPDATE = {"assignment_expression", "update_expression"}
 
 
+def _next_temp_id(ctx: TranslationContext) -> int:
+    ctx.temporary_counter += 1
+    return ctx.temporary_counter
+
+
 def _desugar_embedded_assign(node: JavaNode, ctx: TranslationContext) -> str:
     """Translate an assignment/update node that appears in expression position.
 
@@ -49,6 +54,61 @@ def _desugar_embedded_assign(node: JavaNode, ctx: TranslationContext) -> str:
         reason="assignment in expression position hoisted to preceding statement; verify semantics",
     )
     return left
+
+
+def _desugar_postfix_update_array_access(
+    array_expr: str,
+    index_node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    use_ord_index: bool = False,
+) -> str | None:
+    """Materialize ``array[index++]`` as a value read followed by the update."""
+    temp_id = _next_temp_id(ctx)
+    target_pre_stmts, target, update_stmt = _postfix_update_parts(index_node, ctx, temp_id=temp_id)
+    if target is None:
+        return None
+
+    array_temp = f"_j2py_arr_{temp_id}"
+    index_temp = f"_j2py_index_{temp_id}"
+    value_temp = f"_j2py_value_{temp_id}"
+    read_index = f"ord({index_temp})" if use_ord_index else index_temp
+    ctx.hoisted_pre_stmts.append(f"{array_temp} = {array_expr}")
+    ctx.hoisted_pre_stmts.extend(target_pre_stmts)
+    ctx.hoisted_pre_stmts.append(f"{index_temp} = {target}")
+    ctx.hoisted_pre_stmts.append(f"{value_temp} = {array_temp}[{read_index}]")
+    ctx.hoisted_pre_stmts.append(update_stmt)
+    return value_temp
+
+
+def _postfix_update_parts(
+    node: JavaNode,
+    ctx: TranslationContext,
+    *,
+    temp_id: int,
+) -> tuple[list[str], str | None, str]:
+    children = node.children
+    named_children = node.named_children
+    if len(children) < 2 or not named_children:
+        return [], None, ""
+    operator = next((child.text for child in children if child.text in {"++", "--"}), None)
+    if operator is None or children[0].text in {"++", "--"}:
+        return [], None, ""
+    target_node = named_children[0]
+    op_symbol = "+" if operator == "++" else "-"
+    if target_node.type == "field_access":
+        target_children = target_node.named_children
+        if len(target_children) >= 2:
+            receiver = translate_expression(target_children[0], ctx)
+            field = translate_field_name(
+                target_children[-1].text,
+                snake_case=ctx.cfg.snake_case_fields,
+            )
+            receiver_temp = f"_j2py_target_{temp_id}"
+            target = f"{receiver_temp}.{field}"
+            return [f"{receiver_temp} = {receiver}"], target, f"{target} {op_symbol}= 1"
+    target = translate_expression(target_node, ctx)
+    return [], target, f"{target} {op_symbol}= 1"
 
 
 def _desugar_update_in_expr(node: JavaNode, ctx: TranslationContext) -> str:
@@ -89,6 +149,16 @@ def _translate_assignment_lhs(node: JavaNode, ctx: TranslationContext) -> str:
             target = translate_expression(children[0], ctx)
             field = translate_field_name("length", snake_case=ctx.cfg.snake_case_fields)
             return f"{target}.{field}"
+    if node.type == "array_access":
+        children = node.named_children
+        if len(children) == 2:
+            array_expr = translate_expression(children[0], ctx)
+            index_inner = unwrap_parens(children[1])
+            if index_inner.type in _ASSIGN_OR_UPDATE:
+                index_expr = _desugar_embedded_assign(index_inner, ctx)
+            else:
+                index_expr = translate_expression(children[1], ctx)
+            return f"{array_expr}[{index_expr}]"
     return translate_expression(node, ctx)
 
 

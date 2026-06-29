@@ -173,8 +173,20 @@ def translate_method(
     previous_in_method = ctx.in_method
     previous_in_method_body = ctx.in_method_body
     previous_body_local_imports = set(ctx.body_local_imports)
+    previous_param_names = set(ctx.param_names)
+    previous_local_names = set(ctx.local_names)
+    previous_spread_param_names = set(ctx.spread_param_names)
+    previous_variable_types = dict(ctx.variable_types)
+    previous_variable_java_types = dict(ctx.variable_java_types)
+    previous_expression_aliases = dict(ctx.expression_aliases)
     ctx.in_instance_method = not is_static
     ctx.in_method = True
+    ctx.param_names = set()
+    ctx.local_names = set()
+    ctx.spread_param_names = set()
+    ctx.variable_types = {}
+    ctx.variable_java_types = {}
+    ctx.expression_aliases = {}
     try:
         method_return_type = (
             "None" if is_constructor else translate_type_annotation(_return_type_text(node), ctx)
@@ -273,6 +285,12 @@ def translate_method(
         ctx.in_method = previous_in_method
         ctx.in_method_body = previous_in_method_body
         ctx.body_local_imports = previous_body_local_imports
+        ctx.param_names = previous_param_names
+        ctx.local_names = previous_local_names
+        ctx.spread_param_names = previous_spread_param_names
+        ctx.variable_types = previous_variable_types
+        ctx.variable_java_types = previous_variable_java_types
+        ctx.expression_aliases = previous_expression_aliases
 
 
 def signature(

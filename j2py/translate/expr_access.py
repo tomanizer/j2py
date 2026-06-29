@@ -109,13 +109,27 @@ def _translate_array_access(node: JavaNode, ctx: TranslationContext) -> str:
         return f"__j2py_todo__({node.text!r})"
     array_expr = translate_expression(children[0], ctx)
     index_inner = unwrap_parens(children[1])
+    index_type = java_expression_type(index_inner, ctx)
     if index_inner.type in {"assignment_expression", "update_expression"}:
+        if index_inner.type == "update_expression":
+            from j2py.translate.expr_assignments import _desugar_postfix_update_array_access
+
+            indexed_value = _desugar_postfix_update_array_access(
+                array_expr,
+                index_inner,
+                ctx,
+                use_ord_index=(
+                    index_type is not None
+                    and java_type_simple_name(index_type) in {"char", "Character"}
+                ),
+            )
+            if indexed_value is not None:
+                return indexed_value
         from j2py.translate.expr_ops import _desugar_embedded_assign
 
         index_expr = _desugar_embedded_assign(index_inner, ctx)
     else:
         index_expr = translate_expression(children[1], ctx)
-    index_type = java_expression_type(index_inner, ctx)
     if (
         index_type is not None
         and java_type_simple_name(index_type) in {"char", "Character"}
