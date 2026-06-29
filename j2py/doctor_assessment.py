@@ -14,7 +14,7 @@ from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment
 from j2py.parse.java_ast import JavaNode, parse_file
 from j2py.pipeline import translate_file
 from j2py.translate.annotation_emit import _FRAMEWORK_ANNOTATIONS
-from j2py.translate.diagnostics import TranslationDiagnostic, todo_lines
+from j2py.translate.diagnostics import diagnostic_payload, todo_lines
 
 
 def assess_project(
@@ -96,10 +96,10 @@ def _assess_file(
             "confidence": result.confidence,
             "semantic_warnings": []
             if diagnostics is None
-            else [_diagnostic_payload(item) for item in diagnostics.warnings],
+            else [diagnostic_payload(item) for item in diagnostics.warnings],
             "unhandled": []
             if diagnostics is None
-            else [_diagnostic_payload(item) for item in diagnostics.unhandled],
+            else [diagnostic_payload(item) for item in diagnostics.unhandled],
             "todos": todo_lines(result.python_source),
             "validation": _validation_payload(result.validation),
         },
@@ -392,15 +392,6 @@ def _import_category(java_import: str) -> str:
     if java_import.startswith(("java.", "javax.", "jakarta.")):
         return "platform-boundary"
     return "external-import"
-
-
-def _diagnostic_payload(item: TranslationDiagnostic) -> dict[str, Any]:
-    return {
-        "line": item.line,
-        "node_type": item.node_type,
-        "reason": item.reason,
-        "text": item.text,
-    }
 
 
 def _node_payload(node: JavaNode, *, reason: str) -> dict[str, Any]:

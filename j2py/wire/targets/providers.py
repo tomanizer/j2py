@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import ast
 from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.wire.schema import WiringElement, WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
-    annotation_name,
     base_type,
-    parse_python,
+    constructor_parameters,
+    injection_specs,
     provider_identity,
     should_import_type,
     type_modules,
@@ -243,37 +242,17 @@ def _injections_for_class(
 
 
 def _injections(elements: list[WiringElement]) -> list[ProviderInjectionSpec]:
-    injections: list[ProviderInjectionSpec] = []
-    for element in elements:
-        inject = element.spring.get("inject")
-        if not isinstance(inject, dict):
-            continue
-        injections.append(
-            ProviderInjectionSpec(
-                name=_str(inject.get("name"), default=translate_field_name(element.java_name)),
-                python_type=_str(inject.get("type"), default="object"),
-            ),
-        )
-    return injections
+    return [
+        ProviderInjectionSpec(name=name, python_type=python_type)
+        for name, python_type in injection_specs(elements)
+    ]
 
 
 def _constructor_parameters(path: Path, class_name: str) -> list[ProviderInjectionSpec]:
-    tree = parse_python(path)
-    if tree is None:
-        return []
-    for node in tree.body:
-        if not isinstance(node, ast.ClassDef) or node.name != class_name:
-            continue
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
-                return [
-                    ProviderInjectionSpec(
-                        name=arg.arg,
-                        python_type=annotation_name(arg.annotation),
-                    )
-                    for arg in item.args.args[1:]
-                ]
-    return []
+    return [
+        ProviderInjectionSpec(name=name, python_type=python_type)
+        for name, python_type in constructor_parameters(path, class_name)
+    ]
 
 
 def _merge_injections(

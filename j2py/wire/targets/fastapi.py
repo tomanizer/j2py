@@ -10,6 +10,7 @@ from j2py.wire.schema import WiringElement, WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
     base_type,
+    injection_specs,
     should_import_type,
     type_modules,
 )
@@ -183,18 +184,10 @@ def _referenced_types(controller: ControllerSpec) -> set[str]:
 
 
 def _injections(elements: list[WiringElement]) -> list[InjectionSpec]:
-    injections: list[InjectionSpec] = []
-    for element in elements:
-        inject = element.spring.get("inject")
-        if not isinstance(inject, dict):
-            continue
-        injections.append(
-            InjectionSpec(
-                name=_str(inject.get("name"), default=translate_field_name(element.java_name)),
-                python_type=_str(inject.get("type"), default="object"),
-            ),
-        )
-    return injections
+    return [
+        InjectionSpec(name=name, python_type=python_type)
+        for name, python_type in injection_specs(elements)
+    ]
 
 
 def _routes(elements: list[WiringElement]) -> list[RouteSpec]:

@@ -54,7 +54,7 @@ def translate_annotation_declaration(
         for annotation in modifiers.named_children:
             if annotation.type not in {"annotation", "marker_annotation"}:
                 continue
-            name = _annotation_node_name(annotation)
+            name = annotation_full_name(annotation)
             if name is None:
                 continue
             if name in _ANNOTATION_META_NAMES:
@@ -200,10 +200,6 @@ def _translate_annotation_nested_type(
     return [f"    {line}" if line else line for line in nested_lines]
 
 
-def _annotation_node_name(annotation: JavaNode) -> str | None:
-    return annotation_full_name(annotation)
-
-
 def _annotation_comment_text(
     annotation: JavaNode,
     static_field_aliases: dict[str, str],
@@ -278,7 +274,7 @@ def _record_annotation_element_modifiers(
         for annotation in modifiers.named_children:
             if annotation.type not in {"annotation", "marker_annotation"}:
                 continue
-            name = _annotation_node_name(annotation)
+            name = annotation_full_name(annotation)
             if name is None:
                 continue
             diagnostics.warn(

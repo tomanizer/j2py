@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Protocol
 
 import typer
 
@@ -30,6 +31,17 @@ app = typer.Typer(
     help="Inspect and generate framework wiring from j2py sidecars.",
     add_completion=False,
 )
+
+
+class _DiagnosticMessage(Protocol):
+    @property
+    def level(self) -> str: ...
+
+    @property
+    def path(self) -> object: ...
+
+    @property
+    def message(self) -> str: ...
 
 
 @app.command("list")
@@ -266,14 +278,14 @@ def validate(
 
 
 def _print_xml_diagnostics(diagnostics: list[XmlIngestDiagnostic]) -> None:
-    for diagnostic in diagnostics:
-        typer.echo(
-            f"{diagnostic.level}: {diagnostic.path}: {diagnostic.message}",
-            err=diagnostic.level == "error",
-        )
+    _print_diagnostic_messages(diagnostics)
 
 
 def _print_diagnostics(diagnostics: list[WiringLoadDiagnostic]) -> None:
+    _print_diagnostic_messages(diagnostics)
+
+
+def _print_diagnostic_messages(diagnostics: Sequence[_DiagnosticMessage]) -> None:
     for diagnostic in diagnostics:
         typer.echo(
             f"{diagnostic.level}: {diagnostic.path}: {diagnostic.message}",

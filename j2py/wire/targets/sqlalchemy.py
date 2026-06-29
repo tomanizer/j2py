@@ -10,7 +10,7 @@ from pathlib import Path
 from j2py.wire.schema import WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
-    annotation_name,
+    constructor_parameters,
     list_of_dicts,
     parse_python,
     provider_identity,
@@ -333,22 +333,10 @@ def _imports_for_repositories(
 
 
 def _constructor_parameters(path: Path, class_name: str) -> list[ConstructorParameterSpec]:
-    tree = parse_python(path)
-    if tree is None:
-        return []
-    for node in tree.body:
-        if not isinstance(node, ast.ClassDef) or node.name != class_name:
-            continue
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
-                return [
-                    ConstructorParameterSpec(
-                        name=arg.arg,
-                        python_type=annotation_name(arg.annotation),
-                    )
-                    for arg in item.args.args[1:]
-                ]
-    return []
+    return [
+        ConstructorParameterSpec(name=name, python_type=python_type)
+        for name, python_type in constructor_parameters(path, class_name)
+    ]
 
 
 def _jdbc_placeholders(path: Path, class_name: str) -> list[str]:

@@ -30,6 +30,15 @@ def todo_lines(source: str) -> list[str]:
     ]
 
 
+def diagnostic_payload(item: TranslationDiagnostic) -> dict[str, object]:
+    return {
+        "line": item.line,
+        "node_type": item.node_type,
+        "reason": item.reason,
+        "text": item.text,
+    }
+
+
 @dataclass(frozen=True)
 class TranslationDiagnostic:
     """A single handled or unhandled Java construct observed by the rule layer."""

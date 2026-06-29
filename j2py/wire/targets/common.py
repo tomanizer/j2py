@@ -54,6 +54,34 @@ def provider_identity(element: WiringElement) -> str:
     return translate_field_name(element.python_name)
 
 
+def injection_specs(elements: list[WiringElement]) -> list[tuple[str, str]]:
+    injections: list[tuple[str, str]] = []
+    for element in elements:
+        inject = element.spring.get("inject")
+        if not isinstance(inject, dict):
+            continue
+        injections.append(
+            (
+                _str(inject.get("name"), default=translate_field_name(element.java_name)),
+                _str(inject.get("type"), default="object"),
+            ),
+        )
+    return injections
+
+
+def constructor_parameters(path: Path, class_name: str) -> list[tuple[str, str]]:
+    tree = parse_python(path)
+    if tree is None:
+        return []
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+                return [(arg.arg, annotation_name(arg.annotation)) for arg in item.args.args[1:]]
+    return []
+
+
 def parse_python(path: Path) -> ast.Module | None:
     if not path.is_file():
         return None
@@ -73,3 +101,7 @@ def list_of_dicts(value: object) -> list[dict[str, object]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _str(value: object, *, default: str) -> str:
+    return value if isinstance(value, str) else default
