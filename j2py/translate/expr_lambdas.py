@@ -343,6 +343,8 @@ def _is_collection_method_reference_target(node: JavaNode, ctx: TranslationConte
     if java_type is None:
         return False
     simple = java_type_simple_name(java_type)
+    if not simple:
+        return False
     if simple in {
         "Collection",
         "Deque",
