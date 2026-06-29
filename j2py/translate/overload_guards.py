@@ -113,6 +113,9 @@ def _value_dispatch_assignments(
 
 
 def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None:
+    if _java_type_is_array(param.java_type):
+        return _PY_TYPE_GUARDS["list"]
+
     simple = _java_simple_type(param.java_type)
     simple_guard = _JAVA_SIMPLE_GUARDS.get(simple)
     if simple_guard is not None:
@@ -124,6 +127,11 @@ def _dispatch_guard_for_parameter(param: ParameterInfo) -> _DispatchGuard | None
     if py_guard is not None:
         return py_guard
     return _DispatchGuard(f"opaque:{base}", 0)
+
+
+def _java_type_is_array(java_type: str) -> bool:
+    stripped = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
+    return stripped.endswith("[]")
 
 
 _CHAR_GUARD = _DispatchGuard(
