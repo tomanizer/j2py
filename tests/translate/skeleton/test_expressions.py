@@ -1602,6 +1602,51 @@ def test_array_clone_lowers_to_list_copy() -> None:
     assert_valid_python(python_source)
 
 
+def test_array_clone_on_method_result_lowers_to_list_copy() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Copies {
+            public int[] source() {
+                return new int[] {1, 2};
+            }
+
+            public int[] copy() {
+                return source().clone();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return list(self.source())" in result.source
+    assert ".clone(" not in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(result.source, namespace)
+    instance = namespace["Copies"]()
+    source = instance.source()
+    copy = instance.copy()
+    assert copy == source == [1, 2]
+    assert copy is not source
+
+
+def test_unknown_object_clone_is_not_rewritten_as_list_copy() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Copies {
+            public Object copy(Object value) {
+                return value.clone();
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return value.clone()" in python_source
+    assert "return list(value)" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_index_of_lowers_to_find() -> None:
     """String.indexOf(sub) and indexOf(sub, from) lower to str.find()."""
     python_source, coverage = translate_source("""
