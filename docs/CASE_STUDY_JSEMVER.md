@@ -1,13 +1,15 @@
 # Case study — translating java-semver (jsemver) end-to-end
 
-Status: **Active** (issue [#613](https://github.com/tomanizer/j2py/issues/613),
-P0.1, defining-risk finding from [AUDIT-2026-06-17](decisions/AUDIT-2026-06-17.md)).
+Status: **Complete** for the scoped end-to-end use case (issue
+[#613](https://github.com/tomanizer/j2py/issues/613) plus Version-core extension
+[#654](https://github.com/tomanizer/j2py/issues/654)); remaining full-tree corpus
+baseline work is tracked separately.
 
 This is the **first external** end-to-end conversion case study. Every prior quality
 signal — corpus node coverage, the equivalence surface — traces back to curated j2py
 fixtures or pinned corpora sampled for the scoreboard. Here we take a third-party OSS
-library off the shelf, translate it with the rule layer, link it, and run **its own**
-JUnit suite (ported to pytest) against the Python output. The point is to replace
+library off the shelf, translate it with the rule layer, link it, and run ported slices
+of **its own** JUnit suite against the Python output. The point is to replace
 *asserted* library-scale equivalence with *demonstrated* equivalence, and to publish the
 residual gap list honestly.
 
@@ -137,7 +139,7 @@ translation:
   patches are now needed for the util package or the exercised Version-core slice, and
   the generated seven-file Version-core output has 0 `F821` undefined-name findings.
 
-### Next steps (tracked under #613 follow-ups)
+### Remaining full-tree follow-up
 
 1. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
    `translate_corpus.py` so the full-tree node-coverage number is regression-gated.

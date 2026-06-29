@@ -56,7 +56,7 @@ As of the current committed baselines, `make corpus-hotspots` reports approximat
 | `petclinic` | 25 | 100.0% | 100% | 100% | 0/25 | 25/25 |
 | `jackson-dense` | 200 | 99.6% | 100% | 100% | 4/200 | 196/200 |
 | `commons-lang-dense` | 200 | 99.0% | 100% | 99% | 11/200 | 189/200 |
-| `caffeine-dense` | 43 | 99.5% | 100% | 100% | 15/43 | 28/43 |
+| `caffeine-dense` | 43 | 99.9% | 100% | 100% | 3/43 | 40/43 |
 | `guava-dense` | 200 | 98.2% | 99% | 100% | 55/200 | 145/200 |
 | `spring-lexical` | 200 | 100.0% | 98.5% | 99% | 6/200 | 194/200 |
 

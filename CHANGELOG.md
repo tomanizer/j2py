@@ -7,6 +7,12 @@ The format follows the repository commit types: `feat`, `fix`, `refactor`, `test
 
 ## Unreleased
 
+### Added
+- The java-semver external case study now completes the scoped semver end-to-end use
+  case: the `util` package and seven-file `Version` / parser core run hermetically in
+  `make check` with zero residual translator-defect patches and zero generated-output
+  `F821` findings for the Version-core bundle (#702).
+
 ### Fixed
 - Class literals on file-declared nested types (e.g. `Color.class` inside `Outer`) are now
   qualified through the enclosing class (`Outer.Color`) instead of emitting a bare name that

@@ -1,9 +1,9 @@
-"""End-to-end case-study harness for the java-semver ``util`` package (issue #613).
+"""End-to-end case-study harness for java-semver (issues #613 and #654).
 
-Translates the two vendored ``com.github.zafarkhaja.semver.util`` Java files with the
-rule layer only (no LLM), then *links* the translated modules into one shared namespace
-so the real translated classes can be exercised by the library's own ported JUnit suite
-(``StreamTest``).
+Translates the vendored ``com.github.zafarkhaja.semver`` util and ``Version`` / parser
+core files with the rule layer only (no LLM), then *links* the translated modules into
+shared namespaces so the real translated classes can be exercised by ported upstream
+JUnit assertions (``StreamTest`` plus the focused ``VersionTest`` core slice).
 
 This is the first **external** end-to-end conversion case study: jsemver is a third-party
 OSS library, not a curated j2py fixture. The goal is to measure — honestly — how far the
@@ -11,8 +11,8 @@ deterministic rule layer gets on real library code and to publish the residual g
 
 The harness keeps external scaffolding separate from any residual translator patches:
 
-* ``_EXTERNAL_STUBS`` — JDK/runtime symbols that are *not under test* (``Arrays``).
-  These are scaffolding, exactly like the dependency stubs in
+* ``_EXTERNAL_STUBS`` — JDK/runtime symbols that are *not under test* (for example,
+  ``Arrays``). These are scaffolding, exactly like the dependency stubs in
   ``tests/case_study/harness.py`` and ``tests/equivalence/harness.py``.
 
 * ``_RESIDUAL_GAP_PATCHES`` — concrete *translator defects* found in the rule-layer
