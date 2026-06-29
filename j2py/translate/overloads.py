@@ -410,6 +410,7 @@ def translate_overloaded_members(
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
+            python_name_override=python_name_override,
         )
         if merged_method is not None:
             return merged_method
@@ -435,6 +436,7 @@ def translate_overloaded_members(
             docstring_lines=docstring_lines,
             inner_class_names_requiring_outer=inner_capture_names,
             nested_class_names=direct_nested_names,
+            python_name_override=python_name_override,
         )
         if forwarded_method is not None:
             return forwarded_method
