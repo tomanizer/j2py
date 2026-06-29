@@ -85,20 +85,22 @@ def translate_skeleton_with_diagnostics(
         wildcard_static_imports,
         static_import_todos,
     ) = _static_import_info(parsed, diagnostics, cfg)
-    file_name_bindings = build_file_name_bindings(
-        parsed,
-        symbols,
-        cfg,
-        static_field_aliases=static_field_aliases,
-        static_method_imports=static_method_imports,
-    )
-    name_resolver = NameResolver(file_name_bindings)
     module_declared_type_fields = _module_declared_type_fields(parsed, cfg)
     module_declared_type_java_fields = _module_declared_type_java_fields(parsed, cfg)
     module_declared_type_method_return_types = _module_declared_type_method_return_types(
         parsed,
         cfg,
     )
+    file_name_bindings = build_file_name_bindings(
+        parsed,
+        symbols,
+        cfg,
+        static_field_aliases=static_field_aliases,
+        static_method_imports=static_method_imports,
+        wildcard_static_imports=wildcard_static_imports,
+        declared_type_method_return_types=module_declared_type_method_return_types,
+    )
+    name_resolver = NameResolver(file_name_bindings)
     file_class_static_methods = collect_file_class_static_methods(parsed.root, cfg)
     file_class_static_instance_aliases = collect_file_class_static_instance_aliases(
         parsed.root,
