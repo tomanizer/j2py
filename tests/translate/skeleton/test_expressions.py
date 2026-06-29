@@ -1496,6 +1496,256 @@ def test_bitset_get_is_indexed_predicate_api_call() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_class_outer_field_list_get_chain() -> None:
+    """Guava CartesianList-style anonymous class captures outer list fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import com.google.common.collect.ImmutableList;
+        import java.util.List;
+
+        final class CartesianList<E> {
+            private final ImmutableList<List<E>> axes;
+
+            public ImmutableList<E> get(int index) {
+                return new ImmutableList<E>() {
+                    public E get(int axis) {
+                        int axisIndex = 0;
+                        return axes.get(axis).get(axisIndex);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.axes[axis][axis_index]" in result.source
+    assert "axes.get(axis)" not in result.source
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_local_parameter_shadows_outer_list_field() -> None:
+    """Anonymous method parameters keep Java shadowing over enclosing fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+        import java.util.Map;
+
+        final class Shadowed {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(Map<String, String> axes, String key) {
+                        return axes.get(key);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" not in result.source
+    assert "return axes.get(key)" in result.source
+    assert "return axes[key]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() -> None:
+    """Qualified same-name fields do not hide separate simple outer-field reads."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class QualifiedAlso {
+            private final List<String> axes;
+
+            public Object make(Other other) {
+                return new Object() {
+                    public String read(int index) {
+                        Object ignored = other.axes;
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "ignored = other.axes" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_block_local_does_not_mask_later_outer_field_read() -> None:
+    """Block-scoped locals do not hide outer fields after the block ends."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class BlockScoped {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int index) {
+                        if (index > 0) {
+                            int axes = 1;
+                        }
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "axes = 1" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_local_names_do_not_leak_between_methods() -> None:
+    """Locals declared in one anonymous method do not shadow fields in another."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class TwoMethods {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public int localOnly() {
+                        int axes = 1;
+                        return axes;
+                    }
+
+                    public String read(int index) {
+                        return axes.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "def local_only(self) -> int:" in result.source
+    assert "axes = 1" in result.source
+    assert "return _outer_self.axes[index]" in result.source
+    assert "return axes[index]" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_nested_anonymous_class_reuses_grandparent_outer_field_capture() -> None:
+    """Nested anonymous helpers can still read fields from the original class."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class Outer {
+            private final List<String> config;
+
+            public Object make() {
+                return new Object() {
+                    public Object nested() {
+                        return new Object() {
+                            public String read(int index) {
+                                return config.get(index);
+                            }
+                        };
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.config[index]" in result.source
+    assert "return config.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_for_loop_var_does_not_mask_outer_field() -> None:
+    """C-style for loop initializer variables do not shadow outer class fields."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.List;
+
+        final class ForLoop {
+            private final List<String> axes;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int n) {
+                        for (int axes = 0; axes < n; axes++) {
+                            // axes here is the loop var, not the field
+                        }
+                        return axes.get(n);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.axes[n]" in result.source
+    assert "return axes.get(n)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
+def test_anonymous_class_concrete_java_list_get_lowers_to_subscript() -> None:
+    """Concrete Java List implementations are list-like `.get(index)` receivers."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.ArrayList;
+
+        final class ConcreteList {
+            private final ArrayList<String> items;
+
+            public Object make() {
+                return new Object() {
+                    public String read(int index) {
+                        return items.get(index);
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "_outer_self = self" in result.source
+    assert "return _outer_self.items[index]" in result.source
+    assert "return items.get(index)" not in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+
 def test_multi_value_map_get_is_map_like() -> None:
     """ProfileCondition-style MultiValueMap local uses .get without ambiguous diagnostic."""
     python_source, coverage = translate_source(
