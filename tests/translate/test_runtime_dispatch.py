@@ -12,8 +12,12 @@ import pytest
 
 from j2py.translate.runtime import (
     RuntimeException,
+    StringBuilder,
     __j2py_todo__,
+    _j2py_arraycopy,
+    _j2py_decode_int,
     _j2py_idiv,
+    _j2py_long_hash_code,
     _j2py_monitor,
     overloaded,
 )
@@ -30,6 +34,38 @@ def test_idiv_truncates_toward_zero() -> None:
 def test_idiv_rejects_zero_divisor() -> None:
     with pytest.raises(ZeroDivisionError):
         _j2py_idiv(1, 0)
+
+
+def test_string_builder_runtime_helper_matches_common_append_patterns() -> None:
+    builder = StringBuilder(16)
+
+    assert builder.append("ab").append(None).append("wxyz", 1, 3) is builder
+    assert str(builder) == "abnullxy"
+
+
+def test_arraycopy_runtime_helper_handles_overlapping_ranges() -> None:
+    values = ["a", "b", "c", "d"]
+
+    _j2py_arraycopy(values, 0, values, 1, 3)
+
+    assert values == ["a", "a", "b", "c"]
+
+
+def test_long_hash_code_runtime_helper_matches_java_contract() -> None:
+    assert _j2py_long_hash_code(0) == 0
+    assert _j2py_long_hash_code(1) == 1
+    assert _j2py_long_hash_code(0x0000000100000000) == 1
+    assert _j2py_long_hash_code(-1) == 0
+
+
+def test_decode_int_runtime_helper_matches_java_prefixes() -> None:
+    assert _j2py_decode_int("42") == 42
+    assert _j2py_decode_int("-42") == -42
+    assert _j2py_decode_int("0xFF") == 255
+    assert _j2py_decode_int("#1A") == 26
+    assert _j2py_decode_int("077") == 63
+    with pytest.raises(ValueError):
+        _j2py_decode_int(" 123")
 
 
 def test_runtime_exception_exposes_throwable_get_message() -> None:

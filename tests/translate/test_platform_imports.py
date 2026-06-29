@@ -59,6 +59,8 @@ from tests.translate.skeleton.helpers import CFG, FIXTURES, translate_source_wit
             (),
             "platform_placeholder",
         ),
+        ("java.util.EnumSet", "EnumSet", (), "drop_import"),
+        ("java.util.Locale", "Locale", (), "drop_import"),
         (
             "javax.sql.DataSource",
             "DataSource",
@@ -229,6 +231,93 @@ def test_implicit_java_lang_type_does_not_become_same_package_import() -> None:
     ast.parse(result.source)
     assert "from com.example.Integer import Integer" not in result.source
     assert "return (left > right) - (left < right)" in result.source
+
+
+def test_implicit_java_lang_jdk_calls_do_not_become_same_package_imports() -> None:
+    parsed = parse_source(
+        """
+        package com.github.zafarkhaja.semver;
+
+        public class JdkRefs {
+            public long parse(String value) {
+                Long parsed = Long.valueOf(value);
+                return Math.incrementExact(parsed);
+            }
+
+            public int hash(long value) {
+                return Long.hashCode(value);
+            }
+
+            public String join(String a, String b) {
+                StringBuilder builder = new StringBuilder();
+                builder.append(a);
+                return String.join(".", a, b) + builder.toString();
+            }
+
+            public String fromChars(char[] chars) {
+                return new String(chars);
+            }
+
+            public void copy(String[] src, String[] dest) {
+                System.arraycopy(src, 0, dest, 1, 2);
+            }
+        }
+        """,
+    )
+
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert "from com.github.zafarkhaja.semver.Long import Long" not in result.source
+    assert "from com.github.zafarkhaja.semver.Math import Math" not in result.source
+    assert "from com.github.zafarkhaja.semver.String import String" not in result.source
+    assert (
+        "from com.github.zafarkhaja.semver.StringBuilder import StringBuilder" not in result.source
+    )
+    assert "from com.github.zafarkhaja.semver.System import System" not in result.source
+    assert "from j2py_runtime import StringBuilder" in result.source
+    assert (
+        "from j2py_runtime import StringBuilder, _j2py_arraycopy, _j2py_long_hash_code"
+        in result.source
+    )
+    assert "parsed = int(value)" in result.source
+    assert "return (parsed + 1)" in result.source
+    assert "return _j2py_long_hash_code(value)" in result.source
+    assert 'return ".".join([a, b]) + str(builder)' in result.source
+    assert 'return "".join(chars)' in result.source
+    assert "_j2py_arraycopy(src, 0, dest, 1, 2)" in result.source
+
+
+def test_explicit_util_enumset_and_locale_do_not_become_java_imports() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        package com.github.zafarkhaja.semver;
+
+        import java.util.EnumSet;
+        import java.util.Locale;
+
+        public class UtilRefs {
+            public String render(Kind kind) {
+                return String.format(Locale.US, "%s", kind);
+            }
+
+            public EnumSet<Kind> only(Kind kind) {
+                return EnumSet.of(kind);
+            }
+
+            enum Kind {
+                ALPHA
+            }
+        }
+        """,
+    )
+
+    ast.parse(result.source)
+    assert "from java.util" not in result.source
+    assert "from com.github.zafarkhaja.semver.EnumSet import EnumSet" not in result.source
+    assert "from com.github.zafarkhaja.semver.Locale import Locale" not in result.source
+    assert 'return "%s" % kind' in result.source
+    assert "return {kind}" in result.source
 
 
 def test_java_lang_runtime_exception_superclass_maps_to_builtin_exception() -> None:

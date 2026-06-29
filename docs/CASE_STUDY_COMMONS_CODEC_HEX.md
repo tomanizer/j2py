@@ -96,8 +96,6 @@ remove the corresponding patch and update this table.
 | `CODEC-HEX-9` | `Hex` | Six-argument `encodeHex(..., boolean, char[] out, ...)` output guard uses `str`. |
 | `CODEC-HEX-10` | `Hex` | Two-argument `encodeHex(byte[], char[] alphabet)` guard uses `str`. |
 | `CODEC-HEX-11` | `Hex` | ByteBuffer/alphabet overload guard uses `str` for the alphabet. |
-| `CODEC-HEX-12` | `Hex` | `new String(char[])` is emitted as an unresolved same-package `String` constructor. |
-| `CODEC-HEX-13` | `Hex` | The second `new String(char[])` path has the same unresolved constructor lowering. |
 | `CODEC-HEX-14` | `Hex` | A Java `void` overload dispatcher branch delegates, then falls through to `TypeError`. |
 
 ## Follow-ups

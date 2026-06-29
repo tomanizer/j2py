@@ -144,28 +144,6 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         "if len(args) == 2 and isinstance(args[1], list):",
     ),
     ResidualGap(
-        "CODEC-HEX-12",
-        "Hex",
-        "String(char[]) construction is not lowered to Python string joining",
-        """            from org.apache.commons.codec.binary.String import String
-
-            return String(Hex.encode_hex(data, to_lower_case))
-""",
-        """            return "".join(Hex.encode_hex(data, to_lower_case))
-""",
-    ),
-    ResidualGap(
-        "CODEC-HEX-13",
-        "Hex",
-        "String(char[]) construction is not lowered to Python string joining",
-        """            from org.apache.commons.codec.binary.String import String
-
-            return String(Hex.encode_hex(data))
-""",
-        """            return "".join(Hex.encode_hex(data))
-""",
-    ),
-    ResidualGap(
         "CODEC-HEX-14",
         "Hex",
         "void overload dispatcher branch falls through after delegated encodeHex call",
