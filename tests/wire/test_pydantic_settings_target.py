@@ -17,6 +17,7 @@ from j2py.wire.targets.pydantic_settings import (
     PydanticSettingsTarget,
     field_name_for_property_key,
 )
+from j2py.wire.targets.sqlalchemy import SQLAlchemyTarget
 from j2py.wire.validation import (
     ValidationContext,
     validate_pydantic_settings_wiring,
@@ -57,6 +58,8 @@ def test_pydantic_settings_target_generates_importable_settings_scaffold(
     assert "app_datasource_driver_class_name: str | None = Field(" in source
     assert "# Source: AppConfig.java::dataSource.url" in source
     assert "TODO(j2py): decide project environment variable names" in source
+    assert "Currently this uses visible JDBC datasource properties only" in source
+    assert "should fail during startup validation instead of module import" in source
 
     findings = validate_pydantic_settings_wiring(
         ValidationContext(translated_root, output_dir, load_result.sidecars),
@@ -106,6 +109,62 @@ def test_pydantic_settings_validation_reports_missing_generated_file(tmp_path: P
 
     assert {finding.code for finding in findings} == {"orphan-pydantic-settings"}
     assert all(finding.severity == "error" for finding in findings)
+    assert validation_exit_code(findings) == 2
+
+
+def test_pydantic_settings_validation_ignores_other_target_files(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    _write_settings_sidecar(translated_root, {"url": "app.datasource.url"})
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+    SQLAlchemyTarget(translated_root=translated_root).generate(load_result.sidecars, output_dir)
+    PydanticSettingsTarget(translated_root=translated_root).generate(
+        load_result.sidecars,
+        output_dir,
+    )
+
+    findings = validate_pydantic_settings_wiring(
+        ValidationContext(translated_root, output_dir, load_result.sidecars),
+    )
+
+    assert findings == []
+
+
+def test_pydantic_settings_validation_reports_stale_settings_file(tmp_path: Path) -> None:
+    translated_root = tmp_path / "translated"
+    _write_settings_sidecar(
+        translated_root,
+        {
+            "url": "app.datasource.url",
+            "username": "app.datasource.username",
+        },
+    )
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+    PydanticSettingsTarget(translated_root=translated_root).generate(
+        load_result.sidecars,
+        output_dir,
+    )
+    settings_file = output_dir / SETTINGS_FILENAME
+    settings_file.write_text(
+        settings_file.read_text(encoding="utf-8").replace(
+            "\n"
+            "    # Spring property: app.datasource.username\n"
+            "    # Source: AppConfig.java::dataSource.username\n"
+            "    app_datasource_username: str | None = Field("
+            "default=None, validation_alias='app.datasource.username')\n",
+            "\n",
+        ),
+        encoding="utf-8",
+    )
+
+    findings = validate_pydantic_settings_wiring(
+        ValidationContext(translated_root, output_dir, load_result.sidecars),
+    )
+
+    assert len(findings) == 1
+    assert findings[0].code == "pydantic-settings-binding"
+    assert "app.datasource.username" in findings[0].message
     assert validation_exit_code(findings) == 2
 
 
@@ -162,6 +221,45 @@ def test_j2py_wire_generate_pydantic_settings_cli_target(tmp_path: Path) -> None
 
     assert result.exit_code == 0
     assert f"generated {output_dir / SETTINGS_FILENAME}" in result.output
+
+
+def test_pydantic_settings_target_ignores_elements_without_spring_metadata(
+    tmp_path: Path,
+) -> None:
+    translated_root = tmp_path / "translated"
+    translated_root.mkdir(parents=True, exist_ok=True)
+    module = translated_root / "app_config.py"
+    module.write_text("class AppConfig:\n    pass\n", encoding="utf-8")
+    module.with_suffix(".wiring.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "AppConfig.java",
+                "output": str(module),
+                "elements": [
+                    {
+                        "plugin": "spring-wiring",
+                        "kind": "method",
+                        "java_name": "helper",
+                        "python_name": "helper",
+                        "annotations": [],
+                        "metadata": {"spring": None},
+                    },
+                ],
+            },
+        ),
+        encoding="utf-8",
+    )
+    load_result = load_wiring_sidecars(translated_root)
+    output_dir = tmp_path / "wiring"
+
+    PydanticSettingsTarget(translated_root=translated_root).generate(
+        load_result.sidecars,
+        output_dir,
+    )
+
+    source = (output_dir / SETTINGS_FILENAME).read_text(encoding="utf-8")
+    assert "no visible Spring property keys were found" in source
 
 
 def test_field_name_for_property_key_is_stable_and_safe() -> None:

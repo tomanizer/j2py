@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import keyword
 import re
 from dataclasses import dataclass
@@ -48,7 +49,10 @@ def settings_property_specs(sidecars: list[WiringSidecar]) -> list[SettingsPrope
     specs: list[SettingsPropertySpec] = []
     for sidecar in sidecars:
         for element in sidecar.elements:
-            jdbc_bean = element.spring.get("jdbc_bean")
+            spring = element.spring
+            if not isinstance(spring, dict):
+                continue
+            jdbc_bean = spring.get("jdbc_bean")
             if not isinstance(jdbc_bean, dict):
                 continue
             bean_name = _str(jdbc_bean.get("name"), default=element.java_name)
@@ -108,6 +112,24 @@ def field_name_collisions(
     }
 
 
+def missing_settings_property_bindings(
+    sidecars: list[WiringSidecar],
+    settings_source: str,
+) -> list[SettingsPropertySpec]:
+    """Return settings properties not represented in generated settings source."""
+    bindings = _settings_bindings(settings_source)
+    expected = _unique_specs_by_key(settings_property_specs(sidecars))
+    missing: list[SettingsPropertySpec] = []
+    for spec in expected:
+        binding = bindings.get(spec.field_name)
+        if binding is None:
+            missing.append(spec)
+            continue
+        if binding.source_key != spec.key or binding.validation_alias != spec.key:
+            missing.append(spec)
+    return missing
+
+
 def render_settings(specs: list[SettingsPropertySpec]) -> str:
     """Render a deterministic Pydantic Settings scaffold."""
     unique_specs = _unique_specs_by_key(specs)
@@ -120,6 +142,8 @@ def render_settings(specs: list[SettingsPropertySpec]) -> str:
         "",
         "# TODO(j2py): decide project environment variable names, defaults, secrets",
         "# source, and deployment config policy before using this in production.",
+        "# Currently this uses visible JDBC datasource properties only; @Value and",
+        "# @ConfigurationProperties need additional sidecar metadata to appear here.",
         f"SOURCE_PROPERTY_KEYS: dict[str, str] = {_source_property_keys_literal(unique_specs)}",
         "",
         "",
@@ -153,6 +177,8 @@ def render_settings(specs: list[SettingsPropertySpec]) -> str:
         [
             "",
             "",
+            "# Move construction to an application entry point if required settings",
+            "# should fail during startup validation instead of module import.",
             "settings = ApplicationSettings()",
         ],
     )
@@ -184,6 +210,96 @@ def _source_property_keys_literal(specs: list[SettingsPropertySpec]) -> str:
         return "{}"
     mapping = {spec.field_name: spec.key for spec in specs}
     return repr(dict(sorted(mapping.items())))
+
+
+@dataclass(frozen=True)
+class _SettingsBinding:
+    source_key: str | None
+    validation_alias: str | None
+
+
+def _settings_bindings(source: str) -> dict[str, _SettingsBinding]:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return {}
+    source_keys = _source_property_keys(tree)
+    aliases = _settings_validation_aliases(tree)
+    return {
+        field_name: _SettingsBinding(
+            source_key=source_keys.get(field_name),
+            validation_alias=aliases.get(field_name),
+        )
+        for field_name in set(source_keys) | set(aliases)
+    }
+
+
+def _source_property_keys(tree: ast.Module) -> dict[str, str]:
+    for node in tree.body:
+        value: ast.expr | None = None
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.target.id == "SOURCE_PROPERTY_KEYS":
+                value = node.value
+        elif isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "SOURCE_PROPERTY_KEYS"
+            for target in node.targets
+        ):
+            value = node.value
+        if isinstance(value, ast.Dict):
+            return _literal_str_dict(value)
+    return {}
+
+
+def _settings_validation_aliases(tree: ast.Module) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef) or node.name != "ApplicationSettings":
+            continue
+        for item in node.body:
+            if (
+                not isinstance(item, ast.AnnAssign)
+                or not isinstance(item.target, ast.Name)
+                or not isinstance(item.value, ast.Call)
+            ):
+                continue
+            alias = _field_validation_alias(item.value)
+            if alias is not None:
+                aliases[item.target.id] = alias
+        return aliases
+    return aliases
+
+
+def _field_validation_alias(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        if call.func.id != "Field":
+            return None
+    elif isinstance(call.func, ast.Attribute):
+        if call.func.attr != "Field":
+            return None
+    else:
+        return None
+    for keyword_arg in call.keywords:
+        if keyword_arg.arg != "validation_alias":
+            continue
+        if isinstance(keyword_arg.value, ast.Constant) and isinstance(
+            keyword_arg.value.value,
+            str,
+        ):
+            return keyword_arg.value.value
+    return None
+
+
+def _literal_str_dict(node: ast.Dict) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for key_node, value_node in zip(node.keys, node.values, strict=True):
+        if (
+            isinstance(key_node, ast.Constant)
+            and isinstance(key_node.value, str)
+            and isinstance(value_node, ast.Constant)
+            and isinstance(value_node.value, str)
+        ):
+            values[key_node.value] = value_node.value
+    return values
 
 
 def _list_of_dicts(value: object) -> list[dict[str, object]]:

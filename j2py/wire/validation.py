@@ -21,6 +21,7 @@ from j2py.wire.targets.pydantic_settings import (
     duplicate_property_keys,
     field_name_collisions,
     has_pydantic_settings_facts,
+    missing_settings_property_bindings,
 )
 from j2py.wire.targets.sqlalchemy import (
     DB_FILENAME,
@@ -205,16 +206,24 @@ class MissingProviderCheck:
 class UnresolvedImportCheck:
     code = "unresolved-import"
 
-    def __init__(self, allowed_import_modules: set[str] | None = None) -> None:
+    def __init__(
+        self,
+        allowed_import_modules: set[str] | None = None,
+        *,
+        file_names: set[str] | None = None,
+    ) -> None:
         self.allowed_import_modules = (
             allowed_import_modules
             if allowed_import_modules is not None
             else _DEFAULT_ALLOWED_IMPORT_MODULES
         )
+        self.file_names = file_names
 
     def run(self, context: ValidationContext) -> list[ValidationFinding]:
         findings: list[ValidationFinding] = []
         for path in _wiring_files(context.wiring_dir):
+            if self.file_names is not None and path.name not in self.file_names:
+                continue
             tree = _parse_python(path)
             if tree is None:
                 continue
@@ -603,6 +612,34 @@ class PydanticSettingsPropertyConflictCheck:
         return findings
 
 
+class PydanticSettingsBindingCheck:
+    code = "pydantic-settings-binding"
+
+    def run(self, context: ValidationContext) -> list[ValidationFinding]:
+        if duplicate_property_keys(context.sidecars) or field_name_collisions(context.sidecars):
+            return []
+        path = context.wiring_dir / SETTINGS_FILENAME
+        source = _read_text(path)
+        if not source:
+            return []
+        findings: list[ValidationFinding] = []
+        for spec in missing_settings_property_bindings(context.sidecars, source):
+            findings.append(
+                _finding(
+                    self.code,
+                    str(path),
+                    (
+                        f"Generated settings are missing property '{spec.key}' "
+                        f"as field '{spec.field_name}'"
+                    ),
+                    "Re-run j2py-wire generate --target pydantic-settings from current sidecars",
+                    severity="error",
+                    line=spec.line,
+                ),
+            )
+        return findings
+
+
 FASTAPI_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
@@ -629,8 +666,12 @@ PYDANTIC_SETTINGS_CHECKS: list[ValidationCheck] = [
     SpringProfileCheck(),
     SpringBeanDefinitionCheck(),
     OrphanPydanticSettingsCheck(),
-    UnresolvedImportCheck(_PYDANTIC_SETTINGS_ALLOWED_IMPORT_MODULES),
+    UnresolvedImportCheck(
+        _PYDANTIC_SETTINGS_ALLOWED_IMPORT_MODULES,
+        file_names={SETTINGS_FILENAME},
+    ),
     PydanticSettingsPropertyConflictCheck(),
+    PydanticSettingsBindingCheck(),
 ]
 
 SQLALCHEMY_CHECKS: list[ValidationCheck] = [
