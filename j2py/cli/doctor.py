@@ -212,7 +212,7 @@ def advise(
     if code:
         raise typer.Exit(code=code)
     if assessment is None:
-        raise typer.Exit(code=code)
+        raise typer.Exit(code=1)
 
     auto_root = assessment_json.parent
     source_hint = assessment.payload.get("source")

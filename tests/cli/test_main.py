@@ -1574,6 +1574,32 @@ def test_cli_doctor_advise_handles_retry_error_without_traceback(
     assert "Traceback" not in result.output
 
 
+def test_cli_doctor_advise_halts_on_none_assessment_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assessment = tmp_path / "assessment.json"
+    assessment.write_text("{}")
+
+    monkeypatch.setattr("j2py.cli.doctor._load_assessment", lambda *args, **kwargs: (None, 0))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "doctor",
+            "advise",
+            str(assessment),
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-test",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Traceback" not in result.output
+
+
 def test_cli_doctor_advise_openai_requires_explicit_model(tmp_path: Path) -> None:
     assessment = tmp_path / "assessment.json"
     assessment.write_text(
