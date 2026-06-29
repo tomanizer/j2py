@@ -232,9 +232,14 @@ def _hotspot_list(
     label_key: str,
     value_key: str = "count",
 ) -> str:
+    def _resolve_value(item: dict[str, Any]) -> str:
+        if value_key == "rule_coverage" and "rule_coverage" in item:
+            return f"{item['rule_coverage']:.0%}"
+        return str(item.get(value_key, _hotspot_value(item)))
+
     rows = "\n".join(
         f"<li><code>{escape(str(item[label_key]))}</code>: "
-        f"{escape(str(item.get(value_key, _hotspot_value(item))))}</li>"
+        f"{escape(_resolve_value(item))}</li>"
         for item in items
     )
     return f"""

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -26,6 +27,37 @@ from j2py.doctor import (
 from j2py.doctor_assessment import _file_risk_profile
 
 CFG = ConfigLoader().add_defaults().build()
+
+
+def _minimal_doctor_file_payload(
+    path: str,
+    *,
+    parse_ok: bool = True,
+    rule_coverage: float = 1.0,
+    semantic_warning_count: int = 0,
+    unhandled_count: int = 0,
+    unresolved_import_count: int = 0,
+    risk_score: float = 0.0,
+    readiness_bucket: str = "ready",
+) -> dict[str, Any]:
+    return {
+        "path": path,
+        "parse_ok": parse_ok,
+        "translation": {
+            "rule_coverage": rule_coverage,
+            "semantic_warnings": [
+                _synthetic_diagnostic() for _ in range(semantic_warning_count)
+            ],
+            "unhandled": [_synthetic_diagnostic() for _ in range(unhandled_count)],
+        },
+        "unresolved_imports": [{}] * unresolved_import_count,
+        "risk_score": risk_score,
+        "readiness_bucket": readiness_bucket,
+    }
+
+
+def _synthetic_diagnostic() -> dict[str, Any]:
+    return {"line": None, "node_type": "", "reason": "", "text": ""}
 
 
 def test_doctor_public_facade_exports_stable_api() -> None:
@@ -314,6 +346,52 @@ def test_doctor_diff_reports_improvements(tmp_path: Path) -> None:
     assert f"risk {changed['risk_score_delta']:+.1f}" in text
 
 
+def test_file_changes_omits_unchanged_files() -> None:
+    before = DoctorAssessment(
+        {
+            "schema_version": DOCTOR_SCHEMA_VERSION,
+            "source": "before",
+            "summary": {},
+            "files": [
+                _minimal_doctor_file_payload("A.java", rule_coverage=0.85, risk_score=5.0),
+                _minimal_doctor_file_payload(
+                    "B.java",
+                    rule_coverage=0.80,
+                    semantic_warning_count=1,
+                    unhandled_count=0,
+                    unresolved_import_count=1,
+                    risk_score=12.0,
+                ),
+                _minimal_doctor_file_payload("C.java", parse_ok=False, risk_score=100.0),
+            ],
+        },
+    )
+    after = DoctorAssessment(
+        {
+            "schema_version": DOCTOR_SCHEMA_VERSION,
+            "source": "after",
+            "summary": {},
+            "files": [
+                _minimal_doctor_file_payload("A.java", rule_coverage=0.85, risk_score=5.0),
+                _minimal_doctor_file_payload(
+                    "B.java",
+                    rule_coverage=0.95,
+                    semantic_warning_count=2,
+                    unhandled_count=1,
+                    unresolved_import_count=1,
+                    risk_score=11.0,
+                ),
+                _minimal_doctor_file_payload("C.java", parse_ok=False, risk_score=100.0),
+            ],
+        },
+    )
+
+    diff = diff_assessments(before, after)
+    changed_paths = {item["path"] for item in diff.payload["file_changes"]["changed"]}
+
+    assert changed_paths == {"B.java"}
+
+
 def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
     source = tmp_path / "Sample.java"
     source.write_text("public class Sample {}")
@@ -328,6 +406,20 @@ def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
     assert "Ready files" in html
     assert "<script" not in html
     assert "https://" not in html
+
+
+def test_doctor_assessment_html_formats_low_coverage_hotspot_percentage(tmp_path: Path) -> None:
+    source = tmp_path / "LowCoverage.java"
+    source.write_text("package com.example; public class LowCoverage {}")
+    payload = assess_project(source, cfg=CFG).payload
+    payload["hotspots"]["lowest_coverage_files"] = [
+        {"path": "LowCoverage.java", "rule_coverage": 0.73},
+    ]
+
+    html = render_assessment_html(DoctorAssessment(payload))
+
+    assert "<code>LowCoverage.java</code>: 73%" in html
+    assert "<code>LowCoverage.java</code>: 0.73" not in html
 
 
 def test_load_assessment_json_rejects_unsupported_schema_version(tmp_path: Path) -> None:

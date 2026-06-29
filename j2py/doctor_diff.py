@@ -149,13 +149,18 @@ def _file_changes(
             "readiness_bucket_before": before["readiness_bucket"],
             "readiness_bucket_after": after["readiness_bucket"],
         }
-        if any(
-            value
-            for key, value in item.items()
-            if key
-            not in {
-                "path",
-            }
+        if (
+            any(
+                value
+                for key, value in item.items()
+                if key
+                not in {
+                    "path",
+                    "readiness_bucket_before",
+                    "readiness_bucket_after",
+                }
+            )
+            or item["readiness_bucket_before"] != item["readiness_bucket_after"]
         ):
             changed.append(item)
     return {
