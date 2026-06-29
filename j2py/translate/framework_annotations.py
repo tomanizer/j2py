@@ -183,14 +183,20 @@ def annotation_template_values(annotation: JavaNode) -> dict[str, str]:
     return _annotation_value_aliases(values)
 
 
-def annotation_values(node: JavaNode, names: frozenset[str]) -> dict[str, str]:
+def annotation_values(
+    node: JavaNode,
+    names: set[str] | frozenset[str] | dict[str, AnnotationMapEntry],
+) -> dict[str, str]:
     for annotation in annotation_nodes(node):
         if annotation_simple_name(annotation) in names:
             return annotation_template_values(annotation)
     return {}
 
 
-def has_annotation(node: JavaNode, names: frozenset[str]) -> bool:
+def has_annotation(
+    node: JavaNode,
+    names: set[str] | frozenset[str] | dict[str, AnnotationMapEntry],
+) -> bool:
     return any(annotation_simple_name(annotation) in names for annotation in annotation_nodes(node))
 
 
@@ -207,6 +213,8 @@ def parse_annotation_int(value: str | None) -> int | None:
             return int(f"{sign}{literal}", 16)
         if literal.startswith(("0b", "0B")):
             return int(f"{sign}{literal}", 2)
+        if literal.startswith("0") and len(literal) > 1:
+            return int(f"{sign}{literal}", 8)
         return int(f"{sign}{literal}")
     except ValueError:
         return None

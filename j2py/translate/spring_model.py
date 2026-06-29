@@ -88,7 +88,7 @@ def _response_body_return_types(
 ) -> set[str]:
     if not has_annotation(node, _RESPONSE_MAPPING_ANNOTATIONS):
         return set()
-    if has_annotation(node, frozenset(cfg.annotation_map)):
+    if has_annotation(node, cfg.annotation_map):
         return set()
     type_node = node.child_by_field("type")
     if type_node is None:
