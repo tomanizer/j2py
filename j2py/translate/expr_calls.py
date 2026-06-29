@@ -175,7 +175,8 @@ def _argument_targets_spread_parameter(
     from j2py.translate.class_model import ParameterInfo
     from j2py.translate.java_types import java_expression_type
 
-    arg_type = java_expression_type(arg_node, ctx) or ctx.variable_java_types.get(arg_node.text)
+    inner = unwrap_parens(arg_node)
+    arg_type = java_expression_type(arg_node, ctx) or ctx.variable_java_types.get(inner.text)
     for signature in target_signatures:
         params = [param for param in signature if isinstance(param, ParameterInfo)]
         spread_index = next((i for i, param in enumerate(params) if param.is_spread), None)

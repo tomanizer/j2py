@@ -619,6 +619,50 @@ def test_forwarded_varargs_parameter_preserves_null_and_empty_array() -> None:
     assert words.run_one() == "-"  # type: ignore[attr-defined]
 
 
+def test_parenthesized_forwarded_varargs_parameter_spreads_elements() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Words {
+            public static String join(String value, String... delimiters) {
+                if (delimiters == null) {
+                    return "default";
+                }
+                if (delimiters.length == 0) {
+                    return "empty";
+                }
+                return delimiters[0];
+            }
+
+            public static String joinFully(String value, String... delimiters) {
+                return join(value, (delimiters));
+            }
+
+            public static String runDefault() {
+                return joinFully("x");
+            }
+
+            public static String runEmpty() {
+                return joinFully("x", new String[] {});
+            }
+
+            public static String runOne() {
+                return joinFully("x", "-");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "Words.join(value, delimiters)" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<words>", "exec"), namespace)
+    words = namespace["Words"]
+    assert words.run_default() == "empty"  # type: ignore[attr-defined]
+    assert words.run_empty() == "empty"  # type: ignore[attr-defined]
+    assert words.run_one() == "-"  # type: ignore[attr-defined]
+
+
 def test_same_arity_boxed_wrapper_forwarding_merges_to_implementation() -> None:
     result = translate_source_with_diagnostics(
         """
