@@ -85,11 +85,13 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
         )
         if len(arg_nodes) == 1:
             value = translate_expression(arg_nodes[0], ctx)
-            return f'"".join({value})'
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
+            return f"_j2py_string_from_value({value})"
         if len(arg_nodes) == 2:
             value = translate_expression(arg_nodes[0], ctx)
             charset = translate_expression(arg_nodes[1], ctx)
-            return f"bytes({value}).decode(str({charset}))"
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
+            return f"_j2py_string_from_value({value}, {charset})"
         return "str()"
 
     if base_type in {"StringBuilder", "java.lang.StringBuilder"}:

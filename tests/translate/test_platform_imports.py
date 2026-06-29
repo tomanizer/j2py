@@ -254,6 +254,10 @@ def test_implicit_java_lang_jdk_calls_do_not_become_same_package_imports() -> No
                 return String.join(".", a, b) + builder.toString();
             }
 
+            public String joinOne(String a) {
+                return String.join("-", a);
+            }
+
             public String fromChars(char[] chars) {
                 return new String(chars);
             }
@@ -277,14 +281,15 @@ def test_implicit_java_lang_jdk_calls_do_not_become_same_package_imports() -> No
     assert "from com.github.zafarkhaja.semver.System import System" not in result.source
     assert "from j2py_runtime import StringBuilder" in result.source
     assert (
-        "from j2py_runtime import StringBuilder, _j2py_arraycopy, _j2py_long_hash_code"
-        in result.source
+        "from j2py_runtime import StringBuilder, _j2py_arraycopy, _j2py_long_hash_code, "
+        "_j2py_string_from_value, _j2py_string_join" in result.source
     )
     assert "parsed = int(value)" in result.source
     assert "return (parsed + 1)" in result.source
     assert "return _j2py_long_hash_code(value)" in result.source
     assert 'return ".".join([a, b]) + str(builder)' in result.source
-    assert 'return "".join(chars)' in result.source
+    assert 'return _j2py_string_join("-", a)' in result.source
+    assert "return _j2py_string_from_value(chars)" in result.source
     assert "_j2py_arraycopy(src, 0, dest, 1, 2)" in result.source
 
 

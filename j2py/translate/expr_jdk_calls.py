@@ -165,7 +165,8 @@ def _translate_string_static_call(
         return translate_string_format(format_args)
     if method_name == "join" and len(args) >= 2:
         if len(args) == 2:
-            return f"{args[0]}.join({args[1]})"
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_join")
+            return f"_j2py_string_join({args[0]}, {args[1]})"
         return f"{args[0]}.join([{', '.join(args[1:])}])"
     return None
 

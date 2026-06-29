@@ -47,6 +47,8 @@ __all__ = [
     "_j2py_idiv",
     "_j2py_long_hash_code",
     "_j2py_monitor",
+    "_j2py_string_from_value",
+    "_j2py_string_join",
     "bean",
     "component",
     "configuration",
@@ -181,7 +183,10 @@ class StringBuilder:
         self._parts: list[str] = []
 
     def append(self, value: Any, start: int | None = None, end: int | None = None) -> StringBuilder:
-        text = "null" if value is None else str(value)
+        if isinstance(value, list):
+            text = "".join(value)
+        else:
+            text = "null" if value is None else str(value)
         self._parts.append(text if start is None or end is None else text[start:end])
         return self
 
@@ -216,6 +221,8 @@ def _j2py_decode_int(value: str) -> int:
         if text[0] == "-":
             sign = -1
         text = text[1:]
+    if not text or "+" in text or "-" in text or "_" in text:
+        raise ValueError(f"invalid Java integer literal: {value!r}")
     if text.startswith(("#", "0x", "0X")):
         digits = text[1:] if text.startswith("#") else text[2:]
         return sign * int(digits, 16)
@@ -226,8 +233,29 @@ def _j2py_decode_int(value: str) -> int:
 
 def _j2py_arraycopy(src: Any, src_pos: int, dest: Any, dest_pos: int, length: int) -> None:
     """Mutate ``dest`` like ``System.arraycopy`` for Python sequence-backed arrays."""
+    if src_pos < 0 or dest_pos < 0 or length < 0:
+        raise IndexError("Array index out of range")
+    if src_pos + length > len(src) or dest_pos + length > len(dest):
+        raise IndexError("Array index out of range")
     segment = list(src[src_pos : src_pos + length])
     dest[dest_pos : dest_pos + length] = segment
+
+
+def _j2py_string_from_value(value: Any, charset: Any | None = None) -> str:
+    """Return Java ``new String(...)`` behavior for common translated array shapes."""
+    if isinstance(value, list):
+        if not value or isinstance(value[0], str):
+            return "".join(value)
+        encoding = str(charset) if charset is not None else "utf-8"
+        return bytes(value).decode(encoding)
+    return str(value)
+
+
+def _j2py_string_join(delimiter: str, elements: Any) -> str:
+    """Return Java ``String.join(delimiter, elements)`` for iterable or single strings."""
+    if isinstance(elements, str):
+        return delimiter.join([elements])
+    return delimiter.join(elements)
 
 
 def _j2py_marker(target: Any, name: str, **metadata: Any) -> Any:
