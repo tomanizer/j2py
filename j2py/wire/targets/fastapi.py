@@ -9,6 +9,9 @@ from pathlib import Path
 from j2py.wire.schema import WiringElement, WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
+    as_bool,
+    as_int,
+    as_str,
     base_type,
     injection_specs,
     should_import_type,
@@ -89,7 +92,7 @@ class FastAPITarget:
             ]
             for element in controller_elements:
                 module = sidecar.python_module(self.translated_root)
-                router_prefix = _str(element.spring.get("router_prefix"), default="")
+                router_prefix = as_str(element.spring.get("router_prefix"), default="")
                 controllers.append(
                     ControllerSpec(
                         class_name=element.python_name,
@@ -199,10 +202,10 @@ def _routes(elements: list[WiringElement]) -> list[RouteSpec]:
         request_body = _request_body(route.get("request_body"))
         routes.append(
             RouteSpec(
-                function_name=_str(route.get("handler"), default=element.python_name),
-                http_method=_str(route.get("http_method"), default="GET"),
-                path=_str(route.get("path"), default=""),
-                status_code=_int(route.get("status_code"), default=200),
+                function_name=as_str(route.get("handler"), default=element.python_name),
+                http_method=as_str(route.get("http_method"), default="GET"),
+                path=as_str(route.get("path"), default=""),
+                status_code=as_int(route.get("status_code"), default=200),
                 parameters=_parameters(route.get("parameters")),
                 request_body=request_body,
             ),
@@ -219,10 +222,10 @@ def _parameters(value: object) -> list[RouteParameterSpec]:
             continue
         parameters.append(
             RouteParameterSpec(
-                name=_str(item.get("name"), default="param"),
-                python_type=_str(item.get("python_type"), default="object"),
-                required=_bool(item.get("required"), default=True),
-                source=_str(item.get("source"), default="unknown"),
+                name=as_str(item.get("name"), default="param"),
+                python_type=as_str(item.get("python_type"), default="object"),
+                required=as_bool(item.get("required"), default=True),
+                source=as_str(item.get("source"), default="unknown"),
             ),
         )
     return parameters
@@ -232,8 +235,8 @@ def _request_body(value: object) -> RequestBodySpec | None:
     if not isinstance(value, dict):
         return None
     return RequestBodySpec(
-        name=_str(value.get("name"), default="body"),
-        python_type=_str(value.get("python_type"), default="object"),
+        name=as_str(value.get("name"), default="body"),
+        python_type=as_str(value.get("python_type"), default="object"),
     )
 
 
@@ -321,15 +324,3 @@ def _router_tag(controller: ControllerSpec) -> str:
 
 def _literal(value: str) -> str:
     return json.dumps(value)
-
-
-def _str(value: object, *, default: str) -> str:
-    return value if isinstance(value, str) else default
-
-
-def _int(value: object, *, default: int) -> int:
-    return value if isinstance(value, int) else default
-
-
-def _bool(value: object, *, default: bool) -> bool:
-    return value if isinstance(value, bool) else default

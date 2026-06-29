@@ -62,8 +62,8 @@ def injection_specs(elements: list[WiringElement]) -> list[tuple[str, str]]:
             continue
         injections.append(
             (
-                _str(inject.get("name"), default=translate_field_name(element.java_name)),
-                _str(inject.get("type"), default="object"),
+                as_str(inject.get("name"), default=translate_field_name(element.java_name)),
+                as_str(inject.get("type"), default="object"),
             ),
         )
     return injections
@@ -103,5 +103,13 @@ def list_of_dicts(value: object) -> list[dict[str, object]]:
     return [item for item in value if isinstance(item, dict)]
 
 
-def _str(value: object, *, default: str) -> str:
+def as_str(value: object, *, default: str) -> str:
     return value if isinstance(value, str) else default
+
+
+def as_int(value: object, *, default: int) -> int:
+    return value if type(value) is int else default
+
+
+def as_bool(value: object, *, default: bool) -> bool:
+    return value if isinstance(value, bool) else default

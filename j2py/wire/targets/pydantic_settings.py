@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from j2py.wire.schema import WiringSidecar
-from j2py.wire.targets.common import GENERATED_HEADER, list_of_dicts
+from j2py.wire.targets.common import GENERATED_HEADER, as_str, list_of_dicts
 from j2py.wiring_contract import translate_field_name
 
 SETTINGS_FILENAME = "settings.py"
@@ -55,8 +55,8 @@ def settings_property_specs(sidecars: list[WiringSidecar]) -> list[SettingsPrope
             jdbc_bean = spring.get("jdbc_bean")
             if not isinstance(jdbc_bean, dict):
                 continue
-            bean_name = _str(jdbc_bean.get("name"), default=element.java_name)
-            bean_python_name = _str(
+            bean_name = as_str(jdbc_bean.get("name"), default=element.java_name)
+            bean_python_name = as_str(
                 jdbc_bean.get("python_name"),
                 default=translate_field_name(element.java_name),
             )
@@ -308,7 +308,3 @@ def _source_line(value: dict[str, object]) -> int | None:
         return None
     line = location.get("line")
     return line if isinstance(line, int) else None
-
-
-def _str(value: object, *, default: str) -> str:
-    return value if isinstance(value, str) else default
