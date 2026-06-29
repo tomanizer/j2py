@@ -34,6 +34,9 @@ def translate_type_annotation(java_type: str, ctx: TranslationContext) -> str:
 
 def split_top_level_annotation(text: str, *, delimiter: str) -> list[str]:
     """Split a Python annotation on a delimiter outside nested type groups."""
+    if len(delimiter) != 1:
+        msg = "delimiter must be a single character"
+        raise ValueError(msg)
 
     parts: list[str] = []
     current: list[str] = []
@@ -42,7 +45,7 @@ def split_top_level_annotation(text: str, *, delimiter: str) -> list[str]:
         if char in "[(":
             depth += 1
         elif char in "])":
-            depth -= 1
+            depth = max(depth - 1, 0)
         if char == delimiter and depth == 0:
             parts.append("".join(current).strip())
             current = []

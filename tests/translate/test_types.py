@@ -68,6 +68,11 @@ def test_translate_type(java: str, expected: str):
             ",",
             ["tuple[(str, int), Callable[[str, int], None]]", "T"],
         ),
+        (
+            "A] | B",
+            "|",
+            ["A]", "B"],
+        ),
     ],
 )
 def test_split_top_level_annotation_respects_nested_type_groups(
@@ -76,6 +81,11 @@ def test_split_top_level_annotation_respects_nested_type_groups(
     expected: list[str],
 ) -> None:
     assert split_top_level_annotation(text, delimiter=delimiter) == expected
+
+
+def test_split_top_level_annotation_rejects_multi_character_delimiter() -> None:
+    with pytest.raises(ValueError, match="single character"):
+        split_top_level_annotation("a | b", delimiter=" | ")
 
 
 @pytest.mark.parametrize(
