@@ -30,7 +30,7 @@ from j2py.translate.class_methods import (
     return_type,
     translate_method,
 )
-from j2py.translate.class_model import FieldInfo, _modifiers
+from j2py.translate.class_model import FieldInfo
 from j2py.translate.comments import is_comment, translate_comment
 from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from j2py.translate.expressions import translate_expression
@@ -38,10 +38,8 @@ from j2py.translate.name_resolution import NameResolver
 from j2py.translate.node_utils import first_child_by_type
 from j2py.translate.rules.naming import (
     translate_class_name,
-    translate_field_name,
     translate_method_name,
 )
-from j2py.translate.rules.types import translate_type
 
 
 def translate_enum(
@@ -496,27 +494,6 @@ def _enum_fields(enum_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]
     fields: list[FieldInfo] = []
     for declaration in body.children_by_type("enum_body_declarations"):
         for child in declaration.named_children:
-            if child.type != "field_declaration":
-                continue
-            type_node = child.child_by_field("type")
-            java_type = type_node.text if type_node is not None else "Object"
-            modifiers = _modifiers(child)
-            for declarator in child.find_all("variable_declarator"):
-                name_node = declarator.child_by_field("name")
-                if name_node is None:
-                    continue
-                fields.append(
-                    FieldInfo(
-                        node=child,
-                        name=name_node.text,
-                        py_name=translate_field_name(
-                            name_node.text,
-                            snake_case=cfg.snake_case_fields,
-                        ),
-                        java_type=java_type,
-                        py_type=translate_type(java_type, cfg),
-                        is_static="static" in modifiers,
-                        initializer=declarator.child_by_field("value"),
-                    ),
-                )
+            if child.type == "field_declaration":
+                fields.extend(field_infos_from_declaration(child, cfg))
     return fields
