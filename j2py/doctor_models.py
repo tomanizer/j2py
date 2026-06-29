@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-DOCTOR_SCHEMA_VERSION = 1
+DOCTOR_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)

@@ -14,6 +14,7 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     summary = payload["summary"]
     rows = "\n".join(_file_row(item) for item in payload["files"])
     hotspots = payload["hotspots"]
+    diagnostic_clusters = payload.get("diagnostic_clusters", [])
     annotations = "\n".join(
         f"<li><code>{escape(item['name'])}</code>: {item['count']}</li>"
         for item in payload["annotation_inventory"]
@@ -27,30 +28,19 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
         for command in payload["recommended_next_commands"]
     )
     hotspot_columns = "\n".join(
-        _hotspot_list(title, items, label_key)
-        for title, items, label_key in (
-            (
-                "Unhandled Node Types",
-                hotspots["unhandled_node_types"],
-                "node_type",
-            ),
-            (
-                "Warning Reasons",
-                hotspots["semantic_warning_reasons"],
-                "reason",
-            ),
-            (
-                "Import Packages",
-                hotspots["unresolved_import_packages"],
-                "package",
-            ),
-            (
-                "Lowest Coverage Files",
-                hotspots["lowest_coverage_files"],
-                "path",
-            ),
+        _hotspot_list(title, items, label_key, value_key)
+        for title, items, label_key, value_key in (
+            ("Unhandled Node Types", hotspots["unhandled_node_types"], "node_type", "count"),
+            ("Warning Reasons", hotspots["semantic_warning_reasons"], "reason", "count"),
+            ("Import Packages", hotspots["unresolved_import_packages"], "package", "count"),
+            ("Lowest Coverage Files", hotspots["lowest_coverage_files"], "path", "rule_coverage"),
+            ("Risk Reasons", hotspots["risk_reasons"], "reason", "count"),
+            ("Highest Risk Files", hotspots["highest_risk_files"], "path", "risk_score"),
         )
     )
+    readiness_summary = {
+        item["bucket"]: item["files"] for item in summary["readiness_distribution"]
+    }
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -71,9 +61,19 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Files", summary["files"])}
     {_metric("Parse failures", summary["parse_failures"])}
     {_metric("Avg coverage", f"{summary['average_rule_coverage']:.0%}")}
+    {_metric("Avg risk", f"{summary['average_risk_score']:.1f}/100")}
+    {
+        _metric(
+            "Risk range",
+            f"{summary['min_risk_score']:.1f}-{summary['max_risk_score']:.1f}",
+        )
+    }
     {_metric("Semantic warnings", summary["semantic_warnings"])}
     {_metric("Unhandled", summary["unhandled_diagnostics"])}
     {_metric("Unresolved imports", summary["unresolved_imports"])}
+    {_metric("Ready files", readiness_summary["ready"])}
+    {_metric("Manual-fix files", readiness_summary["requires_manual_fixes"])}
+    {_metric("Not-ready files", readiness_summary["not_ready"])}
   </section>
   <section>
     <h2>Files</h2>
@@ -84,6 +84,9 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
           <th>Package</th>
           <th>Parse</th>
           <th>Coverage</th>
+          <th>Risk</th>
+          <th>Band</th>
+          <th>Readiness</th>
           <th>Warnings</th>
           <th>Unhandled</th>
           <th>Unresolved Imports</th>
@@ -105,6 +108,10 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
   <section>
     <h2>Hotspots</h2>
     <div class="columns">{hotspot_columns}</div>
+  </section>
+  <section>
+    <h2>Diagnostic Clusters</h2>
+    <div class="columns">{_diagnostic_cluster_cards(diagnostic_clusters)}</div>
   </section>
   <section>
     <h2>Recommended Next Commands</h2>
@@ -172,12 +179,25 @@ def render_doctor_diff_text(diff: DoctorDiff) -> str:
     if changed_files:
         lines.extend(["", "Changed files:"])
         for item in changed_files[:20]:
-            lines.append(
+            line = (
                 f"  {item['path']}: coverage {item['rule_coverage_delta']:+.3f}, "
                 f"warnings {item['semantic_warnings_delta']:+}, "
                 f"unhandled {item['unhandled_delta']:+}, "
-                f"unresolved imports {item['unresolved_imports_delta']:+}"
+                f"unresolved imports {item['unresolved_imports_delta']:+}, "
+                f"risk {item['risk_score_delta']:+.1f}, "
+                f"readiness {item['readiness_bucket_before']} -> {item['readiness_bucket_after']}"
             )
+            if (
+                item["risk_score_delta"] == 0.0
+                and item["readiness_bucket_before"] == item["readiness_bucket_after"]
+            ):
+                line = (
+                    f"  {item['path']}: coverage {item['rule_coverage_delta']:+.3f}, "
+                    f"warnings {item['semantic_warnings_delta']:+}, "
+                    f"unhandled {item['unhandled_delta']:+}, "
+                    f"unresolved imports {item['unresolved_imports_delta']:+}"
+                )
+            lines.append(line)
     return "\n".join(lines) + "\n"
 
 
@@ -197,16 +217,28 @@ def _file_row(item: dict[str, Any]) -> str:
   <td>{escape(item["package"])}</td>
   <td>{"pass" if item["parse_ok"] else "fail"}</td>
   <td>{translation["rule_coverage"]:.0%}</td>
+  <td>{item["risk_score"]:.1f}</td>
+  <td>{escape(item["risk_band"])}</td>
+  <td>{escape(item["readiness_bucket"])}</td>
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>
 </tr>"""
 
 
-def _hotspot_list(title: str, items: list[dict[str, Any]], label_key: str) -> str:
+def _hotspot_list(
+    title: str,
+    items: list[dict[str, Any]],
+    label_key: str,
+    value_key: str = "count",
+) -> str:
+    def _resolve_value(item: dict[str, Any]) -> str:
+        if value_key == "rule_coverage" and "rule_coverage" in item:
+            return f"{item['rule_coverage']:.0%}"
+        return str(item.get(value_key, _hotspot_value(item)))
+
     rows = "\n".join(
-        f"<li><code>{escape(str(item[label_key]))}</code>: "
-        f"{escape(str(item.get('count', _hotspot_value(item))))}</li>"
+        f"<li><code>{escape(str(item[label_key]))}</code>: {escape(_resolve_value(item))}</li>"
         for item in items
     )
     return f"""
@@ -216,9 +248,55 @@ def _hotspot_list(title: str, items: list[dict[str, Any]], label_key: str) -> st
 </article>"""
 
 
+def _diagnostic_cluster_cards(clusters: list[dict[str, Any]]) -> str:
+    if not clusters:
+        return "<article><p>No recurring diagnostic clusters detected.</p></article>"
+
+    cards = []
+    for cluster in clusters[:12]:
+        node_types = ", ".join(escape(node) for node in cluster.get("node_types", []))
+        owner_hints = ", ".join(escape(item) for item in cluster.get("owner_hints", []))
+        files = "\n".join(
+            f"<li>{escape(item['path'])}: {item['count']}</li>"
+            for item in cluster.get("affected_files", [])
+            if item.get("count", 0) > 0
+        )
+        files = files or "<li>No file hits.</li>"
+        samples = "\n".join(
+            "<li>"
+            f"{escape(str(item.get('path', '')))}:{escape(str(item.get('line', '')))} "
+            f"<code>{escape(str(item.get('node_type', '')))}</code> "
+            f"{escape(str(item.get('text', '')))}"
+            "</li>"
+            for item in cluster.get("sample_locations", [])[:3]
+        )
+        occurrence_text = (
+            f"{escape(str(cluster.get('count', 0)))} occurrences across "
+            f"{len(cluster.get('affected_files', []))} file(s)."
+        )
+        cards.append(
+            f"""
+<article>
+  <h3>{escape(cluster.get("reason", cluster.get("cluster_id", "diagnostic")))}</h3>
+  <p>{occurrence_text}</p>
+  <p><strong>Node types:</strong> {node_types or "unknown"}.</p>
+  <p><strong>Owner hint:</strong> {owner_hints or "unknown"}.</p>
+  <h4>Top files</h4>
+  <ul>{files}</ul>
+  <h4>Samples</h4>
+  <ul>{samples}</ul>
+</article>"""
+        )
+    return "\n".join(cards)
+
+
 def _hotspot_value(item: dict[str, Any]) -> str:
     if "rule_coverage" in item:
         return f"{item['rule_coverage']:.0%}"
+    if "risk_score" in item:
+        return f"{item['risk_score']:.1f}"
+    if "files" in item:
+        return str(item["files"])
     return ""
 
 

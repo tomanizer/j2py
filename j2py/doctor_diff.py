@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from j2py.doctor_models import DoctorAssessment, DoctorDiff
+from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment, DoctorDiff
 
 
 def diff_assessments(before: DoctorAssessment, after: DoctorAssessment) -> DoctorDiff:
@@ -28,7 +28,7 @@ def diff_assessments(before: DoctorAssessment, after: DoctorAssessment) -> Docto
     after_parse_failures = {path for path, item in after_files.items() if not item["parse_ok"]}
 
     payload = {
-        "schema_version": 1,
+        "schema_version": DOCTOR_SCHEMA_VERSION,
         "before_source": before_payload.get("source"),
         "after_source": after_payload.get("source"),
         "summary_delta": _summary_delta(
@@ -145,8 +145,23 @@ def _file_changes(
             - len(before["translation"]["unhandled"]),
             "unresolved_imports_delta": len(after["unresolved_imports"])
             - len(before["unresolved_imports"]),
+            "risk_score_delta": after["risk_score"] - before["risk_score"],
+            "readiness_bucket_before": before["readiness_bucket"],
+            "readiness_bucket_after": after["readiness_bucket"],
         }
-        if any(value for key, value in item.items() if key != "path"):
+        if (
+            any(
+                value
+                for key, value in item.items()
+                if key
+                not in {
+                    "path",
+                    "readiness_bucket_before",
+                    "readiness_bucket_after",
+                }
+            )
+            or item["readiness_bucket_before"] != item["readiness_bucket_after"]
+        ):
             changed.append(item)
     return {
         "added": [{"path": path} for path in added],

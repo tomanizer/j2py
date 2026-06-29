@@ -136,12 +136,16 @@ def doctor(
         return
 
     summary = assessment.payload["summary"]
+    readiness = {item["bucket"]: item["files"] for item in summary["readiness_distribution"]}
     console.print(
         "[bold]Doctor assessment:[/bold] "
         f"{summary['files']} files, "
         f"{summary['parse_failures']} parse failures, "
         f"{summary['semantic_warnings']} semantic warnings, "
         f"{summary['unhandled_diagnostics']} unhandled diagnostics",
+        f"risk={summary['average_risk_score']:.1f}, "
+        f"ready={readiness['ready']}, manual={readiness['requires_manual_fixes']}, "
+        f"not_ready={readiness['not_ready']}",
     )
 
 

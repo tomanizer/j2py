@@ -12,7 +12,7 @@ from j2py.sarif import SARIF_VERSION, assessment_to_sarif, write_sarif
 def test_assessment_to_sarif_maps_doctor_diagnostics() -> None:
     assessment = DoctorAssessment(
         payload={
-            "schema_version": 1,
+            "schema_version": 2,
             "source": "src",
             "files": [
                 {
@@ -96,7 +96,7 @@ def test_assessment_to_sarif_maps_doctor_diagnostics() -> None:
 def test_sarif_output_is_deterministic(tmp_path: Path) -> None:
     assessment = DoctorAssessment(
         payload={
-            "schema_version": 1,
+            "schema_version": 2,
             "source": "src",
             "files": [
                 {

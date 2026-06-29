@@ -10,6 +10,7 @@ import j2py.pipeline as pipeline
 from j2py.cli import compare as cli_compare
 from j2py.cli.main import app
 from j2py.cli.output import console
+from j2py.doctor import DOCTOR_SCHEMA_VERSION
 from j2py.llm.review import LlmReviewFinding
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
@@ -1325,7 +1326,7 @@ def test_cli_doctor_writes_json_and_html_assessment(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = json.loads(json_path.read_text())
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["summary"]["files"] == 1
     assert payload["files"][0]["classes"][0]["name"] == "Sample"
     assert "Doctor assessment" in result.output
@@ -1373,11 +1374,21 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     before.write_text(
         json.dumps(
             {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
                 "source": "before-src",
                 "summary": {
                     "files": 1,
+                    "classes": 1,
                     "average_rule_coverage": 0.5,
                     "unresolved_imports": 1,
+                    "average_risk_score": 30.0,
+                    "max_risk_score": 30.0,
+                    "min_risk_score": 30.0,
+                    "readiness_distribution": [
+                        {"bucket": "ready", "files": 0},
+                        {"bucket": "requires_manual_fixes", "files": 1},
+                        {"bucket": "not_ready", "files": 0},
+                    ],
                 },
                 "unresolved_imports": [
                     {
@@ -1390,6 +1401,12 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
                     {
                         "path": "Controller.java",
                         "parse_ok": True,
+                        "risk_score": 30.0,
+                        "risk_band": "medium",
+                        "readiness_bucket": "requires_manual_fixes",
+                        "risk_reasons": [
+                            {"reason": "unresolved_imports", "count": 1, "weight": 1.0},
+                        ],
                         "unresolved_imports": [{"import": "com.external.PaymentClient"}],
                         "translation": {
                             "rule_coverage": 0.5,
@@ -1404,17 +1421,31 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     after.write_text(
         json.dumps(
             {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
                 "source": "after-src",
                 "summary": {
                     "files": 1,
+                    "classes": 1,
                     "average_rule_coverage": 0.75,
                     "unresolved_imports": 0,
+                    "average_risk_score": 13.75,
+                    "max_risk_score": 13.75,
+                    "min_risk_score": 13.75,
+                    "readiness_distribution": [
+                        {"bucket": "ready", "files": 1},
+                        {"bucket": "requires_manual_fixes", "files": 0},
+                        {"bucket": "not_ready", "files": 0},
+                    ],
                 },
                 "unresolved_imports": [],
                 "files": [
                     {
                         "path": "Controller.java",
                         "parse_ok": True,
+                        "risk_score": 13.75,
+                        "risk_band": "low",
+                        "readiness_bucket": "ready",
+                        "risk_reasons": [],
                         "unresolved_imports": [],
                         "translation": {
                             "rule_coverage": 0.75,
@@ -1437,6 +1468,38 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     assert "Unresolved imports: 1 removed, 0 added" in result.output
     payload = json.loads(diff_json.read_text())
     assert payload["summary_delta"]["unresolved_imports"] == -1
+
+
+def test_cli_doctor_diff_rejects_wrong_schema_version(tmp_path: Path) -> None:
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION - 1,
+                "source": "before-src",
+                "files": [],
+                "summary": {"files": 0},
+            }
+        )
+    )
+    after.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "after-src",
+                "files": [],
+                "summary": {"files": 0},
+            }
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["doctor", "diff", str(before), str(after)])
+
+    assert result.exit_code == 1
+    assert "unsupported doctor" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_doctor_diff_without_operands_reports_usage() -> None:
@@ -1468,7 +1531,7 @@ def test_cli_sarif_writes_report_from_doctor_assessment(tmp_path: Path) -> None:
     assessment.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "source": "src",
                 "files": [
                     {
