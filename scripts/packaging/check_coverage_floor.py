@@ -44,7 +44,10 @@ def check_coverage_floor(
     min_branch_percent: float | None = None,
     floor_path: Path = DEFAULT_FLOOR_JSON,
 ) -> list[str]:
-    floor_line_percent, floor_branch_percent = load_coverage_floor(floor_path)
+    floor_line_percent = 0.0
+    floor_branch_percent = 0.0
+    if min_line_percent is None or min_branch_percent is None:
+        floor_line_percent, floor_branch_percent = load_coverage_floor(floor_path)
     min_line = floor_line_percent if min_line_percent is None else min_line_percent
     min_branch = floor_branch_percent if min_branch_percent is None else min_branch_percent
     errors: list[str] = []
@@ -63,7 +66,7 @@ def check_coverage_floor(
 
 def _percent_field(payload: dict[str, Any], field: str) -> float:
     value = payload.get(field)
-    if not isinstance(value, int | float):
+    if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"coverage floor {field} must be a number")
     return float(value)
 

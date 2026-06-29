@@ -33,10 +33,33 @@ def test_coverage_floor_uses_committed_floor_by_default(
     tmp_path: Path,
     coverage_floor_module: ModuleType,
 ) -> None:
+    floor_line, floor_branch = coverage_floor_module.load_coverage_floor()
     coverage_xml = tmp_path / "coverage.xml"
-    coverage_xml.write_text('<coverage line-rate="0.90" branch-rate="0.81" />', encoding="utf-8")
+    coverage_xml.write_text(
+        f'<coverage line-rate="{floor_line / 100.0}" branch-rate="{floor_branch / 100.0}" />',
+        encoding="utf-8",
+    )
 
     assert coverage_floor_module.check_coverage_floor(coverage_xml) == []
+
+
+def test_coverage_floor_explicit_thresholds_do_not_require_floor_file(
+    tmp_path: Path,
+    coverage_floor_module: ModuleType,
+) -> None:
+    coverage_xml = tmp_path / "coverage.xml"
+    missing_floor = tmp_path / "missing-floor.json"
+    coverage_xml.write_text('<coverage line-rate="0.90" branch-rate="0.81" />', encoding="utf-8")
+
+    assert (
+        coverage_floor_module.check_coverage_floor(
+            coverage_xml,
+            min_line_percent=90.0,
+            min_branch_percent=81.0,
+            floor_path=missing_floor,
+        )
+        == []
+    )
 
 
 def test_coverage_floor_can_load_custom_floor_file(
@@ -56,6 +79,26 @@ def test_coverage_floor_can_load_custom_floor_file(
     )
 
     assert coverage_floor_module.load_coverage_floor(floor) == (91.0, 82.0)
+
+
+def test_coverage_floor_rejects_boolean_percent_values(
+    tmp_path: Path,
+    coverage_floor_module: ModuleType,
+) -> None:
+    floor = tmp_path / "coverage-floor.json"
+    floor.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "line_percent": True,
+                "branch_percent": 82.0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="line_percent must be a number"):
+        coverage_floor_module.load_coverage_floor(floor)
 
 
 def test_coverage_floor_reports_line_rate_below_threshold(
