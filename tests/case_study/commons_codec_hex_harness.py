@@ -61,13 +61,6 @@ _ENCODE_HEX_TO_OUT_CALL = (
 
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
     ResidualGap(
-        "CODEC-HEX-5",
-        "Hex",
-        "Java decimal grouping format tokens are not normalized for Python formatting",
-        "%,d",
-        "%d",
-    ),
-    ResidualGap(
         "CODEC-HEX-14",
         "Hex",
         "void overload dispatcher branch falls through after delegated encodeHex call",

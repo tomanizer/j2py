@@ -14,6 +14,7 @@ from j2py.translate.java_types import (
     java_type_simple_name,
     java_type_strip_one_array_dimension,
 )
+from j2py.translate.rules.literals import normalize_java_format_literal_expr
 from j2py.translate.rules.naming import _receiver_simple_name
 from j2py.translate.rules.types import is_list_like_type
 
@@ -80,6 +81,7 @@ def translate_jdk_instance_method_invocation(
 
 
 def translate_string_format(args: list[str]) -> str:
+    args = [normalize_java_format_literal_expr(args[0]), *args[1:]] if args else args
     if len(args) == 1:
         return args[0]
     if len(args) == 2:
