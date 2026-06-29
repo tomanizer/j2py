@@ -240,6 +240,17 @@ PRESETS: dict[str, CorpusPreset] = {
             baseline_name="caffeine-dense-baseline.json",
         ),
         _preset(
+            "jsemver",
+            "java-semver (jsemver) pure SemVer parsing/comparison library — #613 case study",
+            remote="https://github.com/zafarkhaja/jsemver.git",
+            ref="v0.10.2",
+            checkout_dir="jsemver",
+            modules=("src/main/java",),
+            baseline_name="jsemver-baseline.json",
+            min_loc=0,
+            min_constructs=0,
+        ),
+        _preset(
             "openjdk-java-base",
             "Exploratory OpenJDK java.base API-surface scoreboard (external checkout only)",
             remote="https://github.com/openjdk/jdk.git",
