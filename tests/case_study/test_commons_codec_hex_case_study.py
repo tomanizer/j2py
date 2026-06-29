@@ -16,6 +16,7 @@ from tests.case_study.commons_codec_hex_harness import (
 
 _NS = link_commons_codec_hex_namespace()
 Hex = _NS.Hex
+ByteBuffer = _NS.ByteBuffer
 DecoderException = _NS.DecoderException
 EncoderException = _NS.EncoderException
 
@@ -111,6 +112,40 @@ def test_encode_hex_to_output_buffer() -> None:
 
     assert result is None
     assert out == ["?", "0", "A", "F", "F", "?"]
+
+
+def test_encode_hex_byte_buffer_consumes_remaining_array_backed_bytes() -> None:
+    buffer = ByteBuffer.wrap(_utf8_bytes("Hello"))
+
+    assert "".join(Hex.encode_hex(buffer)) == "48656c6c6f"
+    assert buffer.remaining() == 0
+    assert buffer.position() == 5
+
+
+def test_encode_hex_byte_buffer_copies_only_remaining_slice() -> None:
+    buffer = ByteBuffer.wrap(_utf8_bytes("xHex!"), expose_array=False)
+    buffer.position(1)
+    buffer.limit(4)
+
+    assert "".join(Hex.encode_hex(buffer, False)) == "486578"
+    assert buffer.remaining() == 0
+    assert buffer.position() == 4
+
+
+def test_byte_buffer_put_respects_configured_limit() -> None:
+    buffer = ByteBuffer.allocate(4)
+    buffer.limit(2)
+
+    buffer.put([1, 2])
+    with pytest.raises(IndexError):
+        buffer.put(3)
+
+
+def test_decode_byte_buffer_uses_configured_utf8_charset_and_consumes_buffer() -> None:
+    buffer = ByteBuffer.wrap(_utf8_bytes("48656c6c6f"))
+
+    assert Hex().decode(buffer) == _utf8_bytes("Hello")
+    assert buffer.remaining() == 0
 
 
 def test_encode_decode_signed_byte_values() -> None:
