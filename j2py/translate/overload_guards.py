@@ -116,6 +116,10 @@ def _value_dispatch_assignments(
     if should_assign(spread_param):
         lines.append(
             f"{indent}{spread_param.py_name} = "
+            f"None "
+            f"if len(args) == {spread_index + 1} "
+            f"and args[{spread_index}] is None "
+            f"else "
             f"tuple(args[{spread_index}]) "
             f"if len(args) == {spread_index + 1} "
             f"and isinstance(args[{spread_index}], (list, tuple)) "

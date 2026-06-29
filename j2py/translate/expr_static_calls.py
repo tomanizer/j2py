@@ -15,6 +15,7 @@ from j2py.translate.member_resolution import (
     static_import_method_fallback,
 )
 from j2py.translate.name_resolution import scope_from_context
+from j2py.translate.node_utils import unwrap_parens
 from j2py.translate.rules.naming import translate_method_name
 
 _TYPE_RECEIVER_SEGMENT = re.compile(r"[A-Z][A-Za-z_0-9]*\Z")
@@ -90,8 +91,20 @@ def translate_static_method_invocation(
     if raw_receiver:
         binding = configured_member_binding_for_receiver(raw_receiver, method_name, ctx)
         if binding is not None and binding.kind in {"method", "unknown"}:
+            binding = _alias_static_instance_member(_qualify_file_type_owner(binding, ctx), ctx)
+            if binding.python_owner is not None:
+                callable_expr = f"{binding.python_owner}.{binding.python_member}"
+                forwarded = _render_forwarded_varargs_static_call(
+                    callable_expr,
+                    method_name,
+                    arg_nodes,
+                    args,
+                    ctx,
+                )
+                if forwarded is not None:
+                    return forwarded
             return static_import_method_fallback(
-                _alias_static_instance_member(_qualify_file_type_owner(binding, ctx), ctx),
+                binding,
                 args,
                 ctx.cfg,
             )
@@ -111,13 +124,29 @@ def translate_static_method_invocation(
                         resolved_owner.kind,
                         ctx,
                     )
-                return f"{owner}.{alias}({', '.join(args)})"
+                callable_expr = f"{owner}.{alias}"
+                forwarded = _render_forwarded_varargs_static_call(
+                    callable_expr,
+                    method_name,
+                    arg_nodes,
+                    args,
+                    ctx,
+                )
+                return forwarded or f"{callable_expr}({', '.join(args)})"
         if not _is_type_receiver_segment(owner):
             return None
         qualified_owner = ctx.name_resolver.bindings.file_type_paths.get(owner)
         if qualified_owner is not None and ctx.in_method:
             py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
-            return f"{qualified_owner}.{py_method}({', '.join(args)})"
+            callable_expr = f"{qualified_owner}.{py_method}"
+            forwarded = _render_forwarded_varargs_static_call(
+                callable_expr,
+                method_name,
+                arg_nodes,
+                args,
+                ctx,
+            )
+            return forwarded or f"{callable_expr}({', '.join(args)})"
         resolved_owner = ctx.name_resolver.resolve_identifier(owner, scope_from_context(ctx))
         if resolved_owner.is_type_reference and resolved_owner.kind in {
             "imported_type",
@@ -131,7 +160,53 @@ def translate_static_method_invocation(
                     ctx,
                 )
             py_method = translate_method_name(method_name, snake_case=ctx.cfg.snake_case_methods)
-            return f"{resolved_owner.python_name}.{py_method}({', '.join(args)})"
+            callable_expr = f"{resolved_owner.python_name}.{py_method}"
+            forwarded = _render_forwarded_varargs_static_call(
+                callable_expr,
+                method_name,
+                arg_nodes,
+                args,
+                ctx,
+            )
+            return forwarded or f"{callable_expr}({', '.join(args)})"
+    return None
+
+
+def _render_forwarded_varargs_static_call(
+    callable_expr: str,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if not ctx.spread_param_names or not arg_nodes:
+        return None
+    target_signatures = ctx.class_method_params.get(method_name, ())
+    if not target_signatures:
+        return None
+
+    from j2py.translate.class_model import ParameterInfo
+    from j2py.translate.java_types import java_expression_type
+
+    for index, (arg_node, arg_expression) in enumerate(zip(arg_nodes, args, strict=True)):
+        inner = unwrap_parens(arg_node)
+        if inner.type != "identifier" or inner.text not in ctx.spread_param_names:
+            continue
+        arg_type = java_expression_type(arg_node, ctx) or ctx.variable_java_types.get(inner.text)
+        for signature in target_signatures:
+            params = [param for param in signature if isinstance(param, ParameterInfo)]
+            spread_index = next((i for i, param in enumerate(params) if param.is_spread), None)
+            if spread_index is None or index != spread_index or index != len(args) - 1:
+                continue
+            if arg_type is not None and arg_type != params[spread_index].java_type:
+                continue
+            prefix = ", ".join(args[:index])
+            without_forward = f"{callable_expr}({prefix})" if prefix else f"{callable_expr}()"
+            with_forward_args = f"{prefix}, {arg_expression}" if prefix else arg_expression
+            return (
+                f"({without_forward} if {arg_expression} is None "
+                f"else {callable_expr}({with_forward_args}))"
+            )
     return None
 
 

@@ -596,6 +596,59 @@ def test_receiverless_static_calls_qualify_inherited_methods() -> None:
     assert_valid_python(result.source)
 
 
+def test_character_case_apis_on_int_code_points_lower_to_chr_ord() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class CodePointCase {
+            public boolean upper(int codePoint) {
+                return Character.isUpperCase(codePoint);
+            }
+
+            public boolean lower(int codePoint) {
+                return Character.isLowerCase(codePoint);
+            }
+
+            public boolean title(int codePoint) {
+                return Character.isTitleCase(codePoint);
+            }
+
+            public boolean whitespace(int codePoint) {
+                return Character.isWhitespace(codePoint);
+            }
+
+            public int toLower(int codePoint) {
+                return Character.toLowerCase(codePoint);
+            }
+
+            public int toUpper(int codePoint) {
+                return Character.toUpperCase(codePoint);
+            }
+
+            public int toTitle(int codePoint) {
+                return Character.toTitleCase(codePoint);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "chr(code_point).isupper()" in python_source
+    assert "chr(code_point).islower()" in python_source
+    assert "chr(code_point).isspace()" in python_source
+    assert "ord(chr(code_point).lower())" in python_source
+    assert "ord(chr(code_point).upper())" in python_source
+    assert "ord(chr(code_point).title()[0])" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<code-point-case>", "exec"), namespace)
+    case = namespace["CodePointCase"]()
+    assert case.upper(ord("A")) is True  # type: ignore[attr-defined]
+    assert case.lower(ord("a")) is True  # type: ignore[attr-defined]
+    assert case.whitespace(ord(" ")) is True  # type: ignore[attr-defined]
+    assert case.to_lower(ord("A")) == ord("a")  # type: ignore[attr-defined]
+    assert case.to_upper(ord("a")) == ord("A")  # type: ignore[attr-defined]
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [

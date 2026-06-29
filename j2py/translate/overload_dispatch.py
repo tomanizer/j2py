@@ -294,6 +294,8 @@ def _is_null_applicable_reference_param(param: ParameterInfo) -> bool:
 
 
 def _is_nullable_reference_param(param: ParameterInfo) -> bool:
+    if _java_type_is_array(param.java_type):
+        return True
     return param.java_type.rsplit(".", 1)[-1] in {"Character", "String"}
 
 
