@@ -10,6 +10,7 @@ from pathlib import Path
 from j2py.wire.schema import WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
+    as_str,
     constructor_parameters,
     list_of_dicts,
     parse_python,
@@ -99,13 +100,13 @@ def jdbc_bean_specs(sidecars: list[WiringSidecar]) -> list[JdbcBeanSpec]:
                 continue
             specs.append(
                 JdbcBeanSpec(
-                    name=_str(jdbc_bean.get("name"), default=element.java_name),
-                    python_name=_str(
+                    name=as_str(jdbc_bean.get("name"), default=element.java_name),
+                    python_name=as_str(
                         jdbc_bean.get("python_name"),
                         default=translate_field_name(element.java_name),
                     ),
-                    java_type=_str(jdbc_bean.get("java_type"), default="object"),
-                    python_type=_str(jdbc_bean.get("python_type"), default="object"),
+                    java_type=as_str(jdbc_bean.get("java_type"), default="object"),
+                    python_type=as_str(jdbc_bean.get("python_type"), default="object"),
                     properties=_properties(jdbc_bean.get("properties")),
                     dependencies=_dependencies(jdbc_bean.get("dependencies")),
                 ),
@@ -165,12 +166,12 @@ def transaction_facts(sidecars: list[WiringSidecar]) -> list[str]:
             jdbc_bean = element.spring.get("jdbc_bean")
             if not isinstance(jdbc_bean, dict):
                 continue
-            java_type = _str(jdbc_bean.get("java_type"), default="")
-            python_name = _str(jdbc_bean.get("python_name"), default=element.python_name)
+            java_type = as_str(jdbc_bean.get("java_type"), default="")
+            python_name = as_str(jdbc_bean.get("python_name"), default=element.python_name)
             if "TransactionManager" in java_type or "transaction_manager" in python_name:
                 facts.add(python_name)
             for constructor_arg in list_of_dicts(jdbc_bean.get("constructor_args")):
-                arg_type = _str(constructor_arg.get("type"), default="")
+                arg_type = as_str(constructor_arg.get("type"), default="")
                 if "TransactionManager" in arg_type:
                     facts.add(python_name)
     return sorted(facts)
@@ -419,7 +420,3 @@ def _tuple_literal(values: list[str]) -> str:
     if not values:
         return "()"
     return repr(tuple(values))
-
-
-def _str(value: object, *, default: str) -> str:
-    return value if isinstance(value, str) else default

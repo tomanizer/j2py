@@ -8,6 +8,7 @@ from pathlib import Path
 from j2py.wire.schema import WiringElement, WiringSidecar
 from j2py.wire.targets.common import (
     GENERATED_HEADER,
+    as_str,
     base_type,
     constructor_parameters,
     injection_specs,
@@ -62,7 +63,7 @@ def provider_specs(sidecars: list[WiringSidecar], translated_root: Path) -> list
         for index, element in enumerate(sidecar.elements):
             if element.kind != "class":
                 continue
-            role = _str(element.spring.get("role"), default="")
+            role = as_str(element.spring.get("role"), default="")
             if role not in _PROVIDER_ROLES:
                 continue
             identity = provider_identity(element)
@@ -269,7 +270,3 @@ def _merge_injections(
 
 def _normalize_identity(name: str) -> str:
     return name.lower().replace("_", "")
-
-
-def _str(value: object, *, default: str) -> str:
-    return value if isinstance(value, str) else default
