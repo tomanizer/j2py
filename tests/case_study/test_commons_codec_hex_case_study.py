@@ -132,6 +132,15 @@ def test_encode_hex_byte_buffer_copies_only_remaining_slice() -> None:
     assert buffer.position() == 4
 
 
+def test_byte_buffer_put_respects_configured_limit() -> None:
+    buffer = ByteBuffer.allocate(4)
+    buffer.limit(2)
+
+    buffer.put([1, 2])
+    with pytest.raises(IndexError):
+        buffer.put(3)
+
+
 def test_decode_byte_buffer_uses_configured_utf8_charset_and_consumes_buffer() -> None:
     buffer = ByteBuffer.wrap(_utf8_bytes("48656c6c6f"))
 

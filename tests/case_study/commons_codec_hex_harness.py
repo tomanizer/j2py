@@ -147,7 +147,7 @@ class _ByteBuffer:
 
     def put(self, value: int | list[int] | bytes | bytearray) -> _ByteBuffer:
         values = list(value) if isinstance(value, (list, bytes, bytearray)) else [value]
-        if self._position + len(values) > len(self._data):
+        if self._position + len(values) > self._limit:
             raise IndexError("ByteBuffer overflow")
         for item in values:
             self._data[self._position] = item
