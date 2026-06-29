@@ -67,7 +67,7 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         gap_id="JSEMVER-1",
         module="UnexpectedElementException",
         summary="JDK builtin RuntimeException emitted as a sibling-package import",
-        bad="from com.github.zafarkhaja.semver.util.RuntimeException import RuntimeException\n",
+        bad="from com.github.zafarkhaja.semver.util.RuntimeException import RuntimeException",
         good="",
     ),
     ResidualGap(
@@ -98,7 +98,7 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         module="Stream",
         summary="java.util.Arrays.copyOfRange not lowered to a Python slice",
         bad="return Arrays.copy_of_range(self.elements, self.offset, len(self.elements))",
-        good="return list(self.elements[self.offset : len(self.elements)])",
+        good="return self.elements[self.offset:]",
     ),
     ResidualGap(
         gap_id="JSEMVER-6",
@@ -115,7 +115,9 @@ def _arrays_stub() -> types.SimpleNamespace:
     """Minimal ``java.util.Arrays`` (only ``toString`` is reachable post-patch)."""
 
     def to_string(values: Any) -> str:
-        return "[" + ", ".join(str(v) for v in values) + "]"
+        if values is None:
+            return "null"
+        return f"[{', '.join(str(v) for v in values)}]"
 
     return types.SimpleNamespace(to_string=to_string)
 
