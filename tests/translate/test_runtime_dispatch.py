@@ -11,6 +11,7 @@ from collections.abc import Callable
 import pytest
 
 from j2py.translate.runtime import (
+    EnumSet,
     RuntimeException,
     StringBuilder,
     __j2py_todo__,
@@ -43,6 +44,49 @@ def test_string_builder_runtime_helper_matches_common_append_patterns() -> None:
 
     assert builder.append("ab").append(["c", "d"]).append(None).append("wxyz", 1, 3) is builder
     assert str(builder) == "abcdnullxy"
+
+
+def test_enum_set_runtime_helper_preserves_ordinal_order_and_java_repr() -> None:
+    import enum
+
+    class Color(enum.Enum):
+        RED = "RED"
+        GREEN = "GREEN"
+        BLUE = "BLUE"
+
+    # Construction order must not affect iteration order: EnumSet iterates in
+    # the enum's ordinal (declaration) order, matching Java.
+    of_set = EnumSet.of(Color.BLUE, Color.RED)
+    assert [member.name for member in of_set] == ["RED", "BLUE"]
+    # Java EnumSet.toString renders bare names in brackets.
+    assert str(of_set) == "[RED, BLUE]"
+
+    assert str(EnumSet.all_of(Color)) == "[RED, GREEN, BLUE]"
+    assert str(EnumSet.none_of(Color)) == "[]"
+    assert str(EnumSet.range(Color.RED, Color.GREEN)) == "[RED, GREEN]"
+    assert str(EnumSet.copy_of([Color.BLUE, Color.RED])) == "[RED, BLUE]"
+
+    # Set semantics still hold (membership, length, dedup, set operators).
+    assert Color.RED in of_set
+    assert len(EnumSet.of(Color.RED, Color.RED)) == 1
+    assert str(EnumSet.of(Color.RED) | EnumSet.of(Color.BLUE)) == "[RED, BLUE]"
+
+    empty = EnumSet.none_of(Color)
+    copied = EnumSet.copy_of(empty)
+    assert copied._enum_cls is Color
+    assert str(copied) == "[]"
+
+    with pytest.raises(TypeError, match="Cannot add str to EnumSet of Color"):
+        EnumSet.of(Color.RED).add("RED")
+
+    class Size(enum.Enum):
+        SMALL = "SMALL"
+
+    with pytest.raises(TypeError, match="same Enum type"):
+        EnumSet.range(Color.RED, Size.SMALL)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="from_member ordinal"):
+        EnumSet.range(Color.BLUE, Color.RED)
 
 
 def test_arraycopy_runtime_helper_handles_overlapping_ranges() -> None:

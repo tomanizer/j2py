@@ -11,6 +11,7 @@ from pathlib import Path
 from j2py.translate.runtime.j2py_runtime import (
     Comparator,
     Consumer,
+    EnumSet,
     MalformedObjectNameException,
     ObjectName,
     RuntimeException,
@@ -58,6 +59,7 @@ __all__ = [
     "RUNTIME_TODO_IMPORT_LINE",
     "Comparator",
     "Consumer",
+    "EnumSet",
     "MalformedObjectNameException",
     "ObjectName",
     "RuntimeException",

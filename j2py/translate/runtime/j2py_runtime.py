@@ -29,7 +29,7 @@ import builtins
 import inspect
 import threading
 import weakref
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator, MutableSet
 from typing import Any, ClassVar, NoReturn, Protocol, TypeVar
 
 _T_contra = TypeVar("_T_contra", contravariant=True)
@@ -37,6 +37,7 @@ _T_contra = TypeVar("_T_contra", contravariant=True)
 __all__ = [
     "Comparator",
     "Consumer",
+    "EnumSet",
     "MalformedObjectNameException",
     "ObjectName",
     "RuntimeException",
@@ -192,6 +193,90 @@ class StringBuilder:
 
     def __str__(self) -> str:
         return "".join(self._parts)
+
+
+class EnumSet(MutableSet[Any]):
+    """Order-preserving stand-in for ``java.util.EnumSet``.
+
+    Java's ``EnumSet`` iterates in the enum's natural (ordinal) order and renders
+    like ``[RED, BLUE]``. A plain Python ``set`` preserves neither, so translated
+    code that iterates or prints an ``EnumSet`` would silently diverge. This class
+    keeps set semantics while restoring ordinal iteration order and Java's
+    ``toString`` form. The static factory methods mirror the JDK API so call sites
+    keep line-level correspondence with the Java source.
+    """
+
+    def __init__(self, enum_cls: type | None = None, initial: Iterable[Any] = ()) -> None:
+        self._enum_cls = enum_cls
+        self._members: set[Any] = set()
+        for member in initial:
+            self.add(member)
+
+    @staticmethod
+    def _ordinal(member: Any) -> int:
+        return list(type(member).__members__).index(member.name)
+
+    @classmethod
+    def _from_iterable(cls, iterable: Iterable[Any]) -> EnumSet:
+        # Override so MutableSet's mixin operators (``|``, ``&``, ...) build an
+        # EnumSet rather than calling ``cls(iterable)`` (which would be read as
+        # the ``enum_cls`` argument).
+        return cls(initial=iterable)
+
+    def add(self, value: Any) -> None:
+        if self._enum_cls is None:
+            self._enum_cls = type(value)
+        elif type(value) is not self._enum_cls:
+            raise TypeError(
+                f"Cannot add {type(value).__name__} to EnumSet of {self._enum_cls.__name__}",
+            )
+        self._members.add(value)
+
+    def discard(self, value: Any) -> None:
+        self._members.discard(value)
+
+    def __contains__(self, value: object) -> bool:
+        return value in self._members
+
+    def __len__(self) -> int:
+        return len(self._members)
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(sorted(self._members, key=self._ordinal))
+
+    def __repr__(self) -> str:
+        return "[" + ", ".join(member.name for member in self) + "]"
+
+    __str__ = __repr__
+
+    @classmethod
+    def of(cls, *members: Any) -> EnumSet:
+        return cls(initial=members)
+
+    @classmethod
+    def all_of(cls, enum_cls: Any) -> EnumSet:
+        return cls(enum_cls=enum_cls, initial=list(enum_cls))
+
+    @classmethod
+    def none_of(cls, enum_cls: Any) -> EnumSet:
+        return cls(enum_cls=enum_cls)
+
+    @classmethod
+    def copy_of(cls, other: Iterable[Any]) -> EnumSet:
+        enum_cls = other._enum_cls if isinstance(other, EnumSet) else None
+        return cls(enum_cls=enum_cls, initial=other)
+
+    @classmethod
+    def range(cls, from_member: Any, to_member: Any) -> EnumSet:
+        if type(from_member) is not type(to_member):
+            raise TypeError("from_member and to_member must be of the same Enum type")
+        enum_cls: Any = type(from_member)
+        members = list(enum_cls)
+        low = cls._ordinal(from_member)
+        high = cls._ordinal(to_member)
+        if low > high:
+            raise ValueError("from_member ordinal must be <= to_member ordinal")
+        return cls(enum_cls=enum_cls, initial=members[low : high + 1])
 
 
 def _j2py_idiv(left: int, right: int) -> int:
