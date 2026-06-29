@@ -342,10 +342,10 @@ def _wildcard_static_method_owners(
             if py_owner not in compilation_unit_types:
                 continue
             owner_path = py_owner
-        methods = declared_type_method_return_types.get(py_owner) or declared_type_method_return_types.get(
-            raw_owner, {}
-        )
-        for java_method in methods:
+        method_types = declared_type_method_return_types.get(py_owner)
+        if method_types is None:
+            method_types = declared_type_method_return_types.get(raw_owner, {})
+        for java_method in method_types:
             if java_method in owners and owners[java_method] != owner_path:
                 collisions.add(java_method)
             owners[java_method] = owner_path
