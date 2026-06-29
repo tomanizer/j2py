@@ -706,6 +706,23 @@ def test_user_defined_char_value_method_remains_normal_call() -> None:
     assert_valid_python(result.source)
 
 
+def test_equals_ignore_case_wraps_complex_argument_before_lower_call() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Strings {
+            public boolean matches(String value, String prefix, String suffix) {
+                return value.equalsIgnoreCase(prefix + suffix);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return value.lower() == (prefix + suffix).lower()" in result.source
+    assert_valid_python(result.source)
+
+
 @pytest.mark.parametrize(
     ("body", "expected"),
     [

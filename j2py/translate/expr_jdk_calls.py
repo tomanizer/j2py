@@ -817,7 +817,7 @@ _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "endsWith": _simple_instance_translator("{receiver}.endswith({args})", require_args=True),
     "equals": _translate_equals_call,
     "equalsIgnoreCase": _simple_instance_translator(
-        "{receiver}.lower() == {args}.lower()",
+        "{receiver}.lower() == ({args}).lower()",
         arg_count=1,
     ),
     "hashCode": _simple_instance_translator("hash({receiver})", require_no_args=True),
