@@ -102,7 +102,7 @@ def _translate_integer_static_call(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
-    return _translate_integer_call(method_name, args)
+    return _translate_integer_call(method_name, args, ctx)
 
 
 def _translate_character_static_call(
@@ -126,8 +126,16 @@ def _translate_long_static_call(
     args: list[str],
     ctx: TranslationContext,
 ) -> str | None:
-    if method_name == "parseLong" and len(args) == 1:
-        return f"int({args[0]})"
+    if method_name == "parseLong" and len(args) in {1, 2}:
+        return f"int({', '.join(args)})"
+    if method_name == "valueOf" and len(args) in {1, 2}:
+        return f"int({', '.join(args)})"
+    if method_name == "hashCode" and len(args) == 1:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_long_hash_code")
+        return f"_j2py_long_hash_code({args[0]})"
+    if method_name == "decode" and len(args) == 1:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_decode_int")
+        return f"_j2py_decode_int({args[0]})"
     return None
 
 
@@ -155,6 +163,36 @@ def _translate_string_static_call(
     if method_name == "format" and args:
         format_args = args[1:] if arg_nodes and _is_locale_argument(arg_nodes[0]) else args
         return translate_string_format(format_args)
+    if method_name == "join" and len(args) >= 2:
+        if len(args) == 2:
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_join")
+            return f"_j2py_string_join({args[0]}, {args[1]})"
+        return f"{args[0]}.join([{', '.join(args[1:])}])"
+    return None
+
+
+def _translate_system_static_call(
+    node: JavaNode,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if method_name == "arraycopy" and len(args) == 5:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_arraycopy")
+        return f"_j2py_arraycopy({', '.join(args)})"
+    return None
+
+
+def _translate_enum_set_static_call(
+    node: JavaNode,
+    method_name: str,
+    arg_nodes: list[JavaNode],
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
+    if method_name == "of" and args:
+        return "{" + ", ".join(args) + "}"
     return None
 
 
@@ -539,6 +577,8 @@ def _translate_math_call(
         return f"max({args[0]}, {args[1]})"
     if method_name == "min" and len(args) == 2:
         return f"min({args[0]}, {args[1]})"
+    if method_name == "incrementExact" and len(args) == 1:
+        return f"({args[0]} + 1)"
     if method_name == "pow" and len(args) == 2:
         return f"pow({args[0]}, {args[1]})"
     if method_name in {"sqrt", "floor", "ceil", "log"} and len(args) == 1:
@@ -550,13 +590,20 @@ def _translate_math_call(
     return None
 
 
-def _translate_integer_call(method_name: str, args: list[str]) -> str | None:
+def _translate_integer_call(
+    method_name: str,
+    args: list[str],
+    ctx: TranslationContext,
+) -> str | None:
     if method_name == "compare" and len(args) == 2:
         return f"({args[0]} > {args[1]}) - ({args[0]} < {args[1]})"
     if method_name == "parseInt" and len(args) in {1, 2}:
         return f"int({', '.join(args)})"
-    if method_name == "valueOf" and len(args) == 1:
-        return f"int({args[0]})"
+    if method_name == "valueOf" and len(args) in {1, 2}:
+        return f"int({', '.join(args)})"
+    if method_name == "decode" and len(args) == 1:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_decode_int")
+        return f"_j2py_decode_int({args[0]})"
     if method_name == "toString" and len(args) == 1:
         return f"str({args[0]})"
     if method_name == "toBinaryString" and len(args) == 1:
@@ -715,12 +762,14 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
     "Character": _translate_character_static_call,
     "Collections": _translate_collections_static_call,
     "Double": _translate_double_static_call,
+    "EnumSet": _translate_enum_set_static_call,
     "Integer": _translate_integer_static_call,
     "Long": _translate_long_static_call,
     "Math": _translate_math_static_call,
     "Objects": _translate_objects_static_call,
     "Preconditions": _translate_preconditions_static_call,
     "String": _translate_string_static_call,
+    "System": _translate_system_static_call,
 }
 
 

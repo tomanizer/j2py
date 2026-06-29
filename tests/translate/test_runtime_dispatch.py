@@ -12,9 +12,15 @@ import pytest
 
 from j2py.translate.runtime import (
     RuntimeException,
+    StringBuilder,
     __j2py_todo__,
+    _j2py_arraycopy,
+    _j2py_decode_int,
     _j2py_idiv,
+    _j2py_long_hash_code,
     _j2py_monitor,
+    _j2py_string_from_value,
+    _j2py_string_join,
     overloaded,
 )
 from j2py.translate.runtime.j2py_runtime import _j2py_monitor_registry
@@ -30,6 +36,55 @@ def test_idiv_truncates_toward_zero() -> None:
 def test_idiv_rejects_zero_divisor() -> None:
     with pytest.raises(ZeroDivisionError):
         _j2py_idiv(1, 0)
+
+
+def test_string_builder_runtime_helper_matches_common_append_patterns() -> None:
+    builder = StringBuilder(16)
+
+    assert builder.append("ab").append(["c", "d"]).append(None).append("wxyz", 1, 3) is builder
+    assert str(builder) == "abcdnullxy"
+
+
+def test_arraycopy_runtime_helper_handles_overlapping_ranges() -> None:
+    values = ["a", "b", "c", "d"]
+
+    _j2py_arraycopy(values, 0, values, 1, 3)
+
+    assert values == ["a", "a", "b", "c"]
+    with pytest.raises(IndexError):
+        _j2py_arraycopy(values, -1, values, 0, 1)
+    with pytest.raises(IndexError):
+        _j2py_arraycopy(values, 0, values, 3, 2)
+
+
+def test_long_hash_code_runtime_helper_matches_java_contract() -> None:
+    assert _j2py_long_hash_code(0) == 0
+    assert _j2py_long_hash_code(1) == 1
+    assert _j2py_long_hash_code(0x0000000100000000) == 1
+    assert _j2py_long_hash_code(-1) == 0
+
+
+def test_decode_int_runtime_helper_matches_java_prefixes() -> None:
+    assert _j2py_decode_int("42") == 42
+    assert _j2py_decode_int("-42") == -42
+    assert _j2py_decode_int("0xFF") == 255
+    assert _j2py_decode_int("#1A") == 26
+    assert _j2py_decode_int("077") == 63
+    for invalid in [" 123", "--1", "+-1", "0x-1", "#-1", "1_2"]:
+        with pytest.raises(ValueError):
+            _j2py_decode_int(invalid)
+
+
+def test_string_from_value_runtime_helper_handles_common_constructors() -> None:
+    assert _j2py_string_from_value(["a", "b"]) == "ab"
+    assert _j2py_string_from_value([65, 66]) == "AB"
+    assert _j2py_string_from_value(StringBuilder().append(["x", "y"])) == "xy"
+    assert _j2py_string_from_value("already") == "already"
+
+
+def test_string_join_runtime_helper_treats_single_string_as_one_element() -> None:
+    assert _j2py_string_join("-", "abc") == "abc"
+    assert _j2py_string_join("-", ["a", "b", "c"]) == "a-b-c"
 
 
 def test_runtime_exception_exposes_throwable_get_message() -> None:

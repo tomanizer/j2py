@@ -77,6 +77,27 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
     if base_type in {"Object", "java.lang.Object"} and not args:
         return "object()"
 
+    if base_type in {"String", "java.lang.String"}:
+        arg_nodes = (
+            [child for child in args_node.named_children if not is_comment(child)]
+            if args_node is not None
+            else []
+        )
+        if len(arg_nodes) == 1:
+            value = translate_expression(arg_nodes[0], ctx)
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
+            return f"_j2py_string_from_value({value})"
+        if len(arg_nodes) == 2:
+            value = translate_expression(arg_nodes[0], ctx)
+            charset = translate_expression(arg_nodes[1], ctx)
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
+            return f"_j2py_string_from_value({value}, {charset})"
+        return "str()"
+
+    if base_type in {"StringBuilder", "java.lang.StringBuilder"}:
+        ctx.diagnostics.imports.need_line("from j2py_runtime import StringBuilder")
+        return f"StringBuilder({args})"
+
     collection_literals = {
         "ArrayList": "[]",
         "LinkedList": "[]",

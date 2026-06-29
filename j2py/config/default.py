@@ -161,6 +161,8 @@ DROP_IMPORTS: frozenset[str] = frozenset(
         "java.util.TreeSet",
         "java.util.Arrays",
         "java.util.Collections",
+        "java.util.EnumSet",
+        "java.util.Locale",
         "java.util.Optional",
     }
 )

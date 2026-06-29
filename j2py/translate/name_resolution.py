@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from j2py.translate.rules.imports import java_import_policy
+from j2py.translate.rules.imports import implicit_java_lang_type_policy, java_import_policy
 from j2py.translate.rules.imports import (
     python_binding_from_import_map as _python_binding_from_import_map,
 )
@@ -44,6 +44,17 @@ TypeBindingSource = Literal[
     "package",
     "compilation_unit",
 ]
+
+IMPLICIT_JAVA_LANG_NO_IMPORT_TYPES: frozenset[str] = frozenset(
+    {
+        "Integer",
+        "Long",
+        "Math",
+        "String",
+        "StringBuilder",
+        "System",
+    },
+)
 
 
 @dataclass(frozen=True)
@@ -219,6 +230,19 @@ class NameResolver:
                     kind="nested_type",
                     is_type_reference=True,
                     reason="nested type binding",
+                )
+            implicit_java_lang = (
+                implicit_java_lang_type_policy(raw_name)
+                if raw_name in IMPLICIT_JAVA_LANG_NO_IMPORT_TYPES
+                else None
+            )
+            if implicit_java_lang is not None:
+                return ResolvedName(
+                    raw_name=raw_name,
+                    python_name=implicit_java_lang.python_name,
+                    kind="imported_type",
+                    is_type_reference=True,
+                    reason="implicit java.lang type binding",
                 )
             if self.bindings.package_name:
                 return ResolvedName(
