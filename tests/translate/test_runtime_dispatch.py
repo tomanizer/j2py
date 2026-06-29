@@ -71,6 +71,23 @@ def test_enum_set_runtime_helper_preserves_ordinal_order_and_java_repr() -> None
     assert len(EnumSet.of(Color.RED, Color.RED)) == 1
     assert str(EnumSet.of(Color.RED) | EnumSet.of(Color.BLUE)) == "[RED, BLUE]"
 
+    empty = EnumSet.none_of(Color)
+    copied = EnumSet.copy_of(empty)
+    assert copied._enum_cls is Color
+    assert str(copied) == "[]"
+
+    with pytest.raises(TypeError, match="Cannot add str to EnumSet of Color"):
+        EnumSet.of(Color.RED).add("RED")
+
+    class Size(enum.Enum):
+        SMALL = "SMALL"
+
+    with pytest.raises(TypeError, match="same Enum type"):
+        EnumSet.range(Color.RED, Size.SMALL)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="from_member ordinal"):
+        EnumSet.range(Color.BLUE, Color.RED)
+
 
 def test_arraycopy_runtime_helper_handles_overlapping_ranges() -> None:
     values = ["a", "b", "c", "d"]

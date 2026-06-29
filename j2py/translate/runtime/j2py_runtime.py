@@ -226,6 +226,10 @@ class EnumSet(MutableSet[Any]):
     def add(self, value: Any) -> None:
         if self._enum_cls is None:
             self._enum_cls = type(value)
+        elif type(value) is not self._enum_cls:
+            raise TypeError(
+                f"Cannot add {type(value).__name__} to EnumSet of {self._enum_cls.__name__}",
+            )
         self._members.add(value)
 
     def discard(self, value: Any) -> None:
@@ -259,14 +263,19 @@ class EnumSet(MutableSet[Any]):
 
     @classmethod
     def copy_of(cls, other: Iterable[Any]) -> EnumSet:
-        return cls(initial=other)
+        enum_cls = other._enum_cls if isinstance(other, EnumSet) else None
+        return cls(enum_cls=enum_cls, initial=other)
 
     @classmethod
     def range(cls, from_member: Any, to_member: Any) -> EnumSet:
+        if type(from_member) is not type(to_member):
+            raise TypeError("from_member and to_member must be of the same Enum type")
         enum_cls: Any = type(from_member)
         members = list(enum_cls)
         low = cls._ordinal(from_member)
         high = cls._ordinal(to_member)
+        if low > high:
+            raise ValueError("from_member ordinal must be <= to_member ordinal")
         return cls(enum_cls=enum_cls, initial=members[low : high + 1])
 
 
