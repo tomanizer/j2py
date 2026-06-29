@@ -10,19 +10,27 @@ import pytest
 
 from j2py.config.loader import ConfigLoader
 from j2py.doctor import (
+    DOCTOR_GATE_PROFILES,
+    DOCTOR_GATE_SCHEMA_VERSION,
     DOCTOR_SCHEMA_VERSION,
     DoctorAssessment,
     DoctorDiff,
+    DoctorGateResult,
+    DoctorGateThresholds,
     assess_project,
     diff_assessments,
+    doctor_gate_thresholds_for_profile,
+    evaluate_doctor_gate,
     load_assessment_json,
     render_assessment_html,
     render_config_suggestions,
     render_doctor_diff_text,
+    render_doctor_gate_text,
     write_assessment_html,
     write_assessment_json,
     write_config_suggestions,
     write_doctor_diff_json,
+    write_doctor_gate_json,
 )
 from j2py.doctor_assessment import _file_risk_profile
 from j2py.doctor_readiness import migration_readiness_profile
@@ -61,18 +69,25 @@ def _synthetic_diagnostic() -> dict[str, Any]:
 
 def test_doctor_public_facade_exports_stable_api() -> None:
     assert DOCTOR_SCHEMA_VERSION == 2
+    assert DOCTOR_GATE_SCHEMA_VERSION == 1
+    assert DOCTOR_GATE_PROFILES == ("strict", "one-zero", "migration-trial", "advisory")
     assert DoctorAssessment({"schema_version": DOCTOR_SCHEMA_VERSION}).to_json()
     assert DoctorDiff({"schema_version": DOCTOR_SCHEMA_VERSION}).to_json()
+    assert DoctorGateResult({"schema_version": DOCTOR_GATE_SCHEMA_VERSION}).to_json()
     assert callable(assess_project)
     assert callable(diff_assessments)
+    assert callable(doctor_gate_thresholds_for_profile)
+    assert callable(evaluate_doctor_gate)
     assert callable(load_assessment_json)
     assert callable(render_assessment_html)
     assert callable(render_config_suggestions)
+    assert callable(render_doctor_gate_text)
     assert callable(render_doctor_diff_text)
     assert callable(write_assessment_html)
     assert callable(write_assessment_json)
     assert callable(write_config_suggestions)
     assert callable(write_doctor_diff_json)
+    assert callable(write_doctor_gate_json)
 
 
 def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> None:
@@ -510,6 +525,102 @@ def test_migration_readiness_profile_buckets_are_deterministic() -> None:
         validation=None,
     )
     assert manual_port["bucket"] == "manual_port"
+
+
+def test_doctor_gate_profiles_are_deterministic() -> None:
+    strict = doctor_gate_thresholds_for_profile("strict")
+    one_zero = doctor_gate_thresholds_for_profile("one-zero")
+    migration_trial = doctor_gate_thresholds_for_profile("migration-trial")
+    advisory = doctor_gate_thresholds_for_profile("advisory")
+
+    assert strict.min_average_coverage == 1.0
+    assert strict.max_semantic_warnings == 0
+    assert one_zero.max_unhandled_diagnostics == 0
+    assert one_zero.max_needs_config_files is None
+    assert migration_trial.min_average_coverage == 0.80
+    assert migration_trial.max_semantic_warnings is None
+    assert advisory.max_parse_failures is None
+
+    with pytest.raises(ValueError, match="unsupported doctor gate profile"):
+        doctor_gate_thresholds_for_profile("unknown")
+
+
+def test_doctor_gate_evaluator_reports_exact_failures(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "Ready.java").write_text("public class Ready {}")
+    (source / "Risky.java").write_text(
+        """
+        public class Risky {
+            public int half(int value) {
+                // TODO: verify truncation
+                return value / 2;
+            }
+        }
+        """,
+    )
+
+    assessment = assess_project(source, cfg=CFG)
+    result = evaluate_doctor_gate(
+        assessment,
+        profile="strict",
+        thresholds=DoctorGateThresholds(
+            max_parse_failures=0,
+            min_average_coverage=1.0,
+            min_file_coverage=1.0,
+            max_files_below_coverage=0,
+            max_semantic_warnings=0,
+            max_validation_failures=0,
+            max_manual_port_files=0,
+        ),
+    )
+    payload = result.payload
+
+    assert payload["schema_version"] == DOCTOR_GATE_SCHEMA_VERSION
+    assert payload["profile"] == "strict"
+    assert payload["passed"] is False
+    failures = {item["check"]: item for item in payload["failures"]}
+    assert failures["semantic_warnings"]["actual"] >= 1
+    assert failures["manual_port_files"]["actual"] == 1
+    assert "validation_not_included" in {item["caveat"] for item in payload["caveats"]}
+    text = render_doctor_gate_text(result)
+    assert "Doctor gate failed: profile=strict" in text
+    assert "semantic_warnings" in text
+
+
+def test_doctor_gate_evaluator_reports_sample_caveat(tmp_path: Path) -> None:
+    source = tmp_path / "Sample.java"
+    source.write_text("public class Sample {}")
+    assessment = assess_project(source, cfg=CFG, sample_limit=1)
+
+    result = evaluate_doctor_gate(
+        assessment,
+        profile="one-zero",
+        thresholds=doctor_gate_thresholds_for_profile("one-zero"),
+        sample_limit=1,
+    )
+
+    assert result.payload["passed"] is True
+    assert result.payload["summary"]["sample_limit"] == 1
+    assert {caveat["caveat"] for caveat in result.payload["caveats"]} >= {
+        "sampled_assessment",
+        "validation_not_included",
+    }
+
+
+def test_write_doctor_gate_json_writes_payload(tmp_path: Path) -> None:
+    path = tmp_path / "gate.json"
+    result = DoctorGateResult(
+        {
+            "schema_version": DOCTOR_GATE_SCHEMA_VERSION,
+            "profile": "advisory",
+            "passed": True,
+        }
+    )
+
+    write_doctor_gate_json(path, result)
+
+    assert json.loads(path.read_text()) == result.payload
 
 
 def test_file_risk_profile_is_deterministic() -> None:

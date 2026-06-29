@@ -19,6 +19,7 @@ Use `doctor` when you need answers before committing to a migration path:
 | What Java structure is visible? | Class, method, field, import, annotation, and dependency graph inventory. |
 | How much can the rule layer translate today? | Rule coverage, confidence, semantic warnings, TODOs, and unhandled diagnostics. |
 | Which APIs or methods deserve attention? | Class/method ranges, method readiness, warning/TODO counts, and equivalence-test candidate flags. |
+| Can CI block readiness regressions? | `doctor gate` profiles and threshold failures. |
 | What config should we consider? | Advisory `import_map`, `type_map`, and `annotation_map` suggestions. |
 | Which framework boundaries need policy? | Annotation inventory and unresolved framework/platform imports. |
 | Did a config or rule change help? | `j2py doctor diff before.json after.json`. |
@@ -68,6 +69,16 @@ Write advisory config suggestions:
 
 ```bash
 j2py doctor assess src/main/java --config-suggestions j2py.suggested.yaml
+```
+
+Fail CI when deterministic thresholds are exceeded:
+
+```bash
+j2py doctor gate src/main/java --profile one-zero
+j2py doctor gate src/main/java \
+  --max-parse-failures 0 \
+  --min-average-coverage 0.99 \
+  --json j2py-doctor-gate.json
 ```
 
 Compare two assessments after changing config or rules:
@@ -125,6 +136,36 @@ j2py doctor assess src/main/java --sample-limit 100 --html j2py-sample.html
 | `--config PATH`, `-c PATH` | Layer an explicit j2py config file on top of defaults. Repeatable. |
 | `--include-validation` | Run syntax, ruff, and mypy validation on rule-only generated Python. |
 | `--sample-limit N` | Assess only the first N Java files after deterministic path sorting. |
+
+`doctor gate` options:
+
+| Option | Meaning |
+|---|---|
+| `source` | Java file or directory to assess and gate. |
+| `--profile strict|one-zero|migration-trial|advisory` | Built-in threshold profile; defaults to `migration-trial`. |
+| `--json PATH` | Write machine-readable gate result JSON. |
+| `--config PATH`, `-c PATH` | Layer explicit j2py config before assessing. |
+| `--include-validation` | Run generated-Python validation before validation gates. |
+| `--sample-limit N` | Gate only the first N Java files in deterministic path order. |
+| `--max-parse-failures N` | Override the maximum parse-failure count. |
+| `--min-average-coverage FLOAT` | Override the minimum average rule coverage. |
+| `--min-file-coverage FLOAT` | Enable per-file coverage floor checks. |
+| `--max-files-below-coverage N` | Override how many files may fall below `--min-file-coverage`. |
+| `--max-semantic-warnings N` | Override the maximum semantic warning count. |
+| `--max-unhandled-diagnostics N` | Override the maximum unhandled diagnostic count. |
+| `--max-todo-lines N` | Override the maximum generated Python TODO count. |
+| `--max-validation-failures N` | Override the maximum validation-failure file count. |
+| `--max-high-risk-files N` | Override the maximum high/critical risk-file count. |
+| `--max-unresolved-imports N` | Override the maximum unresolved import count. |
+| `--max-parse-blocked-files N` | Override the maximum `parse_blocked` file count. |
+| `--max-needs-rule-work-files N` | Override the maximum `needs_rule_work` file count. |
+| `--max-needs-config-files N` | Override the maximum `needs_config` file count. |
+| `--max-framework-boundary-files N` | Override the maximum `framework_boundary` file count. |
+| `--max-manual-port-files N` | Override the maximum `manual_port` file count. |
+
+Gate thresholds are currently selected from built-in profiles and explicit CLI overrides.
+They are not read from j2py config files, so CI behavior stays visible in the command line
+or workflow definition.
 
 `doctor advise` options:
 
@@ -241,6 +282,39 @@ semantics such as dependency injection, transactions, persistence, JDBC, servlet
 lifecycle behavior. Review them before copying entries into `j2py.yaml`, `j2py.toml`,
 `pyproject.toml`, or `j2py_config.py`.
 
+### Gates
+
+Use gates when CI should block migration-readiness regressions:
+
+```bash
+j2py doctor gate src/main/java --profile one-zero
+j2py doctor gate src/main/java --profile strict --include-validation --json gate.json
+```
+
+Built-in profiles:
+
+| Profile | Intended use |
+|---|---|
+| `strict` | Production-quality surface: complete coverage, no parse failures, warnings, unhandled diagnostics, TODOs, unresolved imports, high-risk files, or non-ready buckets. |
+| `one-zero` | Coverage and structural gate: 1.0 coverage, zero parse failures, unhandled diagnostics, TODOs, validation failures, high-risk files, parse-blocked/rule-work files, and framework-boundary files. |
+| `migration-trial` | Early migration gate: blocks parse failures, unhandled diagnostics, validation failures, high-risk files, low coverage, parse-blocked files, and rule-work files while allowing manual/config review findings. |
+| `advisory` | Emits a gate result without enforced thresholds unless CLI overrides are supplied. |
+
+Gate result JSON uses `schema_version: 1` and includes `passed`, `profile`, applied
+`thresholds`, all evaluated `checks`, failed checks with exact actual/threshold values,
+affected file examples where available, and `caveats`. Sampled runs include a
+`sampled_assessment` caveat because the gate only covers the deterministic assessed
+subset. Validation checks include a `validation_not_included` caveat when
+`--include-validation` was not used.
+
+Exit codes are deterministic:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Gate passed. |
+| `1` | Gate evaluated successfully and one or more thresholds failed, or the source path was missing. |
+| `2` | CLI usage/configuration error, such as an unsupported profile. |
+
 ### Diffs
 
 Use diffs after config or rule changes:
@@ -315,6 +389,7 @@ is a reviewed behavior to apply.
 Current direct consumers include:
 
 - `j2py doctor assess --config-suggestions j2py.suggested.yaml`;
+- `j2py doctor gate src/main/java --profile one-zero`;
 - `j2py doctor diff before.json after.json`;
 - `j2py sarif j2py-assessment.json --output j2py.sarif`.
 
@@ -367,6 +442,17 @@ low-confidence unless current defaults already define the behavior.
 j2py doctor assess src/main/java --json j2py-assessment.json --include-validation
 j2py sarif j2py-assessment.json --output j2py.sarif
 ```
+
+### Gate a migration slice
+
+```bash
+j2py doctor gate src/main/java --profile migration-trial
+j2py doctor gate src/main/java --profile one-zero --json j2py-doctor-gate.json
+```
+
+Use `migration-trial` early, then move CI toward `one-zero` or `strict` as the translated
+surface becomes better understood. Use explicit threshold overrides when a workflow needs
+a narrower contract than the built-in profiles.
 
 ### Validate generated Python during assessment
 

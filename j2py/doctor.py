@@ -4,14 +4,28 @@ from __future__ import annotations
 
 from j2py.doctor_assessment import assess_project
 from j2py.doctor_diff import diff_assessments
+from j2py.doctor_gate import (
+    DOCTOR_GATE_PROFILES,
+    DOCTOR_GATE_SCHEMA_VERSION,
+    DoctorGateThresholds,
+    doctor_gate_thresholds_for_profile,
+    evaluate_doctor_gate,
+    render_doctor_gate_text,
+)
 from j2py.doctor_io import (
     load_assessment_json,
     write_assessment_html,
     write_assessment_json,
     write_config_suggestions,
     write_doctor_diff_json,
+    write_doctor_gate_json,
 )
-from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment, DoctorDiff
+from j2py.doctor_models import (
+    DOCTOR_SCHEMA_VERSION,
+    DoctorAssessment,
+    DoctorDiff,
+    DoctorGateResult,
+)
 from j2py.doctor_renderers import (
     render_assessment_html,
     render_config_suggestions,
@@ -19,17 +33,25 @@ from j2py.doctor_renderers import (
 )
 
 __all__ = [
+    "DOCTOR_GATE_PROFILES",
+    "DOCTOR_GATE_SCHEMA_VERSION",
     "DOCTOR_SCHEMA_VERSION",
     "DoctorAssessment",
     "DoctorDiff",
+    "DoctorGateResult",
+    "DoctorGateThresholds",
     "assess_project",
     "diff_assessments",
+    "doctor_gate_thresholds_for_profile",
+    "evaluate_doctor_gate",
     "load_assessment_json",
     "render_assessment_html",
     "render_config_suggestions",
+    "render_doctor_gate_text",
     "render_doctor_diff_text",
     "write_assessment_html",
     "write_assessment_json",
     "write_config_suggestions",
     "write_doctor_diff_json",
+    "write_doctor_gate_json",
 ]
