@@ -1,5 +1,7 @@
 """Skeleton translator tests — overload translation."""
 
+import importlib
+import sys
 from pathlib import Path
 
 import pytest
@@ -1600,6 +1602,59 @@ def test_static_instance_collision_renames_multi_static_group() -> None:
     assert "return self.pick()" in result.source
     assert "requires manual dispatch" not in result.source
     assert_valid_python(result.source)
+
+
+def test_static_instance_collision_static_forwarding_group_keeps_static_call_surface() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Version {
+            private String value;
+
+            private Version(String value) {
+                this.value = value;
+            }
+
+            public static Version parseValidSemVer(String version) {
+                return new Version(version);
+            }
+
+            public static Version parseValidSemVer(String version, boolean strict) {
+                return parseValidSemVer(version);
+            }
+
+            private String parseValidSemVer() {
+                return this.value;
+            }
+
+            public static Version parse(String version) {
+                return parseValidSemVer(version, true);
+            }
+
+            public String text() {
+                return parseValidSemVer();
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "def parse_valid_sem_ver_static(" in result.source
+    assert "def parse_valid_sem_ver(self) -> str:" in result.source
+    assert "return Version.parse_valid_sem_ver_static(version, True)" in result.source
+    assert "requires manual dispatch" not in result.source
+    assert_valid_python(result.source)
+    runtime = importlib.import_module("j2py.translate.runtime.j2py_runtime")
+    sys.modules.setdefault("j2py_runtime", runtime)
+    namespace: dict[str, object] = {"__name__": "test_issue_674_version"}
+    exec(compile(result.source, "<version>", "exec"), namespace)
+    version = namespace["Version"]
+    assert (  # type: ignore[attr-defined]
+        version.parse_valid_sem_ver_static("1.2.3").text() == "1.2.3"
+    )
+    assert (  # type: ignore[attr-defined]
+        version.parse_valid_sem_ver_static("2.0.0", True).text() == "2.0.0"
+    )
+    assert version.parse("3.0.0").text() == "3.0.0"  # type: ignore[attr-defined]
 
 
 def test_char_utils_three_way_overloads_keep_review_stubs_with_value_dispatch() -> None:
