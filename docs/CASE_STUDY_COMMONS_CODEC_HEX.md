@@ -39,9 +39,9 @@ Rule layer only, no LLM (`translate_file(..., use_llm=False, validate=False)`):
 | `EncoderException.java` | 100% | 0 | 0.99 | 5 |
 | `Hex.java` | 100% | 0 | 0.99 | 60 |
 
-The translation is mechanically complete for the scoped files, but the first runnable
-loop still needs explicit residual execution patches. That is the useful evidence here:
-100% node coverage does not by itself prove executable library behavior.
+The translation is mechanically complete for the scoped files, but the runnable loop
+still needs a small set of explicit residual execution patches. That is the useful
+evidence here: 100% node coverage does not by itself prove executable library behavior.
 
 ## Closed loop
 
@@ -86,22 +86,13 @@ remove the corresponding patch and update this table.
 
 | Gap id | Module | Generated-output defect |
 |---|---|---|
-| `CODEC-HEX-1` | `Hex` | `char[]` one-argument overload dispatcher is emitted as an impossible/null `str` guard. |
-| `CODEC-HEX-2` | `Hex` | `decodeHex(char[], byte[], int)` guard expects `str` instead of list-backed `char[]`. |
-| `CODEC-HEX-3` | `Hex` | One-character `String` inputs are shadowed by a mistaken `char[]` branch. |
 | `CODEC-HEX-5` | `Hex` | Java `%,d` format tokens are not normalized for Python `%` formatting. |
-| `CODEC-HEX-6` | `Hex` | `new char[dataLen << 1]` loses allocation parentheses. |
-| `CODEC-HEX-7` | `Hex` | `new char[dataLength << 1]` loses allocation parentheses. |
-| `CODEC-HEX-8` | `Hex` | Six-argument `encodeHex(..., char[] alphabet, char[] out, ...)` guards use `str`. |
-| `CODEC-HEX-9` | `Hex` | Six-argument `encodeHex(..., boolean, char[] out, ...)` output guard uses `str`. |
-| `CODEC-HEX-10` | `Hex` | Two-argument `encodeHex(byte[], char[] alphabet)` guard uses `str`. |
-| `CODEC-HEX-11` | `Hex` | ByteBuffer/alphabet overload guard uses `str` for the alphabet. |
 | `CODEC-HEX-14` | `Hex` | A Java `void` overload dispatcher branch delegates, then falls through to `TypeError`. |
 
 ## Follow-ups
 
-1. Promote the dispatcher and allocation issues into general rule-layer fixes with small
-   Java/Python fixture pairs.
+1. Promote the remaining format-token and dispatcher fall-through issues into general
+   rule-layer fixes with small Java/Python fixture pairs.
 2. Add a bounded `ByteBuffer` stub or rule-layer support only when a test genuinely needs
    position/limit behavior.
 3. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,

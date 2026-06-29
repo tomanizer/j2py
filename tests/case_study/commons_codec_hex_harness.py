@@ -61,87 +61,11 @@ _ENCODE_HEX_TO_OUT_CALL = (
 
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
     ResidualGap(
-        "CODEC-HEX-1",
-        "Hex",
-        "char[] overload dispatcher guards are emitted as single-character str guards",
-        (
-            "        if len(args) == 1 and (args[0] is None or isinstance(args[0], str)) "
-            "and (args[0] is None):\n"
-            "            data = args[0]\n"
-            "            return Hex.decode_hex(list(data))\n"
-        ),
-        """        if len(args) == 1 and isinstance(args[0], list):
-            data = args[0]
-            out = [0] * (len(data) >> 1)
-            Hex.decode_hex(data, out, 0)
-            return out
-""",
-    ),
-    ResidualGap(
-        "CODEC-HEX-2",
-        "Hex",
-        "char[] overload dispatcher guards use str where the runtime value is a list",
-        "isinstance(args[0], str) and len(args[0]) == 1 and isinstance(args[1], list)",
-        "isinstance(args[0], list) and isinstance(args[1], list)",
-    ),
-    ResidualGap(
-        "CODEC-HEX-3",
-        "Hex",
-        "one-argument char[] overload guard shadows one-character String inputs",
-        "if len(args) == 1 and isinstance(args[0], str) and len(args[0]) == 1:",
-        "if len(args) == 1 and isinstance(args[0], list):",
-    ),
-    ResidualGap(
         "CODEC-HEX-5",
         "Hex",
         "Java decimal grouping format tokens are not normalized for Python formatting",
         "%,d",
         "%d",
-    ),
-    ResidualGap(
-        "CODEC-HEX-6",
-        "Hex",
-        "array allocation with shift loses parentheses in generated Python",
-        """["\\0"] * data_len << 1""",
-        """["\\0"] * (data_len << 1)""",
-    ),
-    ResidualGap(
-        "CODEC-HEX-7",
-        "Hex",
-        "array allocation with shift loses parentheses in generated Python",
-        """["\\0"] * data_length << 1""",
-        """["\\0"] * (data_length << 1)""",
-    ),
-    ResidualGap(
-        "CODEC-HEX-8",
-        "Hex",
-        "encodeHex(char[] alphabet, char[] out) dispatcher guards are emitted as str guards",
-        (
-            "isinstance(args[3], str) and len(args[3]) == 1 and "
-            "isinstance(args[4], str) and len(args[4]) == 1"
-        ),
-        "isinstance(args[3], list) and isinstance(args[4], list)",
-    ),
-    ResidualGap(
-        "CODEC-HEX-9",
-        "Hex",
-        "encodeHex(boolean, char[] out) dispatcher guard is emitted as a str guard",
-        "isinstance(args[4], str) and len(args[4]) == 1",
-        "isinstance(args[4], list)",
-    ),
-    ResidualGap(
-        "CODEC-HEX-10",
-        "Hex",
-        "encodeHex(byte[], char[] alphabet) dispatcher guard is emitted as a str guard",
-        "isinstance(args[0], list) and isinstance(args[1], str) and len(args[1]) == 1",
-        "isinstance(args[0], list) and isinstance(args[1], list)",
-    ),
-    ResidualGap(
-        "CODEC-HEX-11",
-        "Hex",
-        "encodeHex(ByteBuffer, char[] alphabet) dispatcher guard is emitted as a str guard",
-        "if len(args) == 2 and isinstance(args[1], str) and len(args[1]) == 1:",
-        "if len(args) == 2 and isinstance(args[1], list):",
     ),
     ResidualGap(
         "CODEC-HEX-14",
