@@ -27,7 +27,7 @@ def _qualify_file_type_owner(
     owners map to themselves and are left unchanged.
     """
     owner = binding.python_owner
-    if owner is None or "." in owner or not ctx.in_method_body:
+    if owner is None or "." in owner or not ctx.in_method:
         return binding
     qualified = ctx.name_resolver.bindings.file_type_paths.get(owner)
     if qualified is None or qualified == owner:
