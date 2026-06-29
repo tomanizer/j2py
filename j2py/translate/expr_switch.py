@@ -51,8 +51,24 @@ def _translate_switch_expression(node: JavaNode, ctx: TranslationContext) -> str
             default = value
 
     if default is None:
-        ctx.diagnostics.record(node, supported=False, reason="switch expression without default")
-        return f"__j2py_todo__({node.text!r})"
+        if not ctx.allow_local_helpers:
+            ctx.diagnostics.record(
+                node,
+                supported=False,
+                reason="switch expression without default",
+            )
+            return f"__j2py_todo__({node.text!r})"
+        ctx.diagnostics.warn(
+            node,
+            reason="default-less switch expression lowered with explicit no-match fallback",
+            category="switch_expression_no_default",
+        )
+        ctx.diagnostics.record(
+            node,
+            supported=True,
+            reason="translated default-less switch expression",
+        )
+        return _defaultless_switch_helper(subject, cases, ctx)
 
     expression = default
     for labels, value in reversed(cases):
@@ -65,6 +81,28 @@ def _switch_expression_has_pattern_labels(body: JavaNode) -> bool:
         if first_child_by_type(label, "pattern", "guard") is not None:
             return True
     return False
+
+
+def _defaultless_switch_helper(
+    subject: str,
+    cases: list[tuple[list[str], str]],
+    ctx: TranslationContext,
+) -> str:
+    helper_name = f"_j2py_switch_{len(ctx.pending_local_helpers) + 1}"
+    return_type = _common_pattern_switch_return_type(
+        [_pattern_switch_value_type(value) for _, value in cases],
+    )
+    helper_lines = [
+        f"        def {helper_name}(_j2py_subject: object) -> {return_type}:",
+    ]
+    for labels, value in cases:
+        helper_lines.append(f"            if {_switch_condition('_j2py_subject', labels)}:")
+        helper_lines.append(f"                return {value}")
+    helper_lines.append(
+        "            raise ValueError(f'no matching switch case for {_j2py_subject!r}')",
+    )
+    ctx.pending_local_helpers.append(helper_lines)
+    return f"{helper_name}({subject})"
 
 
 def _translate_pattern_switch_expression(
