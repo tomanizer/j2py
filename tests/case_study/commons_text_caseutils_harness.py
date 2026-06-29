@@ -55,17 +55,6 @@ class ResidualGap:
 # translator bug, patched here only so the upstream-derived oracle can run end-to-end.
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
     ResidualGap(
-        gap_id="CT-1",
-        module="CaseUtils",
-        summary=(
-            "String(int[] codePoints, int offset, int count) constructor is not lowered; "
-            "the method body is dropped and replaced with an empty `str()`, so the result "
-            "is always the empty string."
-        ),
-        bad="        return str()",
-        good=('        return "".join([chr(cp) for cp in new_code_points[0:out_offset]])'),
-    ),
-    ResidualGap(
         gap_id="CT-2",
         module="CaseUtils",
         summary=(

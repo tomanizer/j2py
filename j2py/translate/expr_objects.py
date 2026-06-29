@@ -97,6 +97,22 @@ def _translate_object_creation(node: JavaNode, ctx: TranslationContext) -> str:
             charset = translate_expression(arg_nodes[1], ctx)
             ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
             return f"_j2py_string_from_value({value}, {charset})"
+        # String(char[]/int[]/byte[] value, int offset, int count) — a length-bounded
+        # slice of the source array. The element type decides the per-element meaning;
+        # int[] holds code points while byte[] holds raw bytes, which are indistinguishable
+        # once both become Python list[int], so resolve the array kind at translate time.
+        if len(arg_nodes) == 3:
+            value = translate_expression(arg_nodes[0], ctx)
+            offset = translate_expression(arg_nodes[1], ctx)
+            count = translate_expression(arg_nodes[2], ctx)
+            window = f"{value}[{offset}:{offset} + {count}]"
+            element_kind = _array_element_kind(arg_nodes[0], ctx)
+            if element_kind == "char":
+                return f'"".join({window})'
+            if element_kind == "int":
+                return f'"".join([chr(_cp) for _cp in {window}])'
+            ctx.diagnostics.imports.need_line("from j2py_runtime import _j2py_string_from_value")
+            return f"_j2py_string_from_value({window})"
         return "str()"
 
     if base_type in {"StringBuilder", "java.lang.StringBuilder"}:
@@ -169,9 +185,42 @@ def _is_char_array_expression(node: JavaNode, ctx: TranslationContext) -> bool:
     return False
 
 
-def _is_char_array_type(java_type: str) -> bool:
+def _array_element_simple_name(java_type: str) -> str | None:
+    """Return the unqualified element type of a Java array type, else ``None``.
+
+    ``"int[]"`` → ``"int"``, ``"char @NonNull []"`` → ``"char"``,
+    ``"java.lang.String[]"`` → ``"String"``. Non-array types return ``None``.
+    """
     stripped = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", java_type).strip()
-    return stripped.endswith("[]") and stripped[:-2].strip().rsplit(".", 1)[-1] == "char"
+    if not stripped.endswith("[]"):
+        return None
+    return stripped[:-2].strip().rsplit(".", 1)[-1]
+
+
+def _is_char_array_type(java_type: str) -> bool:
+    return _array_element_simple_name(java_type) == "char"
+
+
+def _array_element_kind(node: JavaNode, ctx: TranslationContext) -> str | None:
+    """Return the unqualified array element type for ``node``, else ``None``.
+
+    Mirrors ``_is_char_array_expression`` but reports the element type so the
+    multi-arg ``new String(...)`` lowering can distinguish ``char[]``, ``int[]``
+    (code points), and ``byte[]`` source arrays.
+    """
+    node = unwrap_parens(node)
+    java_type = java_expression_type(node, ctx)
+    if java_type is not None:
+        element = _array_element_simple_name(java_type)
+        if element is not None:
+            return element
+    if node.type == "array_creation_expression":
+        type_node = node.child_by_field("type")
+        if type_node is not None and any(
+            child.type in {"dimensions", "dimensions_expr"} for child in node.named_children
+        ):
+            return type_node.text
+    return None
 
 
 def _return_type_includes_char_array(return_type: str | None) -> bool:

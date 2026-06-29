@@ -51,9 +51,10 @@ Rule layer only, no LLM (`translate_file(..., use_llm=False, validate=False)`):
 | `CaseUtils.java` | 100% | 0 | 0.99 | 6 |
 
 This slice is the sharpest evidence yet that **node coverage and confidence do not prove
-executable behavior**: at 100% coverage / 0.99 confidence, the unpatched translation of
-`toCamelCase` returns the empty string for *every* input. None of the 6 semantic warnings
-(4 preserved comments, 2 `outOffset++` desugar notes) point at the four defects below.
+executable behavior**: at 100% coverage / 0.99 confidence, the *first* translation of
+`toCamelCase` returned the empty string for **every** input (CT-1, since fixed at the rule
+layer). None of the 6 semantic warnings (4 preserved comments, 2 `outOffset++` desugar
+notes) pointed at any of the defects below — coverage and confidence were blind to them.
 
 ## Closed loop
 
@@ -86,17 +87,17 @@ scaffolding, not residual translator patches:
   units), the stub's `charCount` is always `1`, so the delimiter scan advances in
   code-point space and the algorithm matches.
 
-## Residual translator defects
+## Translator defects
 
-The harness locks active generated-output defects in `_RESIDUAL_GAP_PATCHES`. Each is a
-real rule-layer bug, patched only so the oracle can run end-to-end; each should become a
-rule-layer fix that removes its patch.
+The harness locks the **active** generated-output defects in `_RESIDUAL_GAP_PATCHES`. Each
+active patch is a real rule-layer bug, applied only so the oracle can run end-to-end; each
+should become a rule-layer fix that removes its patch.
 
-| Gap id | Module | Generated-output defect |
-|---|---|---|
-| CT-1 | `CaseUtils` | `new String(int[] codePoints, int offset, int count)` is not lowered. The method body is dropped and replaced with an empty `str()`, so `toCamelCase` always returns `""`. **No diagnostic is emitted.** |
-| CT-2 | `CaseUtils` | `String.toLowerCase(Locale.ROOT)` is not lowered to `str.lower()`; it emits a non-existent `str.to_lower_case(Locale.ROOT)` call and leaves `Locale` unbound (`NameError`). The locale-qualified overload defeats JDK call lowering. |
-| CT-3 | `CaseUtils` | `String.codePointAt(int)` is not lowered to `ord(str[index])`; it emits a non-existent `str.code_point_at(index)` call. |
+| Gap id | Status | Module | Generated-output defect |
+|---|---|---|---|
+| CT-1 | **Fixed** | `CaseUtils` | `new String(int[] codePoints, int offset, int count)` was not lowered — the body fell through to an empty `str()`, so `toCamelCase` always returned `""` with **no diagnostic**. The 3-arg `String(value, offset, count)` constructor now lowers per source-array element type (`int[]` → `chr` per code point, `char[]` → `"".join`, `byte[]` → decode). Fixed in `j2py/translate/expr_objects.py`; covered by `test_new_string_offset_count_constructor_lowers_per_element_kind`. |
+| CT-2 | Active patch | `CaseUtils` | `String.toLowerCase(Locale.ROOT)` is not lowered to `str.lower()`; it emits a non-existent `str.to_lower_case(Locale.ROOT)` call and leaves `Locale` unbound (`NameError`). The locale-qualified overload defeats JDK call lowering. |
+| CT-3 | Active patch | `CaseUtils` | `String.codePointAt(int)` is not lowered to `ord(str[index])`; it emits a non-existent `str.code_point_at(index)` call. |
 
 A fourth observation is **not** a residual patch but a scoping exclusion:
 
@@ -112,10 +113,11 @@ A fourth observation is **not** a residual patch but a scoping exclusion:
 
 ## Follow-ups
 
-1. Land rule-layer fixes for CT-1 (`String(int[], offset, count)` constructor), CT-2
-   (locale-qualified `toLowerCase`), and CT-3 (`String.codePointAt`), removing each patch
-   from `_RESIDUAL_GAP_PATCHES`.
-2. Fix the `java.lang.Character` name-resolution misrouting (CT-4) so the bogus
+1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done** — see the table
+   above.
+2. Land rule-layer fixes for CT-2 (locale-qualified `toLowerCase`) and CT-3
+   (`String.codePointAt`), removing each patch from `_RESIDUAL_GAP_PATCHES`.
+3. Fix the `java.lang.Character` name-resolution misrouting (CT-4) so the bogus
    in-package import is not emitted.
-3. Expand to `WordUtils` once the string/code-point primitives above are owned by the
+4. Expand to `WordUtils` once the string/code-point primitives above are owned by the
    rule layer; defer `StringEscapeUtils` until the lookup machinery has a clear owner.

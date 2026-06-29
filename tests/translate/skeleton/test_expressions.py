@@ -1620,6 +1620,46 @@ def test_new_string_byte_array_keeps_runtime_helper() -> None:
     assert_valid_python(result.source)
 
 
+def test_new_string_offset_count_constructor_lowers_per_element_kind() -> None:
+    """String(value, offset, count) slices the source array per its element type.
+
+    int[] holds code points (chr per element); char[] is already a string sequence;
+    byte[] must decode. Without this lowering the 3-arg form fell through to str().
+    """
+    result = translate_source_with_diagnostics(
+        """
+        public class Slices {
+            public String fromCodePoints(int[] cps, int off, int len) {
+                return new String(cps, off, len);
+            }
+
+            public String fromChars(char[] chars, int off, int len) {
+                return new String(chars, off, len);
+            }
+
+            public String fromBytes(byte[] bytes, int off, int len) {
+                return new String(bytes, off, len);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return str()" not in result.source
+    assert 'return "".join([chr(_cp) for _cp in cps[off:off + len_]])' in result.source
+    assert 'return "".join(chars[off:off + len_])' in result.source
+    assert "return _j2py_string_from_value(bytes_[off:off + len_])" in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<slices>", "exec"), namespace)
+    slices = namespace["Slices"]()
+    # 0x1F600 (😀) plus surrounding code points; offset/count select a window.
+    assert slices.from_code_points([72, 0x1F600, 105], 0, 2) == "H\U0001f600"  # type: ignore[attr-defined]
+    assert slices.from_chars(["a", "b", "c", "d"], 1, 2) == "bc"  # type: ignore[attr-defined]
+    assert slices.from_bytes([72, 105, 33], 0, 2) == "Hi"  # type: ignore[attr-defined]
+
+
 def test_array_clone_lowers_to_list_copy() -> None:
     """Java array clone() lowers to a Python shallow list copy."""
     python_source, coverage = translate_source("""
