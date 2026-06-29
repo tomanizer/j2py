@@ -16,11 +16,13 @@ from j2py.translate.class_fields import (
     field_infos_from_declaration,
 )
 from j2py.translate.class_members import (
+    group_has_to_string_override,
     member_groups,
     member_method_names,
     member_static_method_names,
     static_instance_collision_static_aliases,
     static_instance_collision_zero_arg_names,
+    to_string_dunder_wrapper,
 )
 from j2py.translate.class_methods import (
     class_method_return_types,
@@ -177,6 +179,8 @@ def translate_enum(
                     static_instance_static_zero_arg_names=set(static_zero),
                 ),
             )
+            if group_has_to_string_override(group):
+                lines.extend(to_string_dunder_wrapper(cfg))
             continue
         member = group[0]
         name_node = member.child_by_field("name")
@@ -201,6 +205,8 @@ def translate_enum(
                     bodies_map_name=bodies_map_name,
                 ),
             )
+            if group_has_to_string_override(group):
+                lines.extend(to_string_dunder_wrapper(cfg))
             continue
         ctx = TranslationContext(
             cfg=cfg,
@@ -223,6 +229,8 @@ def translate_enum(
             static_instance_static_zero_arg_names=set(static_zero),
         )
         lines.extend(translate_method(group[0], ctx))
+        if group_has_to_string_override(group):
+            lines.extend(to_string_dunder_wrapper(cfg))
     return module_prefix + lines
 
 
