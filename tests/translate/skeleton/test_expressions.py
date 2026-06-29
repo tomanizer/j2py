@@ -1495,6 +1495,79 @@ def test_char_at_compared_to_char_literal_is_str_comparison() -> None:
     assert_valid_python(python_source)
 
 
+def test_code_point_at_lowers_to_ord_subscript() -> None:
+    """String.codePointAt(i) returns the int code point, so it lowers to ord(text[i])."""
+    python_source, coverage = translate_source(
+        """
+        public class Points {
+            public int first(String text) {
+                return text.codePointAt(0);
+            }
+
+            public int at(String text, int index) {
+                return text.codePointAt(index);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return ord(text[0])" in python_source
+    assert "return ord(text[index])" in python_source
+    assert "code_point_at" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_to_lower_upper_case_locale_overload_lowers_to_python_case() -> None:
+    """toLowerCase(Locale.ROOT)/toUpperCase(Locale.ROOT) drop the locale-insensitive arg."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Locale;
+
+        public class Cases {
+            public String down(String text) {
+                return text.toLowerCase(Locale.ROOT);
+            }
+
+            public String up(String text) {
+                return text.toUpperCase(Locale.ENGLISH);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return text.lower()" in result.source
+    assert "return text.upper()" in result.source
+    assert "to_lower_case" not in result.source
+    assert "to_upper_case" not in result.source
+    assert "Locale" not in result.source
+    # ROOT/ENGLISH are ASCII-equivalent, so no locale-divergence warning.
+    assert result.diagnostics.semantic_warning_count == 0
+    assert_valid_python(result.source)
+
+
+def test_to_lower_case_locale_sensitive_locale_warns() -> None:
+    """A locale-sensitive locale still lowers but flags that casing may diverge."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Locale;
+
+        public class Cases {
+            public String down(String text, Locale turkish) {
+                return text.toLowerCase(turkish);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return text.lower()" in result.source
+    assert result.diagnostics.semantic_warning_count >= 1
+    assert_valid_python(result.source)
+
+
 def test_char_array_access_with_char_index_uses_ord_index() -> None:
     python_source, coverage = translate_source(
         """
@@ -1618,6 +1691,46 @@ def test_new_string_byte_array_keeps_runtime_helper() -> None:
     assert "from j2py_runtime import _j2py_string_from_value" in result.source
     assert "return _j2py_string_from_value(bytes_)" in result.source
     assert_valid_python(result.source)
+
+
+def test_new_string_offset_count_constructor_lowers_per_element_kind() -> None:
+    """String(value, offset, count) slices the source array per its element type.
+
+    int[] holds code points (chr per element); char[] is already a string sequence;
+    byte[] must decode. Without this lowering the 3-arg form fell through to str().
+    """
+    result = translate_source_with_diagnostics(
+        """
+        public class Slices {
+            public String fromCodePoints(int[] cps, int off, int len) {
+                return new String(cps, off, len);
+            }
+
+            public String fromChars(char[] chars, int off, int len) {
+                return new String(chars, off, len);
+            }
+
+            public String fromBytes(byte[] bytes, int off, int len) {
+                return new String(bytes, off, len);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return str()" not in result.source
+    assert 'return "".join([chr(_cp) for _cp in cps[off:off + len_]])' in result.source
+    assert 'return "".join(chars[off:off + len_])' in result.source
+    assert "return _j2py_string_from_value(bytes_[off:off + len_])" in result.source
+    assert_valid_python(result.source)
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<slices>", "exec"), namespace)
+    slices = namespace["Slices"]()
+    # 0x1F600 (😀) plus surrounding code points; offset/count select a window.
+    assert slices.from_code_points([72, 0x1F600, 105], 0, 2) == "H\U0001f600"  # type: ignore[attr-defined]
+    assert slices.from_chars(["a", "b", "c", "d"], 1, 2) == "bc"  # type: ignore[attr-defined]
+    assert slices.from_bytes([72, 105, 33], 0, 2) == "Hi"  # type: ignore[attr-defined]
 
 
 def test_array_clone_lowers_to_list_copy() -> None:
