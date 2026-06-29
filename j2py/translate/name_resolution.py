@@ -12,7 +12,7 @@ from j2py.translate.rules.imports import (
 from j2py.translate.rules.naming import translate_class_name, translate_field_name
 
 if TYPE_CHECKING:
-    from j2py.analyze.symbols import FileSymbols
+    from j2py.analyze.symbols import ClassSymbol, FileSymbols
     from j2py.config.loader import TranslationConfig
     from j2py.parse.java_ast import JavaNode, ParsedFile
     from j2py.translate.diagnostics import TranslationContext
@@ -25,6 +25,7 @@ ResolvedNameKind = Literal[
     "local",
     "field",
     "imported_type",
+    "file_type",
     "containing_type",
     "nested_type",
     "package_type",
@@ -68,6 +69,7 @@ class FileNameBindings:
     package_name: str = ""
     imported_types: dict[str, TypeBinding] = field(default_factory=dict)
     compilation_unit_types: set[str] = field(default_factory=set)
+    file_type_paths: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
 
@@ -172,6 +174,19 @@ class NameResolver:
 
         if raw_name[:1].isupper() and not raw_name.isupper():
             class_name = translate_class_name(raw_name)
+            # Nested types are reachable as bare locals inside a class body (where the
+            # enclosing class name is not yet bound), so only qualify references that
+            # appear inside a method body, where the bare name would be undefined.
+            if scope.in_method:
+                file_path = self.bindings.file_type_paths.get(class_name)
+                if file_path is not None:
+                    return ResolvedName(
+                        raw_name=raw_name,
+                        python_name=file_path,
+                        kind="file_type",
+                        is_type_reference=True,
+                        reason="file-declared nested type binding",
+                    )
             if class_name == scope.containing_class_name:
                 return ResolvedName(
                     raw_name=raw_name,
@@ -268,9 +283,45 @@ def build_file_name_bindings(
         package_name=symbols.package,
         imported_types=imported_type_bindings(parsed, cfg),
         compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
+        file_type_paths=_file_type_paths(symbols),
         static_field_aliases=dict(static_field_aliases or {}),
         static_method_imports=dict(static_method_imports or {}),
     )
+
+
+def _file_type_paths(symbols: FileSymbols) -> dict[str, str]:
+    """Map each *nested* file-declared type's simple Python name to its enclosing path.
+
+    Nested classes are not module globals in Python: a reference to ``Inner`` from
+    anywhere other than its own class body resolves through the enclosing class
+    (``Outer.Inner``), and it never needs a peer import because it lives in the same
+    module as its encloser. This map records that enclosing-qualified path for every
+    nested type so the resolver can qualify references and suppress bogus imports.
+
+    Top-level types are intentionally excluded: the project emits one module per
+    top-level class, so their resolution (bare reference vs. ``from X import X``) is
+    owned by the existing containing/package/compilation-unit handling. Simple names
+    that collide across distinct paths are dropped so the resolver falls back rather
+    than guessing a qualification.
+    """
+    paths: dict[str, str] = {}
+    collisions: set[str] = set()
+
+    def walk(cls: ClassSymbol, prefix: str) -> None:
+        py_name = translate_class_name(cls.name)
+        qualified = f"{prefix}.{py_name}" if prefix else py_name
+        if prefix:
+            if py_name in paths and paths[py_name] != qualified:
+                collisions.add(py_name)
+            paths[py_name] = qualified
+        for inner in cls.inner_classes:
+            walk(inner, qualified)
+
+    for cls in symbols.classes:
+        walk(cls, "")
+    for name in collisions:
+        paths.pop(name, None)
+    return paths
 
 
 def imported_type_bindings(

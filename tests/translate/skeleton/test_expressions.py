@@ -2064,7 +2064,10 @@ def test_static_factory_get_chain_preserves_api_call() -> None:
     )
 
     assert result.coverage == 1.0
-    assert "return MergedAnnotations.from_(annotation).get(annotation_type)" in result.source
+    assert (
+        "return StaticFactoryGetChain.MergedAnnotations.from_(annotation).get(annotation_type)"
+        in result.source
+    )
     assert "MergedAnnotations.from_(annotation)[" not in result.source
     assert not result.diagnostics.unhandled
     assert_valid_python(result.source)
@@ -2107,7 +2110,9 @@ def test_unknown_static_factory_get_chain_stays_ambiguous() -> None:
     )
 
     assert result.coverage < 1.0
-    assert "return UnknownFactory.from_().get(annotation_type)" in result.source
+    assert (
+        "return UnknownFactoryGetChain.UnknownFactory.from_().get(annotation_type)" in result.source
+    )
     assert result.diagnostics.unhandled[-1].reason == (
         "ambiguous get invocation requires receiver collection type"
     )

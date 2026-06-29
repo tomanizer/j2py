@@ -316,7 +316,10 @@ def test_StaticFactoryGetChain_fixture_translates_without_unhandled_diagnostics(
     ast.parse(result.source)
     assert result.coverage == 1.0
     assert not result.diagnostics.unhandled
-    assert "return MergedAnnotations.from_(annotation).get(annotation_type)" in result.source
+    assert (
+        "return StaticFactoryGetChain.MergedAnnotations.from_(annotation).get(annotation_type)"
+        in result.source
+    )
     assert "MergedAnnotations.from_(annotation)[" not in result.source
     assert "ambiguous get invocation requires receiver collection type" not in result.source
     assert "__j2py_todo__" not in result.source

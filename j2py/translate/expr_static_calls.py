@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expr_jdk_calls import translate_known_static_method_invocation
@@ -11,6 +13,26 @@ from j2py.translate.member_resolution import (
     static_import_binding,
     static_import_method_fallback,
 )
+
+
+def _qualify_file_type_owner(
+    binding: JavaMemberBinding, ctx: TranslationContext
+) -> JavaMemberBinding:
+    """Qualify a static-import owner that is a type declared in the current file.
+
+    A wildcard or explicit static import of a *nested* class member (e.g.
+    ``import static Outer.Validators.*``) binds the owner to the bare nested name
+    (``Validators``). That name is not a module global in Python, so the fallback
+    must address it through its enclosing class (``Outer.Validators``). Top-level
+    owners map to themselves and are left unchanged.
+    """
+    owner = binding.python_owner
+    if owner is None or "." in owner or not ctx.in_method_body:
+        return binding
+    qualified = ctx.name_resolver.bindings.file_type_paths.get(owner)
+    if qualified is None or qualified == owner:
+        return binding
+    return replace(binding, python_owner=qualified)
 
 
 def translate_static_method_invocation(
@@ -49,6 +71,7 @@ def translate_static_imported_method(
     ctx: TranslationContext,
 ) -> str | None:
     member_binding = binding or static_import_binding(imported_name, ctx.cfg, kind="method")
+    member_binding = _qualify_file_type_owner(member_binding, ctx)
     raw_receiver = member_binding.owner
     method_name = member_binding.member
     result = translate_static_method_invocation(
