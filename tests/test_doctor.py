@@ -165,6 +165,121 @@ def test_doctor_assessment_reports_core_migration_signals(tmp_path: Path) -> Non
     assert "j2py translate" in payload["recommended_next_commands"][0]
 
 
+def test_doctor_assessment_reports_method_level_signals(tmp_path: Path) -> None:
+    source = tmp_path / "MethodSignals.java"
+    source.write_text(
+        """
+        public class MethodSignals {
+            public int safe(int value) {
+                return value + 1;
+            }
+
+            public int risky(int value) {
+                // TODO: verify Java truncating division semantics.
+                return value / 2;
+            }
+
+            private int internal(int value) {
+                return value + 2;
+            }
+        }
+        """,
+    )
+
+    assessment = assess_project(source, cfg=CFG)
+    payload = assessment.payload
+    file_payload = payload["files"][0]
+    cls = file_payload["classes"][0]
+    methods = {method["name"]: method for method in cls["methods"]}
+
+    assert payload["summary"]["methods"] == 3
+    assert payload["summary"]["risky_methods"] == 1
+    assert payload["summary"]["equivalence_candidate_methods"] == 2
+    assert cls["qualified_name"] == "MethodSignals"
+    assert cls["end_line"] >= cls["line"]
+    assert cls["range_source"] == "tree_sitter_node_range"
+    assert cls["diagnostics"]["semantic_warnings"] >= 1
+
+    safe = methods["safe"]
+    assert safe["signature"] == "MethodSignals.safe(int)"
+    assert safe["public"] is True
+    assert safe["visibility"] == "public"
+    assert safe["equivalence_candidate"] is True
+    assert safe["readiness_bucket"] == "ready_to_translate"
+    assert safe["diagnostics"]["semantic_warnings"] == 0
+    assert safe["diagnostic_mapping_source"] == "source_line_containment"
+
+    risky = methods["risky"]
+    assert risky["signature"] == "MethodSignals.risky(int)"
+    assert risky["diagnostics"]["semantic_warnings"] >= 1
+    assert risky["diagnostics"]["todos"] == 1
+    assert risky["readiness_bucket"] == "manual_port"
+    assert risky["risk_score"] > 0.0
+    assert risky["equivalence_candidate"] is True
+    assert {
+        reason["detail"]
+        for reason in risky["migration_readiness"]["reasons"]
+        if reason["reason"] == "todo_markers"
+    } == {"Java source contains TODO/FIXME markers in this scope"}
+
+    internal = methods["internal"]
+    assert internal["public"] is False
+    assert internal["visibility"] == "private"
+    assert internal["equivalence_candidate"] is False
+
+    high_risk_methods = payload["hotspots"]["highest_risk_methods"]
+    assert high_risk_methods == [
+        {
+            "path": "MethodSignals.java",
+            "class": "MethodSignals",
+            "method": "risky",
+            "signature": "MethodSignals.risky(int)",
+            "line": risky["line"],
+            "risk_score": risky["risk_score"],
+            "risk_band": risky["risk_band"],
+            "readiness_bucket": "manual_port",
+            "semantic_warnings": risky["diagnostics"]["semantic_warnings"],
+            "unhandled": 0,
+            "todos": 1,
+            "equivalence_candidate": True,
+        }
+    ]
+    html = render_assessment_html(assessment)
+    assert "High-Risk Methods" in html
+    assert "MethodSignals.risky(int)" in html
+
+
+def test_doctor_method_visibility_does_not_leak_from_enclosing_interface(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Contract.java"
+    source.write_text(
+        """
+        public interface Contract {
+            class Nested {
+                int packagePrivate() {
+                    return 1;
+                }
+
+                public int visible() {
+                    return 2;
+                }
+            }
+        }
+        """,
+    )
+
+    payload = assess_project(source, cfg=CFG).payload
+    nested = payload["files"][0]["classes"][0]["inner_classes"][0]
+    methods = {method["name"]: method for method in nested["methods"]}
+
+    assert methods["packagePrivate"]["visibility"] == "package_private"
+    assert methods["packagePrivate"]["public"] is False
+    assert methods["packagePrivate"]["equivalence_candidate"] is False
+    assert methods["visible"]["visibility"] == "public"
+    assert methods["visible"]["equivalence_candidate"] is True
+
+
 def test_doctor_assessment_reports_maven_project_structure(tmp_path: Path) -> None:
     project = tmp_path / "orders"
     main_root = project / "src" / "main" / "java" / "com" / "example"

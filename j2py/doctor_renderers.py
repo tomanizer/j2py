@@ -16,6 +16,8 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     hotspots = payload["hotspots"]
     project_structure = payload.get("project_structure")
     diagnostic_clusters = payload.get("diagnostic_clusters", [])
+    high_risk_methods = hotspots.get("highest_risk_methods", [])
+    high_risk_method_rows = "\n".join(_high_risk_method_row(item) for item in high_risk_methods)
     annotations = "\n".join(
         f"<li><code>{escape(item['name'])}</code>: {item['count']}</li>"
         for item in payload["annotation_inventory"]
@@ -64,6 +66,7 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
 <main>
   <section class="summary">
     {_metric("Files", summary["files"])}
+    {_metric("Methods", summary.get("methods", 0))}
     {_metric("Parse failures", summary["parse_failures"])}
     {_metric("Avg coverage", f"{summary['average_rule_coverage']:.0%}")}
     {_metric("Avg risk", f"{summary['average_risk_score']:.1f}/100")}
@@ -83,8 +86,31 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Needs config", migration_readiness_summary.get("needs_config", 0))}
     {_metric("Needs rules", migration_readiness_summary.get("needs_rule_work", 0))}
     {_metric("Boundaries", migration_readiness_summary.get("framework_boundary", 0))}
+    {_metric("Risky methods", summary.get("risky_methods", 0))}
+    {_metric("Equiv candidates", summary.get("equivalence_candidate_methods", 0))}
   </section>
   {_project_structure_section(project_structure)}
+  <section>
+    <h2>High-Risk Methods</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>File</th>
+          <th>Line</th>
+          <th>Risk</th>
+          <th>Readiness</th>
+          <th>Warnings</th>
+          <th>Unhandled</th>
+          <th>TODOs</th>
+          <th>Equivalence</th>
+        </tr>
+      </thead>
+      <tbody>{
+        high_risk_method_rows or '<tr><td colspan="9">No high-risk methods found.</td></tr>'
+    }</tbody>
+    </table>
+  </section>
   <section>
     <h2>Files</h2>
     <table>
@@ -236,6 +262,22 @@ def _file_row(item: dict[str, Any]) -> str:
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>
+</tr>"""
+
+
+def _high_risk_method_row(item: dict[str, Any]) -> str:
+    candidate = "candidate" if item.get("equivalence_candidate") else ""
+    return f"""
+<tr>
+  <td><code>{escape(str(item.get("signature", "")))}</code></td>
+  <td>{escape(str(item.get("path", "")))}</td>
+  <td>{escape(str(item.get("line", "")))}</td>
+  <td>{float(item.get("risk_score", 0.0)):.1f}</td>
+  <td>{escape(str(item.get("readiness_bucket", "")))}</td>
+  <td>{escape(str(item.get("semantic_warnings", 0)))}</td>
+  <td>{escape(str(item.get("unhandled", 0)))}</td>
+  <td>{escape(str(item.get("todos", 0)))}</td>
+  <td>{escape(candidate)}</td>
 </tr>"""
 
 

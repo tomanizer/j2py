@@ -18,6 +18,7 @@ Use `doctor` when you need answers before committing to a migration path:
 | Can j2py parse this source tree? | Parse failures and per-file parse status. |
 | What Java structure is visible? | Class, method, field, import, annotation, and dependency graph inventory. |
 | How much can the rule layer translate today? | Rule coverage, confidence, semantic warnings, TODOs, and unhandled diagnostics. |
+| Which APIs or methods deserve attention? | Class/method ranges, method readiness, warning/TODO counts, and equivalence-test candidate flags. |
 | What config should we consider? | Advisory `import_map`, `type_map`, and `annotation_map` suggestions. |
 | Which framework boundaries need policy? | Annotation inventory and unresolved framework/platform imports. |
 | Did a config or rule change help? | `j2py doctor diff before.json after.json`. |
@@ -36,7 +37,7 @@ runtime policy.
 2. Builds symbol and dependency graph information where available.
 3. Runs rule-only translation with `use_llm=False`.
 4. Collects rule coverage, confidence, diagnostics, TODOs, semantic warnings, imports,
-   and annotations.
+   annotations, and class/method-level assessment signals.
 5. Optionally runs generated-Python validation when `--include-validation` is set.
 6. Emits JSON, HTML, config suggestions, and assessment diffs.
 7. `doctor advise` can call a configured LLM to produce migration recommendations from the
@@ -156,13 +157,13 @@ keys are:
 
 | Key | Meaning |
 |---|---|
-| `summary` | File, class, parse-failure, rule-coverage, warning, TODO, risk, legacy readiness, migration-readiness, and unresolved-import counts. |
+| `summary` | File, class, method, parse-failure, rule-coverage, warning, TODO, risk, legacy readiness, migration-readiness, equivalence-candidate, and unresolved-import counts. |
 | `dependency_graph` | Translation order and dependency graph warnings from existing analyzer output. |
 | `project_structure` | Detected Maven/Gradle build files, source roots, test roots, generated-source roots, modules, and Java language level when declared. |
 | `annotation_inventory` | Observed Java annotation names and counts. |
 | `unresolved_imports` | Imports not covered by defaults, user config, or project declarations. |
 | `config_suggestions` | Advisory `import_map`, `type_map`, and `annotation_map` candidates. |
-| `hotspots` | Ranked unhandled node types, warning reasons, import packages, annotations, risk reasons, and files (coverage/risk). |
+| `hotspots` | Ranked unhandled node types, warning reasons, import packages, annotations, risk reasons, files (coverage/risk), and high-risk methods. |
 | `diagnostic_clusters` | Repeated warning and unhandled families with file counts, node-type summaries, owner hints, sample locations, and examples. |
 | `recommended_next_commands` | Follow-up commands grounded in the assessed source path. |
 | `files` | Per-file parse, symbol, import, annotation, and rule-only translation diagnostics. |
@@ -170,7 +171,8 @@ keys are:
 Each entry under `files` includes:
 
 - `path`, `package`, `parse_ok`, and `parse_errors`;
-- `classes` with field, method, and nested-class inventory;
+- `classes` with field, method, and nested-class inventory, including tree-sitter source
+  ranges where available;
 - raw Java `imports`;
 - `project_structure` with the detected module, source root, and source-set classification;
 - observed `annotations`;
@@ -180,6 +182,26 @@ Each entry under `files` includes:
 - `translation.rule_coverage` and surfaced `translation.confidence`;
 - `translation.semantic_warnings`, `translation.unhandled`, `translation.todos`;
 - `translation.validation` when validation was requested.
+
+Class entries include `qualified_name`, `line`, `end_line`, `range_source`,
+`diagnostics`, `migration_readiness`, and `risk_score`/`risk_band` when the parser can
+derive a source range. Method entries preserve the existing `name`, `return_type`,
+`line`, and `static` fields and add:
+
+- `signature` in the same `Class.method(Type,Type)` shape used by the equivalence surface
+  report;
+- `end_line` and `range_source`;
+- `parameters`, `constructor`, `abstract`, `public`, and `visibility`;
+- `diagnostics.semantic_warnings`, `diagnostics.unhandled`, and `diagnostics.todos`;
+- `migration_readiness.bucket`, `risk_score`, `risk_band`, `reasons`, and `next_action`;
+- `equivalence_candidate` plus a short reason.
+
+Method diagnostic assignment uses deterministic source-line containment:
+`diagnostic_mapping_source: "source_line_containment"`. That is intentionally approximate:
+the doctor does not maintain generated-Python-to-Java line mapping. Method TODO counts are
+Java source comment TODO/FIXME counts inside the method range (`todo_source:
+"java_source_comments"`); generated Python TODO lines remain available at file level under
+`translation.todos`.
 
 `migration_readiness.bucket` uses these deterministic values:
 
@@ -204,7 +226,7 @@ The report is static and self-contained, so it can be shared as a CI artifact or
 attachment. It summarizes file count, parse failures, average rule coverage, risk,
 readiness, semantic warnings, unhandled diagnostics, unresolved imports, per-file
 status, project structure, annotation names, hotspots, recurring diagnostic clusters,
-and recommended next commands.
+high-risk methods, and recommended next commands.
 
 ### Config Suggestions
 
@@ -250,6 +272,7 @@ Start with these report areas:
 |---|---|
 | Summary | Check file count, parse failures, average coverage, risk/readiness bands, semantic warnings, TODOs, and unresolved imports. |
 | Files | Find low-coverage or warning-heavy files before bulk translation. |
+| High-Risk Methods | Find specific public APIs or method bodies that carry warnings, unhandled constructs, or TODO comments. |
 | Annotation inventory | Decide which annotations are comments, drops, `annotation_map`, or framework plugins. |
 | Unresolved imports | Decide which imports need `import_map`, `type_map`, stubs, plugins, or manual porting. |
 | Hotspots | Identify repeated rule gaps worth fixing once instead of reviewing file-by-file. |
