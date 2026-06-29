@@ -94,6 +94,9 @@ def assess(
 
     summary = assessment.payload["summary"]
     readiness = {item["bucket"]: item["files"] for item in summary["readiness_distribution"]}
+    migration_readiness = {
+        item["bucket"]: item["files"] for item in summary["migration_readiness_distribution"]
+    }
     structure = assessment.payload.get("project_structure", {})
     build_systems = ", ".join(structure.get("build_systems", [])) or "none"
     module_count = len(structure.get("modules", []))
@@ -107,6 +110,10 @@ def assess(
         f"risk={summary['average_risk_score']:.1f}, "
         f"ready={readiness['ready']}, manual={readiness['requires_manual_fixes']}, "
         f"not_ready={readiness['not_ready']}, "
+        f"translate={migration_readiness['ready_to_translate']}, "
+        f"config={migration_readiness['needs_config']}, "
+        f"rules={migration_readiness['needs_rule_work']}, "
+        f"boundary={migration_readiness['framework_boundary']}, "
         f"build={build_systems}, modules={module_count}, java={java_level}",
     )
 

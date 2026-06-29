@@ -42,6 +42,10 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     readiness_summary = {
         item["bucket"]: item["files"] for item in summary["readiness_distribution"]
     }
+    migration_readiness_summary = {
+        item["bucket"]: item["files"]
+        for item in summary.get("migration_readiness_distribution", [])
+    }
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -75,6 +79,10 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Ready files", readiness_summary["ready"])}
     {_metric("Manual-fix files", readiness_summary["requires_manual_fixes"])}
     {_metric("Not-ready files", readiness_summary["not_ready"])}
+    {_metric("Translate-ready", migration_readiness_summary.get("ready_to_translate", 0))}
+    {_metric("Needs config", migration_readiness_summary.get("needs_config", 0))}
+    {_metric("Needs rules", migration_readiness_summary.get("needs_rule_work", 0))}
+    {_metric("Boundaries", migration_readiness_summary.get("framework_boundary", 0))}
   </section>
   {_project_structure_section(project_structure)}
   <section>
@@ -89,6 +97,7 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
           <th>Risk</th>
           <th>Band</th>
           <th>Readiness</th>
+          <th>Next Action</th>
           <th>Warnings</th>
           <th>Unhandled</th>
           <th>Unresolved Imports</th>
@@ -213,6 +222,7 @@ def _metric(label: str, value: object) -> str:
 
 def _file_row(item: dict[str, Any]) -> str:
     translation = item["translation"]
+    readiness = item.get("migration_readiness", {})
     return f"""
 <tr>
   <td>{escape(item["path"])}</td>
@@ -221,7 +231,8 @@ def _file_row(item: dict[str, Any]) -> str:
   <td>{translation["rule_coverage"]:.0%}</td>
   <td>{item["risk_score"]:.1f}</td>
   <td>{escape(item["risk_band"])}</td>
-  <td>{escape(item["readiness_bucket"])}</td>
+  <td>{escape(str(readiness.get("bucket", item["readiness_bucket"])))}</td>
+  <td>{escape(str(readiness.get("next_action", "")))}</td>
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>

@@ -13,21 +13,18 @@ from j2py.analyze.symbols import ClassSymbol, FileSymbols, class_kind, extract_s
 from j2py.config.loader import TranslationConfig
 from j2py.doctor_models import DOCTOR_SCHEMA_VERSION, DoctorAssessment
 from j2py.doctor_project_structure import detect_project_structure, file_project_structure
+from j2py.doctor_readiness import (
+    LEGACY_READINESS_BUCKETS,
+    READINESS_BUCKETS,
+    legacy_readiness_bucket,
+    migration_readiness_profile,
+)
 from j2py.parse.java_ast import JavaNode, parse_file
 from j2py.pipeline import translate_file
 from j2py.translate.annotation_emit import _FRAMEWORK_ANNOTATIONS
 from j2py.translate.diagnostics import diagnostic_payload, todo_lines
 
-_RISK_REASONS_LIMIT = 4
 _RISK_TOP_READINESS_FILES = 10
-_RISK_BAND_THRESHOLD_CRITICAL = 80.0
-_RISK_BAND_THRESHOLD_HIGH = 55.0
-_RISK_BAND_THRESHOLD_MEDIUM = 25.0
-_RISK_RULE_COVERAGE_WEIGHT = 55.0
-_RISK_WARNING_WEIGHT_PER_UNIT = 3.0
-_RISK_UNHANDLED_WEIGHT_PER_UNIT = 4.0
-_RISK_TODO_WEIGHT_PER_UNIT = 1.0
-_RISK_UNRESOLVED_IMPORT_WEIGHT_PER_UNIT = 1.0
 _DIAGNOSTIC_CLUSTER_LIMIT = 25
 _DIAGNOSTIC_CLUSTER_SAMPLE_LIMIT = 6
 _DIAGNOSTIC_CLUSTER_MIN_COUNT = 2
@@ -176,22 +173,30 @@ def _assess_file(
         [] if diagnostics is None else [diagnostic_payload(item) for item in diagnostics.unhandled]
     )
     todos = todo_lines(result.python_source)
+    validation = _validation_payload(result.validation)
     translation = {
         "rule_coverage": rule_coverage,
         "confidence": result.confidence,
         "semantic_warnings": semantic_warnings,
         "unhandled": unhandled,
         "todos": todos,
-        "validation": _validation_payload(result.validation),
+        "validation": validation,
     }
-    risk_score, risk_band, readiness_bucket, risk_reasons = _file_risk_profile(
+    migration_readiness = migration_readiness_profile(
         parse_ok=parse_ok,
         parse_error_count=len(parse_errors),
         rule_coverage=rule_coverage,
-        semantic_warning_count=len(semantic_warnings),
-        unhandled_count=len(unhandled),
+        semantic_warnings=semantic_warnings,
+        unhandled=unhandled,
         todo_count=len(todos),
-        unresolved_import_count=len(unresolved),
+        unresolved_imports=unresolved,
+        annotations=annotations,
+        validation=validation,
+    )
+    risk_score = float(migration_readiness["risk_score"])
+    readiness_bucket = legacy_readiness_bucket(
+        str(migration_readiness["bucket"]),
+        str(migration_readiness["risk_band"]),
     )
     return {
         "path": _relative_path(path, source_root),
@@ -207,10 +212,11 @@ def _assess_file(
         ),
         "annotations": annotations,
         "unresolved_imports": unresolved,
+        "migration_readiness": migration_readiness,
         "risk_score": risk_score,
-        "risk_band": risk_band,
+        "risk_band": migration_readiness["risk_band"],
         "readiness_bucket": readiness_bucket,
-        "risk_reasons": risk_reasons,
+        "risk_reasons": migration_readiness["reasons"],
         "translation": translation,
     }
 
@@ -232,6 +238,7 @@ def _summary(files: list[dict[str, Any]], graph_warnings: list[str]) -> dict[str
     coverages = [item["translation"]["rule_coverage"] for item in files]
     risk_scores = [item["risk_score"] for item in files]
     readiness_distribution = _readiness_bucket_counts(files)
+    migration_readiness_distribution = _migration_readiness_bucket_counts(files)
     return {
         "files": len(files),
         "classes": sum(len(item["classes"]) for item in files),
@@ -246,15 +253,12 @@ def _summary(files: list[dict[str, Any]], graph_warnings: list[str]) -> dict[str
         "max_risk_score": max(risk_scores) if risk_scores else 0.0,
         "min_risk_score": min(risk_scores) if risk_scores else 0.0,
         "readiness_distribution": [
-            {"bucket": "ready", "files": readiness_distribution["ready"]},
-            {
-                "bucket": "requires_manual_fixes",
-                "files": readiness_distribution["requires_manual_fixes"],
-            },
-            {
-                "bucket": "not_ready",
-                "files": readiness_distribution["not_ready"],
-            },
+            {"bucket": bucket, "files": readiness_distribution[bucket]}
+            for bucket in LEGACY_READINESS_BUCKETS
+        ],
+        "migration_readiness_distribution": [
+            {"bucket": bucket, "files": migration_readiness_distribution[bucket]}
+            for bucket in READINESS_BUCKETS
         ],
         "top_risk_files": _top_risk_files(files),
     }
@@ -339,7 +343,7 @@ def _hotspots(files: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
             _import_package(candidate["import"]) for candidate in item["unresolved_imports"]
         )
         annotations.update(annotation["simple_name"] for annotation in item["annotations"])
-        risk_reasons.update(_risk_reason_labels(item["risk_reasons"]))
+        risk_reasons.update(_risk_reason_labels(item["migration_readiness"]["reasons"]))
 
     return {
         "unhandled_node_types": _counter_payload(unhandled_types, "node_type"),
@@ -489,6 +493,8 @@ def _top_risk_files(
             "risk_score": item["risk_score"],
             "risk_band": item["risk_band"],
             "readiness_bucket": item["readiness_bucket"],
+            "migration_bucket": item["migration_readiness"]["bucket"],
+            "next_action": item["migration_readiness"]["next_action"],
             "rule_coverage": item["translation"]["rule_coverage"],
         }
         for item in ranked[:limit]
@@ -499,11 +505,14 @@ def _readiness_bucket_counts(files: list[dict[str, Any]]) -> dict[str, int]:
     counts: Counter[str] = Counter()
     for item in files:
         counts[item["readiness_bucket"]] += 1
-    return {
-        "ready": counts.get("ready", 0),
-        "requires_manual_fixes": counts.get("requires_manual_fixes", 0),
-        "not_ready": counts.get("not_ready", 0),
-    }
+    return {bucket: counts.get(bucket, 0) for bucket in LEGACY_READINESS_BUCKETS}
+
+
+def _migration_readiness_bucket_counts(files: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for item in files:
+        counts[item["migration_readiness"]["bucket"]] += 1
+    return {bucket: counts.get(bucket, 0) for bucket in READINESS_BUCKETS}
 
 
 def _file_risk_profile(
@@ -516,124 +525,26 @@ def _file_risk_profile(
     todo_count: int,
     unresolved_import_count: int,
 ) -> tuple[float, str, str, list[dict[str, Any]]]:
-    if not parse_ok:
-        return (
-            100.0,
-            "critical",
-            "not_ready",
-            [
-                {
-                    "reason": "parse_errors",
-                    "count": parse_error_count,
-                    "weight": 100.0,
-                },
-            ],
-        )
-
-    reasons: list[dict[str, Any]] = []
-
-    coverage_gap = max(0.0, 1.0 - max(0.0, min(1.0, rule_coverage)))
-    coverage_weight = round(coverage_gap * _RISK_RULE_COVERAGE_WEIGHT, 3)
-    if coverage_weight > 0.0:
-        reasons.append(
-            {
-                "reason": "low_rule_coverage",
-                "count": int(round(coverage_gap * 100)),
-                "weight": coverage_weight,
-            },
-        )
-
-    warning_count = max(0, semantic_warning_count)
-    warning_weight = round(min(warning_count, 24) * _RISK_WARNING_WEIGHT_PER_UNIT, 3)
-    if warning_weight > 0.0:
-        reasons.append(
-            {
-                "reason": "semantic_warnings",
-                "count": warning_count,
-                "weight": warning_weight,
-            },
-        )
-
-    unhandled_weight = round(
-        min(max(0, unhandled_count), 20) * _RISK_UNHANDLED_WEIGHT_PER_UNIT,
-        3,
+    profile = migration_readiness_profile(
+        parse_ok=parse_ok,
+        parse_error_count=parse_error_count,
+        rule_coverage=rule_coverage,
+        semantic_warnings=[{} for _ in range(max(0, semantic_warning_count))],
+        unhandled=[{} for _ in range(max(0, unhandled_count))],
+        todo_count=todo_count,
+        unresolved_imports=[
+            {"category": "external-import"} for _ in range(max(0, unresolved_import_count))
+        ],
+        annotations=[],
+        validation=None,
     )
-    if unhandled_weight > 0.0:
-        reasons.append(
-            {
-                "reason": "unhandled_nodes",
-                "count": unhandled_count,
-                "weight": unhandled_weight,
-            },
-        )
-
-    todo_weight = round(min(max(0, todo_count), 20) * _RISK_TODO_WEIGHT_PER_UNIT, 3)
-    if todo_weight > 0.0:
-        reasons.append(
-            {
-                "reason": "todo_markers",
-                "count": todo_count,
-                "weight": todo_weight,
-            },
-        )
-
-    unresolved_import_weight = round(
-        min(max(0, unresolved_import_count), 30) * _RISK_UNRESOLVED_IMPORT_WEIGHT_PER_UNIT,
-        3,
+    band = str(profile["risk_band"])
+    return (
+        float(profile["risk_score"]),
+        band,
+        legacy_readiness_bucket(str(profile["bucket"]), band),
+        profile["reasons"],
     )
-    if unresolved_import_weight > 0.0:
-        reasons.append(
-            {
-                "reason": "unresolved_imports",
-                "count": unresolved_import_count,
-                "weight": unresolved_import_weight,
-            },
-        )
-
-    risk_score = min(
-        100.0,
-        round(
-            coverage_weight
-            + warning_weight
-            + unhandled_weight
-            + todo_weight
-            + unresolved_import_weight,
-            3,
-        ),
-    )
-
-    reasons = sorted(
-        (
-            {
-                "reason": item["reason"],
-                "count": int(item["count"]),
-                "weight": round(float(item["weight"]), 3),
-            }
-            for item in reasons
-        ),
-        key=lambda item: (item["weight"], item["count"], item["reason"]),
-        reverse=True,
-    )[:_RISK_REASONS_LIMIT]
-    risk_band = _risk_band(risk_score)
-    return risk_score, risk_band, _readiness_bucket(risk_band), reasons
-
-
-def _risk_band(score: float) -> str:
-    if score >= _RISK_BAND_THRESHOLD_CRITICAL:
-        return "critical"
-    if score >= _RISK_BAND_THRESHOLD_HIGH:
-        return "high"
-    if score >= _RISK_BAND_THRESHOLD_MEDIUM:
-        return "medium"
-    return "low"
-
-
-def _readiness_bucket(band: str) -> str:
-    if band in {"critical", "high"}:
-        return "not_ready"
-    if band == "medium":
-        return "requires_manual_fixes"
-    return "ready"
 
 
 def _risk_reason_labels(items: list[dict[str, Any]]) -> list[str]:

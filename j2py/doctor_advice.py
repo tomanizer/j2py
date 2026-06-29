@@ -64,6 +64,7 @@ def build_doctor_advice_context(
             "max_risk_score": summary.get("max_risk_score", 0.0),
             "min_risk_score": summary.get("min_risk_score", 0.0),
             "readiness_distribution": summary.get("readiness_distribution", []),
+            "migration_readiness_distribution": summary.get("migration_readiness_distribution", []),
             "top_risk_files": _take(top_risk_files, max_evidence_items),
         },
         "issue_slices": {
