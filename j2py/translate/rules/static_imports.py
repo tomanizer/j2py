@@ -29,6 +29,7 @@ KNOWN_STATIC_METHOD_IMPORTS: frozenset[str] = frozenset(
         "java.lang.Math.ceil",
         "java.lang.Math.round",
         "java.lang.Math.log",
+        "java.util.Arrays.copyOfRange",
         "java.util.Arrays.equals",
         "java.util.Collections.unmodifiableList",
         "java.util.Objects.equals",

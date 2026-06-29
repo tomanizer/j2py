@@ -362,6 +362,50 @@ def test_static_standard_library_methods_translate_to_python_equivalents() -> No
     assert_valid_python(result.source)
 
 
+def test_arrays_copy_of_range_lowers_to_slices() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Arrays;
+        import static java.util.Arrays.copyOfRange;
+
+        public class ArrayCopies {
+            public String[] tail(String[] values, int start) {
+                return Arrays.copyOfRange(values, start, values.length);
+            }
+
+            public String[] middle(String[] values, int start, int end) {
+                return Arrays.copyOfRange(values, start, end);
+            }
+
+            public String[] head(String[] values, int end) {
+                return Arrays.copyOfRange(values, 0, end);
+            }
+
+            public String[] whole(String[] values) {
+                return copyOfRange(values, 0, values.length);
+            }
+
+            public String[] chosen(
+                    boolean useLeft, String[] left, String[] right, int start, int end) {
+                return Arrays.copyOfRange(useLeft ? left : right, start, end);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return values[start:]" in result.source
+    assert "return values[start:end]" in result.source
+    assert "return values[:end]" in result.source
+    assert "return values[:]" in result.source
+    assert "return (left if use_left else right)[start:end]" in result.source
+    assert "copy_of_range" not in result.source
+    assert "copyOfRange" not in result.source
+    assert "Arrays." not in result.source
+    assert_valid_python(result.source)
+
+
 def test_receiverless_static_sibling_method_calls_are_class_qualified() -> None:
     result = translate_source_with_diagnostics(
         """

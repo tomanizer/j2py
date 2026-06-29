@@ -163,10 +163,4 @@ def test_residual_gap_inventory() -> None:
     applied = set(_NS.applied_gaps)
     declared = {gap.gap_id for gap in _RESIDUAL_GAP_PATCHES}
     # Every documented gap is a real defect that actually fired on the current output.
-    assert (
-        applied
-        == declared
-        == {
-            "JSEMVER-5",
-        }
-    )
+    assert applied == declared == set()

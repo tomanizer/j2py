@@ -80,16 +80,11 @@ harnesses:
 
 - `java.util.Arrays` — minimal `toString`.
 
-### Residual translator defects (the failure list)
+### Residual translator defects (closed list)
 
-Each remaining entry is a real defect in the deterministic rule-layer output. The harness
-applies one minimal, documented patch per gap so the loop can close; the gap inventory is
-locked by `test_residual_gap_inventory`. **This list is the deliverable** — it is exactly
-where the current rule layer emits Python that does not preserve the Java.
-
-| Gap id | Module | Defect |
-|---|---|---|
-| `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(...)` not lowered to a Python slice. |
+The locked residual translator-defect list is now empty: the harness applies no
+translator-gap patches for the `util` package before running the ported `StreamTest`
+cases. `test_residual_gap_inventory` keeps that zero-patch state locked.
 
 `JSEMVER-1`, which emitted Java `RuntimeException` as a same-package import instead of a
 Python builtin exception base, was removed from the residual list by the deterministic
@@ -103,7 +98,9 @@ argument into control-flow (exception chaining), was removed from the residual l
 deterministic throw-constructor fix tracked in issue #641. `JSEMVER-2`, which emitted
 Java array `.clone()` as a Python method call instead of a shallow list copy, was removed
 from the residual list by the deterministic array-copy lowering fix tracked in issue
-#645.
+#645. `JSEMVER-5`, which emitted `java.util.Arrays.copyOfRange(...)` as an unresolved
+helper call instead of a Python slice, was removed from the residual list by the
+deterministic slice-lowering fix tracked in issue #646.
 
 ## Honest scope and conclusion
 
@@ -111,16 +108,14 @@ from the residual list by the deterministic array-copy lowering fix tracked in i
   against j2py output in-repo, hermetically, in `make check`.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
-- **Correctness has a measured, enumerated gap:** 1 concrete translator defect still blocks a
-  ~400-LOC, 14-test package from running as-translated. Extrapolated across the 139 `F821`
+- **Correctness has a measured, enumerated boundary:** 0 residual translator-defect
+  patches are now needed for this ~400-LOC, 14-test package. Extrapolated across the 139 `F821`
   findings on the full tree, the larger `Version` / `expr` / parser surface will surface
   more of the same categories (sibling static refs, inner-class binding, JDK lowering).
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Promote the remaining `JSEMVER-*` defect into a deterministic rule-layer fix with
-   fixtures, then drop the corresponding harness patches.
-2. Extend the closed loop to the `Version` value class (parse / compare / increment /
+1. Extend the closed loop to the `Version` value class (parse / compare / increment /
    `toString`) — the library's core and the bulk of `VersionTest`.
-3. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
+2. Add a `jsemver-baseline.json` corpus baseline once the tree is run through
    `translate_corpus.py` so the full-tree node-coverage number is regression-gated.
