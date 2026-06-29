@@ -203,7 +203,7 @@ def test_lenient_format(template: str | None, args: tuple[object, ...], expected
 def test_excluded_upstream_helper_surfaces_are_documented() -> None:
     doc = (
         Path(__file__).parent.parent.parent / "docs" / "CASE_STUDY_GUAVA_BASE_STRINGS.md"
-    ).read_text()
+    ).read_text(encoding="utf-8")
     for phrase in ("badArgumentToString", "null `Object[]` varargs", "NullPointerTester"):
         assert phrase in doc
 
