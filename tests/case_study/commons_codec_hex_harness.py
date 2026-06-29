@@ -199,6 +199,8 @@ class _ByteBuffer:
 class _Character:
     @staticmethod
     def digit(ch: str, radix: int) -> int:
+        if len(ch) != 1:
+            return -1
         try:
             value = int(ch, radix)
         except ValueError:
