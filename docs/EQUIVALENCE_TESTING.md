@@ -17,7 +17,7 @@ generated `Strings.lenientFormat` non-empty-varargs gap. Run alone with:
 
 ```bash
 make test-equivalence         # just the equivalence gate
-make equivalence-report       # equivalence gate + verified-surface JSON/table
+make equivalence-report       # equivalence gate + fixture/library-wide surface report
 make harvest-equivalence TEST_SOURCE=... TARGET_CLASS=... JAVA_FIXTURE=... WRITE=/tmp/draft.py
 make check                    # includes equivalence (along with all other tests)
 ```
@@ -101,7 +101,7 @@ JVM, and gates PRs like the existing behaviour corpus.
 | **Correspondence manifest** | Emitted by j2py at translation time: `Java FQN + signature → Python module + qualname`. Links oracle to verifier. | Normal |
 | **Dependency resolver / stubber** | Make a translated class importable in isolation: translate its dependency closure, or inject stubs for helpers the tested methods don't exercise, and supply any reference the translation left unimported. Surfaced as mandatory by the tracer bullet (§8). | Normal |
 | **Comparator / normalizer** | The written equivalence relation: numeric/overflow, collection ordering, exception mapping, null/None. | High |
-| **Surface metric** | Compute equivalence-verified surface % and size the untestable bucket. | Normal |
+| **Surface metric** | Compute verified fixture-surface %, library-wide %, and the untestable bucket. | Normal |
 
 ## 5. Test tiers and the dropped-expression decision
 
@@ -168,7 +168,9 @@ math**.
 - ✅ CharUtils overload coverage, NumberUtils min/max/isNumber, create-family methods,
   BigDecimal conversions, `createNumber`, plus new BooleanUtils and Guava Strings
   fixture coverage are now represented in the public-surface floor. The current floor is
-  **120/152 public signatures**.
+  a verified fixture surface of **120/152 public signatures**; the paired pinned
+  library-wide denominator is **118/11057 public signatures** across the Commons Lang and
+  Guava source roots.
 
 **Remaining:**
 - Emit the correspondence manifest from the translator (Java FQN → Python qualname map)
@@ -176,7 +178,8 @@ math**.
 
 ### Phase 2 — Measure and decide on folding
 - ✅ Add Java method-coverage capture to the oracle pass.
-- ✅ Report equivalence-verified surface % per library and size the untestable bucket.
+- ✅ Report verified fixture-surface % per library, the paired library-wide denominator,
+  and the untestable bucket.
 - **Decision gate:** if coverage shows important methods unverified *because* their tests
   were expression-oracle, build the JVM constant-folding step. Otherwise, don't.
 
@@ -184,7 +187,8 @@ math**.
 - Generalize input handling to value objects/records; expand record-replay across whole
   suites.
 - Freeze golden vectors as committed fixtures so the every-commit path is CPython-only.
-- Make equivalence-verified surface a headline scoreboard alongside node coverage.
+- Make verified fixture and library-wide surfaces headline scoreboards alongside node
+  coverage.
 - Add property-based fuzzing as the additive breadth source.
 
 ## 8. Tracer-bullet validation (2026-06-14)
@@ -230,22 +234,30 @@ committed under `tests/fixtures/equivalence/` as the Phase 1 harvester seed.
 ## 9. Metrics (the new scoreboard)
 
 Per library, per run:
-- **Equivalence-verified surface %** — public methods with ≥1 passing differential test ÷
-  all public Java method signatures in the measured fixture.
+- **Verified fixture surface %** — public methods with at least one passing differential
+  test divided by all public Java method signatures in the measured fixture files.
+- **Library-wide surface %** — verified non-synthetic fixture methods present in the
+  pinned source checkout divided by all public Java method signatures in that library's
+  configured source roots.
 - **Untestable bucket** — count and reasons (reflection / threads / time / random / I/O).
 - **Inputs per verified method** — confidence grows with volume.
 - **Divergences** — the gold; each opens a bug ticket. Trend to zero.
 
-The implemented report publishes both denominators:
+The implemented report publishes both fixture denominators and the library-wide
+denominator:
 
-- **Verified public surface %** — public Java method signatures with ≥1 passing
-  literal-oracle pytest item ÷ all public Java method signatures in the fixture.
+- **Verified fixture public surface %** — public Java method signatures with at least one
+  passing literal-oracle pytest item divided by all public Java method signatures in the
+  fixture.
 - **Verified testable surface %** — the same numerator ÷ public signatures minus the
   explicitly untestable bucket.
+- **Verified library surface %** — verified non-synthetic fixture method signatures that
+  exist in the pinned library source checkout divided by all public Java method
+  signatures in that library's configured source roots.
 
 Run `make equivalence-report` to generate `corpus-reports/equivalence-surface.json` and
-print the per-fixture table. The target also checks the generated report against the
-checked-in ratchet floor at
+print the fixture and library-wide tables. The target also checks the generated report
+against the checked-in fixture-surface ratchet floor at
 `tests/fixtures/equivalence/equivalence-surface-floor.json`. CI writes the same JSON
 artifact from the Python 3.11 test job, checks it against that floor, and uploads the
 artifact. Tests opt into the numerator with
@@ -273,19 +285,27 @@ Do not lower the floor in ordinary feature work. If the measured Java fixture su
 changes for a legitimate reason, call that out in the PR and keep the generated
 `equivalence-surface.json` artifact as evidence.
 
-Current public-surface snapshot:
+Current surface snapshot:
 
-By library:
+Fixture surface by library:
 
-| Library | Verified / public | Public surface | Verified / testable | Untestable |
+| Library | Verified fixture / fixture public | Fixture public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
 | `commons-lang` | 109/141 | 77.3% | 109/141 (77.3%) | 0 |
 | `guava` | 11/11 | 100.0% | 11/11 (100.0%) | 0 |
 | **Total** | 120/152 | 78.9% | 120/152 (78.9%) | 0 |
 
+Library-wide denominator:
+
+| Library | Verified library methods | Library public methods | Library-wide surface | Source |
+|---|---:|---:|---:|---|
+| `commons-lang` | 109 | 3301 | 3.3% | `commons-lang-dense` checkout, 249 files |
+| `guava` | 9 | 7756 | 0.1% | `guava-dense` checkout, 614 files |
+| **Total** | 118 | 11057 | 1.1% | all pinned checkouts |
+
 By fixture:
 
-| Fixture | Verified / public | Public surface | Verified / testable | Untestable |
+| Fixture | Verified / fixture public | Fixture public surface | Verified / testable | Untestable |
 |---|---:|---:|---:|---:|
 | `BooleanUtils.java` | 15/46 | 32.6% | 15/46 (32.6%) | 0 |
 | `CharUtils.java` | 23/23 | 100.0% | 23/23 (100.0%) | 0 |
