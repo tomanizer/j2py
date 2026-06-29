@@ -389,7 +389,7 @@ def _file_enum_constant_paths(root: JavaNode) -> dict[str, str]:
                     continue
                 const_node = child.child_by_field("name")
                 const_name = (
-                    const_node.text if const_node is not None else child.text.split("(", 1)[0]
+                    const_node.text if const_node is not None else child.text.split('(', 1)[0].strip()
                 )
                 const_path = f"{qualified}.{const_name}"
                 if const_name in paths and paths[const_name] != const_path:
