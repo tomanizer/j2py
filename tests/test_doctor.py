@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from j2py.config.loader import ConfigLoader
 from j2py.doctor import (
     DOCTOR_SCHEMA_VERSION,
@@ -326,3 +328,19 @@ def test_doctor_assessment_html_is_static(tmp_path: Path) -> None:
     assert "Ready files" in html
     assert "<script" not in html
     assert "https://" not in html
+
+
+def test_load_assessment_json_rejects_unsupported_schema_version(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text(json.dumps({"schema_version": DOCTOR_SCHEMA_VERSION - 1}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unsupported doctor schema_version"):
+        load_assessment_json(path)
+
+
+def test_load_assessment_json_rejects_non_integer_schema_version(tmp_path: Path) -> None:
+    path = tmp_path / "assessment.json"
+    path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid doctor schema_version"):
+        load_assessment_json(path)

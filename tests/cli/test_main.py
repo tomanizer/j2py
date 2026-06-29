@@ -10,6 +10,7 @@ import j2py.pipeline as pipeline
 from j2py.cli import compare as cli_compare
 from j2py.cli.main import app
 from j2py.cli.output import console
+from j2py.doctor import DOCTOR_SCHEMA_VERSION
 from j2py.llm.review import LlmReviewFinding
 from j2py.validate.checks import ValidationResult
 from j2py.verify.structure import StructuralVerificationResult
@@ -1373,8 +1374,9 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     before.write_text(
         json.dumps(
         {
-                "source": "before-src",
-                "summary": {
+            "schema_version": DOCTOR_SCHEMA_VERSION,
+            "source": "before-src",
+            "summary": {
                     "files": 1,
                     "classes": 1,
                     "average_rule_coverage": 0.5,
@@ -1419,6 +1421,7 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     after.write_text(
         json.dumps(
             {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
                 "source": "after-src",
                 "summary": {
                     "files": 1,
@@ -1465,6 +1468,38 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     assert "Unresolved imports: 1 removed, 0 added" in result.output
     payload = json.loads(diff_json.read_text())
     assert payload["summary_delta"]["unresolved_imports"] == -1
+
+
+def test_cli_doctor_diff_rejects_wrong_schema_version(tmp_path: Path) -> None:
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION - 1,
+                "source": "before-src",
+                "files": [],
+                "summary": {"files": 0},
+            }
+        )
+    )
+    after.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "after-src",
+                "files": [],
+                "summary": {"files": 0},
+            }
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["doctor", "diff", str(before), str(after)])
+
+    assert result.exit_code == 1
+    assert "unsupported doctor" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_cli_doctor_diff_without_operands_reports_usage() -> None:
