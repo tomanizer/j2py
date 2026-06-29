@@ -51,7 +51,7 @@ backed by
 [`tests/case_study/commons_codec_hex_harness.py`](../tests/case_study/commons_codec_hex_harness.py).
 
 Result: **27 / 27 focused upstream-derived Hex assertions pass** against the linked
-rule-layer translation, plus one bounded `ByteBuffer` stub regression for the
+rule-layer translation, plus one bounded `ByteBuffer` stub regression test for the
 case-study platform scaffold.
 
 Covered surface:
