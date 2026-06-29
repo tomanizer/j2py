@@ -288,6 +288,7 @@ def base_suffix(
     node: JavaNode,
     diagnostics: TranslationDiagnostics | None = None,
     *,
+    cfg: TranslationConfig | None = None,
     resolver: NameResolver | None = None,
     scope: NameScope | None = None,
     extra_bases: list[str] | None = None,
@@ -302,7 +303,7 @@ def base_suffix(
     if superclass is not None:
         type_node = _superclass_type_node(superclass)
         if type_node is not None:
-            add_base(_superclass_binding(type_node.text, diagnostics, resolver, scope))
+            add_base(_superclass_binding(type_node.text, diagnostics, cfg, resolver, scope))
     for base in extra_bases or []:
         add_base(base)
     if "abstract" in _modifiers(node):
@@ -315,6 +316,7 @@ def base_suffix(
 def _superclass_binding(
     raw_name: str,
     diagnostics: TranslationDiagnostics | None,
+    cfg: TranslationConfig | None,
     resolver: NameResolver | None,
     scope: NameScope | None,
 ) -> str:
@@ -328,6 +330,12 @@ def _superclass_binding(
     ``translate_class_name`` fallback keeps a class name when no binding source resolves.
     """
     simple = raw_name.rsplit(".", 1)[-1]
+    if simple == "RuntimeException":
+        if diagnostics is not None:
+            diagnostics.imports.need_line("from j2py_runtime import RuntimeException")
+        return "RuntimeException"
+    if cfg is not None and simple in cfg.exception_map:
+        return cfg.exception_map[simple]
     if resolver is None or scope is None:
         return translate_class_name(simple)
     py_name = translate_class_name(simple)

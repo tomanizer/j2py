@@ -79,8 +79,6 @@ translated logic — analogous to the dependency stubs in the `tuple` and equiva
 harnesses:
 
 - `java.util.Arrays` — minimal `toString`.
-- `java.lang.RuntimeException` base — Python `Exception` plus a `get_message()` shim for
-  the `Throwable.getMessage()` the test calls.
 
 ### Residual translator defects (the failure list)
 
@@ -91,18 +89,19 @@ where the current rule layer emits Python that does not preserve the Java.
 
 | Gap id | Module | Defect |
 |---|---|---|
-| `JSEMVER-1` | `UnexpectedElementException` | JDK builtin `RuntimeException` emitted as a sibling-package import (`from ...util.RuntimeException import RuntimeException`). |
 | `JSEMVER-2` | `Stream` | Java array `.clone()` not lowered to a Python copy (`elements.clone()` → `AttributeError`). |
 | `JSEMVER-5` | `Stream` | `java.util.Arrays.copyOfRange(...)` not lowered to a Python slice. |
 
-`JSEMVER-6`, which emitted Java-style `next_`/`has_next` without Python `__iter__` /
-`__next__` bridges on an anonymous `Iterator`, was removed from the residual list by the
-deterministic iterator-protocol fix tracked in issue #643. `JSEMVER-3`, which emitted a
-bare enclosing-field reference in an anonymous-class field initializer, was removed from
-the residual list by the deterministic anonymous-capture fix tracked in issue #642.
-`JSEMVER-4`, which had turned a constructor argument into control-flow (exception
-chaining), was removed from the residual list by the deterministic throw-constructor fix
-tracked in issue #641.
+`JSEMVER-1`, which emitted Java `RuntimeException` as a same-package import instead of a
+Python builtin exception base, was removed from the residual list by the deterministic
+superclass-binding fix tracked in issue #644. `JSEMVER-6`, which emitted Java-style
+`next_`/`has_next` without Python `__iter__` / `__next__` bridges on an anonymous
+`Iterator`, was removed from the residual list by the deterministic iterator-protocol fix
+tracked in issue #643. `JSEMVER-3`, which emitted a bare enclosing-field reference in an
+anonymous-class field initializer, was removed from the residual list by the deterministic
+anonymous-capture fix tracked in issue #642. `JSEMVER-4`, which had turned a constructor
+argument into control-flow (exception chaining), was removed from the residual list by the
+deterministic throw-constructor fix tracked in issue #641.
 
 ## Honest scope and conclusion
 
@@ -110,14 +109,14 @@ tracked in issue #641.
   against j2py output in-repo, hermetically, in `make check`.
 - **Mechanical coverage is genuinely high:** 26/26 files parse, zero TODO markers — the
   rule layer is not bluffing about reach.
-- **Correctness has a measured, enumerated gap:** 3 concrete translator defects still block a
+- **Correctness has a measured, enumerated gap:** 2 concrete translator defects still block a
   ~400-LOC, 14-test package from running as-translated. Extrapolated across the 139 `F821`
   findings on the full tree, the larger `Version` / `expr` / parser surface will surface
   more of the same categories (sibling static refs, inner-class binding, JDK lowering).
 
 ### Next steps (tracked under #613 follow-ups)
 
-1. Promote the remaining three `JSEMVER-*` defects into deterministic rule-layer fixes with
+1. Promote the remaining two `JSEMVER-*` defects into deterministic rule-layer fixes with
    fixtures, then drop the corresponding harness patches.
 2. Extend the closed loop to the `Version` value class (parse / compare / increment /
    `toString`) — the library's core and the bulk of `VersionTest`.

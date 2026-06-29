@@ -39,6 +39,7 @@ __all__ = [
     "Consumer",
     "MalformedObjectNameException",
     "ObjectName",
+    "RuntimeException",
     "__j2py_todo__",
     "_j2py_idiv",
     "_j2py_monitor",
@@ -74,6 +75,13 @@ class Consumer(Protocol[_T_contra]):
     """Protocol placeholder for ``java.util.function.Consumer``."""
 
     def accept(self, value: _T_contra) -> None: ...
+
+
+class RuntimeException(Exception):
+    """Runtime stand-in for ``java.lang.RuntimeException`` / ``Throwable`` basics."""
+
+    def get_message(self) -> str:
+        return str(self)
 
 
 # Java intrinsic monitors are keyed by *object identity*, never by ``equals``/

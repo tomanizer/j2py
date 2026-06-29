@@ -212,6 +212,7 @@ def test_nested_empty_annotated_class_emits_pass() -> None:
     )
 
     assert result.coverage == 1.0
+    assert "from j2py_runtime import RuntimeException" in result.source
     assert "class EarlyExitException(RuntimeException):" in result.source
     assert "    pass" in result.source
     assert_valid_python(result.source)

@@ -167,7 +167,6 @@ def test_residual_gap_inventory() -> None:
         applied
         == declared
         == {
-            "JSEMVER-1",
             "JSEMVER-2",
             "JSEMVER-5",
         }

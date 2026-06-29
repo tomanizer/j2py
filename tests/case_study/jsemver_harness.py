@@ -12,8 +12,8 @@ deterministic rule layer gets on real library code and to publish the residual g
 Two kinds of intervention are applied before the translated source can run, and the
 case-study doc (docs/CASE_STUDY_JSEMVER.md) keeps them strictly separate:
 
-* ``_EXTERNAL_STUBS`` — JDK/runtime symbols that are *not under test* (``Arrays``,
-  ``RuntimeException`` base). These are scaffolding, exactly like the dependency stubs in
+* ``_EXTERNAL_STUBS`` — JDK/runtime symbols that are *not under test* (``Arrays``).
+  These are scaffolding, exactly like the dependency stubs in
   ``tests/case_study/harness.py`` and ``tests/equivalence/harness.py``.
 
 * ``_RESIDUAL_GAP_PATCHES`` — concrete *translator defects* found in the rule-layer
@@ -64,13 +64,6 @@ class ResidualGap:
 # rewrite. See docs/CASE_STUDY_JSEMVER.md for the analysis behind each gap id.
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
     ResidualGap(
-        gap_id="JSEMVER-1",
-        module="UnexpectedElementException",
-        summary="JDK builtin RuntimeException emitted as a sibling-package import",
-        bad="from com.github.zafarkhaja.semver.util.RuntimeException import RuntimeException",
-        good="",
-    ),
-    ResidualGap(
         gap_id="JSEMVER-2",
         module="Stream",
         summary="Java array .clone() not lowered to a Python copy",
@@ -96,13 +89,6 @@ def _arrays_stub() -> types.SimpleNamespace:
         return f"[{', '.join(str(v) for v in values)}]"
 
     return types.SimpleNamespace(to_string=to_string)
-
-
-class _RuntimeException(Exception):
-    """Stand-in for ``java.lang.RuntimeException`` with Throwable's ``getMessage``."""
-
-    def get_message(self) -> str:
-        return str(self)
 
 
 def translate_util_package() -> dict[str, str]:
@@ -134,7 +120,6 @@ def link_util_namespace() -> types.SimpleNamespace:
     sources = translate_util_package()
     shared: dict[str, Any] = {
         "Arrays": _arrays_stub(),
-        "RuntimeException": _RuntimeException,
     }
     applied_gaps: list[str] = []
 
