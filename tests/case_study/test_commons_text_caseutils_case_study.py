@@ -111,6 +111,6 @@ def test_residual_gap_inventory() -> None:
     applied = set(_NS.applied_gaps)
     declared = {gap.gap_id for gap in _RESIDUAL_GAP_PATCHES}
     assert applied == declared
-    # CT-1 (String(int[], offset, count) lowering) is fixed at the rule layer; CT-2/CT-3
-    # remain until their JDK call lowerings land.
-    assert declared == {"CT-2", "CT-3"}
+    # CT-1 (String(int[], offset, count) constructor), CT-2 (locale-qualified toLowerCase),
+    # and CT-3 (String.codePointAt) are all fixed at the rule layer; no patches remain.
+    assert declared == set()

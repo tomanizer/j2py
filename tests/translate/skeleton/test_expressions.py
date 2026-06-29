@@ -1495,6 +1495,79 @@ def test_char_at_compared_to_char_literal_is_str_comparison() -> None:
     assert_valid_python(python_source)
 
 
+def test_code_point_at_lowers_to_ord_subscript() -> None:
+    """String.codePointAt(i) returns the int code point, so it lowers to ord(text[i])."""
+    python_source, coverage = translate_source(
+        """
+        public class Points {
+            public int first(String text) {
+                return text.codePointAt(0);
+            }
+
+            public int at(String text, int index) {
+                return text.codePointAt(index);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "return ord(text[0])" in python_source
+    assert "return ord(text[index])" in python_source
+    assert "code_point_at" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_to_lower_upper_case_locale_overload_lowers_to_python_case() -> None:
+    """toLowerCase(Locale.ROOT)/toUpperCase(Locale.ROOT) drop the locale-insensitive arg."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Locale;
+
+        public class Cases {
+            public String down(String text) {
+                return text.toLowerCase(Locale.ROOT);
+            }
+
+            public String up(String text) {
+                return text.toUpperCase(Locale.ENGLISH);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return text.lower()" in result.source
+    assert "return text.upper()" in result.source
+    assert "to_lower_case" not in result.source
+    assert "to_upper_case" not in result.source
+    assert "Locale" not in result.source
+    # ROOT/ENGLISH are ASCII-equivalent, so no locale-divergence warning.
+    assert result.diagnostics.semantic_warning_count == 0
+    assert_valid_python(result.source)
+
+
+def test_to_lower_case_locale_sensitive_locale_warns() -> None:
+    """A locale-sensitive locale still lowers but flags that casing may diverge."""
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Locale;
+
+        public class Cases {
+            public String down(String text, Locale turkish) {
+                return text.toLowerCase(turkish);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "return text.lower()" in result.source
+    assert result.diagnostics.semantic_warning_count >= 1
+    assert_valid_python(result.source)
+
+
 def test_char_array_access_with_char_index_uses_ord_index() -> None:
     python_source, coverage = translate_source(
         """

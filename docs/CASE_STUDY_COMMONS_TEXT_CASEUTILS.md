@@ -50,11 +50,13 @@ Rule layer only, no LLM (`translate_file(..., use_llm=False, validate=False)`):
 |---|---:|---:|---:|---:|
 | `CaseUtils.java` | 100% | 0 | 0.99 | 6 |
 
-This slice is the sharpest evidence yet that **node coverage and confidence do not prove
+This slice was the sharpest evidence yet that **node coverage and confidence do not prove
 executable behavior**: at 100% coverage / 0.99 confidence, the *first* translation of
-`toCamelCase` returned the empty string for **every** input (CT-1, since fixed at the rule
-layer). None of the 6 semantic warnings (4 preserved comments, 2 `outOffset++` desugar
-notes) pointed at any of the defects below — coverage and confidence were blind to them.
+`toCamelCase` returned the empty string for **every** input (CT-1). None of the 6 semantic
+warnings (4 preserved comments, 2 `outOffset++` desugar notes) pointed at any of the
+defects below — coverage and confidence were blind to them. The three execution defects
+(CT-1, CT-2, CT-3) have since been fixed at the rule layer, so the oracle now runs against
+the linked translation with **no residual patches at all**.
 
 ## Closed loop
 
@@ -89,15 +91,15 @@ scaffolding, not residual translator patches:
 
 ## Translator defects
 
-The harness locks the **active** generated-output defects in `_RESIDUAL_GAP_PATCHES`. Each
-active patch is a real rule-layer bug, applied only so the oracle can run end-to-end; each
-should become a rule-layer fix that removes its patch.
+The harness locks the **active** generated-output defects in `_RESIDUAL_GAP_PATCHES`,
+which is now empty: every execution defect this slice surfaced has been fixed at the rule
+layer. Each fix below removed its patch.
 
-| Gap id | Status | Module | Generated-output defect |
+| Gap id | Status | Module | Defect and fix |
 |---|---|---|---|
 | CT-1 | **Fixed** | `CaseUtils` | `new String(int[] codePoints, int offset, int count)` was not lowered — the body fell through to an empty `str()`, so `toCamelCase` always returned `""` with **no diagnostic**. The 3-arg `String(value, offset, count)` constructor now lowers per source-array element type (`int[]` → `chr` per code point, `char[]` → `"".join`, `byte[]` → decode). Fixed in `j2py/translate/expr_objects.py`; covered by `test_new_string_offset_count_constructor_lowers_per_element_kind`. |
-| CT-2 | Active patch | `CaseUtils` | `String.toLowerCase(Locale.ROOT)` is not lowered to `str.lower()`; it emits a non-existent `str.to_lower_case(Locale.ROOT)` call and leaves `Locale` unbound (`NameError`). The locale-qualified overload defeats JDK call lowering. |
-| CT-3 | Active patch | `CaseUtils` | `String.codePointAt(int)` is not lowered to `ord(str[index])`; it emits a non-existent `str.code_point_at(index)` call. |
+| CT-2 | **Fixed** | `CaseUtils` | `String.toLowerCase(Locale.ROOT)` emitted a non-existent `str.to_lower_case(Locale.ROOT)` call and left `Locale` unbound. The single-`Locale` overload of `toLowerCase`/`toUpperCase` now lowers to `str.lower()`/`str.upper()`; ASCII-equivalent locales (`Locale.ROOT`/`ENGLISH`/`US`/…) are exact, others emit a locale-sensitivity warning. Fixed in `j2py/translate/expr_jdk_calls.py`; covered by `test_to_lower_upper_case_locale_overload_lowers_to_python_case` and `test_to_lower_case_locale_sensitive_locale_warns`. |
+| CT-3 | **Fixed** | `CaseUtils` | `String.codePointAt(int)` emitted a non-existent `str.code_point_at(index)` call. Now lowers to `ord(str[index])` (mirrors `charAt`'s code-point indexing). Fixed in `j2py/translate/expr_jdk_calls.py`; covered by `test_code_point_at_lowers_to_ord_subscript`. |
 
 A fourth observation is **not** a residual patch but a scoping exclusion:
 
@@ -113,10 +115,9 @@ A fourth observation is **not** a residual patch but a scoping exclusion:
 
 ## Follow-ups
 
-1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done** — see the table
-   above.
-2. Land rule-layer fixes for CT-2 (locale-qualified `toLowerCase`) and CT-3
-   (`String.codePointAt`), removing each patch from `_RESIDUAL_GAP_PATCHES`.
+1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done.**
+2. ~~CT-2 (locale-qualified `toLowerCase`/`toUpperCase`) and CT-3 (`String.codePointAt`).~~
+   **Done** — `_RESIDUAL_GAP_PATCHES` is now empty.
 3. Fix the `java.lang.Character` name-resolution misrouting (CT-4) so the bogus
    in-package import is not emitted.
 4. Expand to `WordUtils` once the string/code-point primitives above are owned by the

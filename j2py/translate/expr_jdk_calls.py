@@ -421,6 +421,24 @@ def _translate_char_at_call(
     return None
 
 
+def _translate_code_point_at_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    # codePointAt returns the int code point, unlike charAt (a char). Python str is a
+    # code-point sequence, so this mirrors charAt's index lowering wrapped in ord(). Like
+    # charAt, it indexes in code-point space rather than Java's UTF-16 code-unit space.
+    if args and len(arg_nodes) == 1:
+        return f"ord({receiver}[{args}])"
+    return None
+
+
 def _translate_starts_with_call(
     node: JavaNode,
     receiver: str,
@@ -537,6 +555,49 @@ def _translate_index_of_call(
     return None
 
 
+# Locales whose casing matches Python's Unicode-default str.lower()/str.upper().
+# Locale-sensitive locales (Turkish/Azeri dotless-i, Lithuanian) are not in this set.
+_ASCII_EQUIVALENT_LOCALES = frozenset(
+    {
+        "Locale.ROOT",
+        "Locale.ENGLISH",
+        "Locale.US",
+        "Locale.UK",
+        "Locale.CANADA",
+    }
+)
+
+
+def _translate_case_conversion_call(
+    node: JavaNode,
+    receiver: str,
+    method: str,
+    arg_nodes: list[JavaNode],
+    ctx: TranslationContext,
+) -> str | None:
+    """Lower String.toLowerCase/toUpperCase, including the Locale overload.
+
+    The no-arg and ``Locale`` overloads both map to Python ``str.lower()``/``upper()``,
+    which implements Unicode default (locale-independent) casing. Java's ``Locale.ROOT``
+    matches that exactly; a locale-sensitive locale may diverge, so flag it.
+    """
+    if not arg_nodes:
+        return f"{receiver}.{method}()"
+    # The only single-argument overload of String.toLowerCase/toUpperCase takes a Locale.
+    if len(arg_nodes) == 1:
+        if arg_nodes[0].text not in _ASCII_EQUIVALENT_LOCALES:
+            java_method = "toLowerCase" if method == "lower" else "toUpperCase"
+            ctx.diagnostics.warn(
+                node,
+                reason=(
+                    f"String.{java_method}({arg_nodes[0].text}) lowered to str.{method}(); "
+                    "locale-sensitive casing is not preserved"
+                ),
+            )
+        return f"{receiver}.{method}()"
+    return None
+
+
 def _translate_to_lower_case_call(
     node: JavaNode,
     receiver: str,
@@ -547,9 +608,7 @@ def _translate_to_lower_case_call(
     args: str,
     ctx: TranslationContext,
 ) -> str | None:
-    if not args:
-        return f"{receiver}.lower()"
-    return None
+    return _translate_case_conversion_call(node, receiver, "lower", arg_nodes, ctx)
 
 
 def _translate_to_upper_case_call(
@@ -562,9 +621,7 @@ def _translate_to_upper_case_call(
     args: str,
     ctx: TranslationContext,
 ) -> str | None:
-    if not args:
-        return f"{receiver}.upper()"
-    return None
+    return _translate_case_conversion_call(node, receiver, "upper", arg_nodes, ctx)
 
 
 def _translate_compare_to_call(
@@ -801,6 +858,7 @@ _STATIC_CALL_TRANSLATORS: dict[str, StaticCallTranslator] = {
 _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "charValue": _translate_char_value_call,
     "charAt": _translate_char_at_call,
+    "codePointAt": _translate_code_point_at_call,
     "clone": _translate_clone_call,
     "compareTo": _translate_compare_to_call,
     "contains": _translate_contains_call,

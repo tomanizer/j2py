@@ -53,28 +53,9 @@ class ResidualGap:
 
 # Generated-output defects in the rule-layer translation of ``CaseUtils``. Each is a real
 # translator bug, patched here only so the upstream-derived oracle can run end-to-end.
-_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
-    ResidualGap(
-        gap_id="CT-2",
-        module="CaseUtils",
-        summary=(
-            "String.toLowerCase(Locale.ROOT) is not lowered to str.lower(); it emits a "
-            "non-existent str.to_lower_case(Locale.ROOT) call and leaves Locale unbound."
-        ),
-        bad="        str_ = str_.to_lower_case(Locale.ROOT)",
-        good="        str_ = str_.lower()",
-    ),
-    ResidualGap(
-        gap_id="CT-3",
-        module="CaseUtils",
-        summary=(
-            "String.codePointAt(index) is not lowered to ord(str[index]); it emits a "
-            "non-existent str.code_point_at(index) call."
-        ),
-        bad="            code_point = str_.code_point_at(index)",
-        good="            code_point = ord(str_[index])",
-    ),
-)
+# CT-1 (String(int[], offset, count) lowering), CT-2 (locale-qualified toLowerCase), and
+# CT-3 (String.codePointAt) have all been fixed at the rule layer, so no patches remain.
+_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = ()
 
 
 class _StringUtils:
