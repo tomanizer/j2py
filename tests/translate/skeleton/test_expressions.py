@@ -1586,6 +1586,47 @@ def test_anonymous_class_field_initializer_captures_outer_field() -> None:
     assert_valid_python(result.source)
 
 
+def test_anonymous_java_iterator_implements_python_iterator_protocol() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        import java.util.Iterator;
+
+        final class IteratorFactory {
+            public Iterator<Integer> iterator() {
+                return new Iterator<Integer>() {
+                    private int index = 0;
+
+                    public boolean hasNext() {
+                        return index < 1;
+                    }
+
+                    public Integer next() {
+                        index++;
+                        return index;
+                    }
+                };
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "class _J2pyAnonymous1(Iterator):" in result.source
+    assert "def __iter__(self):" in result.source
+    assert "def __next__(self):" in result.source
+    assert "return self.next_()" in result.source
+    assert not result.diagnostics.unhandled
+    assert_valid_python(result.source)
+
+    namespace: dict[str, object] = {}
+    exec(compile(result.source, "<translated-iterator>", "exec"), namespace)
+    iterator = namespace["IteratorFactory"]().iterator()  # type: ignore[index, operator]
+    assert iter(iterator) is iterator
+    assert next(iterator) == 1
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+
 def test_anonymous_class_qualified_access_does_not_mask_outer_field_reference() -> None:
     """Qualified same-name fields do not hide separate simple outer-field reads."""
     result = translate_source_with_diagnostics(

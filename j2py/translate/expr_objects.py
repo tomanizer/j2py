@@ -291,6 +291,22 @@ def _translate_anonymous_class(
         )
         wrote_member = True
 
+    method_names: set[str] = set()
+    for method in methods:
+        name_node = method.child_by_field("name")
+        if name_node is not None:
+            method_names.add(
+                translate_method_name(
+                    name_node.text,
+                    snake_case=ctx.cfg.snake_case_methods,
+                ),
+            )
+    if base_name == "Iterator" and {"has_next", "next_"} <= method_names:
+        if wrote_member:
+            helper_lines.append("")
+        helper_lines.extend(_anonymous_iterator_protocol_lines())
+        wrote_member = True
+
     ctx.class_method_return_types = previous_return_types
 
     if not wrote_member:
@@ -303,6 +319,22 @@ def _translate_anonymous_class(
         reason="translated anonymous class as local helper class",
     )
     return f"{helper_name}({args})"
+
+
+def _anonymous_iterator_protocol_lines(
+    *,
+    def_indent: str = "            ",
+    body_indent: str = "                ",
+) -> list[str]:
+    return [
+        f"{def_indent}def __iter__(self):",
+        f"{body_indent}return self",
+        "",
+        f"{def_indent}def __next__(self):",
+        f"{body_indent}if not self.has_next():",
+        f"{body_indent}    raise StopIteration",
+        f"{body_indent}return self.next_()",
+    ]
 
 
 def _anonymous_helper_init_lines(
