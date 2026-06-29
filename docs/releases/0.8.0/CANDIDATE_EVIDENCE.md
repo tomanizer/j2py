@@ -136,8 +136,9 @@ The clean Spring install verified the `spring` extra runtime imports. Existing p
 tests cover the dependency split and default-import boundary in
 `tests/packaging/test_pyproject_dependencies.py`.
 
-## Pre-tag checklist
+## Pre-tag checklist result
 
-No package-install blocker was found in this verification. Before tagging 0.8.0:
+No package-install blocker was found in this verification. The GitHub Release tag was
+created only after the final release PR was green and merged.
 
-- Create the GitHub release tag only after the final release PR is green and merged.
+Satisfied checklist item: Create the GitHub release tag only after the final release PR is green and merged.
