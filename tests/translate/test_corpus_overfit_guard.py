@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from tests.conftest import CORPUS_CONSTRUCT_FIXTURES, TARGET_FIXTURES
@@ -35,12 +36,13 @@ def _fixture_stems() -> set[str]:
 def test_core_rule_layer_does_not_reference_corpus_fixture_stems() -> None:
     """Corpus examples should drive general rules, not fixture-name branches."""
     forbidden = _fixture_stems()
+    assert forbidden, "expected at least one corpus fixture stem to guard against"
     hits: list[str] = []
 
     for source_file in CORE_SOURCE_FILES:
         text = source_file.read_text(encoding="utf-8")
         for stem in sorted(forbidden):
-            if stem in text:
+            if re.search(rf"\b{re.escape(stem)}\b", text):
                 hits.append(f"{source_file.relative_to(REPO_ROOT)} contains {stem!r}")
 
     assert not hits
