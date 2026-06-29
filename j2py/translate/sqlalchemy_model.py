@@ -13,7 +13,9 @@ from j2py.translate.diagnostics import TranslationDiagnostics
 from j2py.translate.framework_annotations import (
     annotation_map_entry,
     annotation_simple_name,
-    annotation_template_values,
+    annotation_values,
+    has_annotation,
+    parse_annotation_int,
 )
 from j2py.translate.java_types import java_type_simple_name
 from j2py.translate.rules.naming import translate_field_name
@@ -81,7 +83,7 @@ def _is_entity_node(node: JavaNode, cfg: TranslationConfig) -> bool:
 
 
 def _table_name(node: JavaNode, class_name: str) -> str:
-    table = _annotation_values(node, _TABLE_ANNOTATIONS)
+    table = annotation_values(node, _TABLE_ANNOTATIONS)
     explicit = table.get("name") or table.get("value")
     return explicit if explicit else translate_field_name(class_name, snake_case=True)
 
@@ -90,7 +92,7 @@ def _column_field_lines(field: FieldInfo, diagnostics: TranslationDiagnostics) -
     diagnostics.record(field.node, supported=True, reason="translated JPA column to SQLAlchemy")
     diagnostics.imports.need_line("from sqlalchemy.orm import mapped_column")
 
-    column_values = _annotation_values(field.node, _COLUMN_ANNOTATIONS)
+    column_values = annotation_values(field.node, _COLUMN_ANNOTATIONS)
     args: list[str] = []
     kwargs: list[str] = []
 
@@ -100,12 +102,12 @@ def _column_field_lines(field: FieldInfo, diagnostics: TranslationDiagnostics) -
 
     if _is_string_field(field):
         diagnostics.imports.need_line("from sqlalchemy import String")
-        length = _parse_int(column_values.get("length"))
+        length = parse_annotation_int(column_values.get("length"))
         args.append(f"String({length})" if length is not None else "String")
 
-    if _has_annotation(field.node, _ID_ANNOTATIONS):
+    if has_annotation(field.node, _ID_ANNOTATIONS):
         kwargs.append("primary_key=True")
-    if _has_annotation(field.node, _GENERATED_VALUE_ANNOTATIONS):
+    if has_annotation(field.node, _GENERATED_VALUE_ANNOTATIONS):
         kwargs.append("autoincrement=True")
 
     nullable = _nullable_value(field, column_values)
@@ -113,7 +115,7 @@ def _column_field_lines(field: FieldInfo, diagnostics: TranslationDiagnostics) -
         kwargs.append(f"nullable={nullable}")
 
     is_nullable = nullable is True or (
-        nullable is None and not _has_annotation(field.node, _ID_ANNOTATIONS)
+        nullable is None and not has_annotation(field.node, _ID_ANNOTATIONS)
     )
     annotation = _mapped_annotation(field, nullable=is_nullable)
     call_args = [*args, *kwargs]
@@ -137,7 +139,7 @@ def _relationship_field_lines(
     target = _relationship_target(field, entity_table_names)
     if target is None:
         target = _relationship_type_name(field)
-    join_column = _annotation_values(field.node, _JOIN_COLUMN_ANNOTATIONS)
+    join_column = annotation_values(field.node, _JOIN_COLUMN_ANNOTATIONS)
     if target is not None and join_column:
         diagnostics.imports.need_line("from sqlalchemy import ForeignKey")
         diagnostics.imports.need_line("from sqlalchemy.orm import mapped_column")
@@ -166,7 +168,7 @@ def _relationship_annotation_text(field: FieldInfo, target: str | None) -> str:
 
 
 def _relationship_args(field: FieldInfo) -> list[str]:
-    values = _annotation_values(field.node, _RELATIONSHIP_ANNOTATIONS)
+    values = annotation_values(field.node, _RELATIONSHIP_ANNOTATIONS)
     args: list[str] = []
     mapped_by = values.get("mappedBy")
     if mapped_by:
@@ -220,7 +222,7 @@ def _nullable_value(field: FieldInfo, column_values: dict[str, str]) -> bool | N
     explicit = _bool_value(column_values.get("nullable"))
     if explicit is not None:
         return explicit
-    if _has_annotation(field.node, _ID_ANNOTATIONS):
+    if has_annotation(field.node, _ID_ANNOTATIONS):
         return None
     if is_required_field(field):
         return False
@@ -244,26 +246,6 @@ def _local_annotation_type_names(root: JavaNode) -> set[str]:
         if name_node is not None:
             names.add(name_node.text)
     return names
-
-
-def _annotation_values(node: JavaNode, names: frozenset[str]) -> dict[str, str]:
-    for annotation in annotation_nodes(node):
-        if annotation_simple_name(annotation) in names:
-            return annotation_template_values(annotation)
-    return {}
-
-
-def _has_annotation(node: JavaNode, names: frozenset[str]) -> bool:
-    return any(annotation_simple_name(annotation) in names for annotation in annotation_nodes(node))
-
-
-def _parse_int(value: str | None) -> int | None:
-    if value is None:
-        return None
-    try:
-        return int(value.replace("_", ""))
-    except ValueError:
-        return None
 
 
 def _bool_value(value: str | None) -> bool | None:
