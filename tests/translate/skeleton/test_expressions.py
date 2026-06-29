@@ -2571,6 +2571,32 @@ def test_ambiguous_get_invocation_drops_coverage() -> None:
     assert_valid_python(result.source)
 
 
+def test_get_after_contains_key_uses_remembered_map_receiver() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Calls<K> {
+            private K rowKey;
+
+            public Object lookup() {
+                if (backingMap.containsKey(rowKey)) {
+                    return backingMap.get(rowKey);
+                }
+                return null;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert "if backing_map.contains_key(self.row_key):" in result.source
+    assert "return backing_map.get(self.row_key)" in result.source
+    assert not any(
+        item.reason == "ambiguous get invocation requires receiver collection type"
+        for item in result.diagnostics.unhandled
+    )
+    assert_valid_python(result.source)
+
+
 def test_immutable_list_field_get_uses_indexing() -> None:
     python_source, coverage = translate_source(
         """

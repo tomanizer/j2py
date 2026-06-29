@@ -661,9 +661,11 @@ def _anonymous_method_lines(
     previous_in_method = ctx.in_method
     previous_allow_helpers = ctx.allow_local_helpers
     previous_outer_self_alias = ctx.outer_self_alias
+    previous_map_like_receiver_names = set(ctx.map_like_receiver_names)
     ctx.local_names = set()
     ctx.param_names = set()
     ctx.spread_param_names = set()
+    ctx.map_like_receiver_names = set()
     for param in params:
         ctx.param_names.add(param.raw_name)
         if param.is_spread:
@@ -708,5 +710,6 @@ def _anonymous_method_lines(
         ctx.in_method = previous_in_method
         ctx.allow_local_helpers = previous_allow_helpers
         ctx.outer_self_alias = previous_outer_self_alias
+        ctx.map_like_receiver_names = previous_map_like_receiver_names
 
     return lines
