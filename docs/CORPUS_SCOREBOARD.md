@@ -8,6 +8,11 @@ The harness measures rule-layer progress against several libraries plus a small 
 construct mini-corpus. Presets live in `scripts/corpus/corpus_presets.py`; committed
 baselines live under `tests/fixtures/corpus/`.
 
+Corpus scoreboards are **regression and triage signals**. They are not proof that a rule
+is semantically correct or broadly general. A corpus-driven rule change should first be
+reduced into a focused fixture/target/equivalence contract, then checked against the
+originating corpus preset to confirm the broad signal improved.
+
 ## Multi-library presets
 
 | Preset | Library | Modules (summary) | Committed baseline | Construct mix |
@@ -83,6 +88,10 @@ also run in `make check` via `tests/targets/`. See
 Because this directory is part of committed corpus baselines, deferred strict-xfail
 targets and corpus-derived fast regressions that should not change baselines belong under
 `tests/fixtures/java/targets/` instead.
+
+Do not make rule-layer changes that special-case one construct fixture, source filename,
+or upstream class solely to move a scoreboard row. Promotion work should generalize the
+construct family and prove that with focused fixtures before refreshing a baseline.
 
 ## Setup
 

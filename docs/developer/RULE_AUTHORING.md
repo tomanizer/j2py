@@ -49,6 +49,24 @@ construct family.
 Prefer one fixture per semantic behavior. If a Java syntax feature has several semantic
 shapes, add separate fixtures or a parametrized test rather than one huge example.
 
+## Corpus-Motivated Rules
+
+Corpus scoreboards are breadth signals, not product scope. When a corpus run exposes a
+gap, reduce the failing source to the smallest construct family before changing the rule
+layer.
+
+For corpus-motivated fixes:
+
+- do not branch on fixture filenames, fixture class names, or one upstream library class;
+- add at least one small non-corpus variant, or a parametrized test over the same pattern
+  family, unless the change is already covered by an equivalence/behavior fixture;
+- prefer `tests/fixtures/java/targets/` for reduced corpus probes that should not affect
+  committed corpus baselines;
+- keep `tests/fixtures/corpus/constructs/` for graduated mini-corpus coverage that should
+  participate in baseline scoreboards;
+- run the relevant corpus check after the focused fixture gate so the original evidence
+  improves without hiding a different failure.
+
 ## Diagnostics And Confidence
 
 Rule coverage is tracked by `TranslationDiagnostics` in
@@ -104,4 +122,5 @@ change, not just a different failure shape.
 - New imports are emitted through `ImportSet`, not hand-spliced into output text.
 - Name conversion uses `translate_field_name`, `translate_method_name`, or nearby helpers.
 - The fixture fails before the implementation and passes after it.
+- Corpus-motivated changes prove the pattern with more than the original corpus example.
 - The relevant gate from this guide has been run locally.
