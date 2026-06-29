@@ -10,7 +10,13 @@ from collections.abc import Callable
 
 import pytest
 
-from j2py.translate.runtime import __j2py_todo__, _j2py_idiv, _j2py_monitor, overloaded
+from j2py.translate.runtime import (
+    RuntimeException,
+    __j2py_todo__,
+    _j2py_idiv,
+    _j2py_monitor,
+    overloaded,
+)
 from j2py.translate.runtime.j2py_runtime import _j2py_monitor_registry
 
 
@@ -24,6 +30,15 @@ def test_idiv_truncates_toward_zero() -> None:
 def test_idiv_rejects_zero_divisor() -> None:
     with pytest.raises(ZeroDivisionError):
         _j2py_idiv(1, 0)
+
+
+def test_runtime_exception_exposes_throwable_get_message() -> None:
+    exc = RuntimeException("boom")
+
+    assert isinstance(exc, Exception)
+    assert exc.get_message() == "boom"
+    assert RuntimeException().get_message() == ""
+    assert RuntimeException("message", ValueError("cause")).get_message() == "message"
 
 
 class TypeReference:

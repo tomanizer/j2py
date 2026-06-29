@@ -231,6 +231,23 @@ def test_implicit_java_lang_type_does_not_become_same_package_import() -> None:
     assert "return (left > right) - (left < right)" in result.source
 
 
+def test_java_lang_runtime_exception_superclass_maps_to_builtin_exception() -> None:
+    parsed = parse_source(
+        """
+        package com.example;
+
+        public class CustomFailure extends RuntimeException {
+        }
+        """,
+    )
+    result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)
+
+    ast.parse(result.source)
+    assert "from com.example.RuntimeException import RuntimeException" not in result.source
+    assert "from j2py_runtime import RuntimeException" in result.source
+    assert "class CustomFailure(RuntimeException):" in result.source
+
+
 def test_anonymous_comparator_fixture_has_no_bogus_platform_imports() -> None:
     parsed = parse_file(FIXTURES / "llm" / "AnonymousComparator.java")
     result = translate_skeleton_with_diagnostics(parsed, extract_symbols(parsed), CFG)

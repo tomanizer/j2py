@@ -308,6 +308,7 @@ def translate_class(
     class_bases = base_suffix(
         node,
         diagnostics,
+        cfg=cfg,
         resolver=resolver,
         scope=base_scope,
         extra_bases=extra_bases,
