@@ -86,13 +86,12 @@ remove the corresponding patch and update this table.
 
 | Gap id | Module | Generated-output defect |
 |---|---|---|
-| `CODEC-HEX-5` | `Hex` | Java `%,d` format tokens are not normalized for Python `%` formatting. |
 | `CODEC-HEX-14` | `Hex` | A Java `void` overload dispatcher branch delegates, then falls through to `TypeError`. |
 
 ## Follow-ups
 
-1. Promote the remaining format-token and dispatcher fall-through issues into general
-   rule-layer fixes with small Java/Python fixture pairs.
+1. Promote the remaining dispatcher fall-through issue into a general rule-layer fix
+   with small Java/Python fixture pairs.
 2. Add a bounded `ByteBuffer` stub or rule-layer support only when a test genuinely needs
    position/limit behavior.
 3. Expand the oracle to instance `encode` / `decode` after `String.getBytes`,

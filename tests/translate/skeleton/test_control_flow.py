@@ -431,6 +431,27 @@ def test_try_catch_finally_and_throw_use_exception_map() -> None:
     assert_valid_python(python_source)
 
 
+def test_throw_message_normalizes_java_decimal_grouping_format() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Exceptions {
+            public void check(int index) {
+                throw new IllegalArgumentException("index %,d out of range", index);
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert 'raise ValueError("index %d out of range", index)' in result.source
+    assert "%,d" not in result.source
+    assert_valid_python(result.source)
+    exceptions = _load_translated_class(result.source, "Exceptions")
+    with pytest.raises(ValueError):
+        exceptions().check(1000)
+
+
 def test_throw_constructor_preserves_non_cause_args_and_spread_parameter() -> None:
     python_source, coverage = translate_source(
         """
