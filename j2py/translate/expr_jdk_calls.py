@@ -8,13 +8,14 @@ from typing import TypeAlias
 
 from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
+from j2py.translate.expr_types import infer_expression_py_type
 from j2py.translate.java_types import (
     java_expression_type,
     java_type_simple_name,
-    java_type_strip_one_array_dimension,
 )
 from j2py.translate.rules.literals import normalize_java_format_literal_expr
 from j2py.translate.rules.naming import _receiver_simple_name
+from j2py.translate.rules.types import is_list_like_type
 
 StaticCallTranslator: TypeAlias = Callable[
     [JavaNode, str, list[JavaNode], list[str], TranslationContext],
@@ -313,12 +314,14 @@ def _translate_clone_call(
 ) -> str | None:
     if args or not receiver_nodes:
         return None
-    receiver_type = java_expression_type(receiver_nodes[0], ctx)
-    if receiver_type is None:
-        return None
-    if java_type_strip_one_array_dimension(receiver_type) is None:
+    if not _is_array_or_list_like_receiver(receiver_nodes[0], ctx):
         return None
     return f"list({receiver})"
+
+
+def _is_array_or_list_like_receiver(node: JavaNode, ctx: TranslationContext) -> bool:
+    inferred_type = infer_expression_py_type(node, ctx)
+    return inferred_type is not None and is_list_like_type(inferred_type)
 
 
 def _translate_equals_call(
