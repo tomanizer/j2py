@@ -916,6 +916,18 @@ def _defaulted_parameters(
         if default is None:
             signature_params.append(param)
             continue
+        if param.is_spread and default.text == "None":
+            signature_params.append(param)
+            omitted_name = f"_j2py_{param.py_name}_omitted"
+            sentinel_lines.append(f"        {omitted_name} = len({param.py_name}) == 0")
+            sentinel_lines.append(
+                f"        if len({param.py_name}) == 1 and "
+                f"isinstance({param.py_name}[0], (list, tuple)):"
+            )
+            sentinel_lines.append(f"            {param.py_name} = tuple({param.py_name}[0])")
+            sentinel_lines.append(f"        if {omitted_name}:")
+            sentinel_lines.append(f"            {param.py_name} = None")
+            continue
         if default.is_literal:
             signature_params.append(param)
             defaults[param.py_name] = default.text

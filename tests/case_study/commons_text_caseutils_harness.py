@@ -1,7 +1,8 @@
-"""End-to-end case-study harness for Apache Commons Text ``CaseUtils`` (issue #657).
+# ruff: noqa: E501
+"""End-to-end case-study harness for Apache Commons Text string utilities (issue #657).
 
-The harness translates the scoped Commons Text source with the deterministic rule layer
-only (``use_llm=False``), links the translated class into one namespace, and supplies
+The harness translates the scoped Commons Text sources with the deterministic rule layer
+only (``use_llm=False``), links the translated classes into one namespace, and supplies
 small external stubs for JDK / commons-lang3 symbols outside the tested library behavior.
 
 Residual translator patches are declared explicitly in ``_RESIDUAL_GAP_PATCHES``. Those
@@ -31,6 +32,7 @@ JAVA_DIR = (
 _CFG = ConfigLoader().add_defaults().build()
 
 _LINK_ORDER = ("CaseUtils",)
+_WORDUTILS_LINK_ORDER = ("WordUtils",)
 
 
 @dataclass(frozen=True)
@@ -51,23 +53,148 @@ class ResidualGap:
     good: str
 
 
-# Generated-output defects in the rule-layer translation of ``CaseUtils``. Each is a real
-# translator bug, patched here only so the upstream-derived oracle can run end-to-end.
+# Generated-output defects in the rule-layer translation. Each is a real translator bug,
+# patched here only so the upstream-derived oracle can run end-to-end.
 # CT-1 (String(int[], offset, count) lowering), CT-2 (locale-qualified toLowerCase), and
 # CT-3 (String.codePointAt) have all been fixed at the rule layer, so no patches remain.
 _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = ()
 
+_WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
+    ResidualGap(
+        gap_id="WU-2",
+        module="WordUtils",
+        summary=(
+            "Internal forwarding from capitalizeFully(String, char...) passes the varargs "
+            "tuple as one delimiter instead of spreading it."
+        ),
+        bad="""        return str_ if StringUtils.is_empty(str_) else WordUtils.capitalize(str_.lower(), delimiters)""",
+        good="""        return str_ if StringUtils.is_empty(str_) else (WordUtils.capitalize(str_.lower()) if delimiters is None else WordUtils.capitalize(str_.lower(), delimiters))""",
+    ),
+    ResidualGap(
+        gap_id="WU-4",
+        module="WordUtils",
+        summary=(
+            "Character case predicates and conversions on int code points lower to Python "
+            "string APIs on integers, including no-argument Character.lower()/upper() calls."
+        ),
+        bad="""        is_delimiter = None
+        if delimiters is None or len(delimiters) == 0:
+            is_delimiter = lambda value: value is not None and len(value) == 1 and value.isspace() if delimiters is None else lambda c: False
+        else:
+            delimiter_set: set[int] = set()
+            for index in range(0, len(delimiters)):
+                delimiter_set.add(Character.code_point_at(delimiters, index))
+            is_delimiter = delimiter_set.__contains__
+        return is_delimiter""",
+        good="""        is_delimiter = None
+        if delimiters is None or len(delimiters) == 0:
+            is_delimiter = Character.is_whitespace if delimiters is None else lambda c: False
+        else:
+            delimiter_set: set[int] = set()
+            for index in range(0, len(delimiters)):
+                delimiter_set.add(Character.code_point_at(delimiters, index))
+            is_delimiter = delimiter_set.__contains__
+        return is_delimiter""",
+    ),
+    ResidualGap(
+        gap_id="WU-4",
+        module="WordUtils",
+        summary=(
+            "Character case predicates and conversions on int code points lower to Python "
+            "string APIs on integers, including no-argument Character.lower()/upper() calls."
+        ),
+        bad="""            if (len(old_codepoint) == 1 and old_codepoint.isupper()) or Character.is_title_case(old_codepoint):
+                new_code_point = ord(chr(old_codepoint).lower())
+                whitespace = False
+            elif (len(old_codepoint) == 1 and old_codepoint.islower()):
+                if whitespace:
+                    new_code_point = Character.to_title_case(old_codepoint)
+                    whitespace = False
+                else:
+                    new_code_point = Character.to_upper_case(old_codepoint)
+            else:
+                whitespace = (len(old_codepoint) == 1 and old_codepoint.isspace())
+                new_code_point = old_codepoint""",
+        good="""            if Character.is_upper_case(old_codepoint) or Character.is_title_case(old_codepoint):
+                new_code_point = Character.to_lower_case(old_codepoint)
+                whitespace = False
+            elif Character.is_lower_case(old_codepoint):
+                if whitespace:
+                    new_code_point = Character.to_title_case(old_codepoint)
+                    whitespace = False
+                else:
+                    new_code_point = Character.to_upper_case(old_codepoint)
+            else:
+                whitespace = Character.is_whitespace(old_codepoint)
+                new_code_point = old_codepoint""",
+    ),
+    ResidualGap(
+        gap_id="WU-6",
+        module="WordUtils",
+        summary=(
+            "The collapsed isDelimiter overload dispatcher rejects null delimiter arrays "
+            "and uses string-only APIs on int code points."
+        ),
+        bad="""        if len(args) == 2 and isinstance(args[0], str) and len(args[0]) == 1 and isinstance(args[1], list) and all(isinstance(value, str) and len(value) == 1 for value in args[1]):
+            ch = args[0]
+            delimiters = args[1]
+            if delimiters is None:
+                return (len(ch) == 1 and ch.isspace())
+            for delimiter in delimiters:
+                if ch == delimiter:
+                    return True
+            return False
+        if len(args) == 2 and isinstance(args[0], int) and not isinstance(args[0], bool) and isinstance(args[1], list) and all(isinstance(value, str) and len(value) == 1 for value in args[1]):
+            code_point = args[0]
+            delimiters = args[1]
+            from org.apache.commons.text.Character import Character
+
+            if delimiters is None:
+                return (len(code_point) == 1 and code_point.isspace())
+            for index in range(0, len(delimiters)):
+                delimiter_code_point = Character.code_point_at(delimiters, index)
+                if delimiter_code_point == code_point:
+                    return True
+            return False
+        raise TypeError("is_delimiter overload dispatch failed")""",
+        good="""        if len(args) == 2:
+            value, delimiters = args
+            code_point = ord(value) if isinstance(value, str) else value
+            if delimiters is None:
+                return Character.is_whitespace(code_point)
+            if isinstance(delimiters, tuple):
+                delimiters = list(delimiters)
+            for index in range(0, len(delimiters)):
+                if Character.code_point_at(delimiters, index) == code_point:
+                    return True
+            return False
+        raise TypeError("is_delimiter overload dispatch failed")""",
+    ),
+)
+
 
 class _StringUtils:
-    """commons-lang3 StringUtils, scoped to the predicate CaseUtils uses."""
+    """commons-lang3 StringUtils, scoped to predicates used by the case study."""
+
+    EMPTY = ""
 
     @staticmethod
-    def is_empty(value: str | None) -> bool:
+    def is_empty(value: Any) -> bool:
         return not value
+
+    @staticmethod
+    def is_blank(value: Any) -> bool:
+        return value is None or str(value).strip() == ""
+
+    @staticmethod
+    def default_string(value: str | None) -> str:
+        return "" if value is None else value
 
 
 class _ArrayUtils:
-    """commons-lang3 ArrayUtils, scoped to the predicate CaseUtils uses."""
+    """commons-lang3 ArrayUtils, scoped to predicates used by the case study."""
+
+    EMPTY_CHAR_ARRAY: list[str] = []
 
     @staticmethod
     def is_empty(value: Any) -> bool:
@@ -92,15 +219,59 @@ class _Character:
         return ord(chr(code_point).title()[0])
 
     @staticmethod
+    def to_lower_case(code_point: int) -> int:
+        return ord(chr(code_point).lower())
+
+    @staticmethod
+    def to_upper_case(code_point: int) -> int:
+        return ord(chr(code_point).upper())
+
+    @staticmethod
     def code_point_at(seq: Any, index: int) -> int:
         element = seq[index]
         return element if isinstance(element, int) else ord(element)
+
+    @staticmethod
+    def is_whitespace(code_point: int) -> bool:
+        return chr(code_point).isspace()
+
+    @staticmethod
+    def is_upper_case(code_point: int) -> bool:
+        return chr(code_point).isupper()
+
+    @staticmethod
+    def is_lower_case(code_point: int) -> bool:
+        return chr(code_point).islower()
+
+    @staticmethod
+    def is_title_case(code_point: int) -> bool:
+        return chr(code_point).istitle() and not chr(code_point).isupper()
+
+
+class _Strings:
+    """commons-lang3 Strings.CS, scoped to WordUtils.abbreviate."""
+
+    class CS:
+        @staticmethod
+        def index_of(value: str, search: str, start: int) -> int:
+            return value.find(search, start)
+
+
+class _Validate:
+    """commons-lang3 Validate, scoped to WordUtils.abbreviate."""
+
+    @staticmethod
+    def is_true(condition: bool, message: str) -> None:
+        if not condition:
+            raise ValueError(message)
 
 
 _EXTERNAL_STUBS: dict[str, Any] = {
     "ArrayUtils": _ArrayUtils,
     "Character": _Character,
     "StringUtils": _StringUtils,
+    "Strings": _Strings,
+    "Validate": _Validate,
 }
 
 
@@ -109,6 +280,23 @@ def translate_commons_text_caseutils() -> tuple[dict[str, str], dict[str, Transl
     sources: dict[str, str] = {}
     metrics: dict[str, TranslationMetric] = {}
     for name in _LINK_ORDER:
+        result = translate_file(JAVA_DIR / f"{name}.java", cfg=_CFG, use_llm=False, validate=False)
+        sources[name] = result.python_source
+        metrics[name] = TranslationMetric(
+            file_name=f"{name}.java",
+            coverage=result.diagnostics.coverage,
+            confidence=result.confidence,
+            semantic_warnings=result.diagnostics.semantic_warning_count,
+            todos=result.python_source.count("TODO(j2py)"),
+        )
+    return sources, metrics
+
+
+def translate_commons_text_wordutils() -> tuple[dict[str, str], dict[str, TranslationMetric]]:
+    """Return translated sources and metrics for the scoped Commons Text WordUtils files."""
+    sources: dict[str, str] = {}
+    metrics: dict[str, TranslationMetric] = {}
+    for name in _WORDUTILS_LINK_ORDER:
         result = translate_file(JAVA_DIR / f"{name}.java", cfg=_CFG, use_llm=False, validate=False)
         sources[name] = result.python_source
         metrics[name] = TranslationMetric(
@@ -162,9 +350,14 @@ def _strip_external_imports(source: str) -> str:
     return "\n".join(kept)
 
 
-def _apply_residual_gap_patches(name: str, source: str) -> tuple[str, list[str]]:
+def _apply_residual_gap_patches(
+    name: str,
+    source: str,
+    *,
+    patches: tuple[ResidualGap, ...] = _RESIDUAL_GAP_PATCHES,
+) -> tuple[str, list[str]]:
     applied: list[str] = []
-    for gap in _RESIDUAL_GAP_PATCHES:
+    for gap in patches:
         if gap.module != name:
             continue
         if gap.bad not in source:
@@ -190,5 +383,31 @@ def link_commons_text_caseutils_namespace() -> types.SimpleNamespace:
         CaseUtils=shared["CaseUtils"],
         applied_gaps=applied_gaps,
         metrics=metrics,
-        external_stubs=tuple(sorted(_EXTERNAL_STUBS)),
+        external_stubs=("ArrayUtils", "Character", "StringUtils"),
+    )
+
+
+def link_commons_text_wordutils_namespace() -> types.SimpleNamespace:
+    """Translate and link the scoped Commons Text WordUtils class."""
+    sources, metrics = translate_commons_text_wordutils()
+    shared: dict[str, Any] = dict(_EXTERNAL_STUBS)
+    applied_gaps: list[str] = []
+
+    for name in _WORDUTILS_LINK_ORDER:
+        source, applied = _apply_residual_gap_patches(name, sources[name])
+        source, wordutils_applied = _apply_residual_gap_patches(
+            name,
+            source,
+            patches=_WORDUTILS_RESIDUAL_GAP_PATCHES,
+        )
+        source = _strip_external_imports(source)
+        applied_gaps.extend(applied)
+        applied_gaps.extend(wordutils_applied)
+        exec(compile(source, f"<commons_text_wordutils:{name}>", "exec"), shared)  # noqa: S102
+
+    return types.SimpleNamespace(
+        WordUtils=shared["WordUtils"],
+        applied_gaps=applied_gaps,
+        metrics=metrics,
+        external_stubs=tuple(sorted(k for k in _EXTERNAL_STUBS if not k.startswith("_"))),
     )

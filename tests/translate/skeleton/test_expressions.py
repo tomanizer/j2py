@@ -612,6 +612,7 @@ def test_receiverless_static_calls_qualify_inherited_methods() -> None:
         ("return Integer.MAX_VALUE;", "return 2**31 - 1"),
         ("return Character.valueOf(ch);", "return ch"),
         ("return Character.toString(ch);", "return str(ch)"),
+        ("return Character.toLowerCase(left);", "return ord(chr(left).lower())"),
         ("return Long.parseLong(text);", "return int(text)"),
         ("return Double.parseDouble(text);", "return float(text)"),
         ("return String.valueOf(value);", "return str(value)"),
@@ -2990,6 +2991,34 @@ def test_expression_lambdas_and_method_references_translate() -> None:
     assert "f = lambda left, right: left + right" in python_source
     assert "r = lambda: service.run()" in python_source
     assert "__j2py_todo__" not in python_source
+    assert_valid_python(python_source)
+
+
+def test_predicate_test_and_collection_contains_method_reference_translate() -> None:
+    python_source, coverage = translate_source(
+        """
+        import java.util.HashSet;
+        import java.util.Set;
+        import java.util.function.Predicate;
+
+        public class PredicateCallbacks {
+            public boolean containsKnown(int value) {
+                Set<Integer> values = new HashSet<>();
+                values.add(1);
+                Predicate<Integer> hasValue = values::contains;
+                Predicate<Integer> never = candidate -> false;
+                return hasValue.test(value) && !never.test(value);
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "has_value = values.__contains__" in python_source
+    assert "never = lambda candidate: False" in python_source
+    assert "return has_value(value) and not never(value)" in python_source
+    assert ".test(" not in python_source
+    assert ".contains" not in python_source
     assert_valid_python(python_source)
 
 

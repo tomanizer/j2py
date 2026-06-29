@@ -522,6 +522,51 @@ def test_static_forwarding_overload_merges_defaults() -> None:
     assert_valid_python(result.source)
 
 
+def test_forwarded_null_varargs_default_preserves_explicit_empty_array() -> None:
+    python_source, coverage = translate_source(
+        """
+        public class Words {
+            public static String choose(String value) {
+                return choose(value, null);
+            }
+
+            public static String choose(String value, String... delimiters) {
+                if (delimiters == null) {
+                    return "default";
+                }
+                if (delimiters.length == 0) {
+                    return "empty";
+                }
+                return delimiters[0];
+            }
+
+            public static String runDefault() {
+                return choose("x");
+            }
+
+            public static String runEmpty() {
+                return choose("x", new String[] {});
+            }
+
+            public static String runOne() {
+                return choose("x", "-");
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "_j2py_delimiters_omitted = len(delimiters) == 0" in python_source
+    assert "if _j2py_delimiters_omitted:" in python_source
+    assert_valid_python(python_source)
+    namespace: dict[str, object] = {}
+    exec(compile(python_source, "<words>", "exec"), namespace)
+    words = namespace["Words"]
+    assert words.run_default() == "default"  # type: ignore[attr-defined]
+    assert words.run_empty() == "empty"  # type: ignore[attr-defined]
+    assert words.run_one() == "-"  # type: ignore[attr-defined]
+
+
 def test_same_arity_boxed_wrapper_forwarding_merges_to_implementation() -> None:
     result = translate_source_with_diagnostics(
         """

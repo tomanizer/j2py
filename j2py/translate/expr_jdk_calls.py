@@ -119,6 +119,8 @@ def _translate_character_static_call(
         return args[0]
     if method_name == "toString" and len(args) == 1:
         return f"str({args[0]})"
+    if method_name == "toLowerCase" and len(args) == 1:
+        return f"ord(chr({args[0]}).lower())"
     return _translate_character_char_predicate(node, method_name, arg_nodes, args, ctx)
 
 
@@ -300,6 +302,28 @@ def _translate_contains_call(
         and not raw_receiver.split(".")[-1][:1].isupper()
     ):
         return f"{args} in {receiver}"
+    return None
+
+
+def _translate_predicate_test_call(
+    node: JavaNode,
+    receiver: str,
+    raw_receiver: str,
+    receiver_nodes: list[JavaNode],
+    arg_nodes: list[JavaNode],
+    arg_expressions: list[str],
+    args: str,
+    ctx: TranslationContext,
+) -> str | None:
+    if len(arg_expressions) != 1 or not receiver_nodes:
+        return None
+    receiver_type = java_expression_type(receiver_nodes[0], ctx)
+    if receiver_type is None:
+        receiver_type = ctx.variable_java_types.get(raw_receiver) or ctx.variable_java_types.get(
+            receiver,
+        )
+    if receiver_type is not None and java_type_simple_name(receiver_type) == "Predicate":
+        return f"{receiver}({args})"
     return None
 
 
@@ -921,6 +945,7 @@ _INSTANCE_CALL_TRANSLATORS: dict[str, InstanceCallTranslator] = {
     "length": _translate_len_call,
     "size": _translate_len_call,
     "startsWith": _translate_starts_with_call,
+    "test": _translate_predicate_test_call,
     "substring": _translate_substring_call,
     "toArray": _translate_to_array_call,
     "toCharArray": _translate_to_char_array_call,
