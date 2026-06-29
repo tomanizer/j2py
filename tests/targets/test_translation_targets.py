@@ -46,23 +46,7 @@ class TranslationTarget:
 #     reason="Example construct is not fully supported",
 #     expected_fragments=("expected_python_fragment()",),
 # )
-FUTURE_TARGETS: tuple[TranslationTarget, ...] = (
-    TranslationTarget(
-        fixture="IteratorPostIncrementSubscript.java",
-        fixture_root=TARGET_FIXTURES,
-        tracking="issue-252/jackson-arrayiterator-invalid-python-output",
-        reason=(
-            "Jackson ArrayIterator-style post-increment inside an array subscript "
-            "currently emits invalid Python"
-        ),
-        expected_fragments=(
-            "value = self.values[self.index]",
-            "self.index += 1",
-            "return value",
-        ),
-        forbidden_fragments=("self.values[self.index += 1]", "__j2py_todo__"),
-    ),
-)
+FUTURE_TARGETS: tuple[TranslationTarget, ...] = ()
 GRADUATED_LLM_FIXTURES = ("MultiDimArray.java",)
 GRADUATED_TARGET_FIXTURES = tuple(
     path.name

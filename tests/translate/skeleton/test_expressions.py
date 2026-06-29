@@ -4379,6 +4379,181 @@ def test_update_in_local_var_declaration_is_hoisted() -> None:
     assert_valid_python(src)
 
 
+def test_postfix_update_array_access_materializes_read_before_increment() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class PostfixSubscripts {
+            private int index;
+            private int[] values;
+
+            public PostfixSubscripts(int[] values) {
+                this.values = values;
+                this.index = 0;
+            }
+
+            public int nextValue() {
+                return values[index++];
+            }
+
+            public int storeValue() {
+                int value = values[index++];
+                return value;
+            }
+
+            public int nestedValue(int[] lookup) {
+                return lookup[values[index++]];
+            }
+        }
+        """,
+    )
+
+    src = result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert not result.diagnostics.warnings
+    assert src.count("_j2py_arr_1 = self.values") == 3
+    assert src.count("_j2py_index_1 = self.index") == 3
+    assert src.count("_j2py_value_1 = _j2py_arr_1[_j2py_index_1]") == 3
+    assert src.count("self.index += 1") == 3
+    assert "return _j2py_value_1" in src
+    assert "value = _j2py_value_1" in src
+    assert "return lookup[_j2py_value_1]" in src
+    assert "self.values[self.index += 1]" not in src
+    assert_valid_python(src)
+
+    namespace: dict[str, object] = {}
+    exec(compile(src, "<postfix-subscripts>", "exec"), namespace)
+    instance = namespace["PostfixSubscripts"]([1, 2, 0])
+    assert instance.next_value() == 1  # type: ignore[attr-defined]
+    assert instance.store_value() == 2  # type: ignore[attr-defined]
+    assert instance.nested_value([10, 11, 12]) == 10  # type: ignore[attr-defined]
+    assert instance.index == 3  # type: ignore[attr-defined]
+
+
+def test_varargs_parameters_are_mutable_inside_method_body() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class VarargsMutation {
+            public static Object firstOrDefault(Object... args) {
+                if (args.length == 0) {
+                    args = new Object[] {"fallback"};
+                } else {
+                    args[0] = "changed";
+                }
+                return args[0];
+            }
+
+            public static String message(String template, Object... args) {
+                args[0] = String.valueOf(args[0]);
+                return String.format(template, args);
+            }
+        }
+        """,
+    )
+
+    src = result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "args = list(args[0])" in src
+    assert "args = list(args)" in src
+    assert "args = tuple(args[0])" not in src
+    assert_valid_python(src)
+
+    namespace: dict[str, object] = {}
+    exec(compile(src, "<varargs-mutation>", "exec"), namespace)
+    varargs_mutation = namespace["VarargsMutation"]
+    assert varargs_mutation.first_or_default() == "fallback"  # type: ignore[attr-defined]
+    assert varargs_mutation.first_or_default("old") == "changed"  # type: ignore[attr-defined]
+    assert varargs_mutation.message("%s=%X", "n", 10) == "n=A"  # type: ignore[attr-defined]
+
+
+def test_spread_parameter_format_detection_is_scoped_per_method() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class FormatScope {
+            public static String varargsMessage(String template, Object... args) {
+                return String.format(template, args);
+            }
+
+            public static String singleArgMessage(String template, Object args) {
+                return String.format(template, args);
+            }
+        }
+        """,
+    )
+
+    src = result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "return template % tuple(args)" in src
+    assert src.count("return template % tuple(args)") == 1
+    assert "def single_arg_message(template: str, args: object) -> str:" in src
+    assert "return template % args" in src
+    assert_valid_python(src)
+
+    namespace: dict[str, object] = {}
+    exec(compile(src, "<format-scope>", "exec"), namespace)
+    format_scope = namespace["FormatScope"]
+    assert format_scope.varargs_message("%s=%X", "n", 10) == "n=A"  # type: ignore[attr-defined]
+    assert format_scope.single_arg_message("%s", "ok") == "ok"  # type: ignore[attr-defined]
+
+
+def test_postfix_update_array_access_evaluates_field_target_receiver_once() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class PostfixFieldTarget {
+            private int[] values;
+            private Cursor cursor;
+
+            public int nextFromCursor() {
+                return values[getCursor().index++];
+            }
+
+            private Cursor getCursor() {
+                return cursor;
+            }
+        }
+        """,
+    )
+
+    src = result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "_j2py_arr_1 = self.values" in src
+    assert "_j2py_target_1 = self.get_cursor()" in src
+    assert "_j2py_index_1 = _j2py_target_1.index" in src
+    assert "_j2py_value_1 = _j2py_arr_1[_j2py_index_1]" in src
+    assert "_j2py_target_1.index += 1" in src
+    assert src.count("self.get_cursor()") == 1
+    assert_valid_python(src)
+
+
+def test_postfix_update_array_assignment_lhs_remains_assignable() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class PostfixArrayAssignment {
+            public int writeFirst(int[] output) {
+                int index = 0;
+                output[index++] = 7;
+                return output[0] + index;
+            }
+        }
+        """,
+    )
+
+    src = result.source
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "index += 1" in src
+    assert "output[(index - 1)] = 7" in src
+    assert "_j2py_value_" not in src
+    assert_valid_python(src)
+
+    namespace: dict[str, object] = {}
+    exec(compile(src, "<postfix-array-assignment>", "exec"), namespace)
+    assert namespace["PostfixArrayAssignment"]().write_first([0]) == 8
+
+
 def test_length_field_on_assignment_lhs_is_not_rewritten_to_len_call() -> None:
     result = translate_source_with_diagnostics(
         """

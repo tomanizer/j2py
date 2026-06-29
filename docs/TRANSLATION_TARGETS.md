@@ -137,12 +137,13 @@ Current corpus-derived fast target promotions:
 | `tests/fixtures/java/targets/CorpusArrayTypeMapProbe.java` | `issue-252` | Array type class literals as map keys, promoted from Spring `PropertyEditorRegistrySupport.java`. |
 | `tests/fixtures/java/targets/CorpusAssertStatementProbe.java` | `issue-252` | Java `assert_statement`, promoted from Commons Lang `CachedRandomBits.java`. |
 | `tests/fixtures/java/targets/CorpusMalformedTernaryProbe.java` | `issue-252` | Jackson `InetSocketAddressSerializer.java` nested ternary/string-concat pattern. |
+| `tests/fixtures/java/targets/IteratorPostIncrementSubscript.java` | `issue-252/jackson-arrayiterator-invalid-python-output` | Post-increment expressions used inside array subscripts split into a value read plus a following increment, preserving old-index semantics. |
 
 Current future target backlog:
 
 | Fixture | Tracking | Missing rule-layer support |
 |---|---|---|
-| `tests/fixtures/java/targets/IteratorPostIncrementSubscript.java` | `issue-252/jackson-arrayiterator-invalid-python-output` | Split Java post-increment expressions used inside array subscripts into a value read plus a following increment so generated Python parses and preserves old-index semantics. |
+| _(none)_ | _(none)_ | This empty future-target backlog is intentional while no deferred concrete construct gap has been selected; add a strict `TranslationTarget` when the next unsupported target is identified. |
 
 Current graduated harvest fixtures:
 
