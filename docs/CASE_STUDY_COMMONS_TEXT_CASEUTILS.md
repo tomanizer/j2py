@@ -1,7 +1,7 @@
 # Case study - translating Apache Commons Text CaseUtils and WordUtils end-to-end
 
-Status: **Active** (issue [#657](https://github.com/tomanizer/j2py/issues/657), child
-of external-library epic [#655](https://github.com/tomanizer/j2py/issues/655)).
+Status: **Completed** (issue [#657](https://github.com/tomanizer/j2py/issues/657),
+child of external-library epic [#655](https://github.com/tomanizer/j2py/issues/655)).
 
 This case study is the third external-library closed loop after
 [`java-semver`](CASE_STUDY_JSEMVER.md) and
@@ -19,12 +19,12 @@ It has a tiny dependency closure (`StringUtils.isEmpty`, `ArrayUtils.isEmpty`, a
 `java.lang.Character` statics) and a focused upstream test with literal expected values,
 which is exactly the profile epic #655 asks for.
 
-`WordUtils` is the next step for #657. Its non-regex word/case/initials surface reuses the
-string/code-point primitives from `CaseUtils` but adds Java `Predicate<Integer>` method
-references, overload/varargs forwarding, deprecated overload dispatch, `Strings.CS`, and
-`Validate`. The first expansion intentionally excludes its regex-heavy `containsAllWords`
-and `wrap` methods so the oracle can isolate translator defects before introducing a
-`Pattern`/`Matcher` shim.
+`WordUtils` completed the #657 expansion. Its non-regex word/case/initials surface reuses
+the string/code-point primitives from `CaseUtils` but adds Java `Predicate<Integer>`
+method references, overload/varargs forwarding, deprecated overload dispatch, `Strings.CS`,
+and `Validate`. The first expansion intentionally excludes its regex-heavy
+`containsAllWords` and `wrap` methods so the oracle can isolate translator defects before
+introducing a `Pattern`/`Matcher` shim.
 
 The remaining heavier Commons Text surface is still deferred:
 
@@ -95,7 +95,7 @@ The `WordUtils` expansion is
 [`tests/case_study/test_commons_text_wordutils_case_study.py`](../tests/case_study/test_commons_text_wordutils_case_study.py),
 using the same harness.
 
-Result: **56 / 56 focused tests pass** against the patched linked rule-layer translation
+Result: **56 / 56 focused tests pass** against the linked rule-layer translation
 for the non-regex `WordUtils` surface.
 
 Covered surface:
@@ -179,7 +179,7 @@ Graduated `WordUtils` patches:
 | WU-5 | **Done** | `WordUtils` | `Character.toLowerCase(codePoint)` now preserves the code-point argument and lowers to an int-to-int Python case conversion. |
 | WU-6 | **Done** | `WordUtils` | Value-dispatch overload guards now accept `None` for nullable Java arrays, and the code-point overload uses code-point-aware `Character` lowering. |
 
-## Follow-ups
+## Out of scope
 
 1. ~~CT-1: `String(int[], offset, count)` constructor lowering.~~ **Done.**
 2. ~~CT-2 (locale-qualified `toLowerCase`/`toUpperCase`) and CT-3 (`String.codePointAt`).~~
@@ -190,6 +190,7 @@ Graduated `WordUtils` patches:
    the same change.
 4. ~~Fix WU-2, WU-4, and WU-6 in the rule layer, removing each harness patch as it graduates.~~
    **Done** — `_WORDUTILS_RESIDUAL_GAP_PATCHES` is now empty.
-5. Add a bounded regex/matcher shim or targeted JDK lowering before expanding to
+5. Add a bounded regex/matcher shim or targeted JDK lowering before expanding beyond this
+   completed #657 slice to include
    `containsAllWords` and `wrap`.
 6. Defer `StringEscapeUtils` until the lookup machinery has a clear owner.
