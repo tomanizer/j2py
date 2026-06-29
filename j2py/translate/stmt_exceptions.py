@@ -6,7 +6,7 @@ from j2py.parse.java_ast import JavaNode
 from j2py.translate.diagnostics import TranslationContext
 from j2py.translate.expressions import translate_expression
 from j2py.translate.java_types import java_expression_type, java_type_simple_name
-from j2py.translate.node_utils import direct_children_by_type, first_child_by_type
+from j2py.translate.node_utils import direct_children_by_type, first_child_by_type, unwrap_parens
 from j2py.translate.rules.naming import translate_field_name
 from j2py.translate.rules.types import translate_type
 from j2py.translate.statements import translate_body
@@ -189,8 +189,9 @@ def _translate_exception_constructor_arg(
     is_last: bool,
 ) -> str:
     rendered = translate_expression(arg, ctx)
-    if is_last and arg.type == "identifier" and arg.text in ctx.spread_param_names:
-        return f"*{rendered}"
+    unwrapped = unwrap_parens(arg)
+    if is_last and unwrapped.type == "identifier" and unwrapped.text in ctx.spread_param_names:
+        return f"*{translate_expression(unwrapped, ctx)}"
     return rendered
 
 

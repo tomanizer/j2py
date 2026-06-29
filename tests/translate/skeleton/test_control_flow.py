@@ -438,7 +438,7 @@ def test_throw_constructor_preserves_non_cause_args_and_spread_parameter() -> No
             private int offset;
 
             public void consume(Object lookahead, Object... expected) {
-                throw new UnexpectedElementException(lookahead, offset, expected);
+                throw new UnexpectedElementException(lookahead, offset, (expected));
             }
         }
         """,
