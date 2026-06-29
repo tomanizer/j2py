@@ -108,7 +108,7 @@ def as_str(value: object, *, default: str) -> str:
 
 
 def as_int(value: object, *, default: int) -> int:
-    return value if isinstance(value, int) else default
+    return value if type(value) is int else default
 
 
 def as_bool(value: object, *, default: bool) -> bool:
