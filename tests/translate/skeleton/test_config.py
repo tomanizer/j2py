@@ -317,6 +317,44 @@ def test_static_imported_enum_constant_qualifies_through_enum() -> None:
     assert_valid_python(python_source)
 
 
+def test_wildcard_static_call_qualifies_owner_in_overloaded_member() -> None:
+    # Merged/dispatched overload bodies are built without the per-class wildcard maps,
+    # so a bare static-import call resolves through the file-level owner map instead and
+    # is qualified through its enclosing class.
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import static com.example.Host.Validators.*;
+
+        public class Host {
+            private final int major;
+            private final int minor;
+
+            Host(int major) {
+                this(major, 0);
+            }
+
+            Host(int major, int minor) {
+                this.major = nonNegative(major);
+                this.minor = nonNegative(minor);
+            }
+
+            static class Validators {
+                static int nonNegative(int arg) {
+                    return arg;
+                }
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "self.major = Host.Validators.non_negative(major)" in python_source
+    assert "self.major = non_negative(major)" not in python_source
+    assert_valid_python(python_source)
+
+
 def test_nested_type_reference_in_class_body_stays_bare() -> None:
     # Inside a class body the sibling nested name is a bare local while the enclosing
     # class name is not yet bound, so a class-level reference must NOT be qualified.

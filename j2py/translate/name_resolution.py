@@ -72,6 +72,7 @@ class FileNameBindings:
     compilation_unit_types: set[str] = field(default_factory=set)
     file_type_paths: dict[str, str] = field(default_factory=dict)
     enum_constant_paths: dict[str, str] = field(default_factory=dict)
+    wildcard_static_method_owners: dict[str, str] = field(default_factory=dict)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
 
@@ -294,16 +295,63 @@ def build_file_name_bindings(
     *,
     static_field_aliases: dict[str, str] | None = None,
     static_method_imports: dict[str, str] | None = None,
+    wildcard_static_imports: dict[str, str] | None = None,
+    declared_type_method_return_types: dict[str, dict[str, str]] | None = None,
 ) -> FileNameBindings:
+    compilation_unit_types = {translate_class_name(cls.name) for cls in symbols.classes}
+    file_type_paths = _file_type_paths(symbols)
     return FileNameBindings(
         package_name=symbols.package,
         imported_types=imported_type_bindings(parsed, cfg),
-        compilation_unit_types={translate_class_name(cls.name) for cls in symbols.classes},
-        file_type_paths=_file_type_paths(symbols),
+        compilation_unit_types=compilation_unit_types,
+        file_type_paths=file_type_paths,
         enum_constant_paths=_file_enum_constant_paths(parsed.root),
+        wildcard_static_method_owners=_wildcard_static_method_owners(
+            wildcard_static_imports or {},
+            declared_type_method_return_types or {},
+            file_type_paths,
+            compilation_unit_types,
+        ),
         static_field_aliases=dict(static_field_aliases or {}),
         static_method_imports=dict(static_method_imports or {}),
     )
+
+
+def _wildcard_static_method_owners(
+    wildcard_static_imports: dict[str, str],
+    declared_type_method_return_types: dict[str, dict[str, str]],
+    file_type_paths: dict[str, str],
+    compilation_unit_types: set[str],
+) -> dict[str, str]:
+    """Map a wildcard-static-imported method name to its enclosing-qualified owner.
+
+    ``import static Outer.Validators.*`` lets the source call ``nonNegative(...)`` bare.
+    Most member contexts resolve this through their per-class wildcard maps, but some
+    (merged/dispatched overload bodies) are built without them. Recording the owner at
+    file scope — where the wildcard imports live — lets the call resolve in any context
+    to ``Outer.Validators.non_negative(...)``. Only owners declared in this file are
+    eligible; names that collide across owners are dropped so no owner is guessed.
+    """
+    owners: dict[str, str] = {}
+    collisions: set[str] = set()
+    for simple_owner in wildcard_static_imports:
+        raw_owner = simple_owner.rsplit(".", 1)[-1]
+        py_owner = translate_class_name(raw_owner)
+        owner_path = file_type_paths.get(py_owner)
+        if owner_path is None:
+            if py_owner not in compilation_unit_types:
+                continue
+            owner_path = py_owner
+        method_types = declared_type_method_return_types.get(py_owner)
+        if method_types is None:
+            method_types = declared_type_method_return_types.get(raw_owner, {})
+        for java_method in method_types:
+            if java_method in owners and owners[java_method] != owner_path:
+                collisions.add(java_method)
+            owners[java_method] = owner_path
+    for name in collisions:
+        owners.pop(name, None)
+    return owners
 
 
 def _file_type_paths(symbols: FileSymbols) -> dict[str, str]:

@@ -150,6 +150,15 @@ def _translate_static_or_platform_method_invocation(
             )
             if static_call is not None:
                 return static_call
+    if not parts.receiver_nodes:
+        owner_path = ctx.name_resolver.bindings.wildcard_static_method_owners.get(parts.method_name)
+        if owner_path is not None:
+            py_method = translate_method_name(
+                parts.method_name, snake_case=ctx.cfg.snake_case_methods
+            )
+            return f"{owner_path}.{py_method}({parts.args})"
+
+    if not parts.receiver_nodes and ctx.wildcard_static_imports:
         ctx.diagnostics.warn(
             node,
             reason=(
