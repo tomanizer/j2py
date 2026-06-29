@@ -13,7 +13,13 @@ Covers rule-layer fixes surfaced by the commons-lang ``tuple`` case study
   imports to break the base↔derived circular import cycle (issue #325).
 """
 
+from j2py.translate.class_fields import (
+    _initializer_references_deferred_static_field,
+    _qualify_deferred_static_field_refs,
+)
+from j2py.translate.diagnostics import TranslationContext, TranslationDiagnostics
 from tests.translate.skeleton.helpers import (
+    CFG,
     assert_module_executes,
     assert_valid_python,
     translate_source,
@@ -207,6 +213,39 @@ def test_deferred_static_field_qualification_respects_lambda_shadowing() -> None
         "Shadowed.x = Shadowed()",
     )
     assert_valid_python(python_source)
+
+
+def test_deferred_static_field_qualification_respects_comprehension_shadowing() -> None:
+    ctx = TranslationContext(
+        cfg=CFG,
+        diagnostics=TranslationDiagnostics(),
+        containing_class_name="Shadowed",
+    )
+
+    assert not _initializer_references_deferred_static_field(
+        "[x.copy() for x in values if x.ready]",
+        {"x"},
+    )
+    assert (
+        _qualify_deferred_static_field_refs(
+            "[x.copy() for x in values if x.ready]",
+            ctx,
+            {"x"},
+        )
+        == "[x.copy() for x in values if x.ready]"
+    )
+    assert _initializer_references_deferred_static_field(
+        "[item.copy() for item in x]",
+        {"x"},
+    )
+    assert (
+        _qualify_deferred_static_field_refs(
+            "[item.copy() for item in x]",
+            ctx,
+            {"x"},
+        )
+        == "[item.copy() for item in Shadowed.x]"
+    )
 
 
 def test_same_package_sibling_ref_in_method_body_is_local_import() -> None:

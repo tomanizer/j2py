@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Callable
-from typing import cast
+from typing import TypeVar, cast
 
 from j2py.config.loader import TranslationConfig
 from j2py.framework import FrameworkTransformResult
@@ -30,6 +30,8 @@ from j2py.translate.spring_settings import (
 )
 from j2py.translate.sqlalchemy_model import sqlalchemy_model_field_lines
 from j2py.translate.statements import translate_body
+
+_T = TypeVar("_T")
 
 
 def _class_fields(class_node: JavaNode, cfg: TranslationConfig) -> list[FieldInfo]:
@@ -698,26 +700,16 @@ def _initializer_references_deferred_static_field(
             for field_name in deferred_static_fields
         )
 
-    class DeferredStaticFieldReferenceFinder(ast.NodeVisitor):
+    class DeferredStaticFieldReferenceFinder(_DeferredStaticFieldScopeMixin, ast.NodeVisitor):
         def __init__(self) -> None:
+            _DeferredStaticFieldScopeMixin.__init__(self)
             self.found = False
-            self._local_scopes: list[set[str]] = []
-
-        def _is_shadowed(self, name: str) -> bool:
-            return any(name in scope for scope in reversed(self._local_scopes))
-
-        def _visit_with_scope(self, names: set[str], node: ast.AST) -> None:
-            self._local_scopes.append(names)
-            try:
-                self.visit(node)
-            finally:
-                self._local_scopes.pop()
 
         def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: N802
             for default in [*node.args.defaults, *node.args.kw_defaults]:
                 if default is not None:
                     self.visit(default)
-            self._visit_with_scope(_ast_argument_names(node.args), node.body)
+            self._visit_lambda_body(node.args, lambda: self.visit(node.body))
 
         def visit_ListComp(self, node: ast.ListComp) -> None:  # noqa: N802
             self._visit_comprehension_expression(node.elt, node.generators)
@@ -730,7 +722,7 @@ def _initializer_references_deferred_static_field(
 
         def visit_DictComp(self, node: ast.DictComp) -> None:  # noqa: N802
             self._visit_comprehension_expression(node.key, node.generators)
-            self._visit_with_scope(_comprehension_target_names(node.generators), node.value)
+            self._visit_comprehension_body(node.generators, lambda: self.visit(node.value))
 
         def _visit_comprehension_expression(
             self,
@@ -739,15 +731,14 @@ def _initializer_references_deferred_static_field(
         ) -> None:
             for generator in generators:
                 self.visit(generator.iter)
-            local_names = _comprehension_target_names(generators)
-            self._local_scopes.append(local_names)
-            try:
+
+            def visit_body() -> None:
                 for generator in generators:
                     for condition in generator.ifs:
                         self.visit(condition)
                 self.visit(element)
-            finally:
-                self._local_scopes.pop()
+
+            self._visit_comprehension_body(generators, visit_body)
 
         def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
             if (
@@ -780,19 +771,9 @@ def _qualify_deferred_static_field_refs(
             deferred_static_fields,
         )
 
-    class QualifyDeferredStaticFields(ast.NodeTransformer):
+    class QualifyDeferredStaticFields(_DeferredStaticFieldScopeMixin, ast.NodeTransformer):
         def __init__(self) -> None:
-            self._local_scopes: list[set[str]] = []
-
-        def _is_shadowed(self, name: str) -> bool:
-            return any(name in scope for scope in reversed(self._local_scopes))
-
-        def _visit_with_scope(self, names: set[str], node: ast.AST) -> ast.AST:
-            self._local_scopes.append(names)
-            try:
-                return cast(ast.AST, self.visit(node))
-            finally:
-                self._local_scopes.pop()
+            _DeferredStaticFieldScopeMixin.__init__(self)
 
         def visit_Lambda(self, node: ast.Lambda) -> ast.AST:  # noqa: N802
             node.args.defaults = [self.visit(default) for default in node.args.defaults]
@@ -802,7 +783,7 @@ def _qualify_deferred_static_field_refs(
             ]
             node.body = cast(
                 ast.expr,
-                self._visit_with_scope(_ast_argument_names(node.args), node.body),
+                self._visit_lambda_body(node.args, lambda: self.visit(node.body)),
             )
             return node
 
@@ -826,15 +807,14 @@ def _qualify_deferred_static_field_refs(
         ) -> ast.AST:
             for generator in node.generators:
                 generator.iter = self.visit(generator.iter)
-            local_names = _comprehension_target_names(node.generators)
-            self._local_scopes.append(local_names)
-            try:
+
+            def visit_body() -> None:
                 for generator in node.generators:
                     generator.ifs = [self.visit(condition) for condition in generator.ifs]
                 for element_name in element_names:
                     setattr(node, element_name, self.visit(getattr(node, element_name)))
-            finally:
-                self._local_scopes.pop()
+
+            self._visit_comprehension_body(node.generators, visit_body)
             return node
 
         def visit_Name(self, node: ast.Name) -> ast.AST:  # noqa: N802
@@ -856,6 +836,31 @@ def _qualify_deferred_static_field_refs(
     qualified = QualifyDeferredStaticFields().visit(expression)
     ast.fix_missing_locations(qualified)
     return ast.unparse(qualified)
+
+
+class _DeferredStaticFieldScopeMixin:
+    def __init__(self) -> None:
+        self._local_scopes: list[set[str]] = []
+
+    def _is_shadowed(self, name: str) -> bool:
+        return any(name in scope for scope in reversed(self._local_scopes))
+
+    def _visit_lambda_body(self, arguments: ast.arguments, visit_body: Callable[[], _T]) -> _T:
+        return self._visit_with_scope(_ast_argument_names(arguments), visit_body)
+
+    def _visit_comprehension_body(
+        self,
+        generators: list[ast.comprehension],
+        visit_body: Callable[[], _T],
+    ) -> _T:
+        return self._visit_with_scope(_comprehension_target_names(generators), visit_body)
+
+    def _visit_with_scope(self, names: set[str], visit_body: Callable[[], _T]) -> _T:
+        self._local_scopes.append(names)
+        try:
+            return visit_body()
+        finally:
+            self._local_scopes.pop()
 
 
 def _ast_argument_names(arguments: ast.arguments) -> set[str]:
