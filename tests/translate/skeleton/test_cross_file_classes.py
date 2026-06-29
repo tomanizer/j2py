@@ -173,6 +173,34 @@ def test_method_reference_static_field_dependency_is_deferred_in_order() -> None
     assert_valid_python(python_source)
 
 
+def test_deferred_static_field_qualification_respects_lambda_shadowing() -> None:
+    python_source, coverage = translate_source(
+        """
+        package com.example;
+
+        import java.util.function.Function;
+
+        public class Shadowed {
+            private static final Shadowed x = new Shadowed();
+            private static final Function<Shadowed, Shadowed> mapper = x -> x.copy();
+
+            public Shadowed copy() {
+                return this;
+            }
+        }
+        """,
+    )
+
+    assert coverage == 1.0
+    assert "mapper: Function[Shadowed, Shadowed] = lambda x: x.copy()" in python_source
+    assert "lambda x: Shadowed.x.copy()" not in python_source
+    assert "Shadowed.x = Shadowed()" in python_source
+    assert python_source.index("lambda x: x.copy()") < python_source.index(
+        "Shadowed.x = Shadowed()",
+    )
+    assert_valid_python(python_source)
+
+
 def test_same_package_sibling_ref_in_method_body_is_local_import() -> None:
     # Issue #325: base↔derived circular import. Base.factory() references the derived
     # class (same package, no explicit Java import). That reference must become a
