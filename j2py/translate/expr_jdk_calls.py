@@ -119,6 +119,8 @@ def _translate_character_static_call(
         return args[0]
     if method_name == "toString" and len(args) == 1:
         return f"str({args[0]})"
+    if method_name == "toLowerCase" and len(args) == 1:
+        return f"ord(chr({args[0]}).lower())"
     return _translate_character_char_predicate(node, method_name, arg_nodes, args, ctx)
 
 

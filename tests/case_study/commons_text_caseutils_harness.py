@@ -127,7 +127,7 @@ _WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
             "string APIs on integers, including no-argument Character.lower()/upper() calls."
         ),
         bad="""            if (len(old_codepoint) == 1 and old_codepoint.isupper()) or Character.is_title_case(old_codepoint):
-                new_code_point = Character.lower()
+                new_code_point = ord(chr(old_codepoint).lower())
                 whitespace = False
             elif (len(old_codepoint) == 1 and old_codepoint.islower()):
                 if whitespace:
@@ -150,13 +150,6 @@ _WORDUTILS_RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
             else:
                 whitespace = Character.is_whitespace(old_codepoint)
                 new_code_point = old_codepoint""",
-    ),
-    ResidualGap(
-        gap_id="WU-5",
-        module="WordUtils",
-        summary="Character.toLowerCase(codePoint) lowers to a no-argument Character.lower() call.",
-        bad="""                title_case_code_point = Character.lower()""",
-        good="""                title_case_code_point = Character.to_lower_case(code_point)""",
     ),
     ResidualGap(
         gap_id="WU-6",

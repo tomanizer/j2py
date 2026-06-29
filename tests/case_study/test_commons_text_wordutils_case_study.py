@@ -173,4 +173,4 @@ def test_wordutils_residual_gap_inventory() -> None:
     applied = set(_NS.applied_gaps)
     declared = {gap.gap_id for gap in _WORDUTILS_RESIDUAL_GAP_PATCHES}
     assert applied == declared
-    assert declared == {"WU-2", "WU-3", "WU-4", "WU-5", "WU-6"}
+    assert declared == {"WU-2", "WU-3", "WU-4", "WU-6"}
