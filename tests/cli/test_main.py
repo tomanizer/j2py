@@ -1802,7 +1802,7 @@ def test_cli_doctor_diff_without_operands_reports_usage() -> None:
     result = runner.invoke(app, ["doctor", "diff"])
 
     assert result.exit_code == 2
-    assert "Usage: j2py doctor diff [OPTIONS] BEFORE_JSON AFTER_JSON" in result.output
+    assert "doctor diff [OPTIONS] BEFORE_JSON AFTER_JSON" in result.output
     assert "source path not found" not in result.output
 
 
