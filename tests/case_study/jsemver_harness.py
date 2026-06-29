@@ -84,14 +84,6 @@ _RESIDUAL_GAP_PATCHES: tuple[ResidualGap, ...] = (
         bad="return Arrays.copy_of_range(self.elements, self.offset, len(self.elements))",
         good="return self.elements[self.offset:]",
     ),
-    ResidualGap(
-        gap_id="JSEMVER-6",
-        module="Stream",
-        summary="anonymous java.util.Iterator impl emits Java-style next_/has_next but "
-        "inherits Python's Iterator ABC, so it cannot be instantiated (missing __next__)",
-        bad="class _J2pyAnonymous1(Iterator):",
-        good="class _J2pyAnonymous1:",
-    ),
 )
 
 
