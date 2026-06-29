@@ -392,9 +392,7 @@ def _diagnostic_clusters(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
             )
         ]
         node_types = sorted(
-            node_type
-            for node_type, count in item["node_types"].items()
-            if count > 0
+            node_type for node_type, count in item["node_types"].items() if count > 0
         )
         samples = sorted(
             item["sample_locations"],

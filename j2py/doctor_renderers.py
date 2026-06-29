@@ -62,10 +62,12 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     {_metric("Parse failures", summary["parse_failures"])}
     {_metric("Avg coverage", f"{summary['average_rule_coverage']:.0%}")}
     {_metric("Avg risk", f"{summary['average_risk_score']:.1f}/100")}
-    {_metric(
-        "Risk range",
-        f"{summary['min_risk_score']:.1f}-{summary['max_risk_score']:.1f}",
-    )}
+    {
+        _metric(
+            "Risk range",
+            f"{summary['min_risk_score']:.1f}-{summary['max_risk_score']:.1f}",
+        )
+    }
     {_metric("Semantic warnings", summary["semantic_warnings"])}
     {_metric("Unhandled", summary["unhandled_diagnostics"])}
     {_metric("Unresolved imports", summary["unresolved_imports"])}
@@ -271,10 +273,10 @@ def _diagnostic_cluster_cards(clusters: list[dict[str, Any]]) -> str:
         cards.append(
             f"""
 <article>
-  <h3>{escape(cluster.get('reason', cluster.get('cluster_id', 'diagnostic')))}</h3>
+  <h3>{escape(cluster.get("reason", cluster.get("cluster_id", "diagnostic")))}</h3>
   <p>{occurrence_text}</p>
-  <p><strong>Node types:</strong> {node_types or 'unknown'}.</p>
-  <p><strong>Owner hint:</strong> {owner_hints or 'unknown'}.</p>
+  <p><strong>Node types:</strong> {node_types or "unknown"}.</p>
+  <p><strong>Owner hint:</strong> {owner_hints or "unknown"}.</p>
   <h4>Top files</h4>
   <ul>{files}</ul>
   <h4>Samples</h4>
