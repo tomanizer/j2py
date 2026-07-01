@@ -1911,6 +1911,88 @@ def test_cli_doctor_diff_compares_assessments(tmp_path: Path) -> None:
     assert payload["summary_delta"]["unresolved_imports"] == -1
 
 
+def test_cli_doctor_diff_fail_on_regression_exits_nonzero(tmp_path: Path) -> None:
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    base_file = {
+        "path": "Controller.java",
+        "parse_ok": True,
+        "risk_score": 0.0,
+        "risk_band": "low",
+        "readiness_bucket": "ready",
+        "migration_readiness": {"bucket": "ready_to_translate"},
+        "unresolved_imports": [],
+        "translation": {
+            "rule_coverage": 1.0,
+            "semantic_warnings": [],
+            "unhandled": [],
+            "validation": {"ok": True, "errors": []},
+        },
+    }
+    before.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "before-src",
+                "summary": {
+                    "files": 1,
+                    "average_rule_coverage": 1.0,
+                    "average_risk_score": 0.0,
+                    "max_risk_score": 0.0,
+                    "min_risk_score": 0.0,
+                    "readiness_distribution": [{"bucket": "ready", "files": 1}],
+                    "migration_readiness_distribution": [
+                        {"bucket": "ready_to_translate", "files": 1}
+                    ],
+                },
+                "files": [base_file],
+            }
+        )
+    )
+    regressed_file = {
+        **base_file,
+        "risk_score": 90.0,
+        "risk_band": "critical",
+        "readiness_bucket": "not_ready",
+        "migration_readiness": {"bucket": "parse_blocked"},
+        "translation": {
+            "rule_coverage": 0.0,
+            "semantic_warnings": [],
+            "unhandled": [],
+            "validation": {"ok": False, "errors": ["syntax"]},
+        },
+    }
+    after.write_text(
+        json.dumps(
+            {
+                "schema_version": DOCTOR_SCHEMA_VERSION,
+                "source": "after-src",
+                "summary": {
+                    "files": 1,
+                    "average_rule_coverage": 0.0,
+                    "average_risk_score": 90.0,
+                    "max_risk_score": 90.0,
+                    "min_risk_score": 90.0,
+                    "readiness_distribution": [{"bucket": "not_ready", "files": 1}],
+                    "migration_readiness_distribution": [{"bucket": "parse_blocked", "files": 1}],
+                },
+                "parse_failures": {"added": ["Controller.java"], "removed": []},
+                "files": [regressed_file],
+            }
+        )
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["doctor", "diff", str(before), str(after), "--fail-on-regression"],
+    )
+
+    assert result.exit_code == 1
+    assert "Regression summary: fail" in result.output
+    assert "Top regressed files:" in result.output
+
+
 def test_cli_doctor_diff_rejects_wrong_schema_version(tmp_path: Path) -> None:
     before = tmp_path / "before.json"
     after = tmp_path / "after.json"

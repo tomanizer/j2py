@@ -18,6 +18,13 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     diagnostic_clusters = payload.get("diagnostic_clusters", [])
     high_risk_methods = hotspots.get("highest_risk_methods", [])
     high_risk_method_rows = "\n".join(_high_risk_method_row(item) for item in high_risk_methods)
+    high_risk_file_rows = "\n".join(
+        _high_risk_file_row(item) for item in hotspots.get("highest_risk_files", [])
+    )
+    action_rows = "\n".join(
+        _action_item_row(item) for item in hotspots.get("highest_risk_files", [])
+    )
+    validation = _validation_breakdown(payload["files"])
     annotations = "\n".join(
         f"<li><code>{escape(item['name'])}</code>: {item['count']}</li>"
         for item in payload["annotation_inventory"]
@@ -91,6 +98,38 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
   </section>
   {_project_structure_section(project_structure)}
   <section>
+    <h2>Action Plan Preview</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Risk</th>
+          <th>Readiness</th>
+          <th>Next Action</th>
+        </tr>
+      </thead>
+      <tbody>{action_rows or '<tr><td colspan="4">No action items found.</td></tr>'}</tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Highest-Risk Files</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Risk</th>
+          <th>Band</th>
+          <th>Readiness</th>
+          <th>Coverage</th>
+          <th>Next Action</th>
+        </tr>
+      </thead>
+      <tbody>{
+        high_risk_file_rows or '<tr><td colspan="6">No high-risk files found.</td></tr>'
+    }</tbody>
+    </table>
+  </section>
+  <section>
     <h2>High-Risk Methods</h2>
     <table>
       <thead>
@@ -151,6 +190,16 @@ def render_assessment_html(assessment: DoctorAssessment) -> str:
     <div class="columns">{_diagnostic_cluster_cards(diagnostic_clusters)}</div>
   </section>
   <section>
+    <h2>Validation Breakdown</h2>
+    <div class="summary">
+      {_metric("Included files", validation["included"])}
+      {_metric("Passed", validation["passed"])}
+      {_metric("Failed", validation["failed"])}
+      {_metric("Not included", validation["not_included"])}
+    </div>
+    <div class="columns">{_validation_failure_cards(validation["failures"])}</div>
+  </section>
+  <section>
     <h2>Recommended Next Commands</h2>
     <ul>{commands}</ul>
   </section>
@@ -202,6 +251,10 @@ def render_doctor_diff_text(diff: DoctorDiff) -> str:
     lines.extend(
         [
             "",
+            f"Regression summary: {'pass' if payload['regression_summary']['passed'] else 'fail'}",
+            f"Risk delta: avg {payload['risk_delta']['average_risk_score_delta']:+.1f}, "
+            f"max {payload['risk_delta']['max_risk_score_delta']:+.1f}, "
+            f"regressed files {payload['risk_delta']['regressed_file_count']}",
             f"Parse failures: {len(payload['parse_failures']['removed'])} removed, "
             f"{len(payload['parse_failures']['added'])} added",
             f"Unresolved imports: {len(payload['unresolved_imports']['removed'])} removed, "
@@ -210,8 +263,38 @@ def render_doctor_diff_text(diff: DoctorDiff) -> str:
             f"{len(payload['semantic_warnings']['added'])} added",
             f"Unhandled diagnostics: {len(payload['unhandled_diagnostics']['removed'])} removed, "
             f"{len(payload['unhandled_diagnostics']['added'])} added",
+            f"Diagnostic clusters: {len(payload['diagnostic_clusters']['removed'])} removed, "
+            f"{len(payload['diagnostic_clusters']['added'])} added",
         ]
     )
+    readiness_delta = payload.get("readiness_delta", {}).get("migration", [])
+    if readiness_delta:
+        lines.extend(["", "Migration readiness delta:"])
+        for item in readiness_delta:
+            lines.append(
+                f"  {item['bucket']}: {item['before']} -> {item['after']} ({item['delta']:+})"
+            )
+    config = payload.get("config_suggestions", {})
+    if config:
+        lines.extend(["", "Config suggestions:"])
+        for family in ("import_map", "type_map", "annotation_map"):
+            items = config.get(family, {})
+            lines.append(
+                f"  {family}: {len(items.get('resolved', []))} resolved, "
+                f"{len(items.get('added', []))} added"
+            )
+    if payload.get("validation_status_changes"):
+        lines.extend(["", "Validation status changes:"])
+        for item in payload["validation_status_changes"][:20]:
+            lines.append(f"  {item['path']}: {item['before']} -> {item['after']}")
+    if payload.get("improved_files"):
+        lines.extend(["", "Top improved files:"])
+        for item in payload["improved_files"][:10]:
+            lines.append(_diff_file_line(item))
+    if payload.get("regressed_files"):
+        lines.extend(["", "Top regressed files:"])
+        for item in payload["regressed_files"][:10]:
+            lines.append(_diff_file_line(item))
     changed_files = payload["file_changes"]["changed"]
     if changed_files:
         lines.extend(["", "Changed files:"])
@@ -249,19 +332,43 @@ def _metric(label: str, value: object) -> str:
 def _file_row(item: dict[str, Any]) -> str:
     translation = item["translation"]
     readiness = item.get("migration_readiness", {})
+    risk_band = escape(item["risk_band"])
     return f"""
-<tr>
+<tr class="risk-{risk_band}">
   <td>{escape(item["path"])}</td>
   <td>{escape(item["package"])}</td>
   <td>{"pass" if item["parse_ok"] else "fail"}</td>
   <td>{translation["rule_coverage"]:.0%}</td>
   <td>{item["risk_score"]:.1f}</td>
-  <td>{escape(item["risk_band"])}</td>
+  <td>{risk_band}</td>
   <td>{escape(str(readiness.get("bucket", item["readiness_bucket"])))}</td>
   <td>{escape(str(readiness.get("next_action", "")))}</td>
   <td>{len(translation["semantic_warnings"])}</td>
   <td>{len(translation["unhandled"])}</td>
   <td>{len(item["unresolved_imports"])}</td>
+</tr>"""
+
+
+def _high_risk_file_row(item: dict[str, Any]) -> str:
+    risk_band = escape(str(item.get("risk_band", "")))
+    return f"""
+<tr class="risk-{risk_band}">
+  <td><code>{escape(str(item.get("path", "")))}</code></td>
+  <td>{float(item.get("risk_score", 0.0)):.1f}</td>
+  <td>{risk_band}</td>
+  <td>{escape(str(item.get("migration_bucket", item.get("readiness_bucket", ""))))}</td>
+  <td>{float(item.get("rule_coverage", 0.0)):.0%}</td>
+  <td>{escape(str(item.get("next_action", "")))}</td>
+</tr>"""
+
+
+def _action_item_row(item: dict[str, Any]) -> str:
+    return f"""
+<tr>
+  <td><code>{escape(str(item.get("path", "")))}</code></td>
+  <td>{float(item.get("risk_score", 0.0)):.1f}</td>
+  <td>{escape(str(item.get("migration_bucket", "")))}</td>
+  <td>{escape(str(item.get("next_action", "")))}</td>
 </tr>"""
 
 
@@ -412,6 +519,61 @@ def _hotspot_value(item: dict[str, Any]) -> str:
     return ""
 
 
+def _validation_breakdown(files: list[dict[str, Any]]) -> dict[str, Any]:
+    failures: list[dict[str, Any]] = []
+    breakdown: dict[str, Any] = {
+        "included": 0,
+        "passed": 0,
+        "failed": 0,
+        "not_included": 0,
+        "failures": failures,
+    }
+    for item in files:
+        translation = item.get("translation", {})
+        validation = translation.get("validation") if isinstance(translation, dict) else None
+        if validation is None:
+            breakdown["not_included"] += 1
+            continue
+        breakdown["included"] += 1
+        if isinstance(validation, dict) and validation.get("ok") is True:
+            breakdown["passed"] += 1
+        else:
+            breakdown["failed"] += 1
+            failures.append(
+                {
+                    "path": item.get("path", ""),
+                    "errors": validation.get("errors", []) if isinstance(validation, dict) else [],
+                }
+            )
+    return breakdown
+
+
+def _validation_failure_cards(failures: list[dict[str, Any]]) -> str:
+    if not failures:
+        return "<article><p>No validation failures reported.</p></article>"
+    cards = []
+    for item in failures[:8]:
+        errors = "\n".join(
+            f"<li><code>{escape(str(error))}</code></li>" for error in item.get("errors", [])[:5]
+        )
+        cards.append(
+            f"""
+<article>
+  <h3>{escape(str(item.get("path", "")))}</h3>
+  <ul>{errors or "<li>No error details.</li>"}</ul>
+</article>"""
+        )
+    return "\n".join(cards)
+
+
+def _diff_file_line(item: dict[str, Any]) -> str:
+    return (
+        f"  {item['path']}: coverage {item['rule_coverage_delta']:+.3f}, "
+        f"risk {item['risk_score_delta']:+.1f}, "
+        f"readiness {item['migration_bucket_before']} -> {item['migration_bucket_after']}"
+    )
+
+
 _ASSESSMENT_CSS = """
 :root {
   color-scheme: light;
@@ -468,4 +630,7 @@ th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 8px; }
 th { color: var(--muted); font-weight: 600; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 li span { color: var(--muted); }
+.risk-high td, .risk-critical td { background: #fff4ed; }
+.risk-medium td { background: #fffbed; }
+.risk-low td { background: #f8fbff; }
 """
