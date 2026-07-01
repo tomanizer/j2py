@@ -174,7 +174,9 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
     return out
 
 
-_FOR_INITIALIZER_TYPES = frozenset({"local_variable_declaration", "assignment_expression"})
+_FOR_INITIALIZER_TYPES = frozenset(
+    {"local_variable_declaration", "assignment_expression", "update_expression"},
+)
 _FOR_UPDATE_TYPES = frozenset({"update_expression", "assignment_expression"})
 _FOR_EXPRESSION_CLAUSE_TYPES = frozenset(
     {

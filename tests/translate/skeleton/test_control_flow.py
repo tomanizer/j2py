@@ -278,6 +278,29 @@ def test_for_statement_expression_initializer_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_for_statement_update_initializer_translates() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int findNext(int index, int maxIndex) {
+                for (index++; index < maxIndex; index++) {
+                    if (index > 3) {
+                        return index;
+                    }
+                }
+                return -1;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "index += 1" in result.source
+    assert "while index < max_index:" in result.source
+    assert_valid_python(result.source)
+
+
 def test_for_statement_multiple_assignment_initializers_translates() -> None:
     result = translate_source_with_diagnostics(
         """
