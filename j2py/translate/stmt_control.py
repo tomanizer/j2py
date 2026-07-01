@@ -153,7 +153,12 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
         out.extend(_translate_for_initializer(initializer, ctx, indent=indent))
 
     if condition is not None:
-        while_expr = translate_expression(condition, ctx)
+        if condition.type in {"assignment_expression", "update_expression"}:
+            from j2py.translate.expr_assignments import _desugar_embedded_assign
+
+            while_expr = _desugar_embedded_assign(condition, ctx)
+        else:
+            while_expr = translate_expression(condition, ctx)
         out.extend(_flush_hoisted_pre_stmts(ctx, indent))
     else:
         ctx.diagnostics.warn(
@@ -205,12 +210,7 @@ def _peel_for_initializers(rest: list[JavaNode]) -> list[JavaNode]:
 
 def _leading_update_is_initializer(rest: list[JavaNode]) -> bool:
     """Disambiguate ``for (i++; i < n; i++)`` from ``for (;; i++)``."""
-    return (
-        len(rest) >= 3
-        and rest[0].type == "update_expression"
-        and rest[1].type not in _FOR_UPDATE_TYPES
-        and _is_for_update_like(rest[2])
-    )
+    return len(rest) >= 3 and rest[0].type == "update_expression" and _is_for_update_like(rest[2])
 
 
 def _initializer_supports_range_loop(initializer: JavaNode) -> bool:
@@ -232,23 +232,45 @@ def _traditional_for_parts(
     if body.type != "block":
         return None
 
-    rest = list(children[:-1])
-    initializers = _peel_for_initializers(rest)
-
-    if not rest:
-        return initializers, None, [], body
-
-    if len(rest) == 1:
-        clause = rest[0]
-        if _is_strict_for_update(clause):
-            return initializers, None, [clause], body
-        return initializers, clause, [], body
-
-    condition = rest[0]
-    updates = rest[1:]
+    clauses = _for_statement_clauses(node)
+    if clauses is None:
+        return None
+    initializers, condition_nodes, updates = clauses
+    if len(condition_nodes) > 1:
+        return None
+    condition = condition_nodes[0] if condition_nodes else None
     if not all(_is_for_update_like(node) for node in updates):
         return None
     return initializers, condition, updates, body
+
+
+def _for_statement_clauses(
+    node: JavaNode,
+) -> tuple[list[JavaNode], list[JavaNode], list[JavaNode]] | None:
+    clauses: list[list[JavaNode]] = [[], [], []]
+    clause_index = 0
+    inside_header = False
+    for child in node.children:
+        if child.text == "(":
+            inside_header = True
+            continue
+        if child.text == ")":
+            break
+        if not inside_header:
+            continue
+        if child.text == ",":
+            continue
+        if child.type == "local_variable_declaration":
+            clauses[0].append(child)
+            clause_index = 1
+            continue
+        if child.text == ";":
+            clause_index += 1
+            if clause_index > 2:
+                return None
+            continue
+        clauses[clause_index].append(child)
+    return clauses[0], clauses[1], clauses[2]
 
 
 def _is_strict_for_update(node: JavaNode) -> bool:

@@ -301,6 +301,34 @@ def test_for_statement_update_initializer_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_for_statement_update_initializer_allows_assignment_condition() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public boolean check(int index) {
+                return index > 3;
+            }
+
+            public int findNext(int index) {
+                boolean done;
+                for (index++; done = check(index); index++) {
+                    if (done) {
+                        return index;
+                    }
+                }
+                return -1;
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "index += 1" in result.source
+    assert "while (done := self.check(index)):" in result.source
+    assert_valid_python(result.source)
+
+
 def test_for_statement_update_only_clause_stays_loop_update() -> None:
     result = translate_source_with_diagnostics(
         """
