@@ -301,6 +301,28 @@ def test_for_statement_update_initializer_translates() -> None:
     assert_valid_python(result.source)
 
 
+def test_for_statement_update_only_clause_stays_loop_update() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        public class Loops {
+            public int findNext(int index) {
+                for (;; index++) {
+                    if (index > 3) {
+                        return index;
+                    }
+                }
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not _malformed_for_diagnostics(result)
+    assert "while True:" in result.source
+    assert result.source.index("while True:") < result.source.index("index += 1")
+    assert_valid_python(result.source)
+
+
 def test_for_statement_multiple_assignment_initializers_translates() -> None:
     result = translate_source_with_diagnostics(
         """

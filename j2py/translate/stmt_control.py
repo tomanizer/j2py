@@ -174,9 +174,7 @@ def _translate_for(node: JavaNode, ctx: TranslationContext, *, indent: str) -> l
     return out
 
 
-_FOR_INITIALIZER_TYPES = frozenset(
-    {"local_variable_declaration", "assignment_expression", "update_expression"},
-)
+_FOR_INITIALIZER_TYPES = frozenset({"local_variable_declaration", "assignment_expression"})
 _FOR_UPDATE_TYPES = frozenset({"update_expression", "assignment_expression"})
 _FOR_EXPRESSION_CLAUSE_TYPES = frozenset(
     {
@@ -195,11 +193,24 @@ def _peel_for_initializers(rest: list[JavaNode]) -> list[JavaNode]:
         if rest[0].type in _FOR_INITIALIZER_TYPES or rest[0].type == "expression_statement":
             initializers.append(rest.pop(0))
             continue
+        if _leading_update_is_initializer(rest):
+            initializers.append(rest.pop(0))
+            continue
         if len(rest) >= 2 and rest[0].type in _FOR_EXPRESSION_CLAUSE_TYPES:
             initializers.append(rest.pop(0))
             continue
         break
     return initializers
+
+
+def _leading_update_is_initializer(rest: list[JavaNode]) -> bool:
+    """Disambiguate ``for (i++; i < n; i++)`` from ``for (;; i++)``."""
+    return (
+        len(rest) >= 3
+        and rest[0].type == "update_expression"
+        and rest[1].type not in _FOR_UPDATE_TYPES
+        and _is_for_update_like(rest[2])
+    )
 
 
 def _initializer_supports_range_loop(initializer: JavaNode) -> bool:
