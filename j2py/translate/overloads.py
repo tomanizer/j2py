@@ -573,6 +573,7 @@ def translate_overloaded_members(
         )
     fallback_return = "None" if members[0].type == "constructor_declaration" else "object"
     is_static = "static" in _modifiers(members[0])
+    fallback_params = "*args: object" if is_static else "self, *args: object"
     if branch_targets:
         char_dispatch = _manual_char_string_erasure_dispatcher(
             members,
@@ -592,6 +593,36 @@ def translate_overloaded_members(
                 )
             lines.extend(char_dispatch)
             return lines
+        if _has_body_backed_numeric_width_helpers(classification, branch_targets):
+            for member in members:
+                diagnostics.record(
+                    member,
+                    supported=True,
+                    reason="translated numeric-width overload body with ambiguous public dispatch",
+                    category=manual_category,
+                    facts=manual_facts,
+                )
+                diagnostics.warn(
+                    member,
+                    reason=manual_reason,
+                    category=manual_category,
+                    facts=manual_facts,
+                )
+            if is_static:
+                lines.append("    @staticmethod")
+            lines.append(f"    def {name}({fallback_params}) -> {fallback_return}:")
+            if docstring_lines:
+                lines.extend(docstring_lines)
+                lines.append("")
+            lines.append(
+                f"        # j2py warning: overloaded method {name} has source-proven body helpers.",
+            )
+            lines.append(
+                "        # Direct Python calls cannot distinguish Java numeric widths "
+                "that erase to int.",
+            )
+            lines.append(f'        raise TypeError("{name} overload dispatch is ambiguous")')
+            return lines
     for member in members:
         diagnostics.record(
             member,
@@ -602,7 +633,6 @@ def translate_overloaded_members(
         )
     if is_static:
         lines.append("    @staticmethod")
-    fallback_params = "*args: object" if is_static else "self, *args: object"
     lines.append(f"    def {name}({fallback_params}) -> {fallback_return}:")
     if docstring_lines:
         lines.extend(docstring_lines)
@@ -615,6 +645,18 @@ def translate_overloaded_members(
     lines.append(f"        # {manual_reason}")
     lines.append('        raise NotImplementedError("j2py overload dispatch required")')
     return lines
+
+
+def _has_body_backed_numeric_width_helpers(
+    classification: OverloadClassification,
+    branch_targets: list[JavaOverloadCallTarget],
+) -> bool:
+    """Whether every unsafe numeric-width branch has a translated helper body."""
+    if not branch_targets:
+        return False
+    if not _numeric_width_boundary_note(classification.java_type_shape_signatures):
+        return False
+    return len(branch_targets) == len(classification.java_type_shape_signatures)
 
 
 def _manual_overload_branch_helpers(
