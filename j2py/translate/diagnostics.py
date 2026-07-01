@@ -257,6 +257,7 @@ class TranslationContext:
     variable_types: dict[str, str] = field(default_factory=dict)
     variable_java_types: dict[str, str] = field(default_factory=dict)
     expression_aliases: dict[str, str] = field(default_factory=dict)
+    map_like_receiver_names: set[str] = field(default_factory=set)
     static_field_aliases: dict[str, str] = field(default_factory=dict)
     static_method_imports: dict[str, str] = field(default_factory=dict)
     static_member_bindings: dict[str, JavaMemberBinding] = field(default_factory=dict)

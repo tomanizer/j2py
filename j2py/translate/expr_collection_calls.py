@@ -14,6 +14,8 @@ from j2py.translate.rules.types import (
     is_map_like_type,
 )
 
+_MAP_RECEIVER_EVIDENCE_METHODS = {"containsKey", "containsValue", "entrySet", "keySet"}
+
 
 def translate_collection_method_invocation(
     node: JavaNode,
@@ -27,6 +29,9 @@ def translate_collection_method_invocation(
     args: str,
     ctx: TranslationContext,
 ) -> str | None:
+    if method_name in _MAP_RECEIVER_EVIDENCE_METHODS and receiver:
+        _remember_map_like_receiver(raw_receiver, ctx)
+
     if method_name == "add" and receiver:
         from j2py.translate.expr_types import _expression_py_type, _is_list_type
 
@@ -69,6 +74,9 @@ def _translate_get_invocation(
     if receiver_nodes and _receiver_get_method_would_collide(receiver_nodes[0], ctx):
         return f"{receiver}.get({args})"
 
+    if _is_remembered_map_like_receiver(raw_receiver, ctx):
+        return f"{receiver}.get({args})"
+
     typed_result = _translate_typed_get_invocation(receiver, receiver_nodes, args, ctx)
     if typed_result is not None:
         return typed_result
@@ -87,6 +95,22 @@ def _translate_get_invocation(
         },
     )
     return f"{receiver}.get({args})"
+
+
+def _remember_map_like_receiver(raw_receiver: str, ctx: TranslationContext) -> None:
+    if not raw_receiver:
+        return
+    ctx.map_like_receiver_names.add(raw_receiver)
+    ctx.map_like_receiver_names.add(raw_receiver.rsplit(".", 1)[-1])
+
+
+def _is_remembered_map_like_receiver(raw_receiver: str, ctx: TranslationContext) -> bool:
+    if not raw_receiver:
+        return False
+    return (
+        raw_receiver in ctx.map_like_receiver_names
+        or raw_receiver.rsplit(".", 1)[-1] in ctx.map_like_receiver_names
+    )
 
 
 def _receiver_get_method_would_collide(
