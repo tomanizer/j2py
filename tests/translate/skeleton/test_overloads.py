@@ -263,7 +263,7 @@ def test_generic_bounded_return_typevars_are_preserved_for_overload_groups() -> 
     assert validation.ok, validation.ruff_errors + validation.mypy_errors
 
 
-def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
+def test_static_erasure_collisions_keep_ambiguous_public_fallback() -> None:
     result = translate_source_with_diagnostics(
         """
         public class StaticOver {
@@ -274,12 +274,14 @@ def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
     )
 
     python_source = result.source
-    assert result.coverage < 1.0
+    assert result.coverage == 1.0
     assert "@overload" in python_source
     assert "@overloaded" not in python_source
     assert "def width(*args: object) -> object:" in python_source
-    assert "TODO(j2py): overloaded method width requires manual dispatch" in python_source
-    reasons = {item.reason for item in result.diagnostics.unhandled}
+    assert "j2py warning: overloaded method width has source-proven body helpers" in python_source
+    assert 'raise TypeError("width overload dispatch is ambiguous")' in python_source
+    assert not result.diagnostics.unhandled
+    reasons = {item.reason for item in result.diagnostics.warnings}
     assert any(
         reason.startswith("overloaded method width requires manual dispatch")
         and "erased=(int)|(int)" in reason
@@ -287,10 +289,10 @@ def test_static_erasure_collisions_keep_manual_dispatch_fallback() -> None:
         and "Java numeric widths erase to one Python runtime int" in reason
         for reason in reasons
     )
-    assert {item.category for item in result.diagnostics.unhandled} == {
+    assert {item.category for item in result.diagnostics.warnings} == {
         "unsafe_numeric_width_boundary"
     }
-    assert all(item.facts["method"] == "width" for item in result.diagnostics.unhandled)
+    assert all(item.facts["method"] == "width" for item in result.diagnostics.warnings)
     assert_valid_python(python_source)
 
 
@@ -314,12 +316,80 @@ def test_declared_numeric_width_call_sites_use_body_backed_overload_helpers() ->
         """,
     )
 
-    assert result.coverage < 1.0
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
     assert "def _j2py_overload_pick_1(value: int) -> int:" in result.source
     assert "def _j2py_overload_pick_2(value: int) -> int:" in result.source
     assert "return Widths._j2py_overload_pick_2(value)" in result.source
     assert "return Widths._j2py_overload_pick_1(value)" in result.source
-    assert "TODO(j2py): overloaded method pick requires manual dispatch" in result.source
+    assert "j2py warning: overloaded method pick has source-proven body helpers" in result.source
+    assert 'raise TypeError("pick overload dispatch is ambiguous")' in result.source
+    assert {item.category for item in result.diagnostics.warnings} == {
+        "unsafe_numeric_width_boundary"
+    }
+    assert_valid_python(result.source)
+
+
+def test_contiguous_set_numeric_width_factories_keep_helpers_and_warn() -> None:
+    result = translate_source_with_diagnostics(
+        """
+        class Range {
+            static Range closed(int lower, int upper) { return null; }
+            static Range closedOpen(int lower, int upper) { return null; }
+        }
+
+        class DiscreteDomain {
+            static DiscreteDomain integers() { return null; }
+            static DiscreteDomain longs() { return null; }
+        }
+
+        public class ContiguousSetFactory {
+            public static Object create(Range range, DiscreteDomain domain) {
+                return range;
+            }
+
+            public static Object closed(int lower, int upper) {
+                return create(Range.closed(lower, upper), DiscreteDomain.integers());
+            }
+
+            public static Object closed(long lower, long upper) {
+                return create(Range.closed(lower, upper), DiscreteDomain.longs());
+            }
+
+            public static Object closedOpen(int lower, int upper) {
+                return create(Range.closedOpen(lower, upper), DiscreteDomain.integers());
+            }
+
+            public static Object closedOpen(long lower, long upper) {
+                return create(Range.closedOpen(lower, upper), DiscreteDomain.longs());
+            }
+        }
+        """,
+    )
+
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "def _j2py_overload_closed_1(lower: int, upper: int) -> object:" in result.source
+    assert "def _j2py_overload_closed_2(lower: int, upper: int) -> object:" in result.source
+    assert ("def _j2py_overload_closed_open_1(lower: int, upper: int) -> object:") in result.source
+    assert ("def _j2py_overload_closed_open_2(lower: int, upper: int) -> object:") in result.source
+    assert "j2py warning: overloaded method closed has source-proven body helpers" in result.source
+    assert (
+        "j2py warning: overloaded method closed_open has source-proven body helpers"
+    ) in result.source
+    assert 'raise TypeError("closed overload dispatch is ambiguous")' in result.source
+    assert 'raise TypeError("closed_open overload dispatch is ambiguous")' in result.source
+    width_warnings = [
+        item
+        for item in result.diagnostics.warnings
+        if item.category == "unsafe_numeric_width_boundary"
+    ]
+    assert [item.facts["method"] for item in width_warnings] == [
+        "closed",
+        "closed",
+        "closed_open",
+        "closed_open",
+    ]
     assert_valid_python(result.source)
 
 
@@ -928,9 +998,9 @@ def test_static_annotated_varargs_overloads_dispatch_after_parameter_recovery() 
     assert_valid_python(result.source)
 
 
-def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
+def test_erasure_collided_overloads_keep_ambiguous_public_fallback() -> None:
     """int and long both erase to Python int; runtime dispatch cannot tell them apart."""
-    python_source, coverage = translate_source(
+    result = translate_source_with_diagnostics(
         """
         public class Over {
             public int width(int value) { return value; }
@@ -938,16 +1008,20 @@ def test_erasure_collided_overloads_keep_manual_dispatch_fallback() -> None:
         }
         """,
     )
+    python_source = result.source
 
-    assert coverage < 1.0
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
     assert "@overload" in python_source
     assert "@overloaded" not in python_source
     assert (
-        "TODO(j2py): overloaded method width requires manual dispatch for signatures: "
-        "width(value: int); width(value: int)"
+        "j2py warning: overloaded method width has source-proven body helpers."
     ) in python_source
     assert "def width(self, *args: object) -> object:" in python_source
-    assert 'raise NotImplementedError("j2py overload dispatch required")' in python_source
+    assert 'raise TypeError("width overload dispatch is ambiguous")' in python_source
+    assert {item.category for item in result.diagnostics.warnings} == {
+        "unsafe_numeric_width_boundary"
+    }
     assert_valid_python(python_source)
 
 
@@ -1532,8 +1606,8 @@ def test_equivalent_varargs_erasure_collisions_collapse_to_value_dispatcher() ->
     assert stats.run_varargs() == 7  # type: ignore[attr-defined]
 
 
-def test_varargs_erasure_collision_keeps_manual_dispatch_fallback() -> None:
-    python_source, coverage = translate_source(
+def test_varargs_erasure_collision_keeps_ambiguous_public_fallback() -> None:
+    result = translate_source_with_diagnostics(
         """
         public class Unsafe {
             public static int pick(int... values) {
@@ -1547,16 +1621,21 @@ def test_varargs_erasure_collision_keeps_manual_dispatch_fallback() -> None:
         """,
     )
 
-    assert coverage < 1.0
-    assert "TODO(j2py): overloaded method pick requires manual dispatch" in python_source
-    assert_valid_python(python_source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "j2py warning: overloaded method pick has source-proven body helpers" in result.source
+    assert 'raise TypeError("pick overload dispatch is ambiguous")' in result.source
+    assert {item.category for item in result.diagnostics.warnings} == {
+        "unsafe_numeric_width_boundary"
+    }
+    assert_valid_python(result.source)
 
 
 def test_differing_non_comparison_bodies_do_not_collapse() -> None:
     # Guard: same erased signature but genuinely different (non-comparison) bodies must
-    # still fall back to a manual-dispatch TODO — the comparison collapse must not
-    # over-merge unrelated numeric-width overloads.
-    python_source, coverage = translate_source(
+    # keep separate body helpers and an ambiguous public fallback; the comparison collapse
+    # must not over-merge unrelated numeric-width overloads.
+    result = translate_source_with_diagnostics(
         """
         public class Widths {
             public static int pick(int value) { return value; }
@@ -1565,10 +1644,14 @@ def test_differing_non_comparison_bodies_do_not_collapse() -> None:
         """,
     )
 
-    # The manual-dispatch fallback intentionally leaves the group uncovered (< 1.0).
-    assert coverage < 1.0
-    assert "TODO(j2py): overloaded method pick requires manual dispatch" in python_source
-    assert_valid_python(python_source)
+    assert result.coverage == 1.0
+    assert not result.diagnostics.unhandled
+    assert "j2py warning: overloaded method pick has source-proven body helpers" in result.source
+    assert 'raise TypeError("pick overload dispatch is ambiguous")' in result.source
+    assert {item.category for item in result.diagnostics.warnings} == {
+        "unsafe_numeric_width_boundary"
+    }
+    assert_valid_python(result.source)
 
 
 def test_comparison_collapse_tolerates_comments_braceless_if_and_parens() -> None:
